@@ -1,0 +1,78 @@
+import { Router } from 'express';
+import { db } from '../db/index.js';
+import { categories, categoryGroups } from '../db/schema.js';
+import { eq, sql } from 'drizzle-orm';
+import { nanoid } from 'nanoid';
+import { z } from 'zod';
+
+export const categoriesRouter = Router();
+
+const groupSchema = z.object({
+  name: z.string().min(1),
+  isIncome: z.number().int().min(0).max(1).default(0),
+});
+
+const categorySchema = z.object({
+  groupId: z.string(),
+  name: z.string().min(1),
+});
+
+categoriesRouter.get('/', (_req, res) => {
+  const groups = db.select().from(categoryGroups).orderBy(categoryGroups.sortOrder).all();
+  const cats = db.select().from(categories).orderBy(categories.sortOrder).all();
+  const result = groups.map((g) => ({
+    ...g,
+    categories: cats.filter((c) => c.groupId === g.id),
+  }));
+  res.json(result);
+});
+
+categoriesRouter.post('/groups', (req, res) => {
+  const parsed = groupSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+
+  const countRow = db.select({ count: sql<number>`count(*)` }).from(categoryGroups).get();
+  const group = { id: nanoid(), ...parsed.data, sortOrder: countRow?.count ?? 0, createdAt: new Date().toISOString() };
+  db.insert(categoryGroups).values(group).run();
+  res.status(201).json({ ...group, categories: [] });
+});
+
+categoriesRouter.put('/groups/:id', (req, res) => {
+  const parsed = groupSchema.partial().safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+
+  db.update(categoryGroups).set(parsed.data).where(eq(categoryGroups.id, req.params.id)).run();
+  const updated = db.select().from(categoryGroups).where(eq(categoryGroups.id, req.params.id)).get();
+  if (!updated) return res.status(404).json({ error: 'Not found' });
+  res.json(updated);
+});
+
+categoriesRouter.delete('/groups/:id', (req, res) => {
+  db.delete(categoryGroups).where(eq(categoryGroups.id, req.params.id)).run();
+  res.status(204).send();
+});
+
+categoriesRouter.post('/', (req, res) => {
+  const parsed = categorySchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+
+  const countRow = db.select({ count: sql<number>`count(*)` }).from(categories).where(eq(categories.groupId, parsed.data.groupId)).get();
+  const category = { id: nanoid(), ...parsed.data, sortOrder: countRow?.count ?? 0, createdAt: new Date().toISOString() };
+  db.insert(categories).values(category).run();
+  res.status(201).json(category);
+});
+
+categoriesRouter.put('/:id', (req, res) => {
+  const parsed = categorySchema.partial().safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+
+  db.update(categories).set(parsed.data).where(eq(categories.id, req.params.id)).run();
+  const updated = db.select().from(categories).where(eq(categories.id, req.params.id)).get();
+  if (!updated) return res.status(404).json({ error: 'Not found' });
+  res.json(updated);
+});
+
+categoriesRouter.delete('/:id', (req, res) => {
+  db.delete(categories).where(eq(categories.id, req.params.id)).run();
+  res.status(204).send();
+});

@@ -1,0 +1,184 @@
+import { Router } from 'express';
+import { db } from '../db/index.js';
+import { transactions, accounts, categories, categoryGroups } from '../db/schema.js';
+import { eq, and, gte, lte, sql } from 'drizzle-orm';
+import { monthBounds } from '../utils/date.js';
+
+export const reportsRouter = Router();
+
+function monthRange(from: string, to: string): string[] {
+  const months: string[] = [];
+  const [fy, fm] = from.split('-').map(Number);
+  const [ty, tm] = to.split('-').map(Number);
+  let y = fy, m = fm;
+  while (y < ty || (y === ty && m <= tm)) {
+    months.push(`${y}-${String(m).padStart(2, '0')}`);
+    m++;
+    if (m > 12) { m = 1; y++; }
+  }
+  return months;
+}
+
+reportsRouter.get('/net-worth', (req, res) => {
+  const { from = '2024-01', to = '2026-12' } = req.query as Record<string, string>;
+  const months = monthRange(from, to);
+
+  const allAccounts = db.select().from(accounts).all();
+
+  // Single query: per-account per-month totals up to end of range
+  const txRows = db
+    .select({
+      accountId: transactions.accountId,
+      month: sql<string>`strftime('%Y-%m', ${transactions.date})`,
+      total: sql<number>`coalesce(sum(${transactions.amount}), 0)`,
+    })
+    .from(transactions)
+    .where(lte(transactions.date, monthBounds(to).to))
+    .groupBy(transactions.accountId, sql`strftime('%Y-%m', ${transactions.date})`)
+    .all();
+
+  // Build running cumulative balance per account per month
+  const byAccount: Record<string, Array<{ month: string; total: number }>> = {};
+  for (const row of txRows) {
+    (byAccount[row.accountId] ??= []).push({ month: row.month, total: row.total });
+  }
+
+  const cumulativeByAccount: Record<string, Record<string, number>> = {};
+  for (const acct of allAccounts) {
+    const entries = (byAccount[acct.id] ?? []).sort((a, b) => a.month.localeCompare(b.month));
+    let running = acct.startingBalance;
+    const cumMap: Record<string, number> = {};
+    for (const { month, total } of entries) {
+      running += total;
+      cumMap[month] = running;
+    }
+    cumulativeByAccount[acct.id] = cumMap;
+  }
+
+  function balanceAt(acctId: string, targetMonth: string, startingBalance: number): number {
+    const cumMap = cumulativeByAccount[acctId] ?? {};
+    let balance = startingBalance;
+    for (const m of Object.keys(cumMap).sort()) {
+      if (m > targetMonth) break;
+      balance = cumMap[m];
+    }
+    return balance;
+  }
+
+  const result = months.map((month) => {
+    let assets = 0, liabilities = 0;
+    for (const acct of allAccounts) {
+      const balance = balanceAt(acct.id, month, acct.startingBalance);
+      if (acct.type === 'credit') liabilities += Math.abs(Math.min(balance, 0));
+      else assets += Math.max(balance, 0);
+    }
+    return { month, assets, liabilities, netWorth: assets - liabilities };
+  });
+
+  res.json(result);
+});
+
+reportsRouter.get('/spending-by-category', (req, res) => {
+  const { from, to } = req.query as Record<string, string>;
+  const conditions = [];
+  if (from) conditions.push(gte(transactions.date, monthBounds(from).from));
+  if (to) conditions.push(lte(transactions.date, monthBounds(to).to));
+
+  const rows = db
+    .select({
+      categoryId: transactions.categoryId,
+      categoryName: categories.name,
+      groupName: categoryGroups.name,
+      totalSpent: sql<number>`coalesce(sum(${transactions.amount}), 0)`,
+    })
+    .from(transactions)
+    .leftJoin(categories, eq(transactions.categoryId, categories.id))
+    .leftJoin(categoryGroups, eq(categories.groupId, categoryGroups.id))
+    .where(conditions.length ? and(...conditions) : undefined)
+    .groupBy(transactions.categoryId)
+    .all();
+
+  res.json(rows.filter((r) => r.totalSpent < 0).map((r) => ({ ...r, totalSpent: Math.abs(r.totalSpent) })));
+});
+
+reportsRouter.get('/income-vs-expenses', (req, res) => {
+  const { from = '2024-01', to = '2026-12' } = req.query as Record<string, string>;
+  const months = monthRange(from, to);
+
+  // Single query grouped by month + isIncome
+  const txRows = db
+    .select({
+      month: sql<string>`strftime('%Y-%m', ${transactions.date})`,
+      isIncome: categoryGroups.isIncome,
+      total: sql<number>`coalesce(sum(${transactions.amount}), 0)`,
+    })
+    .from(transactions)
+    .innerJoin(categories, eq(transactions.categoryId, categories.id))
+    .innerJoin(categoryGroups, eq(categories.groupId, categoryGroups.id))
+    .where(and(gte(transactions.date, monthBounds(from).from), lte(transactions.date, monthBounds(to).to)))
+    .groupBy(sql`strftime('%Y-%m', ${transactions.date})`, categoryGroups.isIncome)
+    .all();
+
+  const dataMap: Record<string, { income: number; expenses: number }> = {};
+  for (const row of txRows) {
+    dataMap[row.month] ??= { income: 0, expenses: 0 };
+    if (row.isIncome === 1) dataMap[row.month].income += row.total;
+    else dataMap[row.month].expenses += Math.abs(Math.min(row.total, 0));
+  }
+
+  const result = months.map((month) => {
+    const d = dataMap[month] ?? { income: 0, expenses: 0 };
+    return { month, income: d.income, expenses: d.expenses, net: d.income - d.expenses };
+  });
+
+  res.json(result);
+});
+
+reportsRouter.get('/cash-flow', (req, res) => {
+  const { from = '2024-01', to = '2026-12' } = req.query as Record<string, string>;
+  const months = monthRange(from, to);
+
+  // Single query grouped by month
+  const txRows = db
+    .select({
+      month: sql<string>`strftime('%Y-%m', ${transactions.date})`,
+      net: sql<number>`coalesce(sum(${transactions.amount}), 0)`,
+    })
+    .from(transactions)
+    .innerJoin(accounts, eq(transactions.accountId, accounts.id))
+    .where(and(
+      gte(transactions.date, monthBounds(from).from),
+      lte(transactions.date, monthBounds(to).to),
+      eq(accounts.isOffBudget, 0),
+    ))
+    .groupBy(sql`strftime('%Y-%m', ${transactions.date})`)
+    .all();
+
+  const netMap = Object.fromEntries(txRows.map((r) => [r.month, r.net]));
+  res.json(months.map((month) => ({ month, net: netMap[month] ?? 0 })));
+});
+
+reportsRouter.get('/spending-trends', (req, res) => {
+  const { category_ids, from, to } = req.query as Record<string, string>;
+  if (!category_ids) return res.json([]);
+
+  const ids = category_ids.split(',');
+  const conditions = [];
+  if (from) conditions.push(gte(transactions.date, monthBounds(from).from));
+  if (to) conditions.push(lte(transactions.date, monthBounds(to).to));
+
+  const rows = db
+    .select({
+      categoryId: transactions.categoryId,
+      categoryName: categories.name,
+      month: sql<string>`strftime('%Y-%m', ${transactions.date})`,
+      total: sql<number>`coalesce(sum(${transactions.amount}), 0)`,
+    })
+    .from(transactions)
+    .leftJoin(categories, eq(transactions.categoryId, categories.id))
+    .where(conditions.length ? and(...conditions) : undefined)
+    .groupBy(transactions.categoryId, sql`strftime('%Y-%m', ${transactions.date})`)
+    .all();
+
+  res.json(rows.filter((r) => r.categoryId && ids.includes(r.categoryId)));
+});

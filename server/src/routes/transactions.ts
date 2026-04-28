@@ -1,0 +1,98 @@
+import { Router } from 'express';
+import { db } from '../db/index.js';
+import { transactions, payees } from '../db/schema.js';
+import { eq, and, like, gte, lte, sql } from 'drizzle-orm';
+import { nanoid } from 'nanoid';
+import { z } from 'zod';
+
+export const transactionsRouter = Router();
+
+const createSchema = z.object({
+  accountId: z.string(),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  amount: z.number().int(),
+  payeeId: z.string().nullable().optional(),
+  payeeName: z.string().nullable().optional(),
+  categoryId: z.string().nullable().optional(),
+  notes: z.string().nullable().optional(),
+  cleared: z.number().int().min(0).max(1).default(0),
+});
+
+const updateSchema = createSchema.partial();
+
+transactionsRouter.get('/', (req, res) => {
+  const { account_id, month, from, to, category_id, search, cleared } = req.query as Record<string, string>;
+
+  let query = db.select().from(transactions).$dynamic();
+
+  const conditions = [];
+  if (account_id) conditions.push(eq(transactions.accountId, account_id));
+  if (month) {
+    conditions.push(gte(transactions.date, `${month}-01`));
+    conditions.push(lte(transactions.date, `${month}-31`));
+  }
+  if (from) conditions.push(gte(transactions.date, from));
+  if (to) conditions.push(lte(transactions.date, to));
+  if (category_id) conditions.push(eq(transactions.categoryId, category_id));
+  if (search) conditions.push(like(transactions.payeeName, `%${search}%`));
+  if (cleared === '0' || cleared === '1') conditions.push(eq(transactions.cleared, Number(cleared)));
+
+  if (conditions.length) query = query.where(and(...conditions));
+
+  const limit = Math.min(Number(req.query.limit ?? 200), 1000);
+  const offset = Number(req.query.offset ?? 0);
+
+  const rows = query.orderBy(sql`${transactions.date} desc`).limit(limit).offset(offset).all();
+  res.json(rows);
+});
+
+transactionsRouter.post('/', (req, res) => {
+  const parsed = createSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+
+  const { payeeName, payeeId, ...rest } = parsed.data;
+
+  let resolvedPayeeId = payeeId ?? null;
+  let resolvedPayeeName = payeeName ?? null;
+
+  if (!resolvedPayeeId && payeeName) {
+    const existing = db.select().from(payees).where(eq(payees.name, payeeName)).get();
+    if (existing) {
+      resolvedPayeeId = existing.id;
+    } else {
+      resolvedPayeeId = nanoid();
+      db.insert(payees).values({ id: resolvedPayeeId, name: payeeName, defaultCategoryId: null, createdAt: new Date().toISOString() }).run();
+    }
+    resolvedPayeeName = payeeName;
+  }
+
+  const transaction = {
+    id: nanoid(),
+    ...rest,
+    payeeId: resolvedPayeeId,
+    payeeName: resolvedPayeeName,
+    reconciled: 0,
+    isParent: 0,
+    transferTransactionId: null,
+    parentTransactionId: null,
+    importedId: null,
+    createdAt: new Date().toISOString(),
+  };
+  db.insert(transactions).values(transaction).run();
+  res.status(201).json(transaction);
+});
+
+transactionsRouter.put('/:id', (req, res) => {
+  const parsed = updateSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+
+  db.update(transactions).set(parsed.data).where(eq(transactions.id, req.params.id)).run();
+  const updated = db.select().from(transactions).where(eq(transactions.id, req.params.id)).get();
+  if (!updated) return res.status(404).json({ error: 'Not found' });
+  res.json(updated);
+});
+
+transactionsRouter.delete('/:id', (req, res) => {
+  db.delete(transactions).where(eq(transactions.id, req.params.id)).run();
+  res.status(204).send();
+});
