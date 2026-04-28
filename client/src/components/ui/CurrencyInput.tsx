@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { formatCurrency } from '../../utils/currency';
+import { formatCurrency, parseCents } from '../../utils/currency';
 
 interface Props {
   value: number;
@@ -20,8 +20,7 @@ export function CurrencyInput({ value, onChange, placeholder = '0.00', className
 
   function handleBlur() {
     setFocused(false);
-    const parsed = parseFloat(raw);
-    const cents = isNaN(parsed) ? 0 : Math.round(parsed * 100);
+    const cents = parseCents(raw);
     onChange(allowNegative ? cents : Math.abs(cents));
   }
 
