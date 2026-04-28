@@ -1,25 +1,38 @@
-import { useState, useMemo } from 'react';
-import { format, subMonths } from 'date-fns';
+import { useState, useMemo, useCallback } from 'react';
+import { format, subMonths, parseISO } from 'date-fns';
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, Cell,
+  ResponsiveContainer, Cell, Sankey,
 } from 'recharts';
-import { useNetWorth, useIncomeVsExpenses, useCashFlow, useSpendingByCategory } from '../hooks/useReports';
+import {
+  useNetWorth, useIncomeVsExpenses, useCashFlow,
+  useSpendingByCategory, useIncomeByCategory,
+} from '../hooks/useReports';
 import { formatCurrency, formatCentsAxis } from '../utils/currency';
 
-type Tab = 'net-worth' | 'income' | 'cash-flow' | 'spending';
+type Tab = 'net-worth' | 'income' | 'cash-flow' | 'spending' | 'sankey';
+type NodeType = 'income' | 'hub' | 'expense' | 'savings';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'net-worth', label: 'Net Worth' },
   { id: 'income', label: 'Income & Expenses' },
   { id: 'cash-flow', label: 'Cash Flow' },
   { id: 'spending', label: 'Spending by Category' },
+  { id: 'sankey', label: 'Cash Flow Diagram' },
 ];
 
-function monthLabel(month: string) {
-  const [y, m] = month.split('-');
-  return `${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(m) - 1]} ${y.slice(2)}`;
-}
+const CHART_HEIGHT: Record<Tab, string> = {
+  'net-worth': 'h-72',
+  'income': 'h-72',
+  'cash-flow': 'h-72',
+  'spending': 'h-96',
+  'sankey': 'h-[540px]',
+};
+
+const EXPENSE_COLORS = ['#f59e0b', '#ef4444', '#f97316', '#06b6d4', '#6366f1', '#ec4899', '#84cc16', '#0ea5e9', '#a78bfa', '#fb7185'];
+const MIN_SAVINGS_CENTS = 500; // $5 — suppress trivial rounding-error surpluses
+
+const monthLabel = (month: string) => format(parseISO(`${month}-01`), 'MMM yy');
 
 function CurrencyTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;
@@ -151,6 +164,164 @@ function SpendingChart({ from, to }: { from: string; to: string }) {
   );
 }
 
+function SankeyDiagram({ from, to }: { from: string; to: string }) {
+  const { data: incomeData = [], isLoading: il } = useIncomeByCategory(from, to);
+  const { data: spendingData = [], isLoading: sl } = useSpendingByCategory(from, to);
+  const [tooltip, setTooltip] = useState<{ x: number; y: number; title: string; value: string } | null>(null);
+
+  const sankeyData = useMemo(() => {
+    if (!incomeData.length && !spendingData.length) return null;
+
+    const groupTotals = new Map<string, number>();
+    for (const item of spendingData) {
+      const key = item.groupName ?? 'Uncategorized';
+      groupTotals.set(key, (groupTotals.get(key) ?? 0) + item.totalSpent);
+    }
+    const sortedGroups = [...groupTotals.entries()].sort((a, b) => b[1] - a[1]);
+
+    const totalIncome = incomeData.reduce((sum, c) => sum + c.totalReceived, 0);
+    const totalExpenses = sortedGroups.reduce((sum, [, v]) => sum + v, 0);
+    const savings = totalIncome - totalExpenses;
+
+    const incomeNodes = incomeData.map(c => ({
+      name: c.categoryName ?? 'Income',
+      nodeType: 'income' as NodeType,
+      amount: c.totalReceived,
+      color: '#10b981',
+    }));
+
+    const hubIdx = incomeNodes.length;
+
+    const expenseNodes = sortedGroups.map(([name, amount], i) => ({
+      name,
+      nodeType: 'expense' as NodeType,
+      amount,
+      color: EXPENSE_COLORS[i % EXPENSE_COLORS.length],
+    }));
+
+    const savingsNode = savings > MIN_SAVINGS_CENTS
+      ? [{ name: 'Savings', nodeType: 'savings' as NodeType, amount: savings, color: '#8b5cf6' }]
+      : [];
+
+    const nodes = [
+      ...incomeNodes,
+      { name: 'Total Income', nodeType: 'hub' as NodeType, amount: totalIncome, color: '#3b82f6' },
+      ...expenseNodes,
+      ...savingsNode,
+    ];
+
+    const links = [
+      ...incomeNodes.map((_, i) => ({ source: i, target: hubIdx, value: incomeData[i].totalReceived })),
+      ...sortedGroups.map(([, amount], i) => ({ source: hubIdx, target: hubIdx + 1 + i, value: amount })),
+      ...(savingsNode.length ? [{ source: hubIdx, target: nodes.length - 1, value: savings }] : []),
+    ].filter(l => l.value > 0);
+
+    return links.length ? { nodes, links } : null;
+  }, [incomeData, spendingData]);
+
+  const renderNode = useCallback((props: any) => {
+    const { x, y, width, height, payload } = props;
+    if (!payload || height < 1) return null;
+
+    const { name, nodeType, amount, color } = payload;
+    const isLeft = nodeType === 'income';
+    const labelX = isLeft ? x - 8 : x + width + 8;
+    const anchor = isLeft ? 'end' : 'start';
+    const midY = y + height / 2;
+
+    return (
+      <g
+        onMouseEnter={(e: React.MouseEvent) => setTooltip({ x: e.clientX, y: e.clientY, title: name, value: formatCurrency(amount) })}
+        onMouseLeave={() => setTooltip(null)}
+        style={{ cursor: 'default' }}
+      >
+        <rect x={x} y={y} width={width} height={height} fill={color} rx={3} />
+        <text
+          x={labelX}
+          y={height > 22 ? midY - 6 : midY + 1}
+          textAnchor={anchor}
+          fontSize={11}
+          fill="#374151"
+          fontWeight="500"
+        >
+          {name}
+        </text>
+        {height > 22 && (
+          <text x={labelX} y={midY + 9} textAnchor={anchor} fontSize={10} fill="#9ca3af">
+            {formatCentsAxis(amount)}
+          </text>
+        )}
+      </g>
+    );
+  }, [setTooltip]);
+
+  const renderLink = useCallback((props: any) => {
+    const { sourceX, sourceY, sourceControlX, targetX, targetY, targetControlX, linkWidth, payload } = props;
+    if (!linkWidth || linkWidth < 1) return null;
+
+    const halfW = linkWidth / 2;
+    const color = payload?.target?.color ?? '#94a3b8';
+    const d = [
+      `M${sourceX},${sourceY - halfW}`,
+      `C${sourceControlX},${sourceY - halfW} ${targetControlX},${targetY - halfW} ${targetX},${targetY - halfW}`,
+      `L${targetX},${targetY + halfW}`,
+      `C${targetControlX},${targetY + halfW} ${sourceControlX},${sourceY + halfW} ${sourceX},${sourceY + halfW}`,
+      'Z',
+    ].join(' ');
+
+    const srcName = payload?.source?.name ?? '';
+    const tgtName = payload?.target?.name ?? '';
+    const value = payload?.value ?? 0;
+
+    return (
+      <path
+        d={d}
+        fill={color}
+        fillOpacity={0.2}
+        stroke={color}
+        strokeWidth={0.5}
+        strokeOpacity={0.4}
+        onMouseEnter={(e: React.MouseEvent) => setTooltip({
+          x: e.clientX,
+          y: e.clientY,
+          title: `${srcName} → ${tgtName}`,
+          value: formatCurrency(value),
+        })}
+        onMouseLeave={() => setTooltip(null)}
+        style={{ cursor: 'default' }}
+      />
+    );
+  }, [setTooltip]);
+
+  if (il || sl) return <ChartSkeleton />;
+  if (!sankeyData) return <EmptyState />;
+
+  return (
+    <div className="relative w-full h-full">
+      <ResponsiveContainer width="100%" height="100%">
+        <Sankey
+          data={sankeyData}
+          nodePadding={14}
+          nodeWidth={18}
+          linkCurvature={0.5}
+          margin={{ top: 20, right: 220, left: 220, bottom: 20 }}
+          node={renderNode as any}
+          link={renderLink as any}
+        />
+      </ResponsiveContainer>
+      {tooltip && (
+        <div
+          className="fixed z-50 pointer-events-none bg-white rounded-lg shadow-lg border border-gray-100 px-3 py-2"
+          style={{ left: tooltip.x + 12, top: tooltip.y - 10 }}
+        >
+          <p className="text-xs font-medium text-gray-800">{tooltip.title}</p>
+          <p className="text-xs text-emerald-600 font-medium">{tooltip.value}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ChartSkeleton() {
   return (
     <div className="h-full flex items-center justify-center">
@@ -173,7 +344,7 @@ export default function ReportsPage() {
   const [to, setTo] = useState(() => format(today, 'yyyy-MM'));
   const [activeTab, setActiveTab] = useState<Tab>('net-worth');
 
-  const chartHeight = activeTab === 'spending' ? 'h-96' : 'h-72';
+  const chartHeight = CHART_HEIGHT[activeTab];
 
   return (
     <div className="flex flex-col h-full bg-white">
@@ -223,6 +394,7 @@ export default function ReportsPage() {
           {activeTab === 'income' && <IncomeExpensesChart from={from} to={to} />}
           {activeTab === 'cash-flow' && <CashFlowChart from={from} to={to} />}
           {activeTab === 'spending' && <SpendingChart from={from} to={to} />}
+          {activeTab === 'sankey' && <SankeyDiagram from={from} to={to} />}
         </div>
       </div>
     </div>

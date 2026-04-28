@@ -158,6 +158,29 @@ reportsRouter.get('/cash-flow', (req, res) => {
   res.json(months.map((month) => ({ month, net: netMap[month] ?? 0 })));
 });
 
+reportsRouter.get('/income-by-category', (req, res) => {
+  const { from, to } = req.query as Record<string, string>;
+  const conditions = [eq(categoryGroups.isIncome, 1)];
+  if (from) conditions.push(gte(transactions.date, monthBounds(from).from));
+  if (to) conditions.push(lte(transactions.date, monthBounds(to).to));
+
+  const rows = db
+    .select({
+      categoryId: transactions.categoryId,
+      categoryName: categories.name,
+      groupName: categoryGroups.name,
+      totalReceived: sql<number>`coalesce(sum(${transactions.amount}), 0)`,
+    })
+    .from(transactions)
+    .leftJoin(categories, eq(transactions.categoryId, categories.id))
+    .leftJoin(categoryGroups, eq(categories.groupId, categoryGroups.id))
+    .where(and(...conditions))
+    .groupBy(transactions.categoryId)
+    .all();
+
+  res.json(rows.filter((r) => r.totalReceived > 0));
+});
+
 reportsRouter.get('/spending-trends', (req, res) => {
   const { category_ids, from, to } = req.query as Record<string, string>;
   if (!category_ids) return res.json([]);

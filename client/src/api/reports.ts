@@ -1,5 +1,5 @@
 import { apiFetch } from './client';
-import type { NetWorthPoint, IncomeExpensesPoint, CashFlowPoint, SpendingByCategory } from '../types';
+import type { NetWorthPoint, IncomeExpensesPoint, CashFlowPoint, SpendingByCategory, IncomeByCategoryItem } from '../types';
 
 const qs = (from: string, to: string) => `?from=${from}&to=${to}`;
 
@@ -14,3 +14,6 @@ export const getCashFlow = (from: string, to: string) =>
 
 export const getSpendingByCategory = (from: string, to: string) =>
   apiFetch<SpendingByCategory[]>(`/reports/spending-by-category${qs(from, to)}`);
+
+export const getIncomeByCategory = (from: string, to: string) =>
+  apiFetch<IncomeByCategoryItem[]>(`/reports/income-by-category${qs(from, to)}`);

@@ -12,3 +12,6 @@ export const useCashFlow = (from: string, to: string) =>
 
 export const useSpendingByCategory = (from: string, to: string) =>
   useQuery({ queryKey: ['reports', 'spending-by-category', from, to], queryFn: () => reportsApi.getSpendingByCategory(from, to) });
+
+export const useIncomeByCategory = (from: string, to: string) =>
+  useQuery({ queryKey: ['reports', 'income-by-category', from, to], queryFn: () => reportsApi.getIncomeByCategory(from, to) });
