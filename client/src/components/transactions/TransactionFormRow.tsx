@@ -5,7 +5,7 @@ import { PayeeCombobox } from './PayeeCombobox';
 import { CategorySelect } from './CategorySelect';
 import type { CategoryGroup, Payee, Transaction } from '../../types';
 import type { CreateTransactionData } from '../../api/transactions';
-import { parseCents } from '../../utils/currency';
+import { parseCents, centsToInput } from '../../utils/currency';
 
 interface Props {
   initial?: Transaction;
@@ -17,18 +17,14 @@ interface Props {
   showAccountCol?: boolean;
 }
 
-function centsToStr(cents: number): string {
-  return cents === 0 ? '' : (Math.abs(cents) / 100).toFixed(2);
-}
-
 export function TransactionFormRow({ initial, accountId, groups, payees, onSave, onCancel, showAccountCol }: Props) {
   const today = format(new Date(), 'yyyy-MM-dd');
   const [date, setDate] = useState(initial?.date ?? today);
   const [payee, setPayee] = useState({ id: initial?.payeeId ?? null, name: initial?.payeeName ?? '' });
   const [categoryId, setCategoryId] = useState<string | null>(initial?.categoryId ?? null);
   const [notes, setNotes] = useState(initial?.notes ?? '');
-  const [outflow, setOutflow] = useState(initial?.amount !== undefined && initial.amount < 0 ? centsToStr(initial.amount) : '');
-  const [inflow, setInflow] = useState(initial?.amount !== undefined && initial.amount > 0 ? centsToStr(initial.amount) : '');
+  const [outflow, setOutflow] = useState(initial?.amount !== undefined && initial.amount < 0 ? centsToInput(initial.amount) : '');
+  const [inflow, setInflow] = useState(initial?.amount !== undefined && initial.amount > 0 ? centsToInput(initial.amount) : '');
   const [cleared, setCleared] = useState(Boolean(initial?.cleared));
 
   function handleSave() {

@@ -1,3 +1,7 @@
+export function centsToInput(cents: number): string {
+  return cents === 0 ? '' : (Math.abs(cents) / 100).toFixed(2);
+}
+
 export function parseCents(s: string): number {
   const n = parseFloat(s);
   return isNaN(n) ? 0 : Math.round(n * 100);

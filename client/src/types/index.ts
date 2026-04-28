@@ -61,6 +61,33 @@ export interface TransactionQueryParams {
   offset?: number;
 }
 
+export interface BudgetCategory {
+  id: string;
+  groupId: string;
+  name: string;
+  sortOrder: number;
+  createdAt: string;
+  budgeted: number;
+  spent: number;
+  balance: number;
+}
+
+export interface BudgetGroup {
+  id: string;
+  name: string;
+  isIncome: number;
+  sortOrder: number;
+  createdAt: string;
+  categories: BudgetCategory[];
+}
+
+export interface BudgetSummary {
+  month: string;
+  income: number;
+  totalBudgeted: number;
+  toBeBudgeted: number;
+}
+
 export interface Account {
   id: string;
   name: string;
