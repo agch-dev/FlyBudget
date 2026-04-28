@@ -15,3 +15,10 @@ export function formatCurrency(cents: number): string {
   });
   return cents < 0 ? `-$${formatted}` : `$${formatted}`;
 }
+
+export function formatCentsAxis(cents: number): string {
+  const abs = Math.abs(cents);
+  if (abs >= 100_000_00) return `$${(cents / 100_000_00).toFixed(0)}M`;
+  if (abs >= 1_000_00) return `$${(cents / 1_000_00).toFixed(0)}k`;
+  return `$${(cents / 100).toFixed(0)}`;
+}

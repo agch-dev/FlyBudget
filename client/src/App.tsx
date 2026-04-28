@@ -4,6 +4,7 @@ import AccountsPage from './pages/Accounts';
 import AccountTransactionsPage from './pages/AccountTransactions';
 import BudgetPage from './pages/Budget';
 import TransactionsPage from './pages/Transactions';
+import ReportsPage from './pages/Reports';
 
 function Placeholder({ title }: { title: string }) {
   return (
@@ -26,7 +27,7 @@ export default function App() {
             <Route path="/accounts" element={<AccountsPage />} />
             <Route path="/accounts/:id" element={<AccountTransactionsPage />} />
             <Route path="/transactions" element={<TransactionsPage />} />
-            <Route path="/reports/*" element={<Placeholder title="Reports" />} />
+            <Route path="/reports/*" element={<ReportsPage />} />
             <Route path="/payees" element={<Placeholder title="Payees" />} />
             <Route path="/rules" element={<Placeholder title="Rules" />} />
             <Route path="/settings" element={<Placeholder title="Settings" />} />

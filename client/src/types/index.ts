@@ -99,3 +99,8 @@ export interface Account {
   createdAt: string;
   balance: number;
 }
+
+export interface NetWorthPoint { month: string; assets: number; liabilities: number; netWorth: number; }
+export interface IncomeExpensesPoint { month: string; income: number; expenses: number; net: number; }
+export interface CashFlowPoint { month: string; net: number; }
+export interface SpendingByCategory { categoryId: string | null; categoryName: string | null; groupName: string | null; totalSpent: number; }
