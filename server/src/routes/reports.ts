@@ -203,5 +203,9 @@ reportsRouter.get('/spending-trends', (req, res) => {
     .groupBy(transactions.categoryId, sql`strftime('%Y-%m', ${transactions.date})`)
     .all();
 
-  res.json(rows.filter((r) => r.categoryId && ids.includes(r.categoryId)));
+  res.json(
+    rows
+      .filter((r) => r.categoryId && ids.includes(r.categoryId) && r.total < 0)
+      .map((r) => ({ ...r, total: Math.abs(r.total) }))
+  );
 });

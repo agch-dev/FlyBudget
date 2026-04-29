@@ -105,3 +105,4 @@ export interface IncomeExpensesPoint { month: string; income: number; expenses: 
 export interface CashFlowPoint { month: string; net: number; }
 export interface SpendingByCategory { categoryId: string | null; categoryName: string | null; groupName: string | null; totalSpent: number; }
 export interface IncomeByCategoryItem { categoryId: string | null; categoryName: string | null; groupName: string | null; totalReceived: number; }
+export interface SpendingTrendPoint { categoryId: string; categoryName: string | null; month: string; total: number; }

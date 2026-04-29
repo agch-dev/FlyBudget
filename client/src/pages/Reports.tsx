@@ -1,16 +1,21 @@
-import { useState, useMemo, useCallback } from 'react';
-import { format, subMonths, parseISO } from 'date-fns';
+import { useState, useMemo, useCallback, useEffect } from 'react';
+import { format, subMonths, parseISO, startOfYear, endOfYear, subYears } from 'date-fns';
 import {
-  AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
+  AreaChart, Area, BarChart, Bar, LineChart, Line, Legend,
+  XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell, Sankey,
 } from 'recharts';
 import {
   useNetWorth, useIncomeVsExpenses, useCashFlow,
-  useSpendingByCategory, useIncomeByCategory,
+  useSpendingByCategory, useIncomeByCategory, useSpendingTrends,
 } from '../hooks/useReports';
+import { useCategories } from '../hooks/useCategories';
 import { formatCurrency, formatCentsAxis } from '../utils/currency';
+import { downloadCsv } from '../utils/exportCsv';
+import { Download } from 'lucide-react';
 
-type Tab = 'net-worth' | 'income' | 'cash-flow' | 'spending' | 'sankey';
+type Tab = 'net-worth' | 'income' | 'cash-flow' | 'spending' | 'sankey' | 'trends';
+type Preset = '3m' | '6m' | 'ytd' | 'last-year' | 'custom';
 type NodeType = 'income' | 'hub' | 'expense' | 'savings';
 
 const TABS: { id: Tab; label: string }[] = [
@@ -19,6 +24,15 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'cash-flow', label: 'Cash Flow' },
   { id: 'spending', label: 'Spending by Category' },
   { id: 'sankey', label: 'Cash Flow Diagram' },
+  { id: 'trends', label: 'Spending Trends' },
+];
+
+const PRESETS: { id: Preset; label: string }[] = [
+  { id: '3m', label: '3M' },
+  { id: '6m', label: '6M' },
+  { id: 'ytd', label: 'This Year' },
+  { id: 'last-year', label: 'Last Year' },
+  { id: 'custom', label: 'Custom' },
 ];
 
 const CHART_HEIGHT: Record<Tab, string> = {
@@ -27,10 +41,11 @@ const CHART_HEIGHT: Record<Tab, string> = {
   'cash-flow': 'h-72',
   'spending': 'h-96',
   'sankey': 'h-[540px]',
+  'trends': 'h-80',
 };
 
 const EXPENSE_COLORS = ['#f59e0b', '#ef4444', '#f97316', '#06b6d4', '#6366f1', '#ec4899', '#84cc16', '#0ea5e9', '#a78bfa', '#fb7185'];
-const MIN_SAVINGS_CENTS = 500; // $5 — suppress trivial rounding-error surpluses
+const MIN_SAVINGS_CENTS = 500;
 
 const monthLabel = (month: string) => format(parseISO(`${month}-01`), 'MMM yy');
 
@@ -43,6 +58,41 @@ function CurrencyTooltip({ active, payload, label }: any) {
         <p key={p.name} className="text-xs font-medium" style={{ color: p.color }}>
           {p.name}: {formatCurrency(p.value)}
         </p>
+      ))}
+    </div>
+  );
+}
+
+function ChartSkeleton() {
+  return (
+    <div className="h-full flex items-end gap-2 px-4 pb-4 pt-8 animate-pulse">
+      {[55, 72, 40, 85, 60, 78, 45, 90, 50, 65].map((h, i) => (
+        <div key={i} className="flex-1 bg-gray-200 rounded-t" style={{ height: `${h}%` }} />
+      ))}
+    </div>
+  );
+}
+
+function EmptyState({ message = 'No data for this period.' }: { message?: string }) {
+  return (
+    <div className="h-full flex items-center justify-center">
+      <div className="text-sm text-gray-400">{message}</div>
+    </div>
+  );
+}
+
+interface StatCard { label: string; value: string; sub?: string }
+
+function StatCardRow({ cards }: { cards: StatCard[] }) {
+  if (!cards.length) return null;
+  return (
+    <div className="flex gap-3 mb-5 flex-wrap">
+      {cards.map(c => (
+        <div key={c.label} className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 min-w-[110px]">
+          <p className="text-xs text-gray-400">{c.label}</p>
+          <p className="text-lg font-bold text-gray-900 mt-0.5">{c.value}</p>
+          {c.sub && <p className="text-xs text-gray-400 mt-0.5">{c.sub}</p>}
+        </div>
       ))}
     </div>
   );
@@ -161,6 +211,103 @@ function SpendingChart({ from, to }: { from: string; to: string }) {
         <Bar dataKey="value" name="Spent" fill="#6366f1" radius={[0, 3, 3, 0]} maxBarSize={20} />
       </BarChart>
     </ResponsiveContainer>
+  );
+}
+
+function SpendingTrendsChart({ from, to }: { from: string; to: string }) {
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const { data: groups = [] } = useCategories();
+  const { data: trendData = [], isLoading } = useSpendingTrends(selectedIds, from, to);
+
+  const expenseCategories = useMemo(
+    () => (groups as any[]).filter((g: any) => g.isIncome === 0).flatMap((g: any) => g.categories),
+    [groups],
+  );
+
+  const chartData = useMemo(() => {
+    if (!trendData.length) return [];
+    const monthSet = new Set(trendData.map(r => r.month));
+    const months = [...monthSet].sort();
+    return months.map(month => {
+      const row: Record<string, string | number> = { month: monthLabel(month) };
+      for (const point of trendData) {
+        if (point.month === month) row[point.categoryName ?? point.categoryId] = point.total;
+      }
+      return row;
+    });
+  }, [trendData]);
+
+  const selectedNames = useMemo(() => {
+    return selectedIds.map(id => {
+      const cat = expenseCategories.find((c: any) => c.id === id);
+      return cat?.name ?? id;
+    });
+  }, [selectedIds, expenseCategories]);
+
+  function toggleCategory(id: string) {
+    setSelectedIds(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : prev.length < 5 ? [...prev, id] : prev
+    );
+  }
+
+  return (
+    <div className="h-full flex flex-col gap-3">
+      <div className="flex flex-wrap gap-1.5 shrink-0">
+        {expenseCategories.map((cat: any) => {
+          const checked = selectedIds.includes(cat.id);
+          const disabled = !checked && selectedIds.length >= 5;
+          return (
+            <button
+              key={cat.id}
+              onClick={() => !disabled && toggleCategory(cat.id)}
+              className={`px-2.5 py-1 text-xs font-medium rounded-full border transition-colors ${
+                checked
+                  ? 'bg-blue-50 border-blue-400 text-blue-700'
+                  : disabled
+                  ? 'bg-gray-50 border-gray-200 text-gray-300 cursor-not-allowed'
+                  : 'bg-white border-gray-200 text-gray-600 hover:border-gray-400'
+              }`}
+            >
+              {cat.name}
+            </button>
+          );
+        })}
+        {expenseCategories.length === 0 && (
+          <span className="text-xs text-gray-400">No expense categories found.</span>
+        )}
+      </div>
+
+      <div className="flex-1 min-h-0">
+        {selectedIds.length === 0 ? (
+          <EmptyState message="Select categories above to compare trends." />
+        ) : isLoading ? (
+          <ChartSkeleton />
+        ) : !chartData.length ? (
+          <EmptyState />
+        ) : (
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={chartData} margin={{ top: 4, right: 16, left: 16, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+              <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+              <YAxis tickFormatter={formatCentsAxis} tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} width={60} />
+              <Tooltip content={<CurrencyTooltip />} />
+              <Legend wrapperStyle={{ fontSize: 11 }} />
+              {selectedNames.map((name, i) => (
+                <Line
+                  key={name}
+                  type="monotone"
+                  dataKey={name}
+                  stroke={EXPENSE_COLORS[i % EXPENSE_COLORS.length]}
+                  strokeWidth={2}
+                  dot={false}
+                  connectNulls
+                />
+              ))}
+            </LineChart>
+          </ResponsiveContainer>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -322,56 +469,161 @@ function SankeyDiagram({ from, to }: { from: string; to: string }) {
   );
 }
 
-function ChartSkeleton() {
-  return (
-    <div className="h-full flex items-center justify-center">
-      <div className="text-sm text-gray-400">Loading…</div>
-    </div>
-  );
-}
-
-function EmptyState() {
-  return (
-    <div className="h-full flex items-center justify-center">
-      <div className="text-sm text-gray-400">No data for this period.</div>
-    </div>
-  );
-}
-
 export default function ReportsPage() {
   const today = new Date();
+  const [preset, setPreset] = useState<Preset>('custom');
   const [from, setFrom] = useState(() => format(subMonths(today, 11), 'yyyy-MM'));
   const [to, setTo] = useState(() => format(today, 'yyyy-MM'));
   const [activeTab, setActiveTab] = useState<Tab>('net-worth');
+
+  useEffect(() => {
+    if (preset === 'custom') return;
+    const now = new Date();
+    const ranges: Record<string, { from: string; to: string }> = {
+      '3m':        { from: format(subMonths(now, 2), 'yyyy-MM'), to: format(now, 'yyyy-MM') },
+      '6m':        { from: format(subMonths(now, 5), 'yyyy-MM'), to: format(now, 'yyyy-MM') },
+      'ytd':       { from: format(startOfYear(now), 'yyyy-MM'),  to: format(now, 'yyyy-MM') },
+      'last-year': { from: format(startOfYear(subYears(now, 1)), 'yyyy-MM'), to: format(endOfYear(subYears(now, 1)), 'yyyy-MM') },
+    };
+    const r = ranges[preset];
+    setFrom(r.from);
+    setTo(r.to);
+  }, [preset]);
+
+  // Fetch all data at the top level — chart sub-components use the same query keys (cache hit)
+  const { data: nwData = [] } = useNetWorth(from, to);
+  const { data: ieData = [] } = useIncomeVsExpenses(from, to);
+  const { data: cfData = [] } = useCashFlow(from, to);
+  const { data: spData = [] } = useSpendingByCategory(from, to);
+  const { data: incData = [] } = useIncomeByCategory(from, to);
+
+  const statCards = useMemo((): StatCard[] => {
+    switch (activeTab) {
+      case 'net-worth': {
+        if (!nwData.length) return [];
+        const latest = nwData[nwData.length - 1].netWorth;
+        const change = nwData.length > 1 ? latest - nwData[0].netWorth : 0;
+        const sign = change >= 0 ? '+' : '';
+        return [
+          { label: 'Net Worth', value: formatCurrency(latest) },
+          { label: 'Period Change', value: `${sign}${formatCurrency(change)}` },
+        ];
+      }
+      case 'income': {
+        const totalIncome = ieData.reduce((s, d) => s + d.income, 0);
+        const totalExpenses = ieData.reduce((s, d) => s + d.expenses, 0);
+        const net = totalIncome - totalExpenses;
+        const rate = totalIncome > 0 ? Math.round((net / totalIncome) * 100) : 0;
+        return [
+          { label: 'Total Income', value: formatCurrency(totalIncome) },
+          { label: 'Total Expenses', value: formatCurrency(totalExpenses) },
+          { label: 'Net Savings', value: formatCurrency(net) },
+          { label: 'Savings Rate', value: `${rate}%` },
+        ];
+      }
+      case 'cash-flow': {
+        const periodNet = cfData.reduce((s, d) => s + d.net, 0);
+        const positiveMonths = cfData.filter(d => d.net > 0).length;
+        return [
+          { label: 'Period Net', value: formatCurrency(periodNet) },
+          { label: 'Positive Months', value: `${positiveMonths} of ${cfData.length}` },
+        ];
+      }
+      case 'spending': {
+        const totalSpent = spData.reduce((s, d) => s + d.totalSpent, 0);
+        return [
+          { label: 'Total Spent', value: formatCurrency(totalSpent) },
+          { label: 'Categories', value: String(spData.length) },
+        ];
+      }
+      case 'sankey': {
+        const totalIncome = incData.reduce((s, d) => s + d.totalReceived, 0);
+        const totalExpenses = spData.reduce((s, d) => s + d.totalSpent, 0);
+        const savings = totalIncome - totalExpenses;
+        return [
+          { label: 'Total Income', value: formatCurrency(totalIncome) },
+          { label: 'Total Expenses', value: formatCurrency(totalExpenses) },
+          { label: 'Savings', value: formatCurrency(Math.max(savings, 0)) },
+        ];
+      }
+      case 'trends':
+        return [];
+    }
+  }, [activeTab, nwData, ieData, cfData, spData, incData]);
+
+  function handleExport() {
+    const filename = `reports-${activeTab}-${from}-${to}.csv`;
+    switch (activeTab) {
+      case 'net-worth':
+        downloadCsv(filename, nwData.map(d => ({ month: d.month, assets_cents: d.assets, liabilities_cents: d.liabilities, net_worth_cents: d.netWorth })));
+        break;
+      case 'income':
+        downloadCsv(filename, ieData.map(d => ({ month: d.month, income_cents: d.income, expenses_cents: d.expenses, net_cents: d.net })));
+        break;
+      case 'cash-flow':
+        downloadCsv(filename, cfData.map(d => ({ month: d.month, net_cents: d.net })));
+        break;
+      case 'spending':
+      case 'sankey':
+        downloadCsv(filename, spData.map(d => ({ category: d.categoryName ?? 'Uncategorized', group: d.groupName ?? '', total_cents: d.totalSpent })));
+        break;
+      case 'trends':
+        break;
+    }
+  }
 
   const chartHeight = CHART_HEIGHT[activeTab];
 
   return (
     <div className="flex flex-col h-full bg-white">
       <div className="px-6 py-5 border-b border-gray-100 shrink-0">
-        <div className="flex items-center justify-between">
-          <h1 className="text-xl font-bold text-gray-900">Reports</h1>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-400">From</span>
-            <input
-              type="month"
-              value={from}
-              max={to}
-              onChange={(e) => setFrom(e.target.value)}
-              className="text-sm border border-gray-200 rounded-lg px-2 py-1 text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-400"
-            />
-            <span className="text-xs text-gray-400">to</span>
-            <input
-              type="month"
-              value={to}
-              min={from}
-              max={format(today, 'yyyy-MM')}
-              onChange={(e) => setTo(e.target.value)}
-              className="text-sm border border-gray-200 rounded-lg px-2 py-1 text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-400"
-            />
+        <div className="flex items-center justify-between gap-4">
+          <h1 className="text-xl font-bold text-gray-900 shrink-0">Reports</h1>
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-1">
+              {PRESETS.map(p => (
+                <button
+                  key={p.id}
+                  onClick={() => setPreset(p.id)}
+                  className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors ${
+                    preset === p.id ? 'bg-blue-100 text-blue-700' : 'text-gray-500 hover:bg-gray-100'
+                  }`}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+            {preset === 'custom' && (
+              <>
+                <span className="text-xs text-gray-400">From</span>
+                <input
+                  type="month"
+                  value={from}
+                  max={to}
+                  onChange={(e) => setFrom(e.target.value)}
+                  className="text-sm border border-gray-200 rounded-lg px-2 py-1 text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                />
+                <span className="text-xs text-gray-400">to</span>
+                <input
+                  type="month"
+                  value={to}
+                  min={from}
+                  max={format(today, 'yyyy-MM')}
+                  onChange={(e) => setTo(e.target.value)}
+                  className="text-sm border border-gray-200 rounded-lg px-2 py-1 text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                />
+              </>
+            )}
+            <button
+              onClick={handleExport}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <Download className="w-3.5 h-3.5" />
+              Export CSV
+            </button>
           </div>
         </div>
-        <div className="flex gap-1 mt-4">
+        <div className="flex gap-1 mt-4 flex-wrap">
           {TABS.map((t) => (
             <button
               key={t.id}
@@ -389,12 +641,14 @@ export default function ReportsPage() {
       </div>
 
       <div className="flex-1 overflow-y-auto px-6 py-6">
+        <StatCardRow cards={statCards} />
         <div className={`w-full ${chartHeight}`}>
           {activeTab === 'net-worth' && <NetWorthChart from={from} to={to} />}
           {activeTab === 'income' && <IncomeExpensesChart from={from} to={to} />}
           {activeTab === 'cash-flow' && <CashFlowChart from={from} to={to} />}
           {activeTab === 'spending' && <SpendingChart from={from} to={to} />}
           {activeTab === 'sankey' && <SankeyDiagram from={from} to={to} />}
+          {activeTab === 'trends' && <SpendingTrendsChart from={from} to={to} />}
         </div>
       </div>
     </div>

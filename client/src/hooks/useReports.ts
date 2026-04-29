@@ -15,3 +15,10 @@ export const useSpendingByCategory = (from: string, to: string) =>
 
 export const useIncomeByCategory = (from: string, to: string) =>
   useQuery({ queryKey: ['reports', 'income-by-category', from, to], queryFn: () => reportsApi.getIncomeByCategory(from, to) });
+
+export const useSpendingTrends = (categoryIds: string[], from: string, to: string) =>
+  useQuery({
+    queryKey: ['reports', 'spending-trends', categoryIds.join(','), from, to],
+    queryFn: () => reportsApi.getSpendingTrends(categoryIds, from, to),
+    enabled: categoryIds.length > 0,
+  });

@@ -1,5 +1,5 @@
 import { apiFetch } from './client';
-import type { NetWorthPoint, IncomeExpensesPoint, CashFlowPoint, SpendingByCategory, IncomeByCategoryItem } from '../types';
+import type { NetWorthPoint, IncomeExpensesPoint, CashFlowPoint, SpendingByCategory, IncomeByCategoryItem, SpendingTrendPoint } from '../types';
 
 const qs = (from: string, to: string) => `?from=${from}&to=${to}`;
 
@@ -17,3 +17,8 @@ export const getSpendingByCategory = (from: string, to: string) =>
 
 export const getIncomeByCategory = (from: string, to: string) =>
   apiFetch<IncomeByCategoryItem[]>(`/reports/income-by-category${qs(from, to)}`);
+
+export const getSpendingTrends = (categoryIds: string[], from: string, to: string) =>
+  apiFetch<SpendingTrendPoint[]>(
+    `/reports/spending-trends?category_ids=${categoryIds.join(',')}&from=${from}&to=${to}`
+  );
