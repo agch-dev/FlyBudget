@@ -106,3 +106,35 @@ export interface CashFlowPoint { month: string; net: number; }
 export interface SpendingByCategory { categoryId: string | null; categoryName: string | null; groupName: string | null; totalSpent: number; }
 export interface IncomeByCategoryItem { categoryId: string | null; categoryName: string | null; groupName: string | null; totalReceived: number; }
 export interface SpendingTrendPoint { categoryId: string; categoryName: string | null; month: string; total: number; }
+
+export interface RuleCondition {
+  field: 'payee_name' | 'amount' | 'notes';
+  op: 'contains' | 'starts_with' | 'ends_with' | 'exact' | 'regex';
+  value: string;
+}
+
+export interface RuleAction {
+  field: 'category_id' | 'payee_id' | 'notes';
+  value: string;
+}
+
+export interface Rule {
+  id: string;
+  conditions: RuleCondition[];
+  actions: RuleAction[];
+  sortOrder: number;
+  createdAt: string;
+}
+
+export interface PayeeWithCount extends Payee {
+  transactionCount: number;
+}
+
+export interface RunRulesPreviewItem {
+  transactionId: string;
+  date: string;
+  payeeName: string | null;
+  amount: number;
+  newCategoryName: string | null;
+  actions: RuleAction[];
+}

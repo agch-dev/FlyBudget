@@ -1,9 +1,10 @@
 import { Router } from 'express';
 import { db } from '../db/index.js';
-import { transactions, payees } from '../db/schema.js';
+import { transactions, payees, rules } from '../db/schema.js';
 import { eq, and, like, gte, lte, sql } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import { z } from 'zod';
+import { applyRulesToNew } from '../services/rulesEngine.js';
 
 export const transactionsRouter = Router();
 
@@ -66,9 +67,33 @@ transactionsRouter.post('/', (req, res) => {
     resolvedPayeeName = payeeName;
   }
 
+  // Auto-apply payee's default category if no category was provided
+  let resolvedCategoryId = rest.categoryId ?? null;
+  if (!resolvedCategoryId && resolvedPayeeId) {
+    const payee = db.select().from(payees).where(eq(payees.id, resolvedPayeeId)).get();
+    if (payee?.defaultCategoryId) resolvedCategoryId = payee.defaultCategoryId;
+  }
+
+  // Run rules engine if still no category
+  if (!resolvedCategoryId) {
+    const allRules = db.select().from(rules).orderBy(rules.sortOrder).all()
+      .map(r => ({ ...r, conditions: JSON.parse(r.conditions), actions: JSON.parse(r.actions) }));
+    const actions = applyRulesToNew(
+      { payeeName: resolvedPayeeName, amount: rest.amount, notes: rest.notes ?? null, categoryId: null },
+      allRules,
+    );
+    if (actions) {
+      for (const a of actions) {
+        if (a.field === 'category_id') resolvedCategoryId = a.value;
+        else if (a.field === 'payee_id') resolvedPayeeId = a.value;
+      }
+    }
+  }
+
   const transaction = {
     id: nanoid(),
     ...rest,
+    categoryId: resolvedCategoryId,
     payeeId: resolvedPayeeId,
     payeeName: resolvedPayeeName,
     reconciled: 0,

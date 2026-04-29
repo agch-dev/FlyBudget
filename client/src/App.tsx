@@ -5,6 +5,8 @@ import AccountTransactionsPage from './pages/AccountTransactions';
 import BudgetPage from './pages/Budget';
 import TransactionsPage from './pages/Transactions';
 import ReportsPage from './pages/Reports';
+import PayeesPage from './pages/Payees';
+import RulesPage from './pages/Rules';
 
 function Placeholder({ title }: { title: string }) {
   return (
@@ -28,8 +30,8 @@ export default function App() {
             <Route path="/accounts/:id" element={<AccountTransactionsPage />} />
             <Route path="/transactions" element={<TransactionsPage />} />
             <Route path="/reports/*" element={<ReportsPage />} />
-            <Route path="/payees" element={<Placeholder title="Payees" />} />
-            <Route path="/rules" element={<Placeholder title="Rules" />} />
+            <Route path="/payees" element={<PayeesPage />} />
+            <Route path="/rules" element={<RulesPage />} />
             <Route path="/settings" element={<Placeholder title="Settings" />} />
           </Routes>
         </main>

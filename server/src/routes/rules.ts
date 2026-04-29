@@ -4,6 +4,7 @@ import { rules } from '../db/schema.js';
 import { eq } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import { z } from 'zod';
+import { previewRules, runRules, testConditions } from '../services/rulesEngine.js';
 
 export const rulesRouter = Router();
 
@@ -24,9 +25,45 @@ const ruleSchema = z.object({
   sortOrder: z.number().int().default(0),
 });
 
+function parseRule(r: typeof rules.$inferSelect) {
+  return { ...r, conditions: JSON.parse(r.conditions), actions: JSON.parse(r.actions) };
+}
+
+function loadAllRules() {
+  return db.select().from(rules).orderBy(rules.sortOrder).all().map(parseRule);
+}
+
 rulesRouter.get('/', (_req, res) => {
-  const rows = db.select().from(rules).orderBy(rules.sortOrder).all();
-  res.json(rows.map((r) => ({ ...r, conditions: JSON.parse(r.conditions), actions: JSON.parse(r.actions) })));
+  res.json(loadAllRules());
+});
+
+// Preview what running rules would change (dry-run, no writes).
+rulesRouter.get('/preview', (_req, res) => {
+  res.json(previewRules(loadAllRules()));
+});
+
+// Apply rules to all uncategorized transactions.
+rulesRouter.post('/run', (_req, res) => {
+  const count = runRules(loadAllRules());
+  res.json({ updated: count });
+});
+
+// Test a set of conditions against all transactions (for AddRuleModal preview).
+rulesRouter.post('/test', (req, res) => {
+  const parsed = z.object({ conditions: z.array(conditionSchema) }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+  res.json(testConditions(parsed.data.conditions));
+});
+
+// Reorder rules — body: { ids: string[] } in desired order.
+rulesRouter.put('/reorder', (req, res) => {
+  const parsed = z.object({ ids: z.array(z.string()) }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+
+  for (let i = 0; i < parsed.data.ids.length; i++) {
+    db.update(rules).set({ sortOrder: i }).where(eq(rules.id, parsed.data.ids[i])).run();
+  }
+  res.json({ ok: true });
 });
 
 rulesRouter.post('/', (req, res) => {
@@ -41,7 +78,7 @@ rulesRouter.post('/', (req, res) => {
     createdAt: new Date().toISOString(),
   };
   db.insert(rules).values(rule).run();
-  res.status(201).json({ ...rule, conditions: parsed.data.conditions, actions: parsed.data.actions });
+  res.status(201).json(parseRule(rule));
 });
 
 rulesRouter.put('/:id', (req, res) => {
@@ -56,7 +93,7 @@ rulesRouter.put('/:id', (req, res) => {
   db.update(rules).set(update).where(eq(rules.id, req.params.id)).run();
   const updated = db.select().from(rules).where(eq(rules.id, req.params.id)).get();
   if (!updated) return res.status(404).json({ error: 'Not found' });
-  res.json({ ...updated, conditions: JSON.parse(updated.conditions), actions: JSON.parse(updated.actions) });
+  res.json(parseRule(updated));
 });
 
 rulesRouter.delete('/:id', (req, res) => {
