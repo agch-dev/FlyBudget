@@ -2,9 +2,15 @@
   "name": "budgeting-project",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "electron/dist/main.js",
   "scripts": {
-    "dev": "concurrently --names client,server --prefix-colors cyan,yellow \"npm run dev --prefix client\" \"npm run dev --prefix server\""
+    "dev": "concurrently --names client,server --prefix-colors cyan,yellow \"npm run dev --prefix client\" \"npm run dev --prefix server\"",
+    "electron:dev": "cross-env ELECTRON_DEV=true concurrently --kill-others-on-fail --names client,server,electron --prefix-colors cyan,yellow,magenta \"npm run dev --prefix client\" \"npm run dev --prefix server\" \"wait-on tcp:3001 tcp:5173 && electron --require tsx/cjs ./electron/main.ts\"",
+    "electron:build": "npm run rebuild:sqlite && npm run build:client:electron && npm run build:server:bundle && npm run compile:electron && electron-builder",
+    "build:client:electron": "npm run build --prefix client -- --mode electron",
+    "build:server:bundle": "esbuild server/src/index.ts --bundle --platform=node --target=node22 --external:better-sqlite3 --format=cjs --outfile=electron/dist/server.js",
+    "compile:electron": "tsc -p electron/tsconfig.json",
+    "rebuild:sqlite": "electron-rebuild -f -w better-sqlite3 --module-dir server"
   },
   "repository": {
     "type": "git",
@@ -18,6 +24,12 @@
   },
   "homepage": "https://github.com/dtymoszenko/budgeting-project#readme",
   "devDependencies": {
-    "concurrently": "^9.2.1"
+    "@electron/rebuild": "^4.0.4",
+    "concurrently": "^9.2.1",
+    "cross-env": "^10.1.0",
+    "electron": "^41.3.0",
+    "electron-builder": "^26.8.1",
+    "typescript": "^5.9.3",
+    "wait-on": "^9.0.5"
   }
 }

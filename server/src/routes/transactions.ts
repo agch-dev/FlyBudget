@@ -22,7 +22,7 @@ const createSchema = z.object({
 const updateSchema = createSchema.partial();
 
 transactionsRouter.get('/', (req, res) => {
-  const { account_id, month, from, to, category_id, search, cleared } = req.query as Record<string, string>;
+  const { account_id, month, from, to, category_id, search, cleared, reconciled } = req.query as Record<string, string>;
 
   let query = db.select().from(transactions).$dynamic();
 
@@ -37,6 +37,7 @@ transactionsRouter.get('/', (req, res) => {
   if (category_id) conditions.push(eq(transactions.categoryId, category_id));
   if (search) conditions.push(like(transactions.payeeName, `%${search}%`));
   if (cleared === '0' || cleared === '1') conditions.push(eq(transactions.cleared, Number(cleared)));
+  if (reconciled === '0' || reconciled === '1') conditions.push(eq(transactions.reconciled, Number(reconciled)));
 
   if (conditions.length) query = query.where(and(...conditions));
 
@@ -111,13 +112,20 @@ transactionsRouter.put('/:id', (req, res) => {
   const parsed = updateSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
 
+  const existing = db.select().from(transactions).where(eq(transactions.id, req.params.id)).get();
+  if (!existing) return res.status(404).json({ error: 'Not found' });
+  if (existing.reconciled === 1) return res.status(403).json({ error: 'Cannot modify a reconciled transaction' });
+
   db.update(transactions).set(parsed.data).where(eq(transactions.id, req.params.id)).run();
   const updated = db.select().from(transactions).where(eq(transactions.id, req.params.id)).get();
-  if (!updated) return res.status(404).json({ error: 'Not found' });
   res.json(updated);
 });
 
 transactionsRouter.delete('/:id', (req, res) => {
+  const existing = db.select().from(transactions).where(eq(transactions.id, req.params.id)).get();
+  if (!existing) return res.status(404).json({ error: 'Not found' });
+  if (existing.reconciled === 1) return res.status(403).json({ error: 'Cannot modify a reconciled transaction' });
+
   db.delete(transactions).where(eq(transactions.id, req.params.id)).run();
   res.status(204).send();
 });

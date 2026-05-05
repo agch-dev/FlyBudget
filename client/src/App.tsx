@@ -7,6 +7,7 @@ import TransactionsPage from './pages/Transactions';
 import ReportsPage from './pages/Reports';
 import PayeesPage from './pages/Payees';
 import RulesPage from './pages/Rules';
+import ReconcilePage from './pages/ReconcilePage';
 
 function Placeholder({ title }: { title: string }) {
   return (
@@ -27,6 +28,7 @@ export default function App() {
             <Route path="/" element={<Navigate to="/budget" replace />} />
             <Route path="/budget" element={<BudgetPage />} />
             <Route path="/accounts" element={<AccountsPage />} />
+            <Route path="/accounts/:id/reconcile" element={<ReconcilePage />} />
             <Route path="/accounts/:id" element={<AccountTransactionsPage />} />
             <Route path="/transactions" element={<TransactionsPage />} />
             <Route path="/reports/*" element={<ReportsPage />} />

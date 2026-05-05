@@ -53,3 +53,15 @@ export function useDeleteTransaction() {
     },
   });
 }
+
+export function useReconcileAccount() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ accountId, transactionIds }: { accountId: string; transactionIds: string[] }) =>
+      txApi.reconcileAccount(accountId, transactionIds),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['transactions'] });
+      qc.invalidateQueries({ queryKey: ['accounts'] });
+    },
+  });
+}

@@ -21,6 +21,7 @@ export function getTransactions(params: TransactionQueryParams = {}) {
   if (params.categoryId) q.set('category_id', params.categoryId);
   if (params.search) q.set('search', params.search);
   if (params.cleared !== undefined) q.set('cleared', String(params.cleared));
+  if (params.reconciled !== undefined) q.set('reconciled', String(params.reconciled));
   if (params.limit) q.set('limit', String(params.limit));
   if (params.offset) q.set('offset', String(params.offset));
   const qs = q.toString();
@@ -35,3 +36,9 @@ export const updateTransaction = (id: string, data: Partial<CreateTransactionDat
 
 export const deleteTransaction = (id: string) =>
   apiFetch<void>(`/transactions/${id}`, { method: 'DELETE' });
+
+export const reconcileAccount = (accountId: string, transactionIds: string[]) =>
+  apiFetch<{ reconciled: number }>(`/accounts/${accountId}/reconcile`, {
+    method: 'PUT',
+    body: JSON.stringify({ transactionIds }),
+  });

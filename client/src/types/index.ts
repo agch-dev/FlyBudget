@@ -57,6 +57,7 @@ export interface TransactionQueryParams {
   categoryId?: string;
   search?: string;
   cleared?: 0 | 1;
+  reconciled?: 0 | 1;
   limit?: number;
   offset?: number;
 }

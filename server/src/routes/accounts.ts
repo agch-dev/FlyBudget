@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { db } from '../db/index.js';
 import { accounts, transactions } from '../db/schema.js';
-import { eq, isNull, sql } from 'drizzle-orm';
+import { eq, inArray, isNull, sql } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import { z } from 'zod';
 
@@ -49,6 +49,18 @@ accountsRouter.post('/', (req, res) => {
   const account = { id: nanoid(), ...parsed.data, sortOrder: 0, closedAt: null, createdAt: new Date().toISOString() };
   db.insert(accounts).values(account).run();
   res.status(201).json(withBalance(account as typeof accounts.$inferSelect));
+});
+
+accountsRouter.put('/:id/reconcile', (req, res) => {
+  const parsed = z.object({ transactionIds: z.array(z.string()).min(1) }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+
+  db.update(transactions)
+    .set({ reconciled: 1, cleared: 1 })
+    .where(inArray(transactions.id, parsed.data.transactionIds))
+    .run();
+
+  res.json({ reconciled: parsed.data.transactionIds.length });
 });
 
 accountsRouter.put('/:id', (req, res) => {

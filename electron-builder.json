@@ -1,0 +1,33 @@
+{
+  "appId": "com.budget.app",
+  "productName": "Budget",
+  "asar": false,
+  "directories": {
+    "output": "dist-electron"
+  },
+  "files": [
+    "electron/dist/main.js",
+    "electron/dist/preload.js",
+    "electron/dist/server.js",
+    "client/dist/**",
+    {
+      "from": "server/node_modules/better-sqlite3",
+      "to": "node_modules/better-sqlite3",
+      "filter": ["**"]
+    }
+  ],
+  "extraResources": [
+    {
+      "from": "server/src/db/migrations",
+      "to": "migrations",
+      "filter": ["**/*.sql"]
+    }
+  ],
+  "npmRebuild": false,
+  "win": {
+    "target": "nsis"
+  },
+  "mac": {
+    "target": "dmg"
+  }
+}

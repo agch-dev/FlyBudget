@@ -1,4 +1,4 @@
-const BASE = '/api';
+const BASE = window.__API_BASE__ ?? '/api';
 
 export async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {

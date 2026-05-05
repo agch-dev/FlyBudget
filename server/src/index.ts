@@ -9,13 +9,12 @@ import { rulesRouter } from './routes/rules.js';
 import { reportsRouter } from './routes/reports.js';
 
 const app = express();
-const PORT = process.env.PORT || 3001;
 
-app.use(cors({ origin: 'http://localhost:5173' }));
+// origin: true reflects the request origin — safe because we bind only to 127.0.0.1
+app.use(cors({ origin: true }));
 app.use(express.json());
 
 app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
-
 app.use('/api/accounts', accountsRouter);
 app.use('/api/categories', categoriesRouter);
 app.use('/api/transactions', transactionsRouter);
@@ -24,6 +23,21 @@ app.use('/api/payees', payeesRouter);
 app.use('/api/rules', rulesRouter);
 app.use('/api/reports', reportsRouter);
 
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-});
+export async function startServer(port: number | string): Promise<void> {
+  if (process.env.ELECTRON_PROD) {
+    const { migrate } = await import('drizzle-orm/better-sqlite3/migrator');
+    const { db } = await import('./db/index.js');
+    migrate(db, { migrationsFolder: process.env.MIGRATIONS_PATH! });
+  }
+  return new Promise((resolve) => {
+    app.listen(Number(port), '127.0.0.1', () => {
+      console.log(`Server running on http://localhost:${port}`);
+      resolve();
+    });
+  });
+}
+
+// Web dev: start immediately when neither Electron flag is set
+if (!process.env.ELECTRON_DEV && !process.env.ELECTRON_PROD) {
+  startServer(process.env.PORT ?? 3001).catch(console.error);
+}
