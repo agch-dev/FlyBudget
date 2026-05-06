@@ -1,12 +1,13 @@
 import { useState, useMemo } from 'react';
-import { Plus } from 'lucide-react';
-import { useTransactions, useCreateTransaction, useUpdateTransaction, useDeleteTransaction, useToggleClearedTransaction } from '../../hooks/useTransactions';
+import { Plus, Upload } from 'lucide-react';
+import { useTransactions, useCreateTransaction, useCreateTransfer, useUpdateTransaction, useDeleteTransaction, useToggleClearedTransaction } from '../../hooks/useTransactions';
 import { useCategories } from '../../hooks/useCategories';
 import { usePayees } from '../../hooks/usePayees';
 import { useAccounts } from '../../hooks/useAccounts';
 import { TransactionFilters, DEFAULT_FILTERS, filtersToParams } from './TransactionFilters';
 import { TransactionFormRow } from './TransactionFormRow';
 import { TransactionRow } from './TransactionRow';
+import { ImportModal } from './ImportModal';
 import type { FilterState } from './TransactionFilters';
 import type { CategoryGroup } from '../../types';
 import type { CreateTransactionData } from '../../api/transactions';
@@ -19,6 +20,7 @@ export function TransactionTable({ accountId }: Props) {
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
   const [showAdd, setShowAdd] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [showImport, setShowImport] = useState(false);
 
   const showAccountCol = !accountId;
   const colCount = showAccountCol ? 9 : 8;
@@ -30,6 +32,7 @@ export function TransactionTable({ accountId }: Props) {
   const { data: accounts = [] } = useAccounts();
 
   const createTx = useCreateTransaction();
+  const createTransfer = useCreateTransfer();
   const updateTx = useUpdateTransaction();
   const deleteTx = useDeleteTransaction();
   const toggleCleared = useToggleClearedTransaction();
@@ -45,6 +48,18 @@ export function TransactionTable({ accountId }: Props) {
   const accountMap = useMemo(() => new Map(accounts.map((a) => [a.id, a.name])), [accounts]);
 
   function handleCreate(data: CreateTransactionData) {
+    if (data.categoryId?.startsWith('transfer:') && accountId) {
+      const toAccountId = data.categoryId.slice('transfer:'.length);
+      createTransfer.mutate({
+        fromAccountId: accountId,
+        toAccountId,
+        date: data.date,
+        amount: Math.abs(data.amount),
+        notes: data.notes,
+        cleared: data.cleared,
+      }, { onSuccess: () => setShowAdd(false) });
+      return;
+    }
     createTx.mutate(data, { onSuccess: () => setShowAdd(false) });
   }
 
@@ -62,12 +77,20 @@ export function TransactionTable({ accountId }: Props) {
       <div className="px-4 py-2 border-b border-gray-100 bg-white flex justify-between items-center">
         <span className="text-xs text-gray-400">{transactions.length} transactions</span>
         {accountId && (
-          <button
-            onClick={() => { setShowAdd(true); setEditingId(null); }}
-            className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <Plus size={13} /> Add Transaction
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowImport(true)}
+              className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <Upload size={13} /> Import CSV
+            </button>
+            <button
+              onClick={() => { setShowAdd(true); setEditingId(null); }}
+              className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              <Plus size={13} /> Add Transaction
+            </button>
+          </div>
         )}
       </div>
       <div className="flex-1 overflow-y-auto">
@@ -91,12 +114,13 @@ export function TransactionTable({ accountId }: Props) {
                 accountId={accountId}
                 groups={groups as CategoryGroup[]}
                 payees={payees}
+                accounts={accounts}
                 onSave={handleCreate}
                 onCancel={() => setShowAdd(false)}
               />
             )}
             {isLoading ? (
-              <tr><td colSpan={colCount} className="px-4 py-10 text-center text-sm text-gray-400">Loading…</td></tr>
+              <tr><td colSpan={colCount} className="px-4 py-10 text-center text-sm text-gray-400">Loading...</td></tr>
             ) : transactions.length === 0 && !showAdd ? (
               <tr><td colSpan={colCount} className="px-4 py-10 text-center text-sm text-gray-400">No transactions found.</td></tr>
             ) : transactions.map((tx) =>
@@ -107,6 +131,7 @@ export function TransactionTable({ accountId }: Props) {
                   accountId={tx.accountId}
                   groups={groups as CategoryGroup[]}
                   payees={payees}
+                  accounts={accounts}
                   onSave={(data) => handleUpdate(tx.id, data)}
                   onCancel={() => setEditingId(null)}
                   showAccountCol={showAccountCol}
@@ -116,6 +141,7 @@ export function TransactionTable({ accountId }: Props) {
                   key={tx.id}
                   tx={tx}
                   categoryName={tx.categoryId ? (categoryMap.get(tx.categoryId) ?? '') : ''}
+                  categoryMap={categoryMap}
                   accountName={showAccountCol ? accountMap.get(tx.accountId) : undefined}
                   showAccountCol={showAccountCol}
                   onEdit={setEditingId}
@@ -127,6 +153,9 @@ export function TransactionTable({ accountId }: Props) {
           </tbody>
         </table>
       </div>
+      {accountId && (
+        <ImportModal isOpen={showImport} onClose={() => setShowImport(false)} accountId={accountId} />
+      )}
     </div>
   );
 }

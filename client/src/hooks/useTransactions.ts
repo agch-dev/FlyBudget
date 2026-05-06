@@ -65,3 +65,26 @@ export function useReconcileAccount() {
     },
   });
 }
+
+export function useCreateTransfer() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: txApi.createTransfer,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['transactions'] });
+      qc.invalidateQueries({ queryKey: ['accounts'] });
+    },
+  });
+}
+
+export function useImportConfirm() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ accountId, rows }: { accountId: string; rows: txApi.ImportRow[] }) =>
+      txApi.importConfirm(accountId, rows),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['transactions'] });
+      qc.invalidateQueries({ queryKey: ['accounts'] });
+    },
+  });
+}

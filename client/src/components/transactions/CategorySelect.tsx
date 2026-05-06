@@ -1,13 +1,17 @@
-import type { CategoryGroup } from '../../types';
+import type { Account, CategoryGroup } from '../../types';
 
 interface Props {
   value: string | null;
   onChange: (id: string | null) => void;
   groups: CategoryGroup[];
+  accounts?: Account[];
+  currentAccountId?: string;
   className?: string;
 }
 
-export function CategorySelect({ value, onChange, groups, className = '' }: Props) {
+export function CategorySelect({ value, onChange, groups, accounts, currentAccountId, className = '' }: Props) {
+  const transferAccounts = accounts?.filter(a => a.id !== currentAccountId && !a.closedAt) ?? [];
+
   return (
     <select
       value={value ?? ''}
@@ -22,6 +26,13 @@ export function CategorySelect({ value, onChange, groups, className = '' }: Prop
           ))}
         </optgroup>
       ))}
+      {transferAccounts.length > 0 && (
+        <optgroup label="Transfer">
+          {transferAccounts.map((a) => (
+            <option key={a.id} value={`transfer:${a.id}`}>Transfer: {a.name}</option>
+          ))}
+        </optgroup>
+      )}
     </select>
   );
 }

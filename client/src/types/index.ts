@@ -19,10 +19,21 @@ export interface Transaction {
   notes: string | null;
   cleared: number;
   reconciled: number;
+  transferTransactionId: string | null;
   isParent: number;
   parentTransactionId: string | null;
   importedId: string | null;
   createdAt: string;
+  children?: Transaction[];
+}
+
+export interface ImportPreviewRow {
+  date: string;
+  amount: number;
+  payeeName: string | null;
+  notes: string | null;
+  importedId: string;
+  isDuplicate: boolean;
 }
 
 export interface Category {

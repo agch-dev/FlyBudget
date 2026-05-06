@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { db } from '../db/index.js';
-import { transactions, payees, rules } from '../db/schema.js';
-import { eq, and, like, gte, lte, sql } from 'drizzle-orm';
+import { transactions, payees, rules, accounts } from '../db/schema.js';
+import { eq, and, like, gte, lte, sql, isNull, inArray } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import { z } from 'zod';
 import { applyRulesToNew } from '../services/rulesEngine.js';
@@ -17,16 +17,76 @@ const createSchema = z.object({
   categoryId: z.string().nullable().optional(),
   notes: z.string().nullable().optional(),
   cleared: z.number().int().min(0).max(1).default(0),
+  splits: z.array(z.object({
+    categoryId: z.string().nullable(),
+    amount: z.number().int(),
+    notes: z.string().nullable().optional(),
+  })).optional(),
 });
 
-const updateSchema = createSchema.partial();
+const updateSchema = createSchema.omit({ splits: true }).partial();
 
+const transferSchema = z.object({
+  fromAccountId: z.string(),
+  toAccountId: z.string(),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  amount: z.number().int().positive(),
+  notes: z.string().nullable().optional(),
+  cleared: z.number().int().min(0).max(1).default(0),
+});
+
+const importRowSchema = z.object({
+  date: z.string(),
+  amount: z.number().int(),
+  payeeName: z.string().nullable().optional(),
+  notes: z.string().nullable().optional(),
+  importedId: z.string(),
+});
+
+function resolvePayee(payeeName: string | null | undefined, payeeId: string | null | undefined) {
+  let resolvedPayeeId = payeeId ?? null;
+  let resolvedPayeeName = payeeName ?? null;
+  if (!resolvedPayeeId && payeeName) {
+    const existing = db.select().from(payees).where(eq(payees.name, payeeName)).get();
+    if (existing) {
+      resolvedPayeeId = existing.id;
+    } else {
+      resolvedPayeeId = nanoid();
+      db.insert(payees).values({ id: resolvedPayeeId, name: payeeName, defaultCategoryId: null, createdAt: new Date().toISOString() }).run();
+    }
+    resolvedPayeeName = payeeName;
+  }
+  return { resolvedPayeeId, resolvedPayeeName };
+}
+
+function autoCategory(payeeId: string | null, payeeName: string | null, amount: number, notes: string | null) {
+  let categoryId: string | null = null;
+  let resolvedPayeeId = payeeId;
+  if (payeeId) {
+    const payee = db.select().from(payees).where(eq(payees.id, payeeId)).get();
+    if (payee?.defaultCategoryId) categoryId = payee.defaultCategoryId;
+  }
+  if (!categoryId) {
+    const allRules = db.select().from(rules).orderBy(rules.sortOrder).all()
+      .map(r => ({ ...r, conditions: JSON.parse(r.conditions), actions: JSON.parse(r.actions) }));
+    const actions = applyRulesToNew({ payeeName, amount, notes, categoryId: null }, allRules);
+    if (actions) {
+      for (const a of actions) {
+        if (a.field === 'category_id') categoryId = a.value;
+        else if (a.field === 'payee_id') resolvedPayeeId = a.value;
+      }
+    }
+  }
+  return { categoryId, payeeId: resolvedPayeeId };
+}
+
+// GET /transactions — excludes split children; attaches children array to parents
 transactionsRouter.get('/', (req, res) => {
   const { account_id, month, from, to, category_id, search, cleared, reconciled } = req.query as Record<string, string>;
 
   let query = db.select().from(transactions).$dynamic();
 
-  const conditions = [];
+  const conditions: ReturnType<typeof eq>[] = [isNull(transactions.parentTransactionId)];
   if (account_id) conditions.push(eq(transactions.accountId, account_id));
   if (month) {
     conditions.push(gte(transactions.date, `${month}-01`));
@@ -39,75 +99,175 @@ transactionsRouter.get('/', (req, res) => {
   if (cleared === '0' || cleared === '1') conditions.push(eq(transactions.cleared, Number(cleared)));
   if (reconciled === '0' || reconciled === '1') conditions.push(eq(transactions.reconciled, Number(reconciled)));
 
-  if (conditions.length) query = query.where(and(...conditions));
+  query = query.where(and(...conditions));
 
   const limit = Math.min(Number(req.query.limit ?? 200), 1000);
   const offset = Number(req.query.offset ?? 0);
 
   const rows = query.orderBy(sql`${transactions.date} desc`).limit(limit).offset(offset).all();
-  res.json(rows);
+
+  const parentIds = rows.filter(r => r.isParent === 1).map(r => r.id);
+  const childrenMap = new Map<string, (typeof rows)>();
+  if (parentIds.length) {
+    const children = db.select().from(transactions)
+      .where(inArray(transactions.parentTransactionId, parentIds))
+      .all();
+    for (const child of children) {
+      const pid = child.parentTransactionId!;
+      if (!childrenMap.has(pid)) childrenMap.set(pid, []);
+      childrenMap.get(pid)!.push(child);
+    }
+  }
+
+  const result = rows.map(r => ({
+    ...r,
+    ...(r.isParent === 1 ? { children: childrenMap.get(r.id) ?? [] } : {}),
+  }));
+
+  res.json(result);
 });
 
+// POST /transactions — supports optional splits array
 transactionsRouter.post('/', (req, res) => {
   const parsed = createSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
 
-  const { payeeName, payeeId, ...rest } = parsed.data;
+  const { payeeName, payeeId, splits, ...rest } = parsed.data;
+  const { resolvedPayeeId, resolvedPayeeName } = resolvePayee(payeeName, payeeId);
+  let finalPayeeId = resolvedPayeeId;
 
-  let resolvedPayeeId = payeeId ?? null;
-  let resolvedPayeeName = payeeName ?? null;
-
-  if (!resolvedPayeeId && payeeName) {
-    const existing = db.select().from(payees).where(eq(payees.name, payeeName)).get();
-    if (existing) {
-      resolvedPayeeId = existing.id;
-    } else {
-      resolvedPayeeId = nanoid();
-      db.insert(payees).values({ id: resolvedPayeeId, name: payeeName, defaultCategoryId: null, createdAt: new Date().toISOString() }).run();
+  if (splits && splits.length > 0) {
+    const splitSum = splits.reduce((sum, s) => sum + s.amount, 0);
+    if (splitSum !== rest.amount) {
+      return res.status(400).json({ error: 'Split amounts must equal transaction total' });
     }
-    resolvedPayeeName = payeeName;
+
+    const parentId = nanoid();
+    const parent = {
+      id: parentId, ...rest,
+      categoryId: null,
+      payeeId: finalPayeeId, payeeName: resolvedPayeeName,
+      reconciled: 0, isParent: 1,
+      transferTransactionId: null, parentTransactionId: null, importedId: null,
+      createdAt: new Date().toISOString(),
+    };
+    db.insert(transactions).values(parent).run();
+
+    const childRows = splits.map(s => ({
+      id: nanoid(),
+      accountId: rest.accountId, date: rest.date,
+      amount: s.amount,
+      payeeId: finalPayeeId, payeeName: resolvedPayeeName,
+      categoryId: s.categoryId, notes: s.notes ?? null,
+      cleared: rest.cleared, reconciled: 0, isParent: 0,
+      transferTransactionId: null, parentTransactionId: parentId, importedId: null,
+      createdAt: new Date().toISOString(),
+    }));
+    for (const child of childRows) db.insert(transactions).values(child).run();
+
+    return res.status(201).json({ ...parent, children: childRows });
   }
 
-  // Auto-apply payee's default category if no category was provided
-  let resolvedCategoryId = rest.categoryId ?? null;
-  if (!resolvedCategoryId && resolvedPayeeId) {
-    const payee = db.select().from(payees).where(eq(payees.id, resolvedPayeeId)).get();
-    if (payee?.defaultCategoryId) resolvedCategoryId = payee.defaultCategoryId;
-  }
-
-  // Run rules engine if still no category
-  if (!resolvedCategoryId) {
-    const allRules = db.select().from(rules).orderBy(rules.sortOrder).all()
-      .map(r => ({ ...r, conditions: JSON.parse(r.conditions), actions: JSON.parse(r.actions) }));
-    const actions = applyRulesToNew(
-      { payeeName: resolvedPayeeName, amount: rest.amount, notes: rest.notes ?? null, categoryId: null },
-      allRules,
-    );
-    if (actions) {
-      for (const a of actions) {
-        if (a.field === 'category_id') resolvedCategoryId = a.value;
-        else if (a.field === 'payee_id') resolvedPayeeId = a.value;
-      }
-    }
-  }
+  const auto = autoCategory(finalPayeeId, resolvedPayeeName, rest.amount, rest.notes ?? null);
+  const resolvedCategoryId = rest.categoryId ?? auto.categoryId;
+  finalPayeeId = auto.payeeId;
 
   const transaction = {
-    id: nanoid(),
-    ...rest,
+    id: nanoid(), ...rest,
     categoryId: resolvedCategoryId,
-    payeeId: resolvedPayeeId,
-    payeeName: resolvedPayeeName,
-    reconciled: 0,
-    isParent: 0,
-    transferTransactionId: null,
-    parentTransactionId: null,
-    importedId: null,
+    payeeId: finalPayeeId, payeeName: resolvedPayeeName,
+    reconciled: 0, isParent: 0,
+    transferTransactionId: null, parentTransactionId: null, importedId: null,
     createdAt: new Date().toISOString(),
   };
   db.insert(transactions).values(transaction).run();
   res.status(201).json(transaction);
 });
 
+// POST /transactions/transfer — creates linked pair in two accounts
+transactionsRouter.post('/transfer', (req, res) => {
+  const parsed = transferSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+
+  const { fromAccountId, toAccountId, date, amount, notes, cleared } = parsed.data;
+  const fromAcct = db.select().from(accounts).where(eq(accounts.id, fromAccountId)).get();
+  const toAcct = db.select().from(accounts).where(eq(accounts.id, toAccountId)).get();
+  if (!fromAcct || !toAcct) return res.status(404).json({ error: 'Account not found' });
+
+  const fromId = nanoid();
+  const toId = nanoid();
+  const now = new Date().toISOString();
+
+  const base = { reconciled: 0, isParent: 0, parentTransactionId: null, importedId: null, createdAt: now };
+  const fromTx = {
+    id: fromId, accountId: fromAccountId, date, amount: -amount,
+    payeeId: null, payeeName: `Transfer: ${toAcct.name}`,
+    categoryId: null, notes: notes ?? null, cleared,
+    transferTransactionId: toId, ...base,
+  };
+  const toTx = {
+    id: toId, accountId: toAccountId, date, amount,
+    payeeId: null, payeeName: `Transfer: ${fromAcct.name}`,
+    categoryId: null, notes: notes ?? null, cleared,
+    transferTransactionId: fromId, ...base,
+  };
+
+  db.insert(transactions).values(fromTx).run();
+  db.insert(transactions).values(toTx).run();
+  res.status(201).json([fromTx, toTx]);
+});
+
+// POST /transactions/import/preview — check for duplicates before importing
+transactionsRouter.post('/import/preview', (req, res) => {
+  const parsed = z.object({ accountId: z.string(), rows: z.array(importRowSchema) }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+
+  const { accountId, rows } = parsed.data;
+  const importedIds = rows.map(r => r.importedId);
+  const existingSet = new Set<string | null>();
+
+  if (importedIds.length) {
+    const existing = db.select({ importedId: transactions.importedId })
+      .from(transactions)
+      .where(and(eq(transactions.accountId, accountId), inArray(transactions.importedId, importedIds)))
+      .all();
+    for (const e of existing) existingSet.add(e.importedId);
+  }
+
+  res.json(rows.map(row => ({ ...row, isDuplicate: existingSet.has(row.importedId) })));
+});
+
+// POST /transactions/import/confirm — insert non-duplicate rows
+transactionsRouter.post('/import/confirm', (req, res) => {
+  const parsed = z.object({ accountId: z.string(), rows: z.array(importRowSchema) }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+
+  const { accountId, rows } = parsed.data;
+  let imported = 0;
+
+  for (const row of rows) {
+    const dup = db.select().from(transactions)
+      .where(and(eq(transactions.accountId, accountId), eq(transactions.importedId, row.importedId))).get();
+    if (dup) continue;
+
+    const { resolvedPayeeId, resolvedPayeeName } = resolvePayee(row.payeeName, null);
+    const auto = autoCategory(resolvedPayeeId, resolvedPayeeName, row.amount, row.notes ?? null);
+
+    db.insert(transactions).values({
+      id: nanoid(), accountId, date: row.date, amount: row.amount,
+      payeeId: auto.payeeId, payeeName: resolvedPayeeName,
+      categoryId: auto.categoryId, notes: row.notes ?? null,
+      cleared: 0, reconciled: 0, isParent: 0,
+      transferTransactionId: null, parentTransactionId: null,
+      importedId: row.importedId, createdAt: new Date().toISOString(),
+    }).run();
+    imported++;
+  }
+
+  res.json({ imported, skipped: rows.length - imported });
+});
+
+// PUT /transactions/:id
 transactionsRouter.put('/:id', (req, res) => {
   const parsed = updateSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
@@ -121,10 +281,21 @@ transactionsRouter.put('/:id', (req, res) => {
   res.json(updated);
 });
 
+// DELETE /transactions/:id — handles transfer unlinking and split cascade
 transactionsRouter.delete('/:id', (req, res) => {
   const existing = db.select().from(transactions).where(eq(transactions.id, req.params.id)).get();
   if (!existing) return res.status(404).json({ error: 'Not found' });
   if (existing.reconciled === 1) return res.status(403).json({ error: 'Cannot modify a reconciled transaction' });
+
+  if (existing.transferTransactionId) {
+    db.update(transactions)
+      .set({ transferTransactionId: null })
+      .where(eq(transactions.id, existing.transferTransactionId)).run();
+  }
+
+  if (existing.isParent === 1) {
+    db.delete(transactions).where(eq(transactions.parentTransactionId, existing.id)).run();
+  }
 
   db.delete(transactions).where(eq(transactions.id, req.params.id)).run();
   res.status(204).send();

@@ -1,5 +1,11 @@
 import { apiFetch } from './client';
-import type { Transaction, TransactionQueryParams } from '../types';
+import type { Transaction, TransactionQueryParams, ImportPreviewRow } from '../types';
+
+export interface SplitItem {
+  categoryId: string | null;
+  amount: number;
+  notes?: string | null;
+}
 
 export interface CreateTransactionData {
   accountId: string;
@@ -10,6 +16,24 @@ export interface CreateTransactionData {
   categoryId?: string | null;
   notes?: string | null;
   cleared?: number;
+  splits?: SplitItem[];
+}
+
+export interface CreateTransferData {
+  fromAccountId: string;
+  toAccountId: string;
+  date: string;
+  amount: number;
+  notes?: string | null;
+  cleared?: number;
+}
+
+export interface ImportRow {
+  date: string;
+  amount: number;
+  payeeName?: string | null;
+  notes?: string | null;
+  importedId: string;
 }
 
 export function getTransactions(params: TransactionQueryParams = {}) {
@@ -41,4 +65,19 @@ export const reconcileAccount = (accountId: string, transactionIds: string[]) =>
   apiFetch<{ reconciled: number }>(`/accounts/${accountId}/reconcile`, {
     method: 'PUT',
     body: JSON.stringify({ transactionIds }),
+  });
+
+export const createTransfer = (data: CreateTransferData) =>
+  apiFetch<Transaction[]>('/transactions/transfer', { method: 'POST', body: JSON.stringify(data) });
+
+export const importPreview = (accountId: string, rows: ImportRow[]) =>
+  apiFetch<ImportPreviewRow[]>('/transactions/import/preview', {
+    method: 'POST',
+    body: JSON.stringify({ accountId, rows }),
+  });
+
+export const importConfirm = (accountId: string, rows: ImportRow[]) =>
+  apiFetch<{ imported: number; skipped: number }>('/transactions/import/confirm', {
+    method: 'POST',
+    body: JSON.stringify({ accountId, rows }),
   });
