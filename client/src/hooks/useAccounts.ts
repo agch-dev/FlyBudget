@@ -32,3 +32,11 @@ export function useCloseAccount() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['accounts'] }),
   });
 }
+
+export function useReorderAccounts() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: accountsApi.reorderAccounts,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['accounts'] }),
+  });
+}

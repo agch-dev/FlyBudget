@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { db } from '../db/index.js';
-import { categories, categoryGroups } from '../db/schema.js';
+import { categories, categoryGroups, transactions, budgetMonths } from '../db/schema.js';
 import { eq, sql } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import { z } from 'zod';
@@ -37,6 +37,16 @@ categoriesRouter.post('/groups', (req, res) => {
   res.status(201).json({ ...group, categories: [] });
 });
 
+categoriesRouter.put('/groups/reorder', (req, res) => {
+  const parsed = z.object({ ids: z.array(z.string()) }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+
+  for (let i = 0; i < parsed.data.ids.length; i++) {
+    db.update(categoryGroups).set({ sortOrder: i }).where(eq(categoryGroups.id, parsed.data.ids[i])).run();
+  }
+  res.json({ ok: true });
+});
+
 categoriesRouter.put('/groups/:id', (req, res) => {
   const parsed = groupSchema.partial().safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
@@ -62,6 +72,16 @@ categoriesRouter.post('/', (req, res) => {
   res.status(201).json(category);
 });
 
+categoriesRouter.put('/reorder', (req, res) => {
+  const parsed = z.object({ ids: z.array(z.string()) }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+
+  for (let i = 0; i < parsed.data.ids.length; i++) {
+    db.update(categories).set({ sortOrder: i }).where(eq(categories.id, parsed.data.ids[i])).run();
+  }
+  res.json({ ok: true });
+});
+
 categoriesRouter.put('/:id', (req, res) => {
   const parsed = categorySchema.partial().safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
@@ -72,7 +92,28 @@ categoriesRouter.put('/:id', (req, res) => {
   res.json(updated);
 });
 
+categoriesRouter.get('/:id/transaction-count', (req, res) => {
+  const row = db
+    .select({ count: sql<number>`count(*)` })
+    .from(transactions)
+    .where(eq(transactions.categoryId, req.params.id))
+    .get();
+  res.json({ count: row?.count ?? 0 });
+});
+
 categoriesRouter.delete('/:id', (req, res) => {
+  const reassignTo = typeof req.query.reassignTo === 'string' ? req.query.reassignTo : undefined;
+
+  if (reassignTo) {
+    db.update(transactions)
+      .set({ categoryId: reassignTo })
+      .where(eq(transactions.categoryId, req.params.id))
+      .run();
+    db.delete(budgetMonths)
+      .where(eq(budgetMonths.categoryId, req.params.id))
+      .run();
+  }
+
   db.delete(categories).where(eq(categories.id, req.params.id)).run();
   res.status(204).send();
 });

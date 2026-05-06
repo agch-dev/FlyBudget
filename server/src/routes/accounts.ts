@@ -26,7 +26,7 @@ function withBalance(account: typeof accounts.$inferSelect) {
 }
 
 accountsRouter.get('/', (_req, res) => {
-  const rows = db.select().from(accounts).where(isNull(accounts.closedAt)).all();
+  const rows = db.select().from(accounts).where(isNull(accounts.closedAt)).orderBy(accounts.sortOrder).all();
   if (!rows.length) return res.json([]);
 
   const sums = db
@@ -49,6 +49,16 @@ accountsRouter.post('/', (req, res) => {
   const account = { id: nanoid(), ...parsed.data, sortOrder: 0, closedAt: null, createdAt: new Date().toISOString() };
   db.insert(accounts).values(account).run();
   res.status(201).json(withBalance(account as typeof accounts.$inferSelect));
+});
+
+accountsRouter.put('/reorder', (req, res) => {
+  const parsed = z.object({ ids: z.array(z.string()) }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+
+  for (let i = 0; i < parsed.data.ids.length; i++) {
+    db.update(accounts).set({ sortOrder: i }).where(eq(accounts.id, parsed.data.ids[i])).run();
+  }
+  res.json({ ok: true });
 });
 
 accountsRouter.put('/:id/reconcile', (req, res) => {

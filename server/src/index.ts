@@ -7,6 +7,7 @@ import { budgetRouter } from './routes/budget.js';
 import { payeesRouter } from './routes/payees.js';
 import { rulesRouter } from './routes/rules.js';
 import { reportsRouter } from './routes/reports.js';
+import { exportRouter } from './routes/export.js';
 
 const app = express();
 
@@ -22,6 +23,7 @@ app.use('/api/budget', budgetRouter);
 app.use('/api/payees', payeesRouter);
 app.use('/api/rules', rulesRouter);
 app.use('/api/reports', reportsRouter);
+app.use('/api/export', exportRouter);
 
 export async function startServer(port: number | string): Promise<void> {
   if (process.env.ELECTRON_PROD) {

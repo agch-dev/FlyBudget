@@ -11,3 +11,6 @@ export const updateAccount = (id: string, data: Partial<{ name: string; type: Ac
 
 export const closeAccount = (id: string) =>
   apiFetch<void>(`/accounts/${id}`, { method: 'DELETE' });
+
+export const reorderAccounts = (ids: string[]) =>
+  apiFetch<{ ok: boolean }>('/accounts/reorder', { method: 'PUT', body: JSON.stringify({ ids }) });

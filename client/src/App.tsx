@@ -8,15 +8,7 @@ import ReportsPage from './pages/Reports';
 import PayeesPage from './pages/Payees';
 import RulesPage from './pages/Rules';
 import ReconcilePage from './pages/ReconcilePage';
-
-function Placeholder({ title }: { title: string }) {
-  return (
-    <div className="p-8">
-      <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
-      <p className="mt-2 text-gray-500">Coming soon.</p>
-    </div>
-  );
-}
+import SettingsPage from './pages/Settings';
 
 export default function App() {
   return (
@@ -34,7 +26,7 @@ export default function App() {
             <Route path="/reports/*" element={<ReportsPage />} />
             <Route path="/payees" element={<PayeesPage />} />
             <Route path="/rules" element={<RulesPage />} />
-            <Route path="/settings" element={<Placeholder title="Settings" />} />
+            <Route path="/settings" element={<SettingsPage />} />
           </Routes>
         </main>
       </div>
