@@ -2,7 +2,7 @@ import { useState, useRef, useMemo } from 'react';
 import { format, parseISO, addMonths, subMonths } from 'date-fns';
 import { ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
 import { useAppStore } from '../store/appStore';
-import { useBudget, useSetBudget } from '../hooks/useBudget';
+import { useBudget, useBudgetSummary, useSetBudget } from '../hooks/useBudget';
 import { formatCurrency, parseCents, centsToInput } from '../utils/currency';
 import type { BudgetCategory, BudgetGroup } from '../types';
 
@@ -55,7 +55,14 @@ function CategoryRow({ cat, isIncome, editingId, onStartEdit, onSave, onCancel }
 
   return (
     <tr className="hover:bg-blue-50/20 border-b border-gray-50 group">
-      <td className="py-2.5 pl-10 pr-3 text-sm text-gray-700">{cat.name}</td>
+      <td className="py-2.5 pl-10 pr-3 text-sm text-gray-700">
+        {cat.name}
+        {!isIncome && cat.carryOver !== 0 && (
+          <span className={`ml-2 text-xs ${cat.carryOver > 0 ? 'text-emerald-400' : 'text-red-400'}`} title="Carried from prior months">
+            ({cat.carryOver > 0 ? '+' : ''}{formatCurrency(cat.carryOver)})
+          </span>
+        )}
+      </td>
       <td className="py-2.5 px-3 text-right">
         {isIncome ? (
           <span className="text-gray-300 text-sm tabular-nums">—</span>
@@ -176,27 +183,18 @@ export default function BudgetPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
 
   const { data: groups = [] } = useBudget(selectedMonth);
+  const { data: summary } = useBudgetSummary(selectedMonth);
   const setBudgetMutation = useSetBudget();
 
   const monthDate = useMemo(() => parseISO(`${selectedMonth}-01`), [selectedMonth]);
-
-  const summary = useMemo(() => {
-    let income = 0, totalBudgeted = 0;
-    for (const g of groups) {
-      for (const c of g.categories) {
-        if (g.isIncome) income += c.balance;
-        else totalBudgeted += c.budgeted;
-      }
-    }
-    return { income, totalBudgeted, toBeBudgeted: income - totalBudgeted };
-  }, [groups]);
 
   function handleSave(categoryId: string, budgeted: number) {
     setBudgetMutation.mutate({ month: selectedMonth, categoryId, budgeted });
     setEditingId(null);
   }
 
-  const tbb = summary.toBeBudgeted;
+  const tbb = summary?.toBeBudgeted ?? 0;
+  const carryOver = summary?.carryOver ?? 0;
   const tbbColor = tbb > 0 ? 'text-emerald-600' : tbb < 0 ? 'text-red-500' : 'text-gray-400';
 
   return (
@@ -226,8 +224,11 @@ export default function BudgetPage() {
           </div>
         </div>
         <div className="flex gap-3">
-          <SummaryCard label="Income" value={summary.income} color="text-emerald-600" />
-          <SummaryCard label="Budgeted" value={summary.totalBudgeted} color="text-blue-600" />
+          {carryOver !== 0 && (
+            <SummaryCard label="Carry Over" value={carryOver} color={carryOver >= 0 ? 'text-emerald-600' : 'text-red-500'} />
+          )}
+          <SummaryCard label="Income" value={summary?.income ?? 0} color="text-emerald-600" />
+          <SummaryCard label="Budgeted" value={summary?.totalBudgeted ?? 0} color="text-blue-600" />
           <SummaryCard label="Remaining" value={tbb} color={tbbColor} />
         </div>
       </div>

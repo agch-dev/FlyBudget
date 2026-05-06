@@ -5,6 +5,10 @@ export function useBudget(month: string) {
   return useQuery({ queryKey: ['budget', month], queryFn: () => budgetApi.getBudget(month) });
 }
 
+export function useBudgetSummary(month: string) {
+  return useQuery({ queryKey: ['budget-summary', month], queryFn: () => budgetApi.getBudgetSummary(month) });
+}
+
 export function useSetBudget() {
   const qc = useQueryClient();
   return useMutation({
@@ -12,6 +16,7 @@ export function useSetBudget() {
       budgetApi.setBudget(month, categoryId, budgeted),
     onSuccess: (_, { month }) => {
       qc.invalidateQueries({ queryKey: ['budget', month] });
+      qc.invalidateQueries({ queryKey: ['budget-summary', month] });
     },
   });
 }

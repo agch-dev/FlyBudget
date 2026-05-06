@@ -81,6 +81,7 @@ export interface BudgetCategory {
   createdAt: string;
   budgeted: number;
   spent: number;
+  carryOver: number;
   balance: number;
 }
 
@@ -97,6 +98,7 @@ export interface BudgetSummary {
   month: string;
   income: number;
   totalBudgeted: number;
+  carryOver: number;
   toBeBudgeted: number;
 }
 

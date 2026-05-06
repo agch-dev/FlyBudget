@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { db } from '../db/index.js';
 import { budgetMonths, categories, categoryGroups, transactions } from '../db/schema.js';
-import { eq, and, gte, lte, sql } from 'drizzle-orm';
+import { eq, and, gte, lte, lt, sql } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import { z } from 'zod';
 import { monthBounds } from '../utils/date.js';
@@ -28,8 +28,30 @@ budgetRouter.get('/:month', (req, res) => {
     .groupBy(transactions.categoryId)
     .all();
 
+  const priorBudgetedRows = db
+    .select({
+      categoryId: budgetMonths.categoryId,
+      total: sql<number>`coalesce(sum(${budgetMonths.budgeted}), 0)`,
+    })
+    .from(budgetMonths)
+    .where(lt(budgetMonths.month, month))
+    .groupBy(budgetMonths.categoryId)
+    .all();
+
+  const priorActivityRows = db
+    .select({
+      categoryId: transactions.categoryId,
+      total: sql<number>`coalesce(sum(${transactions.amount}), 0)`,
+    })
+    .from(transactions)
+    .where(lt(transactions.date, from))
+    .groupBy(transactions.categoryId)
+    .all();
+
   const spentMap = Object.fromEntries(spentRows.map((r) => [r.categoryId, r.spent]));
   const budgetMap = Object.fromEntries(budgeted.map((b) => [b.categoryId, b]));
+  const priorBudgetMap = Object.fromEntries(priorBudgetedRows.map((r) => [r.categoryId, r.total]));
+  const priorActivityMap = Object.fromEntries(priorActivityRows.map((r) => [r.categoryId, r.total]));
 
   const result = groups.map((g) => ({
     ...g,
@@ -38,12 +60,14 @@ budgetRouter.get('/:month', (req, res) => {
       .map((c) => {
         const bm = budgetMap[c.id];
         const budgetedAmt = bm?.budgeted ?? 0;
-        const spentAmt = spentMap[c.id] ?? 0;
+        const activity = spentMap[c.id] ?? 0;
+        const carryOver = (priorBudgetMap[c.id] ?? 0) + (priorActivityMap[c.id] ?? 0);
         return {
           ...c,
           budgeted: budgetedAmt,
-          spent: Math.abs(Math.min(spentAmt, 0)),
-          balance: budgetedAmt + spentAmt,
+          spent: Math.abs(Math.min(activity, 0)),
+          carryOver,
+          balance: carryOver + budgetedAmt + activity,
         };
       }),
   }));
@@ -92,11 +116,30 @@ budgetRouter.get('/:month/summary', (req, res) => {
   const budgetedRow = db
     .select({ total: sql<number>`coalesce(sum(${budgetMonths.budgeted}), 0)` })
     .from(budgetMonths)
-    .where(eq(budgetMonths.month, month))
+    .innerJoin(categories, eq(budgetMonths.categoryId, categories.id))
+    .innerJoin(categoryGroups, eq(categories.groupId, categoryGroups.id))
+    .where(and(eq(budgetMonths.month, month), eq(categoryGroups.isIncome, 0)))
+    .get();
+
+  const priorIncomeRow = db
+    .select({ total: sql<number>`coalesce(sum(${transactions.amount}), 0)` })
+    .from(transactions)
+    .innerJoin(categories, eq(transactions.categoryId, categories.id))
+    .innerJoin(categoryGroups, eq(categories.groupId, categoryGroups.id))
+    .where(and(lt(transactions.date, from), eq(categoryGroups.isIncome, 1)))
+    .get();
+
+  const priorBudgetedRow = db
+    .select({ total: sql<number>`coalesce(sum(${budgetMonths.budgeted}), 0)` })
+    .from(budgetMonths)
+    .innerJoin(categories, eq(budgetMonths.categoryId, categories.id))
+    .innerJoin(categoryGroups, eq(categories.groupId, categoryGroups.id))
+    .where(and(lt(budgetMonths.month, month), eq(categoryGroups.isIncome, 0)))
     .get();
 
   const income = incomeRow?.total ?? 0;
   const totalBudgeted = budgetedRow?.total ?? 0;
+  const carryOver = (priorIncomeRow?.total ?? 0) - (priorBudgetedRow?.total ?? 0);
 
-  res.json({ month, income, totalBudgeted, toBeBudgeted: income - totalBudgeted });
+  res.json({ month, income, totalBudgeted, carryOver, toBeBudgeted: income + carryOver - totalBudgeted });
 });
