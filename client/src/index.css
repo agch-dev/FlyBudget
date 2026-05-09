@@ -1,1 +1,19 @@
 @import "tailwindcss";
+
+.recharts-wrapper:focus,
+.recharts-surface:focus,
+.recharts-wrapper *:focus {
+  outline: none;
+}
+
+.recharts-area-area,
+.recharts-area-curve,
+.recharts-line-curve,
+.recharts-bar-rectangle {
+  outline: none;
+  stroke-dasharray: none;
+}
+
+.recharts-active-dot circle {
+  stroke: none;
+}
