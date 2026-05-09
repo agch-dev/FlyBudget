@@ -121,6 +121,44 @@ export interface SpendingByCategory { categoryId: string | null; categoryName: s
 export interface IncomeByCategoryItem { categoryId: string | null; categoryName: string | null; groupName: string | null; totalReceived: number; }
 export interface SpendingTrendPoint { categoryId: string; categoryName: string | null; month: string; total: number; }
 
+// Custom Reports
+export type ChartType = 'bar' | 'stacked-bar' | 'line' | 'area' | 'donut' | 'table';
+export type ReportMode = 'total' | 'time';
+export type ReportGroupBy = 'category' | 'categoryGroup' | 'payee' | 'account' | 'month';
+export type BalanceType = 'expense' | 'income' | 'net';
+export type DatePresetCustom = '3m' | '6m' | '12m' | 'ytd' | 'last-year' | 'all' | 'custom';
+
+export interface CustomReportConfig {
+  chartType: ChartType;
+  mode: ReportMode;
+  groupBy: ReportGroupBy;
+  balanceType: BalanceType;
+  dateRange: { preset: DatePresetCustom; from: string; to: string };
+  filters: { accountIds: string[]; categoryIds: string[]; categoryGroupIds: string[] };
+}
+
+export interface SavedCustomReport {
+  id: string;
+  name: string;
+  config: CustomReportConfig;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CustomReportTotalData {
+  mode: 'total';
+  data: { name: string; id: string | null; value: number }[];
+}
+
+export interface CustomReportTimeData {
+  mode: 'time';
+  groups: string[];
+  data: Record<string, string | number>[];
+}
+
+export type CustomReportData = CustomReportTotalData | CustomReportTimeData;
+
 export interface RuleCondition {
   field: 'payee_name' | 'amount' | 'notes';
   op: 'contains' | 'starts_with' | 'ends_with' | 'exact' | 'regex';

@@ -74,3 +74,12 @@ export const rules = sqliteTable('rules', {
   sortOrder: integer('sort_order').notNull().default(0),
   createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
 });
+
+export const customReports = sqliteTable('custom_reports', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  config: text('config').notNull(),
+  sortOrder: integer('sort_order').notNull().default(0),
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
+  updatedAt: text('updated_at').notNull().default(sql`(datetime('now'))`),
+});

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { db } from '../db/index.js';
-import { transactions, accounts, categories, categoryGroups } from '../db/schema.js';
-import { eq, and, gte, lte, sql } from 'drizzle-orm';
+import { transactions, accounts, categories, categoryGroups, payees } from '../db/schema.js';
+import { eq, and, gte, lte, sql, inArray, lt } from 'drizzle-orm';
 import { monthBounds } from '../utils/date.js';
 
 export const reportsRouter = Router();
@@ -208,4 +208,104 @@ reportsRouter.get('/spending-trends', (req, res) => {
       .filter((r) => r.categoryId && ids.includes(r.categoryId) && r.total < 0)
       .map((r) => ({ ...r, total: Math.abs(r.total) }))
   );
+});
+
+// --------------- Custom report aggregation endpoint ---------------
+
+reportsRouter.get('/custom', (req, res) => {
+  const {
+    mode = 'total',
+    group_by = 'category',
+    balance_type = 'expense',
+    from = '2024-01',
+    to = '2026-12',
+    account_ids,
+    category_ids,
+    category_group_ids,
+  } = req.query as Record<string, string>;
+
+  const conditions: ReturnType<typeof eq>[] = [
+    gte(transactions.date, monthBounds(from).from),
+    lte(transactions.date, monthBounds(to).to),
+  ];
+
+  if (balance_type === 'expense') conditions.push(lt(transactions.amount, 0));
+  else if (balance_type === 'income') conditions.push(eq(categoryGroups.isIncome, 1));
+
+  if (account_ids) {
+    const ids = account_ids.split(',').filter(Boolean);
+    if (ids.length) conditions.push(inArray(transactions.accountId, ids));
+  }
+  if (category_ids) {
+    const ids = category_ids.split(',').filter(Boolean);
+    if (ids.length) conditions.push(inArray(transactions.categoryId, ids));
+  }
+  if (category_group_ids) {
+    const ids = category_group_ids.split(',').filter(Boolean);
+    if (ids.length) conditions.push(inArray(categories.groupId, ids));
+  }
+
+  const groupByCol = {
+    category: { name: categories.name, id: transactions.categoryId, groupCol: transactions.categoryId },
+    categoryGroup: { name: categoryGroups.name, id: categories.groupId, groupCol: categories.groupId },
+    payee: { name: sql<string>`coalesce(${payees.name}, ${transactions.payeeName}, 'Unknown')`, id: transactions.payeeId, groupCol: transactions.payeeId },
+    account: { name: accounts.name, id: transactions.accountId, groupCol: transactions.accountId },
+    month: { name: sql<string>`strftime('%Y-%m', ${transactions.date})`, id: sql<string>`strftime('%Y-%m', ${transactions.date})`, groupCol: sql`strftime('%Y-%m', ${transactions.date})` },
+  }[group_by] ?? { name: categories.name, id: transactions.categoryId, groupCol: transactions.categoryId };
+
+  const baseQuery = db
+    .select({
+      name: groupByCol.name,
+      id: groupByCol.id,
+      ...(mode === 'time' ? { month: sql<string>`strftime('%Y-%m', ${transactions.date})` } : {}),
+      value: sql<number>`coalesce(sum(${transactions.amount}), 0)`,
+    })
+    .from(transactions)
+    .leftJoin(categories, eq(transactions.categoryId, categories.id))
+    .leftJoin(categoryGroups, eq(categories.groupId, categoryGroups.id))
+    .leftJoin(payees, eq(transactions.payeeId, payees.id))
+    .leftJoin(accounts, eq(transactions.accountId, accounts.id))
+    .where(and(...conditions));
+
+  if (mode === 'time') {
+    const rows = baseQuery
+      .groupBy(groupByCol.groupCol, sql`strftime('%Y-%m', ${transactions.date})`)
+      .orderBy(sql`strftime('%Y-%m', ${transactions.date})`)
+      .all() as { name: string | null; id: string | null; month: string; value: number }[];
+
+    const months = monthRange(from, to);
+    const groupSet = new Set<string>();
+    for (const r of rows) groupSet.add(r.name || 'Uncategorized');
+    const groups = Array.from(groupSet).sort();
+
+    const dataMap = new Map<string, Record<string, number>>();
+    for (const m of months) dataMap.set(m, {});
+
+    for (const r of rows) {
+      const label = r.name || 'Uncategorized';
+      const bucket = dataMap.get(r.month);
+      if (bucket) {
+        const val = balance_type === 'expense' ? Math.abs(r.value) : r.value;
+        bucket[label] = (bucket[label] || 0) + val;
+      }
+    }
+
+    const data = months.map(m => ({ month: m, ...dataMap.get(m)! }));
+    res.json({ mode: 'time', groups, data });
+  } else {
+    const rows = baseQuery
+      .groupBy(groupByCol.groupCol)
+      .orderBy(sql`abs(sum(${transactions.amount})) desc`)
+      .all() as { name: string | null; id: string | null; value: number }[];
+
+    const data = rows
+      .filter(r => r.value !== 0)
+      .map(r => ({
+        name: r.name || 'Uncategorized',
+        id: r.id,
+        value: balance_type === 'expense' ? Math.abs(r.value) : r.value,
+      }));
+
+    res.json({ mode: 'total', data });
+  }
 });

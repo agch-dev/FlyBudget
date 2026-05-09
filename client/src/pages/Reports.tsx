@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { format, subMonths, parseISO, startOfYear, endOfYear, subYears } from 'date-fns';
 import {
   AreaChart, Area, BarChart, Bar, LineChart, Line, Legend,
@@ -12,7 +13,9 @@ import {
 import { useCategories } from '../hooks/useCategories';
 import { formatCurrency, formatCentsAxis } from '../utils/currency';
 import { downloadCsv } from '../utils/exportCsv';
-import { Download } from 'lucide-react';
+import { Download, Plus } from 'lucide-react';
+import { CurrencyTooltip, ChartSkeleton, EmptyState, StatCardRow, EXPENSE_COLORS, monthLabel } from '../components/reports/ChartHelpers';
+import type { StatCard } from '../components/reports/ChartHelpers';
 
 type Tab = 'net-worth' | 'income' | 'cash-flow' | 'spending' | 'sankey' | 'trends';
 type Preset = '3m' | '6m' | 'ytd' | 'last-year' | 'custom';
@@ -44,59 +47,7 @@ const CHART_HEIGHT: Record<Tab, string> = {
   'trends': 'h-80',
 };
 
-const EXPENSE_COLORS = ['#f59e0b', '#ef4444', '#f97316', '#06b6d4', '#6366f1', '#ec4899', '#84cc16', '#0ea5e9', '#a78bfa', '#fb7185'];
 const MIN_SAVINGS_CENTS = 500;
-
-const monthLabel = (month: string) => format(parseISO(`${month}-01`), 'MMM yy');
-
-function CurrencyTooltip({ active, payload, label }: any) {
-  if (!active || !payload?.length) return null;
-  return (
-    <div className="bg-white border border-gray-100 rounded-lg shadow-lg px-3 py-2">
-      <p className="text-xs text-gray-500 mb-1">{label}</p>
-      {payload.map((p: any) => (
-        <p key={p.name} className="text-xs font-medium" style={{ color: p.color }}>
-          {p.name}: {formatCurrency(p.value)}
-        </p>
-      ))}
-    </div>
-  );
-}
-
-function ChartSkeleton() {
-  return (
-    <div className="h-full flex items-end gap-2 px-4 pb-4 pt-8 animate-pulse">
-      {[55, 72, 40, 85, 60, 78, 45, 90, 50, 65].map((h, i) => (
-        <div key={i} className="flex-1 bg-gray-200 rounded-t" style={{ height: `${h}%` }} />
-      ))}
-    </div>
-  );
-}
-
-function EmptyState({ message = 'No data for this period.' }: { message?: string }) {
-  return (
-    <div className="h-full flex items-center justify-center">
-      <div className="text-sm text-gray-400">{message}</div>
-    </div>
-  );
-}
-
-interface StatCard { label: string; value: string; sub?: string }
-
-function StatCardRow({ cards }: { cards: StatCard[] }) {
-  if (!cards.length) return null;
-  return (
-    <div className="flex gap-3 mb-5 flex-wrap">
-      {cards.map(c => (
-        <div key={c.label} className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 min-w-[110px]">
-          <p className="text-xs text-gray-400">{c.label}</p>
-          <p className="text-lg font-bold text-gray-900 mt-0.5">{c.value}</p>
-          {c.sub && <p className="text-xs text-gray-400 mt-0.5">{c.sub}</p>}
-        </div>
-      ))}
-    </div>
-  );
-}
 
 function NetWorthChart({ from, to }: { from: string; to: string }) {
   const { data = [], isLoading } = useNetWorth(from, to);
@@ -621,6 +572,13 @@ export default function ReportsPage() {
               <Download className="w-3.5 h-3.5" />
               Export CSV
             </button>
+            <Link
+              to="/reports/custom"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Custom Report
+            </Link>
           </div>
         </div>
         <div className="flex gap-1 mt-4 flex-wrap">
