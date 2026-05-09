@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Sidebar } from './components/layout/Sidebar';
+import DashboardPage from './pages/Dashboard';
 import AccountsPage from './pages/Accounts';
 import AccountTransactionsPage from './pages/AccountTransactions';
 import BudgetPage from './pages/Budget';
@@ -17,7 +18,8 @@ export default function App() {
         <Sidebar />
         <main className="flex-1 overflow-y-auto">
           <Routes>
-            <Route path="/" element={<Navigate to="/budget" replace />} />
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/budget" element={<BudgetPage />} />
             <Route path="/accounts" element={<AccountsPage />} />
             <Route path="/accounts/:id/reconcile" element={<ReconcilePage />} />

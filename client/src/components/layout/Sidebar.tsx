@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom';
-import { LayoutGrid, ArrowLeftRight, BarChart2, Users, Zap, Settings } from 'lucide-react';
+import { Home, LayoutGrid, ArrowLeftRight, BarChart2, Users, Zap, Settings } from 'lucide-react';
 import { SidebarAccountList } from './SidebarAccountList';
 
 interface NavItemProps {
@@ -34,6 +34,7 @@ export function Sidebar() {
       </div>
 
       <nav className="px-3 pt-3 space-y-0.5">
+        <NavItem to="/dashboard" icon={<Home size={16} />} label="Dashboard" />
         <NavItem to="/budget" icon={<LayoutGrid size={16} />} label="Budget" />
         <NavItem to="/transactions" icon={<ArrowLeftRight size={16} />} label="All Transactions" />
         <NavItem to="/reports" icon={<BarChart2 size={16} />} label="Reports" />

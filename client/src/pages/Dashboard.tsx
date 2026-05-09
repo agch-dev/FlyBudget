@@ -1,26 +1,35 @@
-import { useEffect, useState } from "react";
+import { format, subMonths } from 'date-fns';
+import SummaryStats from '../components/dashboard/SummaryStats';
+import AccountsOverview from '../components/dashboard/AccountsOverview';
+import BudgetProgress from '../components/dashboard/BudgetProgress';
+import NetWorthMini from '../components/dashboard/NetWorthMini';
+import IncomeExpensesMini from '../components/dashboard/IncomeExpensesMini';
+import SpendingBreakdown from '../components/dashboard/SpendingBreakdown';
+import RecentTransactions from '../components/dashboard/RecentTransactions';
+
+const now = new Date();
+const currentMonth = format(now, 'yyyy-MM');
+const sixMonthsAgo = format(subMonths(now, 5), 'yyyy-MM');
 
 export default function Dashboard() {
-  const [serverStatus, setServerStatus] = useState<string>("checking...");
-
-  useEffect(() => {
-    fetch("/api/health")
-      .then((res) => res.json())
-      .then((data) => setServerStatus(data.status))
-      .catch(() => setServerStatus("offline"));
-  }, []);
-
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
-      <h2 className="text-3xl font-bold text-gray-900">Dashboard</h2>
-      <p className="mt-2 text-gray-600">Budgeting info will be here!</p>
-      <div className="mt-6 inline-flex items-center gap-2 rounded-lg bg-white px-4 py-2 shadow-sm border border-gray-200">
-        <span className="text-sm text-gray-500">Server:</span>
-        <span
-          className={`text-sm font-medium ${serverStatus === "ok" ? "text-green-600" : "text-red-500"}`}
-        >
-          {serverStatus}
-        </span>
+    <div className="p-8 max-w-[1400px] mx-auto">
+      <div className="flex items-baseline justify-between mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+        <span className="text-sm text-gray-500">{format(now, 'MMMM yyyy')}</span>
+      </div>
+
+      <div className="space-y-5">
+        <SummaryStats currentMonth={currentMonth} sixMonthsAgo={sixMonthsAgo} />
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          <AccountsOverview />
+          <BudgetProgress currentMonth={currentMonth} />
+          <NetWorthMini sixMonthsAgo={sixMonthsAgo} currentMonth={currentMonth} />
+          <IncomeExpensesMini sixMonthsAgo={sixMonthsAgo} currentMonth={currentMonth} />
+          <SpendingBreakdown currentMonth={currentMonth} />
+          <RecentTransactions />
+        </div>
       </div>
     </div>
   );
