@@ -10,12 +10,13 @@ import CustomReportBuilder from './pages/CustomReportBuilder';
 import PayeesPage from './pages/Payees';
 import RulesPage from './pages/Rules';
 import ReconcilePage from './pages/ReconcilePage';
+import RecurringTransactionsPage from './pages/RecurringTransactions';
 import SettingsPage from './pages/Settings';
 
 export default function App() {
   return (
     <BrowserRouter>
-      <div className="flex h-screen bg-gray-50 overflow-hidden">
+      <div className="flex h-screen bg-slate-100 overflow-hidden">
         <Sidebar />
         <main className="flex-1 overflow-y-auto">
           <Routes>
@@ -26,6 +27,7 @@ export default function App() {
             <Route path="/accounts/:id/reconcile" element={<ReconcilePage />} />
             <Route path="/accounts/:id" element={<AccountTransactionsPage />} />
             <Route path="/transactions" element={<TransactionsPage />} />
+            <Route path="/recurring" element={<RecurringTransactionsPage />} />
             <Route path="/reports" element={<ReportsPage />} />
             <Route path="/reports/custom" element={<CustomReportBuilder />} />
             <Route path="/reports/custom/:id" element={<CustomReportBuilder />} />

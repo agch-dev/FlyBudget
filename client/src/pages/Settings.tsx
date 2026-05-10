@@ -19,8 +19,8 @@ export default function SettingsPage() {
 
   return (
     <div className="flex flex-col h-full bg-white">
-      <div className="px-6 py-5 border-b border-gray-100 shrink-0">
-        <h1 className="text-xl font-bold text-gray-900">Settings</h1>
+      <div className="px-6 py-5 border-b border-gray-100 bg-gradient-to-b from-white to-slate-50/50 shrink-0">
+        <h1 className="text-xl font-bold text-gray-800">Settings</h1>
         <div className="flex gap-1 mt-4">
           {tabs.map((tab) => {
             const Icon = tab.icon;
@@ -29,10 +29,10 @@ export default function SettingsPage() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg transition-colors ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg transition-all duration-150 ${
                   isActive
-                    ? 'bg-blue-50 text-blue-700 font-medium'
-                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                    ? 'bg-blue-600 text-white font-medium shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
                 }`}
               >
                 <Icon size={14} />

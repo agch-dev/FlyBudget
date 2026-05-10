@@ -12,15 +12,15 @@ function AccountRow({ account }: { account: Account }) {
     <NavLink
       to={`/accounts/${account.id}`}
       className={({ isActive }) =>
-        `flex items-center justify-between px-3 py-1.5 rounded-lg text-sm transition-colors ${
+        `flex items-center justify-between px-3 py-1.5 rounded-lg text-sm transition-all duration-150 ${
           isActive
-            ? 'bg-blue-50 text-blue-700 font-medium'
-            : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+            ? 'bg-blue-600/20 text-blue-400 font-medium'
+            : 'text-gray-400 hover:bg-white/[0.07] hover:text-gray-200'
         }`
       }
     >
       <span className="truncate">{account.name}</span>
-      <span className={`ml-2 tabular-nums text-xs font-medium shrink-0 ${isNegative ? 'text-red-500' : 'text-gray-500'}`}>
+      <span className={`ml-2 tabular-nums text-xs font-medium shrink-0 ${isNegative ? 'text-red-400' : 'text-gray-500'}`}>
         {formatCurrency(account.balance)}
       </span>
     </NavLink>
@@ -39,10 +39,10 @@ export function SidebarAccountList() {
     <>
       <div className="px-3 mt-4">
         <div className="flex items-center justify-between mb-1">
-          <span className="text-xs font-semibold tracking-wider text-gray-400 uppercase">Accounts</span>
+          <span className="text-xs font-semibold tracking-wider text-gray-500 uppercase">Accounts</span>
           <button
             onClick={() => setAddOpen(true)}
-            className="p-0.5 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+            className="p-0.5 rounded text-gray-500 hover:text-gray-300 hover:bg-white/[0.07] transition-colors"
             title="Add account"
           >
             <Plus size={14} />
@@ -52,7 +52,7 @@ export function SidebarAccountList() {
         <div className="space-y-0.5">
           {onBudget.map((a) => <AccountRow key={a.id} account={a} />)}
           {onBudget.length === 0 && (
-            <p className="px-3 py-2 text-xs text-gray-400">No accounts yet</p>
+            <p className="px-3 py-2 text-xs text-gray-500">No accounts yet</p>
           )}
         </div>
 
@@ -60,7 +60,7 @@ export function SidebarAccountList() {
           <div className="mt-3">
             <button
               onClick={() => setOffBudgetOpen((o) => !o)}
-              className="flex items-center gap-1 w-full text-xs font-semibold tracking-wider text-gray-400 uppercase hover:text-gray-500 transition-colors mb-1"
+              className="flex items-center gap-1 w-full text-xs font-semibold tracking-wider text-gray-500 uppercase hover:text-gray-300 transition-colors mb-1"
             >
               {offBudgetOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
               Off Budget

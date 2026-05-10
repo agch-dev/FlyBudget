@@ -8,7 +8,7 @@ import { formatCurrency } from '../../utils/currency';
 function CurrencyTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-white border border-gray-100 rounded-lg shadow-lg px-3 py-2">
+    <div className="bg-white/95 backdrop-blur-sm border border-gray-100 rounded-lg shadow-lg px-3 py-2">
       <p className="text-xs text-gray-500 mb-1">{label}</p>
       {payload.map((p: any) => (
         <p key={p.name} className="text-xs font-medium" style={{ color: p.color }}>
@@ -36,7 +36,7 @@ export default function NetWorthMini({ sixMonthsAgo, currentMonth }: Props) {
 
   if (isLoading) {
     return (
-      <div className="bg-white rounded-xl border border-gray-200 p-5">
+      <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow p-5">
         <div className="h-5 w-28 bg-gray-200 rounded animate-pulse mb-2" />
         <div className="h-6 w-36 bg-gray-100 rounded animate-pulse mb-4" />
         <div className="h-36 flex items-end gap-2 animate-pulse">
@@ -49,7 +49,7 @@ export default function NetWorthMini({ sixMonthsAgo, currentMonth }: Props) {
   }
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-5">
+    <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow p-5">
       <div className="flex items-center justify-between mb-1">
         <h3 className="text-sm font-semibold text-gray-900">Net Worth</h3>
         <Link to="/reports/net-worth" className="text-xs text-blue-600 hover:text-blue-700">View all</Link>

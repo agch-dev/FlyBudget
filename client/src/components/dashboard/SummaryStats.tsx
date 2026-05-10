@@ -18,7 +18,7 @@ export default function SummaryStats({ currentMonth, sixMonthsAgo }: Props) {
     return (
       <div className="flex gap-4 flex-wrap">
         {Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="flex-1 min-w-[140px] h-[88px] bg-white rounded-xl border border-gray-200 animate-pulse" />
+          <div key={i} className="flex-1 min-w-[140px] h-[88px] bg-white rounded-xl shadow-sm animate-pulse" />
         ))}
       </div>
     );
@@ -46,7 +46,7 @@ export default function SummaryStats({ currentMonth, sixMonthsAgo }: Props) {
       {cards.map(c => (
         <div
           key={c.label}
-          className={`flex-1 min-w-[140px] bg-white rounded-xl border border-gray-200 p-4 ${c.accent ? `border-l-4 ${c.accent}` : ''}`}
+          className={`flex-1 min-w-[140px] bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow p-4 ${c.accent ? `border-l-4 ${c.accent}` : 'border border-white'}`}
         >
           <p className="text-xs font-medium text-gray-500">{c.label}</p>
           <p className={`text-xl font-bold tabular-nums mt-1 ${c.valueColor || 'text-gray-900'}`}>{c.value}</p>

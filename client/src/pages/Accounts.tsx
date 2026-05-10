@@ -19,7 +19,7 @@ function AccountCard({ account, onEdit }: AccountCardProps) {
   return (
     <div
       onClick={() => navigate(`/accounts/${account.id}`)}
-      className="bg-white rounded-xl border border-gray-200 p-5 cursor-pointer hover:border-blue-300 hover:shadow-sm transition-all group"
+      className="bg-white rounded-xl shadow-sm p-5 cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 group"
     >
       <div className="flex items-start justify-between mb-3">
         <Badge variant={account.type} />
@@ -51,7 +51,7 @@ export default function AccountsPage() {
       <div className="p-8">
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="h-32 bg-gray-100 rounded-xl animate-pulse" />
+            <div key={i} className="h-32 bg-white rounded-xl shadow-sm animate-pulse" />
           ))}
         </div>
       </div>
@@ -61,10 +61,10 @@ export default function AccountsPage() {
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Accounts</h1>
+        <h1 className="text-2xl font-bold text-gray-800">Accounts</h1>
         <button
           onClick={() => setAddOpen(true)}
-          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 shadow-sm hover:shadow-md transition-all duration-150"
         >
           <Plus size={16} />
           Add Account

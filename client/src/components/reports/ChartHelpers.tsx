@@ -8,7 +8,7 @@ export const monthLabel = (month: string) => format(parseISO(`${month}-01`), 'MM
 export function CurrencyTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-white border border-gray-100 rounded-lg shadow-lg px-3 py-2">
+    <div className="bg-white/95 backdrop-blur-sm border border-gray-100 rounded-lg shadow-lg px-3 py-2">
       <p className="text-xs text-gray-500 mb-1">{label}</p>
       {payload.map((p: any) => (
         <p key={p.name} className="text-xs font-medium" style={{ color: p.color }}>
@@ -44,7 +44,7 @@ export function StatCardRow({ cards }: { cards: StatCard[] }) {
   return (
     <div className="flex gap-3 mb-5 flex-wrap">
       {cards.map(c => (
-        <div key={c.label} className="rounded-xl border border-gray-100 bg-gray-50 px-4 py-3 min-w-[110px]">
+        <div key={c.label} className="rounded-xl bg-slate-50 border border-slate-100 px-4 py-3 min-w-[110px]">
           <p className="text-xs text-gray-400">{c.label}</p>
           <p className="text-lg font-bold text-gray-900 mt-0.5">{c.value}</p>
           {c.sub && <p className="text-xs text-gray-400 mt-0.5">{c.sub}</p>}

@@ -15,7 +15,7 @@ export default function AccountTransactionsPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="px-6 py-4 border-b border-gray-100 bg-white shrink-0">
+      <div className="px-6 py-4 border-b border-gray-100 bg-gradient-to-b from-white to-slate-50/50 shrink-0">
         <div className="flex items-center justify-between mb-0.5">
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-bold text-gray-900">{account.name}</h1>

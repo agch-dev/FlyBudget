@@ -39,7 +39,7 @@ export default function AccountsOverview() {
 
   if (isLoading) {
     return (
-      <div className="bg-white rounded-xl border border-gray-200 p-5">
+      <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow p-5">
         <div className="h-5 w-32 bg-gray-200 rounded animate-pulse mb-4" />
         <div className="space-y-3">
           {Array.from({ length: 4 }).map((_, i) => (
@@ -51,7 +51,7 @@ export default function AccountsOverview() {
   }
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-5">
+    <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow p-5">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-sm font-semibold text-gray-900">Accounts</h3>
         <Link to="/accounts" className="text-xs text-blue-600 hover:text-blue-700">View all</Link>

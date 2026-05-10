@@ -6,6 +6,7 @@ import NetWorthMini from '../components/dashboard/NetWorthMini';
 import IncomeExpensesMini from '../components/dashboard/IncomeExpensesMini';
 import SpendingBreakdown from '../components/dashboard/SpendingBreakdown';
 import RecentTransactions from '../components/dashboard/RecentTransactions';
+import UpcomingBills from '../components/dashboard/UpcomingBills';
 
 const now = new Date();
 const currentMonth = format(now, 'yyyy-MM');
@@ -15,8 +16,8 @@ export default function Dashboard() {
   return (
     <div className="p-8 max-w-[1400px] mx-auto">
       <div className="flex items-baseline justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <span className="text-sm text-gray-500">{format(now, 'MMMM yyyy')}</span>
+        <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
+        <span className="text-sm text-gray-500 font-medium">{format(now, 'MMMM yyyy')}</span>
       </div>
 
       <div className="space-y-5">
@@ -28,6 +29,7 @@ export default function Dashboard() {
           <NetWorthMini sixMonthsAgo={sixMonthsAgo} currentMonth={currentMonth} />
           <IncomeExpensesMini sixMonthsAgo={sixMonthsAgo} currentMonth={currentMonth} />
           <SpendingBreakdown currentMonth={currentMonth} />
+          <UpcomingBills />
           <RecentTransactions />
         </div>
       </div>

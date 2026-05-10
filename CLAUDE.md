@@ -92,6 +92,7 @@ budgeting-project/
 | `/reports` | Reports (Net Worth, Income/Expenses, Cash Flow, Spending, Sankey, Spending Trends) |
 | `/reports/custom` | Custom Report Builder (configurable chart type, grouping, filtering) |
 | `/reports/custom/:id` | Saved custom report (loads saved config by ID) |
+| `/recurring` | Recurring transactions (bills, subscriptions, recurring income) |
 | `/payees` | Payees management |
 | `/rules` | Auto-categorization rules |
 | `/settings` | Settings (Categories, Account reorder, Data export/backup, Preferences) |
@@ -105,6 +106,7 @@ budgeting-project/
 - `rules` — `conditions` and `actions` stored as JSON strings; ordered by `sortOrder`
 - `payees` — `defaultCategoryId` auto-applied when a payee is selected on a new transaction
 - `custom_reports` — `name` + `config` (JSON string of `CustomReportConfig`); stores saved custom report configurations
+- `recurring_transactions` — `frequency` (`weekly|biweekly|semimonthly|monthly|quarterly|semiannually|yearly`); `status` (`active|paused|canceled`); `autoCreate` auto-creates transactions on server startup; linked to transactions via `recurringTransactionId` FK
 
 ### Custom Report Builder
 The report builder at `/reports/custom` supports:
@@ -116,14 +118,27 @@ The report builder at `/reports/custom` supports:
 - **Save/load**: reports persist to DB and can be opened via `/reports/custom/:id`
 - **Live updates**: config changes debounced (300ms via `useDebounce`) and chart re-renders automatically
 
+### Recurring Transactions
+The recurring page at `/recurring` has three tabs:
+- **Monthly** — calendar view with colored dots per occurrence + list of items for the selected month. Summary bar (income/expenses/net).
+- **Upcoming** — next 60 days of unpaid occurrences (upcoming + overdue).
+- **All** — all recurring definitions with pause/resume/edit/cancel actions. Collapsible canceled section.
+
+Occurrence status is computed by cross-referencing `recurringTransactionId` on transactions within a 3-day window of expected date: `paid`, `paid_different` (amount differs), `upcoming`, or `overdue`.
+
+Mark-as-paid creates a real transaction linked via `recurringTransactionId`. Auto-create (on server startup) creates transactions for items with `autoCreate=1` that are due today or earlier.
+
+UI components live in `client/src/components/recurring/`. Occurrence computation utility: `server/src/utils/recurrence.ts` (also copied to `client/src/utils/recurrence.ts`).
+
 ### Dashboard
-The dashboard at `/dashboard` (default landing page) has 7 widget components in `client/src/components/dashboard/`:
+The dashboard at `/dashboard` (default landing page) has 8 widget components in `client/src/components/dashboard/`:
 - `SummaryStats` — Net Worth, To Be Budgeted, Income, Expenses, Savings Rate
 - `AccountsOverview` — accounts grouped by type with balances
 - `BudgetProgress` — top 6 budget categories with progress bars
 - `NetWorthMini` — compact 6-month area chart
 - `IncomeExpensesMini` — compact 6-month bar chart
 - `SpendingBreakdown` — category spending with colored percentage bars
+- `UpcomingBills` — next 7 upcoming/overdue recurring bills within 30 days
 - `RecentTransactions` — last 8 transactions
 
 ---
@@ -132,6 +147,5 @@ The dashboard at `/dashboard` (default landing page) has 7 widget components in 
 
 - **Bank Sync (Phase 9)**: Plaid / Finicity / SimpleFIN integration for automatic transaction import. Deferred — adds significant complexity and cost.
 - **Asset Tracking**: Car value tracking and house/real estate tracking for more accurate net worth calculations. Would need new account types or asset tables beyond the current financial account model.
-- **Recurring/Scheduled Transactions**: Auto-create transactions on a schedule for bills and subscriptions.
 - **Goal Tracking**: Save targets per category (e.g., "save $X by date Y").
 - **Dark Mode**: Preferences panel exists but dark mode not yet implemented.

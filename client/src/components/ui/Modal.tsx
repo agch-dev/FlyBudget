@@ -25,7 +25,7 @@ export function Modal({ isOpen, onClose, title, children, size = 'md' }: Props) 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className={`relative w-full ${sizeClasses[size]} bg-white rounded-xl shadow-xl`}>
+      <div className={`relative w-full ${sizeClasses[size]} bg-white rounded-xl shadow-2xl`}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
           <button

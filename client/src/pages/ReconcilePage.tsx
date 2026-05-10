@@ -96,7 +96,7 @@ export default function ReconcilePage() {
               <ArrowLeft size={16} />
             </button>
             <div className="flex items-center gap-2">
-              <h1 className="text-xl font-bold text-gray-900">Reconcile: {account.name}</h1>
+              <h1 className="text-xl font-bold text-gray-800">Reconcile: {account.name}</h1>
               <Badge variant={account.type} />
             </div>
           </div>
@@ -147,7 +147,7 @@ export default function ReconcilePage() {
             <ArrowLeft size={16} />
           </button>
           <div className="flex items-center gap-2">
-            <h1 className="text-xl font-bold text-gray-900">Reconcile: {account.name}</h1>
+            <h1 className="text-xl font-bold text-gray-800">Reconcile: {account.name}</h1>
             <Badge variant={account.type} />
           </div>
         </div>

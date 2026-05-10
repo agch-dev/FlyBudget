@@ -171,7 +171,7 @@ function GroupSection({ group, editingId, onStartEdit, onSave, onCancel }: Group
 
 function SummaryCard({ label, value, color }: { label: string; value: number; color: string }) {
   return (
-    <div className="flex-1 bg-gray-50 rounded-xl px-4 py-3">
+    <div className="flex-1 bg-slate-50 rounded-xl px-4 py-3 border border-slate-100">
       <p className="text-xs text-gray-400 mb-0.5 uppercase tracking-wide">{label}</p>
       <p className={`text-base font-bold tabular-nums ${color}`}>{formatCurrency(value)}</p>
     </div>
@@ -199,7 +199,7 @@ export default function BudgetPage() {
 
   return (
     <div className="flex flex-col h-full bg-white">
-      <div className="px-6 py-5 border-b border-gray-100 shrink-0">
+      <div className="px-6 py-5 border-b border-gray-100 bg-gradient-to-b from-white to-slate-50/50 shrink-0">
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-1">
             <button
@@ -208,7 +208,7 @@ export default function BudgetPage() {
             >
               <ChevronLeft size={18} />
             </button>
-            <span className="text-lg font-bold text-gray-900 w-40 text-center">
+            <span className="text-lg font-bold text-gray-800 w-40 text-center">
               {format(monthDate, 'MMMM yyyy')}
             </span>
             <button

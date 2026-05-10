@@ -9,6 +9,7 @@ import { rulesRouter } from './routes/rules.js';
 import { reportsRouter } from './routes/reports.js';
 import { exportRouter } from './routes/export.js';
 import { customReportsRouter } from './routes/customReports.js';
+import { recurringTransactionsRouter, autoCreateDueRecurring } from './routes/recurringTransactions.js';
 
 const app = express();
 
@@ -26,6 +27,7 @@ app.use('/api/rules', rulesRouter);
 app.use('/api/reports', reportsRouter);
 app.use('/api/export', exportRouter);
 app.use('/api/custom-reports', customReportsRouter);
+app.use('/api/recurring-transactions', recurringTransactionsRouter);
 
 export async function startServer(port: number | string): Promise<void> {
   if (process.env.ELECTRON_PROD) {
@@ -36,6 +38,8 @@ export async function startServer(port: number | string): Promise<void> {
   return new Promise((resolve) => {
     app.listen(Number(port), '127.0.0.1', () => {
       console.log(`Server running on http://localhost:${port}`);
+      const created = autoCreateDueRecurring();
+      if (created > 0) console.log(`Auto-created ${created} recurring transaction(s)`);
       resolve();
     });
   });

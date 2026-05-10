@@ -73,7 +73,7 @@ export default function CustomReportBuilder() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="px-6 py-3 border-b border-gray-100 bg-white flex items-center justify-between">
+      <div className="px-6 py-3 border-b border-gray-100 bg-gradient-to-b from-white to-slate-50/50 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <Link to="/reports" className="text-gray-400 hover:text-gray-600 transition-colors">
             <ArrowLeft className="w-4 h-4" />
