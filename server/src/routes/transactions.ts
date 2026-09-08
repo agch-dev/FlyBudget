@@ -1,10 +1,10 @@
 import { Router } from 'express';
 import { db } from '../db/index.js';
-import { transactions, payees, rules, accounts } from '../db/schema.js';
+import { transactions, payees, accounts } from '../db/schema.js';
 import { eq, and, like, gte, lte, sql, isNull, inArray } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import { z } from 'zod';
-import { applyRulesToNew } from '../services/rulesEngine.js';
+import { resolvePayee, autoCategory } from '../services/transactionHelpers.js';
 
 export const transactionsRouter = Router();
 
@@ -42,43 +42,6 @@ const importRowSchema = z.object({
   notes: z.string().nullable().optional(),
   importedId: z.string(),
 });
-
-function resolvePayee(payeeName: string | null | undefined, payeeId: string | null | undefined) {
-  let resolvedPayeeId = payeeId ?? null;
-  let resolvedPayeeName = payeeName ?? null;
-  if (!resolvedPayeeId && payeeName) {
-    const existing = db.select().from(payees).where(eq(payees.name, payeeName)).get();
-    if (existing) {
-      resolvedPayeeId = existing.id;
-    } else {
-      resolvedPayeeId = nanoid();
-      db.insert(payees).values({ id: resolvedPayeeId, name: payeeName, defaultCategoryId: null, createdAt: new Date().toISOString() }).run();
-    }
-    resolvedPayeeName = payeeName;
-  }
-  return { resolvedPayeeId, resolvedPayeeName };
-}
-
-function autoCategory(payeeId: string | null, payeeName: string | null, amount: number, notes: string | null) {
-  let categoryId: string | null = null;
-  let resolvedPayeeId = payeeId;
-  if (payeeId) {
-    const payee = db.select().from(payees).where(eq(payees.id, payeeId)).get();
-    if (payee?.defaultCategoryId) categoryId = payee.defaultCategoryId;
-  }
-  if (!categoryId) {
-    const allRules = db.select().from(rules).orderBy(rules.sortOrder).all()
-      .map(r => ({ ...r, conditions: JSON.parse(r.conditions), actions: JSON.parse(r.actions) }));
-    const actions = applyRulesToNew({ payeeName, amount, notes, categoryId: null }, allRules);
-    if (actions) {
-      for (const a of actions) {
-        if (a.field === 'category_id') categoryId = a.value;
-        else if (a.field === 'payee_id') resolvedPayeeId = a.value;
-      }
-    }
-  }
-  return { categoryId, payeeId: resolvedPayeeId };
-}
 
 // GET /transactions — excludes split children; attaches children array to parents
 transactionsRouter.get('/', (req, res) => {

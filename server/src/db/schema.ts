@@ -103,3 +103,40 @@ export const customReports = sqliteTable('custom_reports', {
   createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
   updatedAt: text('updated_at').notNull().default(sql`(datetime('now'))`),
 });
+
+export const plaidConfig = sqliteTable('plaid_config', {
+  id: text('id').primaryKey(),
+  clientId: text('client_id').notNull(),
+  secret: text('secret').notNull(),
+  environment: text('environment').notNull().default('sandbox'),
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
+  updatedAt: text('updated_at').notNull().default(sql`(datetime('now'))`),
+});
+
+export const plaidItems = sqliteTable('plaid_items', {
+  id: text('id').primaryKey(),
+  plaidItemId: text('plaid_item_id').notNull(),
+  institutionId: text('institution_id').notNull(),
+  institutionName: text('institution_name').notNull(),
+  accessToken: text('access_token').notNull(),
+  cursor: text('cursor'),
+  lastSyncedAt: text('last_synced_at'),
+  syncStatus: text('sync_status').notNull().default('good'),
+  syncError: text('sync_error'),
+  consentExpiresAt: text('consent_expires_at'),
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
+});
+
+export const plaidAccountMappings = sqliteTable('plaid_account_mappings', {
+  id: text('id').primaryKey(),
+  plaidItemId: text('plaid_item_id').notNull().references(() => plaidItems.id, { onDelete: 'cascade' }),
+  plaidAccountId: text('plaid_account_id').notNull(),
+  accountId: text('account_id').references(() => accounts.id, { onDelete: 'set null' }),
+  plaidAccountName: text('plaid_account_name').notNull(),
+  plaidAccountType: text('plaid_account_type').notNull(),
+  plaidAccountMask: text('plaid_account_mask'),
+  isEnabled: integer('is_enabled').notNull().default(1),
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
+}, (table) => [
+  uniqueIndex('plaid_account_mapping_unique').on(table.plaidItemId, table.plaidAccountId),
+]);

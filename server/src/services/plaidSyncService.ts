@@ -1,0 +1,182 @@
+import { db } from '../db/index.js';
+import { plaidItems, plaidAccountMappings, transactions, accounts } from '../db/schema.js';
+import { eq, and, sql } from 'drizzle-orm';
+import { nanoid } from 'nanoid';
+import { syncTransactions, plaidAmountToCents, plaidBalanceToCents } from './plaidService.js';
+import { resolvePayee, autoCategory } from './transactionHelpers.js';
+
+export interface SyncResult {
+  itemId: string;
+  institutionName: string;
+  added: number;
+  modified: number;
+  removed: number;
+  errors: string[];
+}
+
+export async function syncPlaidItem(plaidItemId: string): Promise<SyncResult> {
+  const item = db.select().from(plaidItems).where(eq(plaidItems.id, plaidItemId)).get();
+  if (!item) throw new Error(`Plaid item ${plaidItemId} not found`);
+
+  const result: SyncResult = {
+    itemId: plaidItemId,
+    institutionName: item.institutionName,
+    added: 0,
+    modified: 0,
+    removed: 0,
+    errors: [],
+  };
+
+  db.update(plaidItems)
+    .set({ syncStatus: 'syncing', syncError: null })
+    .where(eq(plaidItems.id, plaidItemId))
+    .run();
+
+  try {
+    const syncData = await syncTransactions(item.accessToken, item.cursor);
+
+    const mappings = db.select().from(plaidAccountMappings)
+      .where(eq(plaidAccountMappings.plaidItemId, plaidItemId))
+      .all();
+
+    const mappingByPlaidId = new Map(
+      mappings.map(m => [m.plaidAccountId, m])
+    );
+
+    for (const tx of syncData.added) {
+      const mapping = mappingByPlaidId.get(tx.accountId);
+      if (!mapping || !mapping.accountId || !mapping.isEnabled) continue;
+
+      const importedId = `plaid:${tx.transactionId}`;
+      const existing = db.select({ id: transactions.id })
+        .from(transactions)
+        .where(and(eq(transactions.accountId, mapping.accountId), eq(transactions.importedId, importedId)))
+        .get();
+      if (existing) continue;
+
+      const amount = plaidAmountToCents(tx.amount);
+      const payeeName = tx.merchantName || tx.name;
+      const { resolvedPayeeId, resolvedPayeeName } = resolvePayee(payeeName, null);
+      const auto = autoCategory(resolvedPayeeId, resolvedPayeeName, amount, null);
+
+      db.insert(transactions).values({
+        id: nanoid(),
+        accountId: mapping.accountId,
+        date: tx.date,
+        amount,
+        payeeId: auto.payeeId,
+        payeeName: resolvedPayeeName,
+        categoryId: auto.categoryId,
+        notes: null,
+        cleared: 1,
+        reconciled: 0,
+        isParent: 0,
+        transferTransactionId: null,
+        parentTransactionId: null,
+        importedId,
+        createdAt: new Date().toISOString(),
+      }).run();
+
+      result.added++;
+    }
+
+    for (const tx of syncData.modified) {
+      const mapping = mappingByPlaidId.get(tx.accountId);
+      if (!mapping || !mapping.accountId || !mapping.isEnabled) continue;
+
+      const importedId = `plaid:${tx.transactionId}`;
+      const existing = db.select().from(transactions)
+        .where(and(eq(transactions.accountId, mapping.accountId), eq(transactions.importedId, importedId)))
+        .get();
+      if (!existing || existing.reconciled === 1) continue;
+
+      const amount = plaidAmountToCents(tx.amount);
+      const payeeName = tx.merchantName || tx.name;
+
+      db.update(transactions).set({
+        date: tx.date,
+        amount,
+        payeeName,
+      }).where(eq(transactions.id, existing.id)).run();
+
+      result.modified++;
+    }
+
+    for (const tx of syncData.removed) {
+      const importedId = `plaid:${tx.transactionId}`;
+      const existing = db.select().from(transactions)
+        .where(eq(transactions.importedId, importedId))
+        .get();
+      if (!existing || existing.reconciled === 1) continue;
+
+      db.delete(transactions).where(eq(transactions.id, existing.id)).run();
+      result.removed++;
+    }
+
+    for (const bal of syncData.accountBalances) {
+      const mapping = mappingByPlaidId.get(bal.accountId);
+      if (!mapping || !mapping.accountId || !mapping.isEnabled) continue;
+
+      const targetBalance = plaidBalanceToCents(bal.current, mapping.plaidAccountType);
+
+      const txSum = db.select({ total: sql<number>`COALESCE(SUM(${transactions.amount}), 0)` })
+        .from(transactions)
+        .where(eq(transactions.accountId, mapping.accountId))
+        .get();
+
+      const currentTxSum = txSum?.total ?? 0;
+      const newStartingBalance = targetBalance - currentTxSum;
+
+      db.update(accounts)
+        .set({ startingBalance: newStartingBalance })
+        .where(eq(accounts.id, mapping.accountId))
+        .run();
+    }
+
+    db.update(plaidItems).set({
+      cursor: syncData.nextCursor,
+      lastSyncedAt: new Date().toISOString(),
+      syncStatus: 'good',
+      syncError: null,
+    }).where(eq(plaidItems.id, plaidItemId)).run();
+
+  } catch (err: any) {
+    const errorMessage = err?.response?.data?.error_message ?? err?.message ?? 'Unknown error';
+    const errorCode = err?.response?.data?.error_code ?? '';
+
+    const syncStatus = errorCode === 'ITEM_LOGIN_REQUIRED' ? 'login_required' : 'error';
+
+    db.update(plaidItems).set({
+      syncStatus,
+      syncError: errorMessage,
+    }).where(eq(plaidItems.id, plaidItemId)).run();
+
+    result.errors.push(errorMessage);
+  }
+
+  return result;
+}
+
+export async function syncAllItems(): Promise<SyncResult[]> {
+  const items = db.select().from(plaidItems).all();
+  if (items.length === 0) return [];
+
+  const results: SyncResult[] = [];
+  for (const item of items) {
+    if (item.syncStatus === 'login_required') continue;
+    try {
+      const result = await syncPlaidItem(item.id);
+      results.push(result);
+    } catch (err: any) {
+      results.push({
+        itemId: item.id,
+        institutionName: item.institutionName,
+        added: 0,
+        modified: 0,
+        removed: 0,
+        errors: [err.message],
+      });
+    }
+  }
+  return results;
+}

@@ -15,6 +15,7 @@
     "drizzle-orm": "^0.45.2",
     "express": "^5.0.0",
     "nanoid": "^5.1.9",
+    "plaid": "^47.0.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {

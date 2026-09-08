@@ -243,3 +243,52 @@ export interface RunRulesPreviewItem {
   newCategoryName: string | null;
   actions: RuleAction[];
 }
+
+// Plaid Bank Sync
+export type PlaidSyncStatus = 'good' | 'syncing' | 'error' | 'login_required';
+
+export interface PlaidDiscoveredAccount {
+  plaidAccountId: string;
+  name: string;
+  type: string;
+  subtype: string | null;
+  mask: string | null;
+  suggestedType: AccountType;
+  currentBalance: number;
+}
+
+export interface PlaidAccountMapping {
+  plaidAccountId: string;
+  plaidAccountName: string;
+  plaidAccountType: string;
+  mask: string | null;
+  accountId: string | null;
+  accountName: string | null;
+  isEnabled: number;
+}
+
+export interface PlaidItem {
+  id: string;
+  institutionName: string;
+  institutionId: string;
+  lastSyncedAt: string | null;
+  syncStatus: PlaidSyncStatus;
+  syncError: string | null;
+  consentExpiresAt: string | null;
+  accounts: PlaidAccountMapping[];
+}
+
+export interface PlaidExchangeResult {
+  itemId: string;
+  institutionName: string;
+  accounts: PlaidDiscoveredAccount[];
+}
+
+export interface PlaidSyncResult {
+  itemId: string;
+  institutionName: string;
+  added: number;
+  modified: number;
+  removed: number;
+  errors: string[];
+}

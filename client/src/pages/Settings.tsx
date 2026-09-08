@@ -1,13 +1,15 @@
 import { useState } from 'react';
-import { Layers, ArrowUpDown, Download, SlidersHorizontal } from 'lucide-react';
+import { Layers, ArrowUpDown, Download, SlidersHorizontal, Link2 } from 'lucide-react';
 import { CategoryManager } from '../components/settings/CategoryManager';
 import { AccountReorder } from '../components/settings/AccountReorder';
 import { DataExport } from '../components/settings/DataExport';
 import { PreferencesPanel } from '../components/settings/PreferencesPanel';
+import { ConnectedAccounts } from '../components/settings/ConnectedAccounts';
 
 const tabs = [
   { id: 'categories', label: 'Categories', icon: Layers },
   { id: 'accounts', label: 'Accounts', icon: ArrowUpDown },
+  { id: 'connections', label: 'Connected Banks', icon: Link2 },
   { id: 'data', label: 'Data', icon: Download },
   { id: 'preferences', label: 'Preferences', icon: SlidersHorizontal },
 ] as const;
@@ -47,6 +49,7 @@ export default function SettingsPage() {
         <div className="max-w-2xl">
           {activeTab === 'categories' && <CategoryManager />}
           {activeTab === 'accounts' && <AccountReorder />}
+          {activeTab === 'connections' && <ConnectedAccounts />}
           {activeTab === 'data' && <DataExport />}
           {activeTab === 'preferences' && <PreferencesPanel />}
         </div>

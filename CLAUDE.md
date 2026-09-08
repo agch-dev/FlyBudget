@@ -141,11 +141,32 @@ The dashboard at `/dashboard` (default landing page) has 8 widget components in 
 - `UpcomingBills` — next 7 upcoming/overdue recurring bills within 30 days
 - `RecentTransactions` — last 8 transactions
 
+### Bank Sync (Plaid)
+The app integrates with **Plaid** for automatic bank transaction import. Plaid credentials are stored in the `plaid_config` SQLite table (entered via Settings → Connected Banks), not in environment variables.
+
+**Architecture:**
+- `server/src/services/plaidService.ts` — Plaid SDK wrapper (lazy-init client from DB credentials). Amount conversion: `Math.round(-plaidAmount * 100)` (Plaid positive=debit → app negative=outflow).
+- `server/src/services/plaidSyncService.ts` — Sync orchestration: calls Plaid Transactions Sync API (cursor-based incremental), processes added/modified/removed transactions, adjusts account balances.
+- `server/src/services/transactionHelpers.ts` — Shared `resolvePayee()` and `autoCategory()` (extracted from transactions route, used by both manual entry and Plaid sync).
+- `server/src/routes/plaid.ts` — API endpoints under `/api/plaid` (status, configure, link-token, exchange-token, map-accounts, sync, items CRUD, update-link).
+
+**DB tables:**
+- `plaid_config` — Single-row table for Plaid API credentials (clientId, secret, environment)
+- `plaid_items` — One row per connected institution (accessToken, cursor, syncStatus, lastSyncedAt)
+- `plaid_account_mappings` — Maps Plaid sub-accounts to local accounts (plaidAccountId → accountId)
+
+**Sync behavior:**
+- Runs on app startup (fire-and-forget) + manual "Sync Now" in settings
+- Transactions get `importedId = 'plaid:' + plaidTransactionId` for dedup (same `importedId` column used by CSV import)
+- Synced transactions arrive with `cleared=1`; reconciled transactions are never modified/deleted by sync
+- Account `startingBalance` is adjusted so `startingBalance + SUM(transactions) = Plaid reported balance`
+
+**Client components:** `client/src/components/plaid/` — PlaidLinkButton, ConnectBankModal (multi-step: link → account mapping → sync → done), ConnectedInstitutionCard, SyncStatusBadge, PlaidConfigForm.
+
 ---
 
 ## Future Considerations
 
-- **Bank Sync (Phase 9)**: Plaid / Finicity / SimpleFIN integration for automatic transaction import. Deferred — adds significant complexity and cost.
 - **Asset Tracking**: Car value tracking and house/real estate tracking for more accurate net worth calculations. Would need new account types or asset tables beyond the current financial account model.
 - **Goal Tracking**: Save targets per category (e.g., "save $X by date Y").
 - **Dark Mode**: Preferences panel exists but dark mode not yet implemented.
