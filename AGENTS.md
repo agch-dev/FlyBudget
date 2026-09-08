@@ -1,0 +1,151 @@
+# AGENTS.md
+
+This file provides guidance to Codex (Codex.ai/code) when working with code in this repository.
+
+## Commands
+
+**Start dev (both client + server):**
+```bash
+npm run dev          # from project root — runs client (port 5173) and server (port 3001) concurrently
+```
+
+**Client only:**
+```bash
+cd client
+npm run dev          # Vite dev server
+npm run build        # tsc + vite build
+```
+
+**Server only:**
+```bash
+cd server
+npm run dev          # tsx watch (hot reload)
+npm run db:generate  # drizzle-kit generate (after schema changes)
+npm run db:migrate   # drizzle-kit migrate (apply migrations)
+npm run db:seed      # seed default categories and data
+```
+
+**Electron:**
+```bash
+npm run electron:dev    # concurrent dev server + Electron
+npm run electron:build  # full build pipeline with electron-builder
+npm run rebuild:sqlite  # electron-rebuild for native modules
+```
+
+**Type checking:**
+```bash
+cd client && npx tsc --noEmit
+cd server && npx tsc --noEmit
+```
+
+No test suite currently exists.
+
+---
+
+## Architecture
+
+This is a **local-first single-user budgeting app** — zero-based envelope budgeting (like Actual Budget / YNAB). No auth, no cloud. The entire app runs on `localhost`. Also packaged as an Electron desktop app.
+
+### Monorepo layout
+```
+budgeting-project/
+├── client/          # React 19 + Vite + Tailwind v4 + React Router v7
+├── server/          # Node.js + Express 5 + SQLite
+├── electron/        # Electron main + preload (wraps web app)
+└── package.json     # root — runs concurrently
+```
+
+### Data flow
+- All amounts are stored and passed as **integer cents** (e.g. $12.34 → `1234`). Convert at UI boundaries only using `formatCurrency()` and `parseCents()` in `client/src/utils/currency.ts`.
+- The DB is a single SQLite file (`server/budget.db`) managed by Drizzle ORM. Schema is in `server/src/db/schema.ts`. All tables use `nanoid` string PKs.
+- The client never talks to SQLite directly — everything goes through the Express API at `localhost:3001/api/*`. Vite proxies `/api` to the server in dev.
+
+### Client state split
+- **Server state** (transactions, accounts, budget data): TanStack Query. Every resource has a hook in `client/src/hooks/`. Mutations call `queryClient.invalidateQueries` on success to keep cache fresh.
+- **UI state** (selected month, sidebar): Zustand store at `client/src/store/appStore.ts`.
+- **Preferences** (currency symbol, display settings): Zustand store at `client/src/store/preferencesStore.ts`.
+
+### Key conventions
+- **API layer**: `client/src/api/` contains thin fetch wrappers using `apiFetch` from `./client`. Types come from `client/src/types/index.ts`.
+- **Route validation**: Server routes validate request bodies with Zod before touching the DB.
+- **Rules engine**: Rules are stored as JSON-serialized `conditions` and `actions` in the `rules` table. Conditions support operators: `contains`, `starts_with`, `ends_with`, `exact`, `regex` on fields `payee_name`, `amount`, `notes`. First matching rule wins.
+- **Budget math**: `To Be Budgeted = income received + prior month carry-over − total budgeted`. Category balance = `budgeted + carry-over − spent`. Calculation logic lives in `server/src/routes/budget.ts`.
+- **Transfers**: Linked via `transferTransactionId` on both transaction rows — deleting one side nulls the link on the other.
+- **Custom reports**: Config stored as JSON blob in `custom_reports` table (same pattern as rules). Aggregation handled by a single flexible `GET /reports/custom` endpoint with dynamic SQL.
+- **Shared chart helpers**: `CurrencyTooltip`, `ChartSkeleton`, `EmptyState`, `StatCardRow`, `EXPENSE_COLORS`, `monthLabel` live in `client/src/components/reports/ChartHelpers.tsx` — reuse these for any new chart work.
+
+### Shared UI components (`client/src/components/ui/`)
+- `Modal` — portal-based, ESC closes, backdrop click closes, sizes: `sm | md | lg` (named export, not default)
+- `ConfirmModal` — wraps Modal, `danger` prop for red confirm button
+- `CurrencyInput` — displays formatted `$1,234.56`, stores/emits integer cents
+- `Badge` — colored pill for account types and states
+
+### Pages and routes
+| Route | Page |
+|---|---|
+| `/dashboard` | Dashboard (at-a-glance financial overview — default landing page) |
+| `/budget` | Budget (zero-based envelope view) |
+| `/transactions` | All transactions across all accounts |
+| `/accounts` | Account overview cards |
+| `/accounts/:id` | Single account transaction list |
+| `/accounts/:id/reconcile` | Account reconciliation flow |
+| `/reports` | Reports (Net Worth, Income/Expenses, Cash Flow, Spending, Sankey, Spending Trends) |
+| `/reports/custom` | Custom Report Builder (configurable chart type, grouping, filtering) |
+| `/reports/custom/:id` | Saved custom report (loads saved config by ID) |
+| `/recurring` | Recurring transactions (bills, subscriptions, recurring income) |
+| `/payees` | Payees management |
+| `/rules` | Auto-categorization rules |
+| `/settings` | Settings (Categories, Account reorder, Data export/backup, Preferences) |
+
+### DB schema summary
+- `accounts` — type: `checking | savings | credit | cash | investment`; `isOffBudget` excludes from budget calculations; `closedAt` for soft-delete
+- `category_groups` — `isIncome=1` marks income groups (affects budget math and report filtering)
+- `categories` — belong to a group; used as budget envelopes
+- `transactions` — `payeeName` (denormalized string) + `payeeId` (FK, nullable); `reconciled=-1` means excluded from balance
+- `budget_months` — one row per category per month; stores the `budgeted` amount
+- `rules` — `conditions` and `actions` stored as JSON strings; ordered by `sortOrder`
+- `payees` — `defaultCategoryId` auto-applied when a payee is selected on a new transaction
+- `custom_reports` — `name` + `config` (JSON string of `CustomReportConfig`); stores saved custom report configurations
+- `recurring_transactions` — `frequency` (`weekly|biweekly|semimonthly|monthly|quarterly|semiannually|yearly`); `status` (`active|paused|canceled`); `autoCreate` auto-creates transactions on server startup; linked to transactions via `recurringTransactionId` FK
+
+### Custom Report Builder
+The report builder at `/reports/custom` supports:
+- **Chart types**: bar, stacked-bar, line, area, donut, table
+- **Modes**: total (aggregated) or time (over months)
+- **Group by**: category, category group, payee, account, month
+- **Balance type**: expenses, income, net
+- **Filters**: date range presets (3M/6M/12M/YTD/Last Year/All/Custom), account selection, category tree selection
+- **Save/load**: reports persist to DB and can be opened via `/reports/custom/:id`
+- **Live updates**: config changes debounced (300ms via `useDebounce`) and chart re-renders automatically
+
+### Recurring Transactions
+The recurring page at `/recurring` has three tabs:
+- **Monthly** — calendar view with colored dots per occurrence + list of items for the selected month. Summary bar (income/expenses/net).
+- **Upcoming** — next 60 days of unpaid occurrences (upcoming + overdue).
+- **All** — all recurring definitions with pause/resume/edit/cancel actions. Collapsible canceled section.
+
+Occurrence status is computed by cross-referencing `recurringTransactionId` on transactions within a 3-day window of expected date: `paid`, `paid_different` (amount differs), `upcoming`, or `overdue`.
+
+Mark-as-paid creates a real transaction linked via `recurringTransactionId`. Auto-create (on server startup) creates transactions for items with `autoCreate=1` that are due today or earlier.
+
+UI components live in `client/src/components/recurring/`. Occurrence computation utility: `server/src/utils/recurrence.ts` (also copied to `client/src/utils/recurrence.ts`).
+
+### Dashboard
+The dashboard at `/dashboard` (default landing page) has 8 widget components in `client/src/components/dashboard/`:
+- `SummaryStats` — Net Worth, To Be Budgeted, Income, Expenses, Savings Rate
+- `AccountsOverview` — accounts grouped by type with balances
+- `BudgetProgress` — top 6 budget categories with progress bars
+- `NetWorthMini` — compact 6-month area chart
+- `IncomeExpensesMini` — compact 6-month bar chart
+- `SpendingBreakdown` — category spending with colored percentage bars
+- `UpcomingBills` — next 7 upcoming/overdue recurring bills within 30 days
+- `RecentTransactions` — last 8 transactions
+
+---
+
+## Future Considerations
+
+- **Bank Sync (Phase 9)**: Plaid / Finicity / SimpleFIN integration for automatic transaction import. Deferred — adds significant complexity and cost.
+- **Asset Tracking**: Car value tracking and house/real estate tracking for more accurate net worth calculations. Would need new account types or asset tables beyond the current financial account model.
+- **Goal Tracking**: Save targets per category (e.g., "save $X by date Y").
+- **Dark Mode**: Preferences panel exists but dark mode not yet implemented.
