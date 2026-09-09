@@ -102,13 +102,13 @@ export function TransactionFormRow({ initial, accountId, groups, payees, account
   const totalCents = Math.abs(getTotalCents());
   const splitRemaining = totalCents - splitTotal;
 
-  const inputCls = 'block w-full bg-transparent text-sm text-gray-900 placeholder-gray-400 focus:outline-none';
+  const inputCls = 'block w-full bg-transparent text-sm text-text placeholder-text-disabled focus:outline-none';
   const colCount = showAccountCol ? 9 : 8;
 
   return (
     <>
-      <tr className="bg-blue-50 border-b border-blue-100">
-        {showAccountCol && <td className="px-3 py-2 text-xs text-gray-400 italic">—</td>}
+      <tr className="bg-brand-50 border-b border-brand-100">
+        {showAccountCol && <td className="px-3 py-2 text-xs text-text-tertiary italic">—</td>}
         <td className="px-3 py-2">
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={`${inputCls} text-xs`} />
         </td>
@@ -117,7 +117,7 @@ export function TransactionFormRow({ initial, accountId, groups, payees, account
         </td>
         <td className="px-3 py-2">
           {splitMode ? (
-            <span className="text-xs text-blue-600 font-medium">Split</span>
+            <span className="text-xs text-brand-600 font-medium">Split</span>
           ) : (
             <CategorySelect value={categoryId} onChange={setCategoryId} groups={groups} accounts={accounts} currentAccountId={accountId} />
           )}
@@ -140,26 +140,26 @@ export function TransactionFormRow({ initial, accountId, groups, payees, account
           />
         </td>
         <td className="px-3 py-2 text-center">
-          <input type="checkbox" checked={cleared} onChange={(e) => setCleared(e.target.checked)} className="w-4 h-4 accent-blue-600" />
+          <input type="checkbox" checked={cleared} onChange={(e) => setCleared(e.target.checked)} className="w-4 h-4 accent-brand-600" />
         </td>
         <td className="px-3 py-2">
           <div className="flex gap-1">
-            <button onClick={handleSave} className="p-1 rounded text-blue-600 hover:text-blue-800"><Check size={14} /></button>
+            <button onClick={handleSave} className="p-1 rounded text-brand-600 hover:text-brand-700"><Check size={14} /></button>
             {!isEditingParent && !isTransfer && (
               <button
                 onClick={() => setSplitMode(!splitMode)}
-                className={`p-1 rounded ${splitMode ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}
+                className={`p-1 rounded ${splitMode ? 'text-brand-600' : 'text-text-tertiary hover:text-text-secondary'}`}
                 title="Split transaction"
               >
                 <Split size={14} />
               </button>
             )}
-            <button onClick={onCancel} className="p-1 rounded text-gray-400 hover:text-gray-600"><X size={14} /></button>
+            <button onClick={onCancel} className="p-1 rounded text-text-tertiary hover:text-text-secondary"><X size={14} /></button>
           </div>
         </td>
       </tr>
       {splitMode && splits.map((s, i) => (
-        <tr key={i} className="bg-blue-50/60 border-b border-blue-50">
+        <tr key={i} className="bg-brand-50/60 border-b border-brand-50">
           {showAccountCol && <td />}
           <td />
           <td />
@@ -179,7 +179,7 @@ export function TransactionFormRow({ initial, accountId, groups, payees, account
           <td />
           <td className="px-3 py-1.5">
             {splits.length > 2 && (
-              <button onClick={() => removeSplitRow(i)} className="p-0.5 rounded text-gray-400 hover:text-red-600">
+              <button onClick={() => removeSplitRow(i)} className="p-0.5 rounded text-text-tertiary hover:text-negative">
                 <Trash2 size={12} />
               </button>
             )}
@@ -187,18 +187,18 @@ export function TransactionFormRow({ initial, accountId, groups, payees, account
         </tr>
       ))}
       {splitMode && (
-        <tr className="bg-blue-50/40 border-b border-blue-100">
+        <tr className="bg-brand-50/40 border-b border-brand-100">
           {showAccountCol && <td />}
           <td />
           <td />
           <td className="px-3 py-1.5">
-            <button onClick={addSplitRow} className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-800">
+            <button onClick={addSplitRow} className="flex items-center gap-1 text-xs text-brand-600 hover:text-brand-700">
               <Plus size={12} /> Add split
             </button>
           </td>
           <td />
           <td colSpan={2} className="px-3 py-1.5 text-right">
-            <span className={`text-xs tabular-nums ${splitRemaining === 0 ? 'text-green-600' : 'text-red-500'}`}>
+            <span className={`text-xs tabular-nums ${splitRemaining === 0 ? 'text-positive' : 'text-negative'}`}>
               {splitRemaining === 0 ? 'Balanced' : `${formatCurrency(splitRemaining)} remaining`}
             </span>
           </td>

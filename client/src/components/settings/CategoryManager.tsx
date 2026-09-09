@@ -51,7 +51,7 @@ function InlineEdit({ value, onSave, onCancel }: { value: string; onSave: (v: st
         if (e.key === 'Escape') { cancelled.current = true; onCancel(); }
       }}
       onBlur={() => { if (!cancelled.current && text.trim()) onSave(text.trim()); else if (!cancelled.current) onCancel(); }}
-      className="text-sm bg-white border border-blue-400 rounded px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500 w-48"
+      className="text-sm bg-surface border border-brand-500 rounded px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-brand-600 w-48"
     />
   );
 }
@@ -78,22 +78,22 @@ function SortableCategoryRow({
     <div
       ref={setNodeRef}
       style={style}
-      className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-100 rounded-lg group hover:border-gray-200 transition-all ml-6"
+      className="flex items-center gap-2 px-3 py-2 bg-surface border border-border-light rounded-md group hover:border-border transition-all ml-6"
     >
       <button
         {...attributes}
         {...listeners}
-        className="text-gray-300 hover:text-gray-500 cursor-grab active:cursor-grabbing touch-none shrink-0"
+        className="text-text-disabled hover:text-text-tertiary cursor-grab active:cursor-grabbing touch-none shrink-0"
         aria-label="Drag to reorder"
       >
         <GripVertical size={14} />
       </button>
-      <span className="text-sm text-gray-700 flex-1 min-w-0 truncate">{cat.name}</span>
+      <span className="text-sm text-text-secondary flex-1 min-w-0 truncate">{cat.name}</span>
       <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-        <button onClick={() => onRename(cat.id)} className="p-1 text-gray-400 hover:text-blue-600 rounded hover:bg-blue-50 transition-colors">
+        <button onClick={() => onRename(cat.id)} className="p-1 text-text-tertiary hover:text-brand-600 rounded hover:bg-brand-50 transition-colors">
           <Pencil size={13} />
         </button>
-        <button onClick={() => onDelete(cat.id)} className="p-1 text-gray-400 hover:text-red-500 rounded hover:bg-red-50 transition-colors">
+        <button onClick={() => onDelete(cat.id)} className="p-1 text-text-tertiary hover:text-negative rounded hover:bg-negative-subtle transition-colors">
           <Trash2 size={13} />
         </button>
       </div>
@@ -156,16 +156,16 @@ function SortableGroup({
 
   return (
     <div ref={setNodeRef} style={style} className="space-y-1.5">
-      <div className="flex items-center gap-2 px-3 py-2.5 bg-gray-50 rounded-lg group hover:bg-gray-100 transition-colors">
+      <div className="flex items-center gap-2 px-3 py-2.5 bg-surface-alt rounded-md group hover:bg-hover transition-colors">
         <button
           {...attributes}
           {...listeners}
-          className="text-gray-300 hover:text-gray-500 cursor-grab active:cursor-grabbing touch-none shrink-0"
+          className="text-text-disabled hover:text-text-tertiary cursor-grab active:cursor-grabbing touch-none shrink-0"
           aria-label="Drag to reorder"
         >
           <GripVertical size={16} />
         </button>
-        <button onClick={() => setCollapsed((c) => !c)} className="text-gray-400 shrink-0">
+        <button onClick={() => setCollapsed((c) => !c)} className="text-text-tertiary shrink-0">
           {collapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
         </button>
         <div className="flex-1 min-w-0">
@@ -176,20 +176,20 @@ function SortableGroup({
               onCancel={onCancelEdit}
             />
           ) : (
-            <span className="text-xs font-bold uppercase tracking-widest text-gray-500">{group.name}</span>
+            <span className="text-xs font-medium text-text-tertiary">{group.name}</span>
           )}
         </div>
         {group.isIncome === 1 && (
-          <span className="text-[10px] font-medium text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded shrink-0">Income</span>
+          <span className="text-[10px] font-medium text-positive bg-positive-subtle px-1.5 py-0.5 rounded shrink-0">Income</span>
         )}
         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-          <button onClick={() => onAddCategory(group.id)} className="p-1 text-gray-400 hover:text-blue-600 rounded hover:bg-blue-50 transition-colors" title="Add category">
+          <button onClick={() => onAddCategory(group.id)} className="p-1 text-text-tertiary hover:text-brand-600 rounded hover:bg-brand-50 transition-colors" title="Add category">
             <Plus size={14} />
           </button>
-          <button onClick={() => onStartEdit(group.id)} className="p-1 text-gray-400 hover:text-blue-600 rounded hover:bg-blue-50 transition-colors" title="Rename group">
+          <button onClick={() => onStartEdit(group.id)} className="p-1 text-text-tertiary hover:text-brand-600 rounded hover:bg-brand-50 transition-colors" title="Rename group">
             <Pencil size={13} />
           </button>
-          <button onClick={() => onDeleteGroup(group.id)} className="p-1 text-gray-400 hover:text-red-500 rounded hover:bg-red-50 transition-colors" title="Delete group">
+          <button onClick={() => onDeleteGroup(group.id)} className="p-1 text-text-tertiary hover:text-negative rounded hover:bg-negative-subtle transition-colors" title="Delete group">
             <Trash2 size={13} />
           </button>
         </div>
@@ -217,7 +217,7 @@ function SortableGroup({
                 )
               )}
               {localCats.length === 0 && (
-                <p className="ml-6 text-xs text-gray-400 py-2 px-3">No categories yet.</p>
+                <p className="ml-6 text-xs text-text-tertiary py-2 px-3">No categories yet.</p>
               )}
             </div>
           </SortableContext>
@@ -308,26 +308,26 @@ export function CategoryManager() {
   const deleteGroupTarget = localGroups.find((g) => g.id === deleteGroupId);
 
   if (isLoading) {
-    return <div className="flex items-center justify-center h-32 text-sm text-gray-400">Loading...</div>;
+    return <div className="flex items-center justify-center h-32 text-sm text-text-tertiary">Loading...</div>;
   }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-sm font-semibold text-gray-900">Category Groups & Categories</h2>
-          <p className="text-xs text-gray-400 mt-0.5">Drag to reorder. Click the pencil to rename.</p>
+          <h2 className="text-sm font-semibold text-text">Category Groups & Categories</h2>
+          <p className="text-xs text-text-tertiary mt-0.5">Drag to reorder. Click the pencil to rename.</p>
         </div>
         <button
           onClick={() => setAddingGroupName('')}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-brand-600 rounded-md hover:bg-brand-700 transition-colors"
         >
           <Plus size={13} /> Add Group
         </button>
       </div>
 
       {addingGroupName !== null && (
-        <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg border border-blue-100">
+        <div className="flex items-center gap-3 p-3 bg-brand-50 rounded-md border border-brand-100">
           <input
             autoFocus
             value={addingGroupName}
@@ -337,23 +337,23 @@ export function CategoryManager() {
               if (e.key === 'Escape') setAddingGroupName(null);
             }}
             placeholder="Group name..."
-            className="text-sm border border-gray-300 rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 flex-1"
+            className="text-sm border border-border rounded px-2.5 py-1.5 bg-surface text-text focus:outline-none focus:ring-1 focus:ring-brand-600 flex-1"
           />
-          <label className="flex items-center gap-1.5 text-xs text-gray-600 shrink-0">
+          <label className="flex items-center gap-1.5 text-xs text-text-secondary shrink-0">
             <input type="checkbox" checked={newGroupIsIncome} onChange={(e) => setNewGroupIsIncome(e.target.checked)} className="rounded" />
             Income group
           </label>
-          <button onClick={handleAddGroup} disabled={!addingGroupName.trim()} className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded disabled:opacity-40 transition-colors">
+          <button onClick={handleAddGroup} disabled={!addingGroupName.trim()} className="p-1.5 text-positive hover:bg-positive-subtle rounded disabled:opacity-40 transition-colors">
             <Check size={16} />
           </button>
-          <button onClick={() => setAddingGroupName(null)} className="p-1.5 text-gray-400 hover:bg-gray-100 rounded transition-colors">
+          <button onClick={() => setAddingGroupName(null)} className="p-1.5 text-text-tertiary hover:bg-hover rounded transition-colors">
             <X size={16} />
           </button>
         </div>
       )}
 
       {addingCategoryGroupId !== null && (
-        <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg border border-blue-100 ml-6">
+        <div className="flex items-center gap-3 p-3 bg-brand-50 rounded-md border border-brand-100 ml-6">
           <input
             autoFocus
             value={newCategoryName}
@@ -363,12 +363,12 @@ export function CategoryManager() {
               if (e.key === 'Escape') { setAddingCategoryGroupId(null); setNewCategoryName(''); }
             }}
             placeholder="Category name..."
-            className="text-sm border border-gray-300 rounded px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500 flex-1"
+            className="text-sm border border-border rounded px-2.5 py-1.5 bg-surface text-text focus:outline-none focus:ring-1 focus:ring-brand-600 flex-1"
           />
-          <button onClick={handleAddCategory} disabled={!newCategoryName.trim()} className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded disabled:opacity-40 transition-colors">
+          <button onClick={handleAddCategory} disabled={!newCategoryName.trim()} className="p-1.5 text-positive hover:bg-positive-subtle rounded disabled:opacity-40 transition-colors">
             <Check size={16} />
           </button>
-          <button onClick={() => { setAddingCategoryGroupId(null); setNewCategoryName(''); }} className="p-1.5 text-gray-400 hover:bg-gray-100 rounded transition-colors">
+          <button onClick={() => { setAddingCategoryGroupId(null); setNewCategoryName(''); }} className="p-1.5 text-text-tertiary hover:bg-hover rounded transition-colors">
             <X size={16} />
           </button>
         </div>
@@ -398,10 +398,10 @@ export function CategoryManager() {
 
       {localGroups.length === 0 && !addingGroupName && (
         <div className="flex flex-col items-center justify-center h-32 gap-3">
-          <p className="text-sm text-gray-400">No category groups yet.</p>
+          <p className="text-sm text-text-tertiary">No category groups yet.</p>
           <button
             onClick={() => setAddingGroupName('')}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-brand-600 border border-brand-200 rounded-md hover:bg-brand-50 transition-colors"
           >
             <Plus size={13} /> Create your first group
           </button>

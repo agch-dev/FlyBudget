@@ -165,7 +165,7 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
   return (
     <Modal isOpen={isOpen} onClose={handleClose} title="Import Transactions" size="lg">
       {error && (
-        <div className="mb-4 flex items-center gap-2 px-3 py-2 text-sm bg-red-50 text-red-700 rounded-lg">
+        <div className="mb-4 flex items-center gap-2 px-3 py-2 text-sm bg-negative-subtle text-negative rounded-lg">
           <AlertTriangle size={14} /> {error}
           <button onClick={() => setError(null)} className="ml-auto"><X size={14} /></button>
         </div>
@@ -175,19 +175,19 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
         <div
           onDragOver={(e) => e.preventDefault()}
           onDrop={handleDrop}
-          className="flex flex-col items-center justify-center gap-3 py-12 border-2 border-dashed border-gray-300 rounded-xl hover:border-blue-400 transition-colors cursor-pointer"
+          className="flex flex-col items-center justify-center gap-3 py-12 border-2 border-dashed border-border rounded-lg hover:border-brand-400 transition-colors cursor-pointer"
           onClick={() => document.getElementById('csv-file-input')?.click()}
         >
-          <Upload size={32} className="text-gray-400" />
-          <p className="text-sm text-gray-600">Drag and drop a CSV file, or click to browse</p>
-          <p className="text-xs text-gray-400">Supports .csv files</p>
+          <Upload size={32} className="text-text-tertiary" />
+          <p className="text-sm text-text-secondary">Drag and drop a CSV file, or click to browse</p>
+          <p className="text-xs text-text-tertiary">Supports .csv files</p>
           <input id="csv-file-input" type="file" accept=".csv" className="hidden" onChange={handleFileInput} />
         </div>
       )}
 
       {step === 'map' && (
         <div className="space-y-4">
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-text-secondary">
             Map each column to a field. Found {rawRows.length} rows.
           </p>
           <div className="overflow-x-auto">
@@ -195,12 +195,12 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
               <thead>
                 <tr>
                   {headers.map((h, i) => (
-                    <th key={i} className="px-2 py-1 text-left border-b border-gray-200">
-                      <div className="text-xs font-medium text-gray-500 mb-1">{h}</div>
+                    <th key={i} className="px-2 py-1 text-left border-b border-border">
+                      <div className="text-xs font-medium text-text-tertiary mb-1">{h}</div>
                       <select
                         value={roles[i]}
                         onChange={(e) => setRole(i, e.target.value as ColumnRole)}
-                        className="w-full text-xs border border-gray-200 rounded px-1.5 py-1 bg-white"
+                        className="w-full text-xs border border-border rounded px-1.5 py-1 bg-surface"
                       >
                         {roleOptions.map(o => (
                           <option key={o.value} value={o.value}>{o.label}</option>
@@ -214,7 +214,7 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
                 {rawRows.slice(0, 3).map((row, ri) => (
                   <tr key={ri}>
                     {row.map((cell, ci) => (
-                      <td key={ci} className="px-2 py-1 text-xs text-gray-600 border-b border-gray-50 max-w-[150px] truncate">
+                      <td key={ci} className="px-2 py-1 text-xs text-text-secondary border-b border-border-light max-w-[150px] truncate">
                         {cell}
                       </td>
                     ))}
@@ -224,10 +224,10 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
             </table>
           </div>
           <div className="flex justify-end gap-2">
-            <button onClick={() => setStep('upload')} className="px-3 py-1.5 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">
+            <button onClick={() => setStep('upload')} className="px-3 py-1.5 text-sm text-text-secondary border border-border rounded-lg hover:bg-hover">
               Back
             </button>
-            <button onClick={handlePreview} disabled={loading} className="px-4 py-1.5 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
+            <button onClick={handlePreview} disabled={loading} className="px-4 py-1.5 text-sm font-medium bg-brand-600 text-white rounded-lg hover:bg-brand-700 disabled:opacity-50">
               {loading ? 'Checking...' : 'Preview'}
             </button>
           </div>
@@ -236,33 +236,33 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
 
       {step === 'preview' && (
         <div className="space-y-4">
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-text-secondary">
             {previewRows.length} transactions found.
             {' '}{previewRows.filter(r => r.isDuplicate).length} duplicates detected.
             {' '}{previewRows.length - excluded.size} will be imported.
           </p>
-          <div className="max-h-64 overflow-y-auto border border-gray-200 rounded-lg">
+          <div className="max-h-64 overflow-y-auto border border-border rounded-lg">
             <table className="w-full text-sm border-collapse">
-              <thead className="sticky top-0 bg-gray-50">
+              <thead className="sticky top-0 bg-surface-alt">
                 <tr>
-                  <th className="px-2 py-1.5 text-left text-xs font-medium text-gray-400 w-8"></th>
-                  <th className="px-2 py-1.5 text-left text-xs font-medium text-gray-400">Date</th>
-                  <th className="px-2 py-1.5 text-left text-xs font-medium text-gray-400">Payee</th>
-                  <th className="px-2 py-1.5 text-right text-xs font-medium text-gray-400">Amount</th>
+                  <th className="px-2 py-1.5 text-left text-xs font-medium text-text-tertiary w-8"></th>
+                  <th className="px-2 py-1.5 text-left text-xs font-medium text-text-tertiary">Date</th>
+                  <th className="px-2 py-1.5 text-left text-xs font-medium text-text-tertiary">Payee</th>
+                  <th className="px-2 py-1.5 text-right text-xs font-medium text-text-tertiary">Amount</th>
                 </tr>
               </thead>
               <tbody>
                 {previewRows.map((row, i) => (
-                  <tr key={i} className={`border-t border-gray-50 ${excluded.has(i) ? 'opacity-40' : ''} ${row.isDuplicate ? 'bg-yellow-50' : ''}`}>
+                  <tr key={i} className={`border-t border-border-light ${excluded.has(i) ? 'opacity-40' : ''} ${row.isDuplicate ? 'bg-caution-subtle' : ''}`}>
                     <td className="px-2 py-1.5">
-                      <input type="checkbox" checked={!excluded.has(i)} onChange={() => toggleExclude(i)} className="w-3.5 h-3.5 accent-blue-600" />
+                      <input type="checkbox" checked={!excluded.has(i)} onChange={() => toggleExclude(i)} className="w-3.5 h-3.5 accent-brand-600" />
                     </td>
-                    <td className="px-2 py-1.5 text-xs text-gray-600">{row.date}</td>
-                    <td className="px-2 py-1.5 text-xs text-gray-900 flex items-center gap-1">
+                    <td className="px-2 py-1.5 text-xs text-text-secondary">{row.date}</td>
+                    <td className="px-2 py-1.5 text-xs text-text flex items-center gap-1">
                       {row.payeeName ?? '—'}
-                      {row.isDuplicate && <span className="text-[10px] px-1 py-0.5 bg-yellow-200 text-yellow-800 rounded">duplicate</span>}
+                      {row.isDuplicate && <span className="text-[10px] px-1 py-0.5 bg-caution-subtle text-caution rounded">duplicate</span>}
                     </td>
-                    <td className={`px-2 py-1.5 text-xs text-right tabular-nums ${row.amount < 0 ? 'text-gray-900' : 'text-green-600'}`}>
+                    <td className={`px-2 py-1.5 text-xs text-right tabular-nums ${row.amount < 0 ? 'text-text' : 'text-positive'}`}>
                       {formatCurrency(row.amount)}
                     </td>
                   </tr>
@@ -271,13 +271,13 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
             </table>
           </div>
           <div className="flex justify-end gap-2">
-            <button onClick={() => setStep('map')} className="px-3 py-1.5 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50">
+            <button onClick={() => setStep('map')} className="px-3 py-1.5 text-sm text-text-secondary border border-border rounded-lg hover:bg-hover">
               Back
             </button>
             <button
               onClick={handleConfirm}
               disabled={confirmMutation.isPending || previewRows.length === excluded.size}
-              className="px-4 py-1.5 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              className="px-4 py-1.5 text-sm font-medium bg-brand-600 text-white rounded-lg hover:bg-brand-700 disabled:opacity-50"
             >
               {confirmMutation.isPending ? 'Importing...' : `Import ${previewRows.length - excluded.size} Transactions`}
             </button>
@@ -287,14 +287,14 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
 
       {step === 'done' && result && (
         <div className="flex flex-col items-center gap-4 py-6">
-          <CheckCircle size={40} className="text-green-500" />
+          <CheckCircle size={40} className="text-positive" />
           <div className="text-center">
-            <p className="text-sm font-medium text-gray-900">Import complete</p>
-            <p className="text-sm text-gray-500 mt-1">
+            <p className="text-sm font-medium text-text">Import complete</p>
+            <p className="text-sm text-text-secondary mt-1">
               {result.imported} imported, {result.skipped} skipped
             </p>
           </div>
-          <button onClick={handleClose} className="px-4 py-1.5 text-sm font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+          <button onClick={handleClose} className="px-4 py-1.5 text-sm font-medium bg-brand-600 text-white rounded-lg hover:bg-brand-700">
             Done
           </button>
         </div>

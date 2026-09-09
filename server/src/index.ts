@@ -10,6 +10,7 @@ import { reportsRouter } from './routes/reports.js';
 import { exportRouter } from './routes/export.js';
 import { customReportsRouter } from './routes/customReports.js';
 import { recurringTransactionsRouter, autoCreateDueRecurring } from './routes/recurringTransactions.js';
+import { goalsRouter } from './routes/goals.js';
 import { plaidRouter } from './routes/plaid.js';
 import { syncAllItems } from './services/plaidSyncService.js';
 import { isPlaidConfigured } from './services/plaidService.js';
@@ -31,6 +32,7 @@ app.use('/api/reports', reportsRouter);
 app.use('/api/export', exportRouter);
 app.use('/api/custom-reports', customReportsRouter);
 app.use('/api/recurring-transactions', recurringTransactionsRouter);
+app.use('/api/goals', goalsRouter);
 app.use('/api/plaid', plaidRouter);
 
 export async function startServer(port: number | string): Promise<void> {

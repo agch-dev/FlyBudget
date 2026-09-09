@@ -13,6 +13,8 @@ import {
 import { useCategories } from '../hooks/useCategories';
 import { formatCurrency, formatCentsAxis } from '../utils/currency';
 import { downloadCsv } from '../utils/exportCsv';
+import { chartColors, CATEGORY_COLORS } from '../utils/chartColors';
+import { Button } from '../components/ui/Button';
 import { Download, Plus } from 'lucide-react';
 import { CurrencyTooltip, ChartSkeleton, EmptyState, StatCardRow, EXPENSE_COLORS, monthLabel } from '../components/reports/ChartHelpers';
 import type { StatCard } from '../components/reports/ChartHelpers';
@@ -61,25 +63,25 @@ function NetWorthChart({ from, to }: { from: string; to: string }) {
       <AreaChart data={chartData} margin={{ top: 4, right: 16, left: 16, bottom: 0 }}>
         <defs>
           <linearGradient id="gAssets" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="#10b981" stopOpacity={0.15} />
-            <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+            <stop offset="5%" stopColor={chartColors.positive} stopOpacity={0.15} />
+            <stop offset="95%" stopColor={chartColors.positive} stopOpacity={0} />
           </linearGradient>
           <linearGradient id="gLiab" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="#ef4444" stopOpacity={0.15} />
-            <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
+            <stop offset="5%" stopColor={chartColors.negative} stopOpacity={0.15} />
+            <stop offset="95%" stopColor={chartColors.negative} stopOpacity={0} />
           </linearGradient>
           <linearGradient id="gNet" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2} />
-            <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+            <stop offset="5%" stopColor={chartColors.brand} stopOpacity={0.2} />
+            <stop offset="95%" stopColor={chartColors.brand} stopOpacity={0} />
           </linearGradient>
         </defs>
-        <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-        <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-        <YAxis tickFormatter={formatCentsAxis} tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} width={60} />
+        <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />
+        <XAxis dataKey="month" tick={{ fontSize: 11, fill: chartColors.axis }} axisLine={false} tickLine={false} />
+        <YAxis tickFormatter={formatCentsAxis} tick={{ fontSize: 11, fill: chartColors.axis }} axisLine={false} tickLine={false} width={60} />
         <Tooltip content={<CurrencyTooltip />} />
-        <Area type="monotone" dataKey="assets" name="Assets" stroke="#10b981" strokeWidth={2} fill="url(#gAssets)" dot={false} />
-        <Area type="monotone" dataKey="liabilities" name="Liabilities" stroke="#ef4444" strokeWidth={2} fill="url(#gLiab)" dot={false} />
-        <Area type="monotone" dataKey="netWorth" name="Net Worth" stroke="#3b82f6" strokeWidth={2} fill="url(#gNet)" dot={false} />
+        <Area type="monotone" dataKey="assets" name="Assets" stroke={chartColors.positiveLight} strokeWidth={2} fill="url(#gAssets)" dot={false} />
+        <Area type="monotone" dataKey="liabilities" name="Liabilities" stroke={chartColors.negativeLight} strokeWidth={2} fill="url(#gLiab)" dot={false} />
+        <Area type="monotone" dataKey="netWorth" name="Net Worth" stroke={chartColors.brand} strokeWidth={2} fill="url(#gNet)" dot={false} />
       </AreaChart>
     </ResponsiveContainer>
   );
@@ -95,12 +97,12 @@ function IncomeExpensesChart({ from, to }: { from: string; to: string }) {
   return (
     <ResponsiveContainer width="100%" height="100%">
       <BarChart data={chartData} margin={{ top: 4, right: 16, left: 16, bottom: 0 }} barGap={2}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
-        <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-        <YAxis tickFormatter={formatCentsAxis} tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} width={60} />
+        <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} vertical={false} />
+        <XAxis dataKey="month" tick={{ fontSize: 11, fill: chartColors.axis }} axisLine={false} tickLine={false} />
+        <YAxis tickFormatter={formatCentsAxis} tick={{ fontSize: 11, fill: chartColors.axis }} axisLine={false} tickLine={false} width={60} />
         <Tooltip content={<CurrencyTooltip />} />
-        <Bar dataKey="income" name="Income" fill="#10b981" radius={[3, 3, 0, 0]} maxBarSize={32} />
-        <Bar dataKey="expenses" name="Expenses" fill="#ef4444" radius={[3, 3, 0, 0]} maxBarSize={32} />
+        <Bar dataKey="income" name="Income" fill={chartColors.positive} radius={[3, 3, 0, 0]} maxBarSize={32} />
+        <Bar dataKey="expenses" name="Expenses" fill={chartColors.negativeLight} radius={[3, 3, 0, 0]} maxBarSize={32} />
       </BarChart>
     </ResponsiveContainer>
   );
@@ -116,13 +118,13 @@ function CashFlowChart({ from, to }: { from: string; to: string }) {
   return (
     <ResponsiveContainer width="100%" height="100%">
       <BarChart data={chartData} margin={{ top: 4, right: 16, left: 16, bottom: 0 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" vertical={false} />
-        <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-        <YAxis tickFormatter={formatCentsAxis} tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} width={60} />
+        <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} vertical={false} />
+        <XAxis dataKey="month" tick={{ fontSize: 11, fill: chartColors.axis }} axisLine={false} tickLine={false} />
+        <YAxis tickFormatter={formatCentsAxis} tick={{ fontSize: 11, fill: chartColors.axis }} axisLine={false} tickLine={false} width={60} />
         <Tooltip content={<CurrencyTooltip />} />
         <Bar dataKey="net" name="Net Cash Flow" radius={[3, 3, 0, 0]} maxBarSize={40}>
           {chartData.map((d, i) => (
-            <Cell key={i} fill={d.net >= 0 ? '#10b981' : '#ef4444'} />
+            <Cell key={i} fill={d.net >= 0 ? chartColors.positive : chartColors.negativeLight} />
           ))}
         </Bar>
       </BarChart>
@@ -146,20 +148,24 @@ function SpendingChart({ from, to }: { from: string; to: string }) {
   return (
     <ResponsiveContainer width="100%" height="100%">
       <BarChart data={chartData} layout="vertical" margin={{ top: 4, right: 24, left: 8, bottom: 0 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" horizontal={false} />
-        <XAxis type="number" tickFormatter={formatCentsAxis} tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-        <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: '#6b7280' }} axisLine={false} tickLine={false} width={110} />
+        <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} horizontal={false} />
+        <XAxis type="number" tickFormatter={formatCentsAxis} tick={{ fontSize: 11, fill: chartColors.axis }} axisLine={false} tickLine={false} />
+        <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: '#6B7280' }} axisLine={false} tickLine={false} width={110} />
         <Tooltip
           content={({ active, payload, label }) =>
             active && payload?.length ? (
-              <div className="bg-white/95 backdrop-blur-sm border border-gray-100 rounded-lg shadow-lg px-3 py-2">
-                <p className="text-xs text-gray-500 mb-0.5">{label}</p>
-                <p className="text-xs font-medium text-blue-600">{formatCurrency(payload[0].value as number)}</p>
+              <div className="bg-surface border border-border rounded-md shadow-hover px-3 py-2">
+                <p className="text-xs text-text-tertiary mb-0.5">{label}</p>
+                <p className="text-xs font-medium text-brand-600">{formatCurrency(payload[0].value as number)}</p>
               </div>
             ) : null
           }
         />
-        <Bar dataKey="value" name="Spent" fill="#6366f1" radius={[0, 3, 3, 0]} maxBarSize={20} />
+        <Bar dataKey="value" name="Spent" radius={[0, 3, 3, 0]} maxBarSize={20}>
+          {chartData.map((_, i) => (
+            <Cell key={i} fill={CATEGORY_COLORS[i % CATEGORY_COLORS.length]} />
+          ))}
+        </Bar>
       </BarChart>
     </ResponsiveContainer>
   );
@@ -213,10 +219,10 @@ function SpendingTrendsChart({ from, to }: { from: string; to: string }) {
               onClick={() => !disabled && toggleCategory(cat.id)}
               className={`px-2.5 py-1 text-xs font-medium rounded-full border transition-colors ${
                 checked
-                  ? 'bg-blue-50 border-blue-400 text-blue-700'
+                  ? 'bg-brand-50 border-brand-500 text-brand-700'
                   : disabled
-                  ? 'bg-gray-50 border-gray-200 text-gray-300 cursor-not-allowed'
-                  : 'bg-white border-gray-200 text-gray-600 hover:border-gray-400'
+                  ? 'bg-surface-alt border-border-light text-text-disabled cursor-not-allowed'
+                  : 'bg-surface border-border text-text-secondary hover:border-text-tertiary'
               }`}
             >
               {cat.name}
@@ -224,7 +230,7 @@ function SpendingTrendsChart({ from, to }: { from: string; to: string }) {
           );
         })}
         {expenseCategories.length === 0 && (
-          <span className="text-xs text-gray-400">No expense categories found.</span>
+          <span className="text-xs text-text-tertiary">No expense categories found.</span>
         )}
       </div>
 
@@ -238,9 +244,9 @@ function SpendingTrendsChart({ from, to }: { from: string; to: string }) {
         ) : (
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={chartData} margin={{ top: 4, right: 16, left: 16, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-              <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-              <YAxis tickFormatter={formatCentsAxis} tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} width={60} />
+              <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />
+              <XAxis dataKey="month" tick={{ fontSize: 11, fill: chartColors.axis }} axisLine={false} tickLine={false} />
+              <YAxis tickFormatter={formatCentsAxis} tick={{ fontSize: 11, fill: chartColors.axis }} axisLine={false} tickLine={false} width={60} />
               <Tooltip content={<CurrencyTooltip />} />
               <Legend wrapperStyle={{ fontSize: 11 }} />
               {selectedNames.map((name, i) => (
@@ -285,7 +291,7 @@ function SankeyDiagram({ from, to }: { from: string; to: string }) {
       name: c.categoryName ?? 'Income',
       nodeType: 'income' as NodeType,
       amount: c.totalReceived,
-      color: '#10b981',
+      color: chartColors.positive,
     }));
 
     const hubIdx = incomeNodes.length;
@@ -303,7 +309,7 @@ function SankeyDiagram({ from, to }: { from: string; to: string }) {
 
     const nodes = [
       ...incomeNodes,
-      { name: 'Total Income', nodeType: 'hub' as NodeType, amount: totalIncome, color: '#3b82f6' },
+      { name: 'Total Income', nodeType: 'hub' as NodeType, amount: totalIncome, color: chartColors.brand },
       ...expenseNodes,
       ...savingsNode,
     ];
@@ -345,7 +351,7 @@ function SankeyDiagram({ from, to }: { from: string; to: string }) {
           {name}
         </text>
         {height > 22 && (
-          <text x={labelX} y={midY + 9} textAnchor={anchor} fontSize={10} fill="#9ca3af">
+          <text x={labelX} y={midY + 9} textAnchor={anchor} fontSize={10} fill={chartColors.axis}>
             {formatCentsAxis(amount)}
           </text>
         )}
@@ -409,11 +415,11 @@ function SankeyDiagram({ from, to }: { from: string; to: string }) {
       </ResponsiveContainer>
       {tooltip && (
         <div
-          className="fixed z-50 pointer-events-none bg-white rounded-lg shadow-lg border border-gray-100 px-3 py-2"
+          className="fixed z-50 pointer-events-none bg-surface rounded-md shadow-hover border border-border px-3 py-2"
           style={{ left: tooltip.x + 12, top: tooltip.y - 10 }}
         >
-          <p className="text-xs font-medium text-gray-800">{tooltip.title}</p>
-          <p className="text-xs text-emerald-600 font-medium">{tooltip.value}</p>
+          <p className="text-xs font-medium text-text">{tooltip.title}</p>
+          <p className="text-xs text-positive font-medium">{tooltip.value}</p>
         </div>
       )}
     </div>
@@ -441,7 +447,6 @@ export default function ReportsPage() {
     setTo(r.to);
   }, [preset]);
 
-  // Fetch all data at the top level — chart sub-components use the same query keys (cache hit)
   const { data: nwData = [] } = useNetWorth(from, to);
   const { data: ieData = [] } = useIncomeVsExpenses(from, to);
   const { data: cfData = [] } = useCashFlow(from, to);
@@ -526,18 +531,20 @@ export default function ReportsPage() {
   const chartHeight = CHART_HEIGHT[activeTab];
 
   return (
-    <div className="flex flex-col h-full bg-white">
-      <div className="px-6 py-5 border-b border-gray-100 bg-gradient-to-b from-white to-slate-50/50 shrink-0">
+    <div className="flex flex-col h-full bg-surface">
+      <div className="px-6 py-4 border-b border-border shrink-0">
         <div className="flex items-center justify-between gap-4">
-          <h1 className="text-xl font-bold text-gray-800 shrink-0">Reports</h1>
+          <h1 className="text-lg font-semibold text-text shrink-0">Reports</h1>
           <div className="flex items-center gap-2 flex-wrap">
-            <div className="flex items-center gap-1">
+            <div className="flex gap-0">
               {PRESETS.map(p => (
                 <button
                   key={p.id}
                   onClick={() => setPreset(p.id)}
-                  className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all duration-150 ${
-                    preset === p.id ? 'bg-blue-600 text-white shadow-sm' : 'text-gray-500 hover:bg-gray-100'
+                  className={`px-2.5 py-1 text-xs font-medium transition-colors border-b-2 ${
+                    preset === p.id
+                      ? 'border-brand-600 text-brand-600'
+                      : 'border-transparent text-text-tertiary hover:text-text-secondary'
                   }`}
                 >
                   {p.label}
@@ -546,50 +553,46 @@ export default function ReportsPage() {
             </div>
             {preset === 'custom' && (
               <>
-                <span className="text-xs text-gray-400">From</span>
+                <span className="text-xs text-text-tertiary">From</span>
                 <input
                   type="month"
                   value={from}
                   max={to}
                   onChange={(e) => setFrom(e.target.value)}
-                  className="text-sm border border-gray-200 rounded-lg px-2 py-1 text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                  className="text-sm border border-border rounded-md px-2 py-1 text-text focus:outline-none focus:ring-1 focus:ring-brand-600 focus:border-brand-600"
                 />
-                <span className="text-xs text-gray-400">to</span>
+                <span className="text-xs text-text-tertiary">to</span>
                 <input
                   type="month"
                   value={to}
                   min={from}
                   max={format(today, 'yyyy-MM')}
                   onChange={(e) => setTo(e.target.value)}
-                  className="text-sm border border-gray-200 rounded-lg px-2 py-1 text-gray-700 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                  className="text-sm border border-border rounded-md px-2 py-1 text-text focus:outline-none focus:ring-1 focus:ring-brand-600 focus:border-brand-600"
                 />
               </>
             )}
-            <button
-              onClick={handleExport}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              <Download className="w-3.5 h-3.5" />
-              Export CSV
-            </button>
+            <Button variant="secondary" size="sm" onClick={handleExport}>
+              <Download size={13} /> Export CSV
+            </Button>
             <Link
               to="/reports/custom"
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-brand-600 border border-brand-200 rounded-md hover:bg-brand-50 transition-colors"
             >
-              <Plus className="w-3.5 h-3.5" />
+              <Plus size={13} />
               Custom Report
             </Link>
           </div>
         </div>
-        <div className="flex gap-1 mt-4 flex-wrap">
+        <div className="flex gap-0 mt-3 border-b border-border-light -mb-px">
           {TABS.map((t) => (
             <button
               key={t.id}
               onClick={() => setActiveTab(t.id)}
-              className={`px-4 py-2 text-sm font-medium rounded-lg transition-all duration-150 ${
+              className={`px-3 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
                 activeTab === t.id
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                  ? 'border-brand-600 text-brand-600'
+                  : 'border-transparent text-text-tertiary hover:text-text-secondary'
               }`}
             >
               {t.label}

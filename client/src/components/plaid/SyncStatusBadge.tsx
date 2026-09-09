@@ -7,19 +7,19 @@ interface Props {
 }
 
 const statusConfig: Record<PlaidSyncStatus, { dot: string; label: string }> = {
-  good: { dot: 'bg-emerald-400', label: 'Synced' },
+  good: { dot: 'bg-positive', label: 'Synced' },
   syncing: { dot: '', label: 'Syncing...' },
-  error: { dot: 'bg-red-400', label: 'Error' },
-  login_required: { dot: 'bg-amber-400', label: 'Login Required' },
+  error: { dot: 'bg-negative', label: 'Error' },
+  login_required: { dot: 'bg-caution', label: 'Login Required' },
 };
 
 export function SyncStatusBadge({ status, className = '' }: Props) {
   const config = statusConfig[status];
 
   return (
-    <span className={`inline-flex items-center gap-1.5 text-xs font-medium text-gray-600 ${className}`}>
+    <span className={`inline-flex items-center gap-1.5 text-xs font-medium text-text-secondary ${className}`}>
       {status === 'syncing' ? (
-        <Loader2 size={12} className="animate-spin text-blue-500" />
+        <Loader2 size={12} className="animate-spin text-brand-500" />
       ) : (
         <span className={`w-2 h-2 rounded-full ${config.dot}`} />
       )}

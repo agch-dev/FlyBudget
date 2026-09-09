@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
 import { useAppStore } from '../store/appStore';
 import { useBudget, useBudgetSummary, useSetBudget } from '../hooks/useBudget';
 import { formatCurrency, parseCents, centsToInput } from '../utils/currency';
+import { StatCard } from '../components/ui/StatCard';
 import type { BudgetCategory, BudgetGroup } from '../types';
 
 function AmountInput({ cents, onSave, onCancel }: { cents: number; onSave: (c: number) => void; onCancel: () => void }) {
@@ -24,7 +25,7 @@ function AmountInput({ cents, onSave, onCancel }: { cents: number; onSave: (c: n
         if (e.key === 'Escape') { cancelled.current = true; onCancel(); }
       }}
       onBlur={() => { if (!cancelled.current) onSave(parseCents(raw)); }}
-      className="w-28 text-right tabular-nums text-sm bg-white border border-blue-400 rounded px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
+      className="w-28 text-right tabular-nums text-sm bg-surface border border-brand-500 rounded-md px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-brand-600"
     />
   );
 }
@@ -32,9 +33,9 @@ function AmountInput({ cents, onSave, onCancel }: { cents: number; onSave: (c: n
 function SpentBar({ spent, budgeted }: { spent: number; budgeted: number }) {
   if (budgeted <= 0) return null;
   const ratio = Math.min(spent / budgeted, 1);
-  const color = ratio >= 1 ? 'bg-red-400' : ratio >= 0.8 ? 'bg-amber-400' : 'bg-emerald-400';
+  const color = ratio >= 1 ? 'bg-negative' : ratio >= 0.8 ? 'bg-caution' : 'bg-positive';
   return (
-    <div className="mt-0.5 h-1 w-full bg-gray-100 rounded-full overflow-hidden">
+    <div className="mt-0.5 h-1 w-full bg-surface-alt rounded-full overflow-hidden">
       <div className={`h-full rounded-full transition-all ${color}`} style={{ width: `${(ratio * 100).toFixed(1)}%` }} />
     </div>
   );
@@ -51,52 +52,52 @@ interface CategoryRowProps {
 
 function CategoryRow({ cat, isIncome, editingId, onStartEdit, onSave, onCancel }: CategoryRowProps) {
   const isEditing = editingId === cat.id;
-  const balColor = cat.balance > 0 ? 'text-emerald-600' : cat.balance < 0 ? 'text-red-500' : 'text-gray-400';
+  const balColor = cat.balance > 0 ? 'text-positive' : cat.balance < 0 ? 'text-negative' : 'text-text-disabled';
 
   return (
-    <tr className="hover:bg-blue-50/20 border-b border-gray-50 group">
-      <td className="py-2.5 pl-10 pr-3 text-sm text-gray-700">
+    <tr className="hover:bg-brand-50 border-b border-border-light group">
+      <td className="py-2 pl-10 pr-3 text-sm text-text-secondary">
         {cat.name}
         {!isIncome && cat.carryOver !== 0 && (
-          <span className={`ml-2 text-xs ${cat.carryOver > 0 ? 'text-emerald-400' : 'text-red-400'}`} title="Carried from prior months">
+          <span className={`ml-2 text-xs ${cat.carryOver > 0 ? 'text-positive' : 'text-negative'}`} title="Carried from prior months">
             ({cat.carryOver > 0 ? '+' : ''}{formatCurrency(cat.carryOver)})
           </span>
         )}
       </td>
-      <td className="py-2.5 px-3 text-right">
+      <td className="py-2 px-3 text-right">
         {isIncome ? (
-          <span className="text-gray-300 text-sm tabular-nums">—</span>
+          <span className="text-text-disabled text-sm tabular-nums">—</span>
         ) : isEditing ? (
           <AmountInput cents={cat.budgeted} onSave={onSave} onCancel={onCancel} />
         ) : (
           <button
             onClick={() => onStartEdit(cat.id)}
-            className="tabular-nums text-sm rounded px-2 py-0.5 min-w-[7rem] text-right transition-colors hover:bg-blue-50 hover:text-blue-600"
+            className="tabular-nums text-sm rounded-md px-2 py-0.5 min-w-[7rem] text-right transition-colors hover:bg-brand-50 hover:text-brand-600"
           >
             {cat.budgeted === 0
-              ? <span className="text-gray-300 group-hover:text-blue-300">{formatCurrency(0)}</span>
-              : <span className="text-gray-800">{formatCurrency(cat.budgeted)}</span>
+              ? <span className="text-text-disabled group-hover:text-brand-300">{formatCurrency(0)}</span>
+              : <span className="text-text">{formatCurrency(cat.budgeted)}</span>
             }
           </button>
         )}
       </td>
-      <td className="py-2.5 px-3">
+      <td className="py-2 px-3">
         {isIncome ? (
-          <div className="text-right tabular-nums text-sm text-emerald-600 font-medium">
-            {cat.balance > 0 ? formatCurrency(cat.balance) : <span className="text-gray-300">—</span>}
+          <div className="text-right tabular-nums text-sm text-positive font-medium">
+            {cat.balance > 0 ? formatCurrency(cat.balance) : <span className="text-text-disabled">—</span>}
           </div>
         ) : (
           <div className="text-right">
-            <span className="tabular-nums text-sm text-gray-500">
-              {cat.spent > 0 ? formatCurrency(cat.spent) : <span className="text-gray-200">—</span>}
+            <span className="tabular-nums text-sm text-text-tertiary">
+              {cat.spent > 0 ? formatCurrency(cat.spent) : <span className="text-text-disabled">—</span>}
             </span>
             <SpentBar spent={cat.spent} budgeted={cat.budgeted} />
           </div>
         )}
       </td>
-      <td className="py-2.5 pl-3 pr-6 text-right">
+      <td className="py-2 pl-3 pr-6 text-right">
         {isIncome ? (
-          <span className="text-gray-300 text-sm tabular-nums">—</span>
+          <span className="text-text-disabled text-sm tabular-nums">—</span>
         ) : (
           <span className={`tabular-nums text-sm font-medium ${balColor}`}>{formatCurrency(cat.balance)}</span>
         )}
@@ -125,32 +126,31 @@ function GroupSection({ group, editingId, onStartEdit, onSave, onCancel }: Group
     [group.categories]
   );
 
-  const totBalColor = totals.balance > 0 ? 'text-emerald-700' : totals.balance < 0 ? 'text-red-600' : 'text-gray-400';
+  const totBalColor = totals.balance > 0 ? 'text-positive' : totals.balance < 0 ? 'text-negative' : 'text-text-disabled';
 
   return (
     <>
       <tr
-        className="bg-gray-50 border-y border-gray-100 cursor-pointer select-none hover:bg-gray-100/80 transition-colors"
+        className="bg-surface-alt border-y border-border-light cursor-pointer select-none hover:bg-hover transition-colors"
         onClick={() => setCollapsed((c) => !c)}
       >
-        <td className="py-2.5 px-4">
+        <td className="py-2 px-4">
           <div className="flex items-center gap-2">
-            <span className="text-gray-400 shrink-0">
+            <span className="text-text-tertiary shrink-0">
               {collapsed ? <ChevronRight size={13} /> : <ChevronDown size={13} />}
             </span>
-            <span className="text-xs font-bold uppercase tracking-widest text-gray-500">{group.name}</span>
-            <span className="text-xs text-gray-400 ml-1">({group.categories.length})</span>
+            <span className="text-xs font-semibold text-text-secondary">{group.name}</span>
           </div>
         </td>
-        <td className="py-2.5 px-3 text-right tabular-nums text-xs font-semibold text-gray-600">
+        <td className="py-2 px-3 text-right tabular-nums text-xs font-semibold text-text-secondary">
           {!isIncome && totals.budgeted > 0 ? formatCurrency(totals.budgeted) : ''}
         </td>
-        <td className="py-2.5 px-3 text-right tabular-nums text-xs text-gray-400">
+        <td className="py-2 px-3 text-right tabular-nums text-xs text-text-tertiary">
           {isIncome
-            ? (totals.balance > 0 ? <span className="text-emerald-600 font-semibold">{formatCurrency(totals.balance)}</span> : '')
+            ? (totals.balance > 0 ? <span className="text-positive font-semibold">{formatCurrency(totals.balance)}</span> : '')
             : (totals.spent > 0 ? formatCurrency(totals.spent) : '')}
         </td>
-        <td className={`py-2.5 pl-3 pr-6 text-right tabular-nums text-xs font-bold ${isIncome ? 'text-gray-300' : totBalColor}`}>
+        <td className={`py-2 pl-3 pr-6 text-right tabular-nums text-xs font-semibold ${isIncome ? 'text-text-disabled' : totBalColor}`}>
           {isIncome ? '—' : formatCurrency(totals.balance)}
         </td>
       </tr>
@@ -166,15 +166,6 @@ function GroupSection({ group, editingId, onStartEdit, onSave, onCancel }: Group
         />
       ))}
     </>
-  );
-}
-
-function SummaryCard({ label, value, color }: { label: string; value: number; color: string }) {
-  return (
-    <div className="flex-1 bg-slate-50 rounded-xl px-4 py-3 border border-slate-100">
-      <p className="text-xs text-gray-400 mb-0.5 uppercase tracking-wide">{label}</p>
-      <p className={`text-base font-bold tabular-nums ${color}`}>{formatCurrency(value)}</p>
-    </div>
   );
 }
 
@@ -195,52 +186,53 @@ export default function BudgetPage() {
 
   const tbb = summary?.toBeBudgeted ?? 0;
   const carryOver = summary?.carryOver ?? 0;
-  const tbbColor = tbb > 0 ? 'text-emerald-600' : tbb < 0 ? 'text-red-500' : 'text-gray-400';
+  const tbbColor = tbb > 0 ? 'text-positive' : tbb < 0 ? 'text-negative' : 'text-text-disabled';
+  const tbbLabel = tbb >= 0 ? 'Left to Plan' : 'Over Budget';
 
   return (
-    <div className="flex flex-col h-full bg-white">
-      <div className="px-6 py-5 border-b border-gray-100 bg-gradient-to-b from-white to-slate-50/50 shrink-0">
-        <div className="flex items-center justify-between mb-5">
+    <div className="flex flex-col h-full bg-surface">
+      <div className="px-6 py-4 border-b border-border shrink-0">
+        <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-1">
             <button
               onClick={() => setSelectedMonth(format(subMonths(monthDate, 1), 'yyyy-MM'))}
-              className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+              className="p-1.5 rounded-md hover:bg-surface-alt text-text-tertiary hover:text-text-secondary transition-colors"
             >
               <ChevronLeft size={18} />
             </button>
-            <span className="text-lg font-bold text-gray-800 w-40 text-center">
+            <span className="text-lg font-semibold text-text w-40 text-center">
               {format(monthDate, 'MMMM yyyy')}
             </span>
             <button
               onClick={() => setSelectedMonth(format(addMonths(monthDate, 1), 'yyyy-MM'))}
-              className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+              className="p-1.5 rounded-md hover:bg-surface-alt text-text-tertiary hover:text-text-secondary transition-colors"
             >
               <ChevronRight size={18} />
             </button>
           </div>
           <div className="text-right">
-            <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-0.5">To Be Budgeted</p>
-            <p className={`text-3xl font-bold tabular-nums ${tbbColor}`}>{formatCurrency(tbb)}</p>
+            <p className="text-xs font-medium text-text-tertiary mb-0.5">{tbbLabel}</p>
+            <p className={`text-2xl font-semibold tabular-nums ${tbbColor}`}>{formatCurrency(tbb)}</p>
           </div>
         </div>
-        <div className="flex gap-3">
+        <div className="grid grid-cols-3 gap-3">
           {carryOver !== 0 && (
-            <SummaryCard label="Carry Over" value={carryOver} color={carryOver >= 0 ? 'text-emerald-600' : 'text-red-500'} />
+            <StatCard label="Carry Over" value={formatCurrency(carryOver)} valueColor={carryOver >= 0 ? 'text-positive' : 'text-negative'} />
           )}
-          <SummaryCard label="Income" value={summary?.income ?? 0} color="text-emerald-600" />
-          <SummaryCard label="Budgeted" value={summary?.totalBudgeted ?? 0} color="text-blue-600" />
-          <SummaryCard label="Remaining" value={tbb} color={tbbColor} />
+          <StatCard label="Income" value={formatCurrency(summary?.income ?? 0)} valueColor="text-positive" />
+          <StatCard label="Planned" value={formatCurrency(summary?.totalBudgeted ?? 0)} valueColor="text-brand-600" />
+          <StatCard label="Remaining" value={formatCurrency(tbb)} valueColor={tbbColor} />
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto">
         <table className="w-full border-collapse">
-          <thead className="sticky top-0 bg-white z-10 border-b border-gray-100">
+          <thead className="sticky top-0 bg-surface z-10 border-b border-border">
             <tr>
-              <th className="py-2.5 px-4 text-left text-xs font-medium text-gray-400 uppercase tracking-wide">Category</th>
-              <th className="py-2.5 px-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wide w-40">Budgeted</th>
-              <th className="py-2.5 px-3 text-right text-xs font-medium text-gray-400 uppercase tracking-wide w-40">Spent</th>
-              <th className="py-2.5 pl-3 pr-6 text-right text-xs font-medium text-gray-400 uppercase tracking-wide w-40">Balance</th>
+              <th className="py-2.5 px-4 text-left text-xs font-medium text-text-tertiary">Category</th>
+              <th className="py-2.5 px-3 text-right text-xs font-medium text-text-tertiary w-40">Planned</th>
+              <th className="py-2.5 px-3 text-right text-xs font-medium text-text-tertiary w-40">Actual</th>
+              <th className="py-2.5 pl-3 pr-6 text-right text-xs font-medium text-text-tertiary w-40">Remaining</th>
             </tr>
           </thead>
           <tbody>
@@ -256,12 +248,23 @@ export default function BudgetPage() {
             ))}
             {groups.length === 0 && (
               <tr>
-                <td colSpan={4} className="py-16 text-center text-sm text-gray-400">
+                <td colSpan={4} className="py-16 text-center text-sm text-text-tertiary">
                   No categories yet. Add some in Settings.
                 </td>
               </tr>
             )}
           </tbody>
+          {tbb !== 0 && groups.length > 0 && (
+            <tfoot>
+              <tr className="sticky bottom-0 bg-surface border-t border-border">
+                <td className="py-3 px-4 text-sm font-semibold text-text">{tbbLabel}</td>
+                <td colSpan={2} />
+                <td className={`py-3 pl-3 pr-6 text-right text-sm font-semibold tabular-nums ${tbbColor}`}>
+                  {formatCurrency(tbb)}
+                </td>
+              </tr>
+            </tfoot>
+          )}
         </table>
       </div>
     </div>

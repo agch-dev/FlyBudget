@@ -4,12 +4,14 @@ import { format, parseISO } from 'date-fns';
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { useIncomeVsExpenses } from '../../hooks/useReports';
 import { formatCurrency } from '../../utils/currency';
+import { Card } from '../ui/Card';
+import { chartColors } from '../../utils/chartColors';
 
 function CurrencyTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-white/95 backdrop-blur-sm border border-gray-100 rounded-lg shadow-lg px-3 py-2">
-      <p className="text-xs text-gray-500 mb-1">{label}</p>
+    <div className="bg-surface border border-border rounded-lg shadow-hover px-3 py-2">
+      <p className="text-xs text-text-tertiary mb-1">{label}</p>
       {payload.map((p: any) => (
         <p key={p.name} className="text-xs font-medium" style={{ color: p.color }}>
           {p.name}: {formatCurrency(p.value)}
@@ -36,54 +38,53 @@ export default function IncomeExpensesMini({ sixMonthsAgo, currentMonth }: Props
 
   if (isLoading) {
     return (
-      <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow p-5">
-        <div className="h-5 w-36 bg-gray-200 rounded animate-pulse mb-2" />
-        <div className="h-6 w-28 bg-gray-100 rounded animate-pulse mb-4" />
-        <div className="h-36 flex items-end gap-2 animate-pulse">
+      <Card>
+        <div className="h-5 w-36 bg-surface-alt rounded animate-pulse mb-2" />
+        <div className="h-48 flex items-end gap-2 animate-pulse">
           {[60, 45, 72, 55, 80, 50].map((h, i) => (
-            <div key={i} className="flex-1 bg-gray-100 rounded-t" style={{ height: `${h}%` }} />
+            <div key={i} className="flex-1 bg-surface-alt rounded-t" style={{ height: `${h}%` }} />
           ))}
         </div>
-      </div>
+      </Card>
     );
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow p-5">
+    <Card>
       <div className="flex items-center justify-between mb-1">
-        <h3 className="text-sm font-semibold text-gray-900">Income vs Expenses</h3>
-        <Link to="/reports/income" className="text-xs text-blue-600 hover:text-blue-700">View all</Link>
+        <h3 className="text-sm font-semibold text-text">Cash Flow</h3>
+        <Link to="/reports" className="text-xs text-brand-600 hover:text-brand-700 font-medium">View all</Link>
       </div>
-      <p className="text-sm text-gray-500 mb-3">
+      <p className="text-sm text-text-tertiary mb-3">
         Net this month:{' '}
-        <span className={`font-semibold tabular-nums ${latestNet >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+        <span className={`font-semibold tabular-nums ${latestNet >= 0 ? 'text-positive' : 'text-negative'}`}>
           {formatCurrency(latestNet)}
         </span>
       </p>
 
       {chartData.length > 0 ? (
-        <div className="h-36">
+        <div className="h-48">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData} margin={{ top: 4, right: 4, left: 4, bottom: 0 }} barGap={2}>
               <XAxis
                 dataKey="month"
-                tick={{ fontSize: 10, fill: '#9ca3af' }}
+                tick={{ fontSize: 10, fill: chartColors.axis }}
                 axisLine={false}
                 tickLine={false}
               />
               <Tooltip content={<CurrencyTooltip />} />
               <Legend
                 iconSize={8}
-                wrapperStyle={{ fontSize: 11, color: '#6b7280' }}
+                wrapperStyle={{ fontSize: 11, color: chartColors.axis }}
               />
-              <Bar dataKey="income" name="Income" fill="#10b981" radius={[2, 2, 0, 0]} />
-              <Bar dataKey="expenses" name="Expenses" fill="#ef4444" radius={[2, 2, 0, 0]} />
+              <Bar dataKey="income" name="Income" fill={chartColors.positive} radius={[3, 3, 0, 0]} />
+              <Bar dataKey="expenses" name="Expenses" fill={chartColors.negative} radius={[3, 3, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
       ) : (
-        <p className="text-sm text-gray-400 py-8 text-center">Not enough data yet.</p>
+        <p className="text-sm text-text-disabled py-8 text-center">Not enough data yet.</p>
       )}
-    </div>
+    </Card>
   );
 }

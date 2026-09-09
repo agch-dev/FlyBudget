@@ -25,9 +25,9 @@ import { formatCurrency } from '../utils/currency';
 import { format, parseISO } from 'date-fns';
 import { AddRuleModal } from '../components/rules/AddRuleModal';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
+import { Button } from '../components/ui/Button';
 import type { Rule, RuleCondition, RuleAction, RunRulesPreviewItem } from '../types';
 
-// --- Summary helpers ---
 function conditionSummary(conditions: RuleCondition[]): string {
   if (!conditions.length) return 'No conditions';
   const c = conditions[0];
@@ -51,7 +51,6 @@ function actionSummary(actions: RuleAction[], categories: any[], payees: any[]):
   return actions.length > 1 ? `${summary} +${actions.length - 1} more` : summary;
 }
 
-// --- Run Rules Preview Modal ---
 function RunRulesPreviewModal({
   items,
   onConfirm,
@@ -68,42 +67,42 @@ function RunRulesPreviewModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-lg bg-white rounded-xl shadow-xl">
-        <div className="px-6 py-4 border-b border-gray-100">
-          <h2 className="text-lg font-semibold text-gray-900">Run Rules Preview</h2>
+      <div className="absolute inset-0 bg-black/30" onClick={onClose} />
+      <div className="relative w-full max-w-lg bg-surface rounded-lg shadow-modal">
+        <div className="px-6 py-4 border-b border-border">
+          <h2 className="text-lg font-semibold text-text">Run Rules Preview</h2>
         </div>
         <div className="px-6 py-4">
           {items.length === 0 ? (
-            <p className="text-sm text-gray-500 py-4 text-center">No uncategorized transactions match any rules.</p>
+            <p className="text-sm text-text-secondary py-4 text-center">No uncategorized transactions match any rules.</p>
           ) : (
             <>
-              <p className="text-sm text-gray-600 mb-3">
-                <span className="font-semibold text-gray-900">{items.length}</span> transaction{items.length !== 1 ? 's' : ''} will be updated:
+              <p className="text-sm text-text-secondary mb-3">
+                <span className="font-semibold text-text">{items.length}</span> transaction{items.length !== 1 ? 's' : ''} will be updated:
               </p>
-              <div className="rounded-lg border border-gray-100 overflow-hidden mb-3">
+              <div className="rounded-md border border-border-light overflow-hidden mb-3">
                 <table className="w-full">
-                  <thead className="bg-gray-50 border-b border-gray-100">
+                  <thead className="bg-surface-alt border-b border-border-light">
                     <tr>
-                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Date</th>
-                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Payee</th>
-                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Amount</th>
-                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">New Category</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-text-tertiary">Date</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-text-tertiary">Payee</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-text-tertiary">Amount</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-text-tertiary">New category</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-50">
+                  <tbody className="divide-y divide-border-light">
                     {shown.map(item => (
                       <tr key={item.transactionId}>
-                        <td className="px-3 py-2 text-xs text-gray-500">{format(parseISO(item.date), 'MMM d')}</td>
-                        <td className="px-3 py-2 text-xs text-gray-700 max-w-[140px] truncate">{item.payeeName ?? '—'}</td>
-                        <td className="px-3 py-2 text-xs text-gray-700">{formatCurrency(item.amount)}</td>
-                        <td className="px-3 py-2 text-xs font-medium text-emerald-700">{item.newCategoryName ?? '—'}</td>
+                        <td className="px-3 py-2 text-xs text-text-tertiary">{format(parseISO(item.date), 'MMM d')}</td>
+                        <td className="px-3 py-2 text-xs text-text max-w-[140px] truncate">{item.payeeName ?? '—'}</td>
+                        <td className="px-3 py-2 text-xs text-text tabular-nums">{formatCurrency(item.amount)}</td>
+                        <td className="px-3 py-2 text-xs font-medium text-positive">{item.newCategoryName ?? '—'}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
                 {extra > 0 && (
-                  <div className="px-3 py-2 bg-gray-50 text-xs text-gray-400 border-t border-gray-100">
+                  <div className="px-3 py-2 bg-surface-alt text-xs text-text-tertiary border-t border-border-light">
                     + {extra} more
                   </div>
                 )}
@@ -111,18 +110,12 @@ function RunRulesPreviewModal({
             </>
           )}
         </div>
-        <div className="flex justify-end gap-3 px-6 py-4 border-t border-gray-100">
-          <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-            Cancel
-          </button>
+        <div className="flex justify-end gap-3 px-6 py-4 border-t border-border">
+          <Button variant="secondary" onClick={onClose}>Cancel</Button>
           {items.length > 0 && (
-            <button
-              onClick={onConfirm}
-              disabled={running}
-              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
-            >
-              {running ? 'Applying…' : `Apply ${items.length} Change${items.length !== 1 ? 's' : ''}`}
-            </button>
+            <Button onClick={onConfirm} disabled={running}>
+              {running ? 'Applying...' : `Apply ${items.length} Change${items.length !== 1 ? 's' : ''}`}
+            </Button>
           )}
         </div>
       </div>
@@ -130,7 +123,6 @@ function RunRulesPreviewModal({
   );
 }
 
-// --- Sortable rule row ---
 function SortableRuleRow({
   rule,
   categories,
@@ -157,12 +149,12 @@ function SortableRuleRow({
     <div
       ref={setNodeRef}
       style={style}
-      className="flex items-center gap-3 px-4 py-3 bg-white border border-gray-100 rounded-lg group hover:shadow-md hover:-translate-y-px transition-all duration-200"
+      className="flex items-center gap-3 px-4 py-2.5 border-b border-border-light hover:bg-hover group transition-colors"
     >
       <button
         {...attributes}
         {...listeners}
-        className="text-gray-300 hover:text-gray-500 cursor-grab active:cursor-grabbing touch-none"
+        className="text-text-disabled hover:text-text-tertiary cursor-grab active:cursor-grabbing touch-none"
         aria-label="Drag to reorder"
       >
         <GripVertical size={16} />
@@ -170,20 +162,20 @@ function SortableRuleRow({
 
       <div className="flex-1 min-w-0 grid grid-cols-2 gap-x-4">
         <div>
-          <p className="text-xs text-gray-400 mb-0.5">If</p>
-          <p className="text-sm text-gray-700 truncate">{conditionSummary(rule.conditions)}</p>
+          <p className="text-xs text-text-tertiary mb-0.5">If</p>
+          <p className="text-sm text-text truncate">{conditionSummary(rule.conditions)}</p>
         </div>
         <div>
-          <p className="text-xs text-gray-400 mb-0.5">Then</p>
-          <p className="text-sm text-gray-700 truncate">{actionSummary(rule.actions, categories, payees)}</p>
+          <p className="text-xs text-text-tertiary mb-0.5">Then</p>
+          <p className="text-sm text-text truncate">{actionSummary(rule.actions, categories, payees)}</p>
         </div>
       </div>
 
       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button onClick={() => onEdit(rule)} className="p-1.5 text-gray-400 hover:text-blue-600 rounded-md hover:bg-blue-50 transition-colors">
+        <button onClick={() => onEdit(rule)} className="p-1 text-text-tertiary hover:text-brand-600 rounded transition-colors">
           <Pencil size={14} />
         </button>
-        <button onClick={() => onDelete(rule.id)} className="p-1.5 text-gray-400 hover:text-red-500 rounded-md hover:bg-red-50 transition-colors">
+        <button onClick={() => onDelete(rule.id)} className="p-1 text-text-tertiary hover:text-negative rounded transition-colors">
           <Trash2 size={14} />
         </button>
       </div>
@@ -191,7 +183,6 @@ function SortableRuleRow({
   );
 }
 
-// --- Rules page ---
 export default function RulesPage() {
   const { data: rulesData = [], isLoading } = useRules();
   const { data: groups = [] } = useCategories();
@@ -257,79 +248,72 @@ export default function RulesPage() {
     });
   }
 
-  const deleteTarget = localRules.find(r => r.id === deleteId);
-
   return (
-    <div className="flex flex-col h-full bg-white">
-      {/* Header */}
-      <div className="px-6 py-5 border-b border-gray-100 bg-gradient-to-b from-white to-slate-50/50 shrink-0">
+    <div className="flex flex-col h-full bg-surface">
+      <div className="px-6 py-4 border-b border-border shrink-0">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold text-gray-800">Rules</h1>
-            <p className="text-xs text-gray-400 mt-0.5">Rules run automatically on new transactions and can be applied to existing ones.</p>
+            <h1 className="text-lg font-semibold text-text">Rules</h1>
+            <p className="text-xs text-text-tertiary mt-0.5">Rules run automatically on new transactions and can be applied to existing ones.</p>
           </div>
           <div className="flex items-center gap-2">
-            <button
+            <Button
+              variant="secondary"
+              size="sm"
               onClick={handleRunRulesClick}
               disabled={previewing || localRules.length === 0}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               <Play size={12} />
-              {previewing ? 'Loading…' : 'Run Rules'}
-            </button>
-            <button
-              onClick={() => setAddOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              <Plus size={13} />
-              Add Rule
-            </button>
+              {previewing ? 'Loading...' : 'Run Rules'}
+            </Button>
+            <Button size="sm" onClick={() => setAddOpen(true)}>
+              <Plus size={13} /> Add Rule
+            </Button>
           </div>
         </div>
       </div>
 
-      {/* Rules list */}
-      <div className="flex-1 overflow-y-auto px-6 py-4">
+      <div className="flex-1 overflow-y-auto">
         {isLoading ? (
-          <div className="flex items-center justify-center h-32 text-sm text-gray-400">Loading…</div>
+          <div className="flex items-center justify-center h-32 text-sm text-text-tertiary">Loading...</div>
         ) : localRules.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-40 gap-3">
-            <p className="text-sm text-gray-400">No rules yet. Add one to start auto-categorizing transactions.</p>
+            <p className="text-sm text-text-tertiary">No rules yet. Add one to start auto-categorizing transactions.</p>
             <button
               onClick={() => setAddOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-brand-600 border border-brand-200 rounded-md hover:bg-brand-50 transition-colors"
             >
               <Plus size={13} /> Add your first rule
             </button>
           </div>
         ) : (
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-            <SortableContext items={localRules.map(r => r.id)} strategy={verticalListSortingStrategy}>
-              <div className="space-y-2">
-                {localRules.map(rule => (
-                  <SortableRuleRow
-                    key={rule.id}
-                    rule={rule}
-                    categories={allCategories}
-                    payees={payees}
-                    onEdit={r => { setEditRule(r); }}
-                    onDelete={id => setDeleteId(id)}
-                  />
-                ))}
-              </div>
-            </SortableContext>
-          </DndContext>
+          <div className="max-w-3xl mx-auto px-6 py-4">
+            <div className="bg-surface rounded-lg shadow-card border border-border-light overflow-hidden">
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                <SortableContext items={localRules.map(r => r.id)} strategy={verticalListSortingStrategy}>
+                  {localRules.map(rule => (
+                    <SortableRuleRow
+                      key={rule.id}
+                      rule={rule}
+                      categories={allCategories}
+                      payees={payees}
+                      onEdit={r => { setEditRule(r); }}
+                      onDelete={id => setDeleteId(id)}
+                    />
+                  ))}
+                </SortableContext>
+              </DndContext>
+            </div>
+          </div>
         )}
       </div>
 
-      {/* Add rule modal */}
       <AddRuleModal
         isOpen={addOpen}
         onClose={() => setAddOpen(false)}
         onSave={handleSaveNew}
       />
 
-      {/* Edit rule modal */}
       {editRule && (
         <AddRuleModal
           isOpen={!!editRule}
@@ -339,18 +323,16 @@ export default function RulesPage() {
         />
       )}
 
-      {/* Delete confirm */}
       <ConfirmModal
         isOpen={deleteId !== null}
         onClose={() => setDeleteId(null)}
         onConfirm={() => { if (deleteId) deleteRule.mutate(deleteId); }}
         title="Delete Rule"
-        message={`Delete this rule? Transactions that were already categorized by it will not be changed.`}
+        message="Delete this rule? Transactions that were already categorized by it will not be changed."
         confirmLabel="Delete"
         danger
       />
 
-      {/* Run Rules preview modal */}
       {previewItems !== null && (
         <RunRulesPreviewModal
           items={previewItems}

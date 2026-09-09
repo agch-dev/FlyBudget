@@ -64,14 +64,14 @@ export default function CategoryTreePicker({ selectedCategoryIds, selectedGroupI
     <div className="space-y-0.5">
       <button
         onClick={selectAll}
-        className={`text-xs px-1.5 py-0.5 rounded ${allSelected ? 'text-blue-600 font-medium' : 'text-gray-400 hover:text-gray-600'}`}
+        className={`text-xs px-1.5 py-0.5 rounded ${allSelected ? 'text-brand-600 font-medium' : 'text-text-tertiary hover:text-text-secondary'}`}
       >
         {allSelected ? 'All selected' : 'Select all'}
       </button>
       {groups.map(g => (
         <div key={g.id}>
           <div className="flex items-center gap-1 py-0.5">
-            <button onClick={() => toggleExpand(g.id)} className="text-gray-400 hover:text-gray-600 p-0.5">
+            <button onClick={() => toggleExpand(g.id)} className="text-text-tertiary hover:text-text-secondary p-0.5">
               {expanded.has(g.id) ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
             </button>
             <label className="flex items-center gap-2 cursor-pointer">
@@ -79,9 +79,9 @@ export default function CategoryTreePicker({ selectedCategoryIds, selectedGroupI
                 type="checkbox"
                 checked={isGroupChecked(g.id)}
                 onChange={() => toggleGroup(g.id)}
-                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                className="rounded border-border text-brand-600 focus:ring-brand-600"
               />
-              <span className="text-sm font-medium text-gray-700">{g.name}</span>
+              <span className="text-sm font-medium text-text-secondary">{g.name}</span>
             </label>
           </div>
           {expanded.has(g.id) && (
@@ -92,9 +92,9 @@ export default function CategoryTreePicker({ selectedCategoryIds, selectedGroupI
                     type="checkbox"
                     checked={isCatChecked(c.id)}
                     onChange={() => toggleCategory(c.id)}
-                    className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    className="rounded border-border text-brand-600 focus:ring-brand-600"
                   />
-                  <span className="text-sm text-gray-600">{c.name}</span>
+                  <span className="text-sm text-text-secondary">{c.name}</span>
                 </label>
               ))}
             </div>

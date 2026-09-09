@@ -39,35 +39,37 @@ export default function MonthlyTab({ onEdit, allRecurring }: Props) {
       <RecurringSummaryBar summary={summary} isLoading={summaryLoading} />
 
       <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-6">
-        <div className="bg-white rounded-xl shadow-sm p-4">
+        <div className="bg-surface rounded-lg shadow-card border border-border-light p-4">
           <Calendar month={month} onMonthChange={setMonth} occurrences={occurrences} />
         </div>
 
-        <div className="space-y-2">
+        <div>
           {isLoading ? (
-            <div className="space-y-2">
+            <div className="space-y-1">
               {[1, 2, 3].map((i) => (
-                <div key={i} className="h-16 bg-white rounded-lg shadow-sm animate-pulse" />
+                <div key={i} className="h-14 bg-surface-alt rounded animate-pulse" />
               ))}
             </div>
           ) : occurrences.length === 0 ? (
-            <div className="text-center py-12 text-sm text-gray-400">
+            <div className="text-center py-12 text-sm text-text-tertiary">
               No recurring items for this month.
             </div>
           ) : (
-            occurrences.map((occ, i) => (
-              <RecurringItemRow
-                key={`${occ.recurringTransactionId}-${occ.expectedDate}-${i}`}
-                occurrence={occ}
-                accountName={occ.accountId ? accountMap.get(occ.accountId) : undefined}
-                categoryName={occ.categoryId ? categoryMap.get(occ.categoryId) : undefined}
-                onMarkPaid={() => markPaid.mutate({ id: occ.recurringTransactionId, date: occ.expectedDate })}
-                onEdit={() => {
-                  const rec = recMap.get(occ.recurringTransactionId);
-                  if (rec) onEdit(rec);
-                }}
-              />
-            ))
+            <div className="bg-surface rounded-lg shadow-card border border-border-light overflow-hidden">
+              {occurrences.map((occ, i) => (
+                <RecurringItemRow
+                  key={`${occ.recurringTransactionId}-${occ.expectedDate}-${i}`}
+                  occurrence={occ}
+                  accountName={occ.accountId ? accountMap.get(occ.accountId) : undefined}
+                  categoryName={occ.categoryId ? categoryMap.get(occ.categoryId) : undefined}
+                  onMarkPaid={() => markPaid.mutate({ id: occ.recurringTransactionId, date: occ.expectedDate })}
+                  onEdit={() => {
+                    const rec = recMap.get(occ.recurringTransactionId);
+                    if (rec) onEdit(rec);
+                  }}
+                />
+              ))}
+            </div>
           )}
         </div>
       </div>

@@ -27,7 +27,7 @@ export default function AccountMultiSelect({ selected, onChange }: Props) {
     <div className="space-y-1">
       <button
         onClick={() => onChange([])}
-        className={`text-xs px-1.5 py-0.5 rounded ${allSelected ? 'text-blue-600 font-medium' : 'text-gray-400 hover:text-gray-600'}`}
+        className={`text-xs px-1.5 py-0.5 rounded ${allSelected ? 'text-brand-600 font-medium' : 'text-text-tertiary hover:text-text-secondary'}`}
       >
         {allSelected ? 'All selected' : 'Select all'}
       </button>
@@ -39,9 +39,9 @@ export default function AccountMultiSelect({ selected, onChange }: Props) {
               type="checkbox"
               checked={checked}
               onChange={() => toggle(a.id)}
-              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              className="rounded border-border text-brand-600 focus:ring-brand-600"
             />
-            <span className="text-sm text-gray-700 truncate">{a.name}</span>
+            <span className="text-sm text-text-secondary truncate">{a.name}</span>
           </label>
         );
       })}

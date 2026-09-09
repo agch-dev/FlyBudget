@@ -36,19 +36,19 @@ function SortableAccountRow({ account }: { account: Account }) {
     <div
       ref={setNodeRef}
       style={style}
-      className="flex items-center gap-3 px-4 py-2.5 bg-white border border-gray-100 rounded-lg hover:border-gray-200 transition-all"
+      className="flex items-center gap-3 px-4 py-2.5 bg-surface border border-border-light rounded-md hover:border-border transition-all"
     >
       <button
         {...attributes}
         {...listeners}
-        className="text-gray-300 hover:text-gray-500 cursor-grab active:cursor-grabbing touch-none shrink-0"
+        className="text-text-disabled hover:text-text-tertiary cursor-grab active:cursor-grabbing touch-none shrink-0"
         aria-label="Drag to reorder"
       >
         <GripVertical size={16} />
       </button>
-      <span className="text-sm font-medium text-gray-700 flex-1 min-w-0 truncate">{account.name}</span>
+      <span className="text-sm font-medium text-text-secondary flex-1 min-w-0 truncate">{account.name}</span>
       <Badge variant={account.type as AccountType} />
-      <span className={`text-sm tabular-nums font-medium shrink-0 ${account.balance >= 0 ? 'text-gray-700' : 'text-red-500'}`}>
+      <span className={`text-sm tabular-nums font-medium shrink-0 ${account.balance >= 0 ? 'text-text-secondary' : 'text-negative'}`}>
         {formatCurrency(account.balance)}
       </span>
     </div>
@@ -78,7 +78,7 @@ function AccountSection({ title, accounts, onReorder }: { title: string; account
 
   return (
     <div>
-      <h3 className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-2">{title}</h3>
+      <h3 className="text-xs font-medium text-text-tertiary mb-2">{title}</h3>
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={local.map((a) => a.id)} strategy={verticalListSortingStrategy}>
           <div className="space-y-1.5">
@@ -100,18 +100,18 @@ export function AccountReorder() {
   const offBudget = accounts.filter((a) => a.isOffBudget);
 
   if (isLoading) {
-    return <div className="flex items-center justify-center h-32 text-sm text-gray-400">Loading...</div>;
+    return <div className="flex items-center justify-center h-32 text-sm text-text-tertiary">Loading...</div>;
   }
 
   if (accounts.length === 0) {
-    return <p className="text-sm text-gray-400 text-center py-8">No accounts yet. Add one from the Accounts page.</p>;
+    return <p className="text-sm text-text-tertiary text-center py-8">No accounts yet. Add one from the Accounts page.</p>;
   }
 
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-sm font-semibold text-gray-900">Account Order</h2>
-        <p className="text-xs text-gray-400 mt-0.5">Drag to reorder accounts in the sidebar.</p>
+        <h2 className="text-sm font-semibold text-text">Account Order</h2>
+        <p className="text-xs text-text-tertiary mt-0.5">Drag to reorder accounts in the sidebar.</p>
       </div>
       <AccountSection
         title="On Budget"

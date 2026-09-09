@@ -6,13 +6,13 @@ interface Props {
 }
 
 const styles: Record<Variant, string> = {
-  checking:   'bg-blue-100 text-blue-700',
-  savings:    'bg-green-100 text-green-700',
-  credit:     'bg-orange-100 text-orange-700',
-  cash:       'bg-gray-100 text-gray-600',
+  checking:   'bg-brand-100 text-brand-700',
+  savings:    'bg-positive-subtle text-positive',
+  credit:     'bg-caution-subtle text-caution',
+  cash:       'bg-surface-alt text-text-secondary',
   investment: 'bg-purple-100 text-purple-700',
-  positive:   'bg-green-100 text-green-700',
-  negative:   'bg-red-100 text-red-600',
+  positive:   'bg-positive-subtle text-positive',
+  negative:   'bg-negative-subtle text-negative',
 };
 
 const labels: Record<Variant, string> = {

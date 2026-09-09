@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useBudget } from '../../hooks/useBudget';
 import { formatCurrency } from '../../utils/currency';
+import { Card } from '../ui/Card';
 
 interface Props {
   currentMonth: string;
@@ -28,44 +29,44 @@ export default function BudgetProgress({ currentMonth }: Props) {
 
   if (isLoading) {
     return (
-      <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow p-5">
-        <div className="h-5 w-40 bg-gray-200 rounded animate-pulse mb-4" />
+      <Card>
+        <div className="h-5 w-40 bg-surface-alt rounded animate-pulse mb-4" />
         <div className="space-y-4">
           {Array.from({ length: 6 }).map((_, i) => (
             <div key={i}>
-              <div className="h-4 bg-gray-100 rounded animate-pulse mb-1" style={{ width: `${60 + i * 5}%` }} />
-              <div className="h-1.5 bg-gray-100 rounded-full animate-pulse" />
+              <div className="h-4 bg-surface-alt rounded animate-pulse mb-1" style={{ width: `${60 + i * 5}%` }} />
+              <div className="h-1.5 bg-surface-alt rounded-full animate-pulse" />
             </div>
           ))}
         </div>
-      </div>
+      </Card>
     );
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow p-5">
+    <Card>
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-semibold text-gray-900">Budget Progress</h3>
-        <Link to="/budget" className="text-xs text-blue-600 hover:text-blue-700">View all</Link>
+        <h3 className="text-sm font-semibold text-text">Budget Progress</h3>
+        <Link to="/budget" className="text-xs text-brand-600 hover:text-brand-700 font-medium">View all</Link>
       </div>
 
       {topCategories.length === 0 ? (
-        <p className="text-sm text-gray-400 py-4 text-center">No budgeted categories this month.</p>
+        <p className="text-sm text-text-disabled py-4 text-center">No budgeted categories this month.</p>
       ) : (
         <div className="space-y-3">
           {topCategories.map(cat => {
             const ratio = Math.min(cat.spent / cat.budgeted, 1);
-            const color = ratio >= 1 ? 'bg-red-400' : ratio >= 0.8 ? 'bg-amber-400' : 'bg-emerald-400';
+            const color = ratio >= 1 ? 'bg-negative' : ratio >= 0.8 ? 'bg-caution' : 'bg-positive';
 
             return (
               <div key={cat.id}>
                 <div className="flex items-center justify-between mb-0.5">
-                  <span className="text-sm text-gray-700 truncate mr-2">{cat.name}</span>
-                  <span className="text-xs text-gray-500 tabular-nums whitespace-nowrap">
+                  <span className="text-sm text-text-secondary truncate mr-2">{cat.name}</span>
+                  <span className="text-xs text-text-tertiary tabular-nums whitespace-nowrap">
                     {formatCurrency(cat.spent)} / {formatCurrency(cat.budgeted)}
                   </span>
                 </div>
-                <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
+                <div className="h-1.5 w-full bg-surface-alt rounded-full overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all ${color}`}
                     style={{ width: `${(ratio * 100).toFixed(1)}%` }}
@@ -76,6 +77,6 @@ export default function BudgetProgress({ currentMonth }: Props) {
           })}
         </div>
       )}
-    </div>
+    </Card>
   );
 }

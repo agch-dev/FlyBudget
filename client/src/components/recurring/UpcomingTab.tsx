@@ -33,20 +33,20 @@ export default function UpcomingTab({ onEdit, allRecurring }: Props) {
 
   return (
     <div className="p-6 max-w-3xl mx-auto">
-      <p className="text-xs text-gray-400 mb-4">Showing unpaid items for the next 60 days</p>
+      <p className="text-xs text-text-tertiary mb-4">Showing unpaid items for the next 60 days</p>
 
       {isLoading ? (
-        <div className="space-y-2">
+        <div className="space-y-1">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-16 bg-white rounded-lg shadow-sm animate-pulse" />
+            <div key={i} className="h-14 bg-surface-alt rounded animate-pulse" />
           ))}
         </div>
       ) : unpaid.length === 0 ? (
-        <div className="text-center py-16 text-sm text-gray-400">
+        <div className="text-center py-16 text-sm text-text-tertiary">
           All caught up — no upcoming items.
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="bg-surface rounded-lg shadow-card border border-border-light overflow-hidden">
           {unpaid.map((occ, i) => (
             <RecurringItemRow
               key={`${occ.recurringTransactionId}-${occ.expectedDate}-${i}`}

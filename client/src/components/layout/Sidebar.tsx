@@ -1,60 +1,96 @@
 import { NavLink } from 'react-router-dom';
-import { Home, LayoutGrid, ArrowLeftRight, Repeat, BarChart2, Users, Zap, Settings, Wallet } from 'lucide-react';
+import {
+  LayoutDashboard, Landmark, ArrowLeftRight, Wallet, Repeat, BarChart3,
+  Target, Users, Zap, Settings, PanelLeftClose, PanelLeftOpen,
+} from 'lucide-react';
+import { useAppStore } from '../../store/appStore';
 import { SidebarAccountList } from './SidebarAccountList';
 
 interface NavItemProps {
   to: string;
   icon: React.ReactNode;
   label: string;
+  collapsed: boolean;
 }
 
-function NavItem({ to, icon, label }: NavItemProps) {
+function NavItem({ to, icon, label, collapsed }: NavItemProps) {
   return (
     <NavLink
       to={to}
+      title={collapsed ? label : undefined}
       className={({ isActive }) =>
-        `flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-150 ${
+        `flex items-center gap-2.5 py-1.5 rounded-md text-[13px] font-medium transition-all duration-150 relative ${
+          collapsed ? 'justify-center px-2' : 'px-3'
+        } ${
           isActive
-            ? 'bg-blue-600/20 text-blue-400 shadow-[inset_0_0_0_1px_rgba(59,130,246,0.15)]'
-            : 'text-gray-400 hover:bg-white/[0.07] hover:text-gray-200'
+            ? 'bg-sidebar-active text-sidebar-text-hi before:absolute before:left-0 before:top-1 before:bottom-1 before:w-[3px] before:bg-brand-500 before:rounded-r-full'
+            : 'text-sidebar-text hover:bg-sidebar-hover hover:text-sidebar-text-hi'
         }`
       }
     >
       {icon}
-      {label}
+      {!collapsed && <span className="truncate">{label}</span>}
     </NavLink>
   );
 }
 
 export function Sidebar() {
+  const collapsed = useAppStore((s) => s.sidebarCollapsed);
+  const toggle = useAppStore((s) => s.setSidebarCollapsed);
+
   return (
-    <aside className="flex flex-col w-60 shrink-0 h-screen bg-gradient-to-b from-gray-900 to-gray-950 border-r border-gray-800">
-      <div className="px-4 py-4 border-b border-white/[0.06]">
-        <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
-            <Wallet size={14} className="text-white" />
-          </div>
-          <span className="text-base font-bold text-white tracking-tight">Budget App</span>
+    <aside
+      className={`flex flex-col shrink-0 h-screen bg-sidebar-bg border-r border-sidebar-border transition-[width] duration-200 ${
+        collapsed ? 'w-16' : 'w-[208px]'
+      }`}
+    >
+      {/* Logo */}
+      <div className={`flex items-center gap-2.5 border-b border-sidebar-border ${collapsed ? 'justify-center px-2 py-3' : 'px-4 py-3'}`}>
+        <div className="w-7 h-7 rounded-lg bg-brand-600 flex items-center justify-center shrink-0">
+          <Wallet size={14} className="text-white" />
         </div>
+        {!collapsed && <span className="text-sm font-semibold text-sidebar-text-hi tracking-tight">Budget</span>}
       </div>
 
-      <nav className="px-3 pt-3 space-y-0.5">
-        <NavItem to="/dashboard" icon={<Home size={16} />} label="Dashboard" />
-        <NavItem to="/budget" icon={<LayoutGrid size={16} />} label="Budget" />
-        <NavItem to="/transactions" icon={<ArrowLeftRight size={16} />} label="All Transactions" />
-        <NavItem to="/recurring" icon={<Repeat size={16} />} label="Recurring" />
-        <NavItem to="/reports" icon={<BarChart2 size={16} />} label="Reports" />
+      {/* Primary nav */}
+      <nav className={`pt-3 space-y-0.5 ${collapsed ? 'px-2' : 'px-3'}`}>
+        <NavItem to="/dashboard" icon={<LayoutDashboard size={18} />} label="Dashboard" collapsed={collapsed} />
+        <NavItem to="/accounts" icon={<Landmark size={18} />} label="Accounts" collapsed={collapsed} />
+        <NavItem to="/transactions" icon={<ArrowLeftRight size={18} />} label="Transactions" collapsed={collapsed} />
+        <NavItem to="/budget" icon={<Wallet size={18} />} label="Budget" collapsed={collapsed} />
+        <NavItem to="/recurring" icon={<Repeat size={18} />} label="Recurring" collapsed={collapsed} />
+        <NavItem to="/reports" icon={<BarChart3 size={18} />} label="Reports" collapsed={collapsed} />
+        <NavItem to="/goals" icon={<Target size={18} />} label="Goals" collapsed={collapsed} />
       </nav>
 
-      <div className="flex-1 overflow-y-auto">
-        <SidebarAccountList />
+      {/* Account list — expanded only */}
+      {!collapsed && (
+        <div className="flex-1 overflow-y-auto">
+          <SidebarAccountList />
+        </div>
+      )}
+      {collapsed && <div className="flex-1" />}
+
+      {/* Footer nav */}
+      <nav className={`py-2 border-t border-sidebar-border space-y-0.5 ${collapsed ? 'px-2' : 'px-3'}`}>
+        <NavItem to="/payees" icon={<Users size={18} />} label="Payees" collapsed={collapsed} />
+        <NavItem to="/rules" icon={<Zap size={18} />} label="Rules" collapsed={collapsed} />
+        <NavItem to="/settings" icon={<Settings size={18} />} label="Settings" collapsed={collapsed} />
+      </nav>
+
+      {/* Collapse toggle */}
+      <div className={`py-2 border-t border-sidebar-border ${collapsed ? 'px-2' : 'px-3'}`}>
+        <button
+          onClick={() => toggle(!collapsed)}
+          className={`flex items-center gap-2 w-full py-1.5 rounded-md text-[13px] text-sidebar-text hover:bg-sidebar-hover hover:text-sidebar-text-hi transition-colors ${
+            collapsed ? 'justify-center px-2' : 'px-3'
+          }`}
+          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        >
+          {collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
+          {!collapsed && <span>Collapse</span>}
+        </button>
       </div>
-
-      <nav className="px-3 py-3 border-t border-white/[0.06] space-y-0.5">
-        <NavItem to="/payees" icon={<Users size={16} />} label="Payees" />
-        <NavItem to="/rules" icon={<Zap size={16} />} label="Rules" />
-        <NavItem to="/settings" icon={<Settings size={16} />} label="Settings" />
-      </nav>
     </aside>
   );
 }

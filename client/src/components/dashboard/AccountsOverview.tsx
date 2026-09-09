@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useAccounts } from '../../hooks/useAccounts';
 import { formatCurrency } from '../../utils/currency';
+import { Card } from '../ui/Card';
 import type { Account, AccountType } from '../../types';
 
 const TYPE_LABELS: Record<AccountType, string> = {
@@ -39,37 +40,37 @@ export default function AccountsOverview() {
 
   if (isLoading) {
     return (
-      <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow p-5">
-        <div className="h-5 w-32 bg-gray-200 rounded animate-pulse mb-4" />
+      <Card>
+        <div className="h-5 w-32 bg-surface-alt rounded animate-pulse mb-4" />
         <div className="space-y-3">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-5 bg-gray-100 rounded animate-pulse" style={{ width: `${80 - i * 10}%` }} />
+            <div key={i} className="h-5 bg-surface-alt rounded animate-pulse" style={{ width: `${80 - i * 10}%` }} />
           ))}
         </div>
-      </div>
+      </Card>
     );
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow p-5">
+    <Card>
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-semibold text-gray-900">Accounts</h3>
-        <Link to="/accounts" className="text-xs text-blue-600 hover:text-blue-700">View all</Link>
+        <h3 className="text-sm font-semibold text-text">Accounts</h3>
+        <Link to="/accounts" className="text-xs text-brand-600 hover:text-brand-700 font-medium">View all</Link>
       </div>
 
       <div className="space-y-4">
         {grouped.map(g => (
           <div key={g.type}>
-            <p className="text-xs font-semibold tracking-wider text-gray-400 uppercase mb-1.5">{g.label}</p>
-            <div className="space-y-1">
+            <p className="text-xs font-semibold text-text-tertiary uppercase tracking-wide mb-1.5">{g.label}</p>
+            <div className="divide-y divide-border-light">
               {g.accounts.map(a => (
                 <Link
                   key={a.id}
                   to={`/accounts/${a.id}`}
-                  className="flex items-center justify-between py-1 px-1 -mx-1 rounded hover:bg-gray-50 transition-colors"
+                  className="flex items-center justify-between py-1.5 hover:bg-hover transition-colors -mx-2 px-2 rounded"
                 >
-                  <span className="text-sm text-gray-700">{a.name}</span>
-                  <span className={`text-sm font-medium tabular-nums ${a.balance < 0 ? 'text-red-600' : 'text-gray-900'}`}>
+                  <span className="text-sm text-text-secondary">{a.name}</span>
+                  <span className={`text-sm font-medium tabular-nums ${a.balance < 0 ? 'text-negative' : 'text-text'}`}>
                     {formatCurrency(a.balance)}
                   </span>
                 </Link>
@@ -79,16 +80,16 @@ export default function AccountsOverview() {
         ))}
       </div>
 
-      <div className="mt-4 pt-3 border-t border-gray-100 space-y-1">
+      <div className="mt-4 pt-3 border-t border-border space-y-1">
         <div className="flex justify-between text-sm">
-          <span className="text-gray-500">Assets</span>
-          <span className="font-medium tabular-nums text-gray-900">{formatCurrency(totals.assets)}</span>
+          <span className="text-text-tertiary">Assets</span>
+          <span className="font-medium tabular-nums text-text">{formatCurrency(totals.assets)}</span>
         </div>
         <div className="flex justify-between text-sm">
-          <span className="text-gray-500">Liabilities</span>
-          <span className="font-medium tabular-nums text-red-600">{formatCurrency(-totals.liabilities)}</span>
+          <span className="text-text-tertiary">Liabilities</span>
+          <span className="font-medium tabular-nums text-negative">{formatCurrency(-totals.liabilities)}</span>
         </div>
       </div>
-    </div>
+    </Card>
   );
 }

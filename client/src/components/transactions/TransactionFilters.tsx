@@ -81,35 +81,35 @@ export function TransactionFilters({ state, onChange }: Props) {
   }
 
   return (
-    <div className="flex items-center gap-3 px-4 py-2 border-b border-gray-100 bg-white flex-wrap">
+    <div className="flex items-center gap-3 px-4 py-2 border-b border-border-light bg-surface flex-wrap">
       <div className="relative flex items-center flex-1 min-w-40">
-        <Search size={14} className="absolute left-2.5 text-gray-400 pointer-events-none" />
+        <Search size={14} className="absolute left-2.5 text-text-tertiary pointer-events-none" />
         <input
           type="text"
           value={rawSearch}
           onChange={handleSearchChange}
           placeholder="Search payee or notes…"
-          className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          className="w-full pl-8 pr-3 py-1.5 text-sm border border-border rounded-full focus:border-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-600"
         />
         {rawSearch && (
           <button
             onClick={() => { setRawSearch(''); onChange({ ...state, search: '' }); }}
-            className="absolute right-2 text-gray-400 hover:text-gray-600"
+            className="absolute right-2 text-text-tertiary hover:text-text-secondary"
           >
             <X size={13} />
           </button>
         )}
       </div>
 
-      <div className="flex gap-1">
+      <div className="flex gap-0 border-b border-transparent">
         {DATE_PRESETS.map((p) => (
           <button
             key={p.value}
             onClick={() => onChange({ ...state, datePreset: p.value })}
-            className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors ${
+            className={`px-2.5 py-1 text-xs font-medium transition-colors border-b-2 -mb-px ${
               state.datePreset === p.value
-                ? 'bg-blue-600 text-white'
-                : 'text-gray-600 hover:bg-gray-100'
+                ? 'border-brand-600 text-brand-600'
+                : 'border-transparent text-text-tertiary hover:text-text-secondary'
             }`}
           >
             {p.label}
@@ -117,15 +117,15 @@ export function TransactionFilters({ state, onChange }: Props) {
         ))}
       </div>
 
-      <div className="flex gap-1">
+      <div className="flex gap-0 border-b border-transparent">
         {(['all', '1', '0'] as const).map((v) => (
           <button
             key={v}
             onClick={() => onChange({ ...state, cleared: v })}
-            className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors ${
+            className={`px-2.5 py-1 text-xs font-medium transition-colors border-b-2 -mb-px ${
               state.cleared === v
-                ? 'bg-blue-600 text-white'
-                : 'text-gray-600 hover:bg-gray-100'
+                ? 'border-brand-600 text-brand-600'
+                : 'border-transparent text-text-tertiary hover:text-text-secondary'
             }`}
           >
             {v === 'all' ? 'All' : v === '1' ? 'Cleared' : 'Uncleared'}
@@ -136,7 +136,7 @@ export function TransactionFilters({ state, onChange }: Props) {
       {activeCount > 0 && (
         <button
           onClick={() => { setRawSearch(''); onChange(DEFAULT_FILTERS); }}
-          className="text-xs text-blue-600 hover:text-blue-700 font-medium"
+          className="text-xs text-brand-600 hover:text-brand-700 font-medium"
         >
           Reset
         </button>

@@ -14,24 +14,39 @@ const sixMonthsAgo = format(subMonths(now, 5), 'yyyy-MM');
 
 export default function Dashboard() {
   return (
-    <div className="p-8 max-w-[1400px] mx-auto">
-      <div className="flex items-baseline justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
-        <span className="text-sm text-gray-500 font-medium">{format(now, 'MMMM yyyy')}</span>
+    <div className="p-6 max-w-[1400px] mx-auto">
+      {/* Hero: Net Worth */}
+      <NetWorthMini sixMonthsAgo={sixMonthsAgo} currentMonth={currentMonth} />
+
+      {/* Stat row */}
+      <div className="mt-5">
+        <SummaryStats currentMonth={currentMonth} sixMonthsAgo={sixMonthsAgo} />
       </div>
 
-      <div className="space-y-5">
-        <SummaryStats currentMonth={currentMonth} sixMonthsAgo={sixMonthsAgo} />
+      {/* Cash flow chart — full width */}
+      <div className="mt-5">
+        <IncomeExpensesMini sixMonthsAgo={sixMonthsAgo} currentMonth={currentMonth} />
+      </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-          <AccountsOverview />
+      {/* Budget Progress + Upcoming Bills */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-5 mt-5">
+        <div className="lg:col-span-3">
           <BudgetProgress currentMonth={currentMonth} />
-          <NetWorthMini sixMonthsAgo={sixMonthsAgo} currentMonth={currentMonth} />
-          <IncomeExpensesMini sixMonthsAgo={sixMonthsAgo} currentMonth={currentMonth} />
-          <SpendingBreakdown currentMonth={currentMonth} />
-          <UpcomingBills />
-          <RecentTransactions />
         </div>
+        <div className="lg:col-span-2">
+          <UpcomingBills />
+        </div>
+      </div>
+
+      {/* Spending + Recent Transactions */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mt-5">
+        <SpendingBreakdown currentMonth={currentMonth} />
+        <RecentTransactions />
+      </div>
+
+      {/* Accounts overview */}
+      <div className="mt-5">
+        <AccountsOverview />
       </div>
     </div>
   );

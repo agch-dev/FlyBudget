@@ -4,6 +4,7 @@ import MonthlyTab from '../components/recurring/MonthlyTab';
 import UpcomingTab from '../components/recurring/UpcomingTab';
 import AllTab from '../components/recurring/AllTab';
 import RecurringFormModal from '../components/recurring/RecurringFormModal';
+import { Button } from '../components/ui/Button';
 import { useRecurringTransactions, useCreateRecurring, useUpdateRecurring } from '../hooks/useRecurringTransactions';
 import type { RecurringTransaction } from '../types';
 
@@ -47,23 +48,19 @@ export default function RecurringTransactionsPage() {
   }
 
   return (
-    <div className="flex flex-col h-full bg-white">
-      <div className="px-6 py-5 border-b border-gray-100 bg-gradient-to-b from-white to-slate-50/50 shrink-0">
+    <div className="flex flex-col h-full bg-surface">
+      <div className="px-6 py-4 border-b border-border shrink-0">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold text-gray-800">Recurring</h1>
-            <p className="text-xs text-gray-400 mt-0.5">Track bills, subscriptions, and recurring income</p>
+            <h1 className="text-lg font-semibold text-text">Recurring</h1>
+            <p className="text-xs text-text-tertiary mt-0.5">Track bills, subscriptions, and recurring income</p>
           </div>
-          <button
-            onClick={() => { setEditItem(null); setFormOpen(true); }}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 shadow-sm hover:shadow-md transition-all"
-          >
-            <Plus size={13} />
-            Add Recurring
-          </button>
+          <Button size="sm" onClick={() => { setEditItem(null); setFormOpen(true); }}>
+            <Plus size={13} /> Add Recurring
+          </Button>
         </div>
 
-        <div className="flex gap-1 mt-4">
+        <div className="flex gap-0 mt-3 border-b border-border-light -mb-px">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -71,10 +68,10 @@ export default function RecurringTransactionsPage() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg transition-all duration-150 ${
+                className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
                   isActive
-                    ? 'bg-blue-600 text-white font-medium shadow-sm'
-                    : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                    ? 'border-brand-600 text-brand-600'
+                    : 'border-transparent text-text-tertiary hover:text-text-secondary'
                 }`}
               >
                 <Icon size={14} />

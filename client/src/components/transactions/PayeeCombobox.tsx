@@ -55,22 +55,22 @@ export function PayeeCombobox({ value, onChange, payees, className = '' }: Props
         onChange={handleChange}
         onFocus={() => setOpen(true)}
         placeholder="Payee"
-        className={`block w-full bg-transparent text-sm text-gray-900 placeholder-gray-400 focus:outline-none ${className}`}
+        className={`block w-full bg-transparent text-sm text-text placeholder-text-tertiary focus:outline-none ${className}`}
       />
       {open && (filtered.length > 0 || (query && !exactMatch)) && (
-        <div className="absolute z-30 top-full left-0 mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden">
+        <div className="absolute z-30 top-full left-0 mt-1 w-48 bg-surface border border-border rounded-md shadow-hover overflow-hidden">
           {filtered.map((p) => (
             <button
               key={p.id}
               type="button"
               onMouseDown={(e) => { e.preventDefault(); select(p); }}
-              className="block w-full text-left px-3 py-1.5 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700"
+              className="block w-full text-left px-3 py-1.5 text-sm text-text-secondary hover:bg-brand-50 hover:text-brand-700"
             >
               {p.name}
             </button>
           ))}
           {query && !exactMatch && (
-            <div className="px-3 py-1.5 text-xs text-gray-400 border-t border-gray-100">
+            <div className="px-3 py-1.5 text-xs text-text-tertiary border-t border-border-light">
               New payee: "{query}"
             </div>
           )}

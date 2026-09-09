@@ -6,6 +6,7 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { formatCentsAxis } from '../../utils/currency';
+import { chartColors } from '../../utils/chartColors';
 import { CurrencyTooltip, ChartSkeleton, EmptyState, EXPENSE_COLORS, monthLabel } from './ChartHelpers';
 import ReportTable from './ReportTable';
 import type { CustomReportConfig, CustomReportData } from '../../types';
@@ -65,14 +66,14 @@ function TotalChartView({ config, data }: { config: CustomReportConfig; data: Ex
   return (
     <ResponsiveContainer width="100%" height="100%">
       <ChartComponent data={chartData} margin={{ top: 8, right: 16, left: 16, bottom: 0 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-        <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} interval={0} angle={-30} textAnchor="end" height={60} />
-        <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} tickFormatter={formatCentsAxis} />
+        <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />
+        <XAxis dataKey="name" tick={{ fontSize: 11, fill: chartColors.axis }} axisLine={false} tickLine={false} interval={0} angle={-30} textAnchor="end" height={60} />
+        <YAxis tick={{ fontSize: 11, fill: chartColors.axis }} axisLine={false} tickLine={false} tickFormatter={formatCentsAxis} />
         <Tooltip content={<CurrencyTooltip />} />
         {config.chartType === 'area' ? (
-          <Area type="monotone" dataKey="value" name="Amount" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.15} />
+          <Area type="monotone" dataKey="value" name="Amount" stroke={chartColors.brand} fill={chartColors.brand} fillOpacity={0.15} />
         ) : config.chartType === 'line' ? (
-          <Line type="monotone" dataKey="value" name="Amount" stroke="#3b82f6" strokeWidth={2} dot={{ r: 3 }} />
+          <Line type="monotone" dataKey="value" name="Amount" stroke={chartColors.brand} strokeWidth={2} dot={{ r: 3 }} />
         ) : (
           <Bar dataKey="value" name="Amount" radius={[4, 4, 0, 0]} maxBarSize={48}>
             {chartData.map((_, i) => (
@@ -98,9 +99,9 @@ function TimeChartView({ config, data }: { config: CustomReportConfig; data: Ext
     return (
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={chartData} margin={{ top: 8, right: 16, left: 16, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-          <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-          <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} tickFormatter={formatCentsAxis} />
+          <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />
+          <XAxis dataKey="month" tick={{ fontSize: 11, fill: chartColors.axis }} axisLine={false} tickLine={false} />
+          <YAxis tick={{ fontSize: 11, fill: chartColors.axis }} axisLine={false} tickLine={false} tickFormatter={formatCentsAxis} />
           <Tooltip content={<CurrencyTooltip />} />
           <Legend wrapperStyle={{ fontSize: 11 }} />
           {groups.map((g, i) => (
@@ -118,9 +119,9 @@ function TimeChartView({ config, data }: { config: CustomReportConfig; data: Ext
   return (
     <ResponsiveContainer width="100%" height="100%">
       <ChartComp data={chartData} margin={{ top: 8, right: 16, left: 16, bottom: 0 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-        <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-        <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} tickFormatter={formatCentsAxis} />
+        <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />
+        <XAxis dataKey="month" tick={{ fontSize: 11, fill: chartColors.axis }} axisLine={false} tickLine={false} />
+        <YAxis tick={{ fontSize: 11, fill: chartColors.axis }} axisLine={false} tickLine={false} tickFormatter={formatCentsAxis} />
         <Tooltip content={<CurrencyTooltip />} />
         <Legend wrapperStyle={{ fontSize: 11 }} />
         {groups.map((g, i) => {

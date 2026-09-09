@@ -9,6 +9,7 @@ import SavedReportsList from '../components/reports/SavedReportsList';
 import { useCustomReportData, useSavedReport, useCreateSavedReport, useUpdateSavedReport } from '../hooks/useCustomReports';
 import { useDebounce } from '../hooks/useDebounce';
 import { downloadCsv } from '../utils/exportCsv';
+import { Button } from '../components/ui/Button';
 import type { CustomReportConfig } from '../types';
 
 const now = new Date();
@@ -73,38 +74,29 @@ export default function CustomReportBuilder() {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="px-6 py-3 border-b border-gray-100 bg-gradient-to-b from-white to-slate-50/50 flex items-center justify-between">
+      <div className="px-6 py-3 border-b border-border bg-surface flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Link to="/reports" className="text-gray-400 hover:text-gray-600 transition-colors">
-            <ArrowLeft className="w-4 h-4" />
+          <Link to="/reports" className="text-text-tertiary hover:text-text-secondary transition-colors">
+            <ArrowLeft size={16} />
           </Link>
-          <h1 className="text-lg font-bold text-gray-900">
+          <h1 className="text-lg font-semibold text-text">
             {reportName || 'Custom Report'}
           </h1>
           <SavedReportsList activeId={id} />
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={handleExport}
-            disabled={!data}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
-          >
-            <Download className="w-3.5 h-3.5" />
-            Export
-          </button>
-          <button
-            onClick={() => setSaveOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <Save className="w-3.5 h-3.5" />
-            {id ? 'Update' : 'Save'}
-          </button>
+          <Button variant="secondary" size="sm" onClick={handleExport} disabled={!data}>
+            <Download size={13} /> Export
+          </Button>
+          <Button size="sm" onClick={() => setSaveOpen(true)}>
+            <Save size={13} /> {id ? 'Update' : 'Save'}
+          </Button>
         </div>
       </div>
 
       <div className="flex flex-1 overflow-hidden">
         <ReportBuilderSidebar config={config} onChange={setConfig} />
-        <div className="flex-1 p-6 overflow-auto">
+        <div className="flex-1 p-6 overflow-auto bg-page">
           <div className="h-[500px]">
             <ReportChartArea config={config} data={data} isLoading={isLoading} />
           </div>

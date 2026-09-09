@@ -16,7 +16,7 @@ export function CategorySelect({ value, onChange, groups, accounts, currentAccou
     <select
       value={value ?? ''}
       onChange={(e) => onChange(e.target.value || null)}
-      className={`block w-full bg-transparent text-sm text-gray-700 focus:outline-none ${className}`}
+      className={`block w-full bg-transparent text-sm text-text focus:outline-none ${className}`}
     >
       <option value="">Uncategorized</option>
       {groups.map((g) => (

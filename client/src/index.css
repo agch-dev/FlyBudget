@@ -2,11 +2,61 @@
 
 @theme {
   --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
-  --color-sidebar: #111827;
-  --color-sidebar-hover: #1f2937;
-  --color-sidebar-active: #1e3a5f;
-  --color-sidebar-border: #1f2937;
-  --color-page-bg: #f1f5f9;
+
+  /* Brand — blue replaces Monarch's orange */
+  --color-brand-50:  #EFF6FF;
+  --color-brand-100: #DBEAFE;
+  --color-brand-200: #BFDBFE;
+  --color-brand-300: #93C5FD;
+  --color-brand-500: #3B82F6;
+  --color-brand-600: #2563EB;
+  --color-brand-700: #1D4ED8;
+  --color-brand-800: #1E40AF;
+
+  /* Surfaces — warm neutral, NOT cool slate */
+  --color-page:        #F9FAFB;
+  --color-surface:     #FFFFFF;
+  --color-surface-alt: #F3F4F6;
+  --color-hover:       #F9FAFB;
+
+  /* Borders */
+  --color-border:       #E5E7EB;
+  --color-border-light: #F3F4F6;
+
+  /* Text */
+  --color-text:           #111827;
+  --color-text-secondary: #6B7280;
+  --color-text-tertiary:  #9CA3AF;
+  --color-text-disabled:  #D1D5DB;
+
+  /* Semantic */
+  --color-positive:    #059669;
+  --color-positive-subtle: #ECFDF5;
+  --color-negative:    #DC2626;
+  --color-negative-subtle: #FEF2F2;
+  --color-caution:     #D97706;
+  --color-caution-subtle:  #FFFBEB;
+
+  /* Sidebar */
+  --color-sidebar-bg:      #1F2937;
+  --color-sidebar-deep:    #111827;
+  --color-sidebar-hover:   rgba(255,255,255,0.06);
+  --color-sidebar-active:  rgba(37,99,235,0.15);
+  --color-sidebar-border:  rgba(255,255,255,0.06);
+  --color-sidebar-text:    #9CA3AF;
+  --color-sidebar-text-hi: #F9FAFB;
+
+  /* Shadows */
+  --shadow-xs:    0 1px 2px rgba(0,0,0,0.04);
+  --shadow-card:  0 1px 3px rgba(0,0,0,0.04), 0 1px 2px -1px rgba(0,0,0,0.03);
+  --shadow-hover: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -2px rgba(0,0,0,0.03);
+  --shadow-modal: 0 20px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.06);
+
+  /* Radii */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 14px;
 }
 
 body {

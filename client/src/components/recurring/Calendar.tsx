@@ -10,10 +10,10 @@ import type { RecurringOccurrence, OccurrenceStatus } from '../../types';
 const DAY_HEADERS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 const DOT_COLORS: Record<OccurrenceStatus, string> = {
-  paid: 'bg-emerald-500',
-  paid_different: 'bg-amber-400',
-  upcoming: 'bg-blue-400',
-  overdue: 'bg-red-400',
+  paid: 'bg-positive',
+  paid_different: 'bg-caution',
+  upcoming: 'bg-brand-500',
+  overdue: 'bg-negative',
 };
 
 interface Props {
@@ -48,22 +48,22 @@ export default function Calendar({ month, onMonthChange, occurrences, onDateClic
       <div className="flex items-center justify-between mb-3">
         <button
           onClick={() => onMonthChange(format(subMonths(monthDate, 1), 'yyyy-MM'))}
-          className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+          className="p-1.5 rounded-md hover:bg-hover text-text-tertiary hover:text-text-secondary transition-colors"
         >
           <ChevronLeft size={16} />
         </button>
-        <span className="text-sm font-semibold text-gray-800">{format(monthDate, 'MMMM yyyy')}</span>
+        <span className="text-sm font-semibold text-text">{format(monthDate, 'MMMM yyyy')}</span>
         <button
           onClick={() => onMonthChange(format(addMonths(monthDate, 1), 'yyyy-MM'))}
-          className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors"
+          className="p-1.5 rounded-md hover:bg-hover text-text-tertiary hover:text-text-secondary transition-colors"
         >
           <ChevronRight size={16} />
         </button>
       </div>
 
-      <div className="grid grid-cols-7 gap-px bg-gray-100 rounded-lg overflow-hidden border border-gray-100">
+      <div className="grid grid-cols-7 gap-px bg-border-light rounded-lg overflow-hidden border border-border-light">
         {DAY_HEADERS.map((d) => (
-          <div key={d} className="bg-gray-50 py-1.5 text-center text-xs font-medium text-gray-400">
+          <div key={d} className="bg-surface-alt py-1.5 text-center text-xs font-medium text-text-tertiary">
             {d}
           </div>
         ))}
@@ -77,15 +77,15 @@ export default function Calendar({ month, onMonthChange, occurrences, onDateClic
             <div
               key={dateStr}
               onClick={() => dayOccs.length > 0 && onDateClick?.(dateStr)}
-              className={`bg-white min-h-[52px] px-1.5 py-1 ${
-                dayOccs.length > 0 ? 'cursor-pointer hover:bg-blue-50/50' : ''
+              className={`bg-surface min-h-[52px] px-1.5 py-1 ${
+                dayOccs.length > 0 ? 'cursor-pointer hover:bg-brand-50' : ''
               } ${!inMonth ? 'opacity-30' : ''}`}
             >
               <span
                 className={`text-xs tabular-nums ${
                   isToday
-                    ? 'bg-blue-600 text-white w-5 h-5 rounded-full inline-flex items-center justify-center font-medium'
-                    : 'text-gray-600'
+                    ? 'bg-brand-600 text-white w-5 h-5 rounded-full inline-flex items-center justify-center font-medium'
+                    : 'text-text-secondary'
                 }`}
               >
                 {format(day, 'd')}

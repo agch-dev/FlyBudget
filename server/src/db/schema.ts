@@ -104,6 +104,20 @@ export const customReports = sqliteTable('custom_reports', {
   updatedAt: text('updated_at').notNull().default(sql`(datetime('now'))`),
 });
 
+export const goals = sqliteTable('goals', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  targetAmount: integer('target_amount').notNull(),
+  currentAmount: integer('current_amount').notNull().default(0),
+  targetDate: text('target_date'),
+  accountId: text('account_id').references(() => accounts.id, { onDelete: 'set null' }),
+  icon: text('icon').notNull().default('🎯'),
+  color: text('color').notNull().default('#2563EB'),
+  sortOrder: integer('sort_order').notNull().default(0),
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
+  updatedAt: text('updated_at').notNull().default(sql`(datetime('now'))`),
+});
+
 export const plaidConfig = sqliteTable('plaid_config', {
   id: text('id').primaryKey(),
   clientId: text('client_id').notNull(),

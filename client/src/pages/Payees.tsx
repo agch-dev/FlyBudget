@@ -3,6 +3,7 @@ import { Trash2, GitMerge, Search } from 'lucide-react';
 import { usePayees, useUpdatePayee, useDeletePayee, useMergePayees } from '../hooks/usePayees';
 import { useCategories } from '../hooks/useCategories';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
+import { Button } from '../components/ui/Button';
 import type { PayeeWithCount } from '../types';
 
 function MergeModal({
@@ -21,34 +22,27 @@ function MergeModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-sm bg-white rounded-xl shadow-xl">
-        <div className="px-6 py-4 border-b border-gray-100">
-          <h2 className="text-lg font-semibold text-gray-900">Merge Payees</h2>
+      <div className="absolute inset-0 bg-black/30" onClick={onClose} />
+      <div className="relative w-full max-w-sm bg-surface rounded-lg shadow-modal">
+        <div className="px-6 py-4 border-b border-border">
+          <h2 className="text-lg font-semibold text-text">Merge Payees</h2>
         </div>
         <div className="px-6 py-5 space-y-4">
-          <p className="text-sm text-gray-500">Choose which payee name to keep. All transactions will be moved to the selected payee.</p>
+          <p className="text-sm text-text-secondary">Choose which payee name to keep. All transactions will be moved to the selected payee.</p>
           <div className="space-y-2">
             {selectedPayees.map(p => (
-              <label key={p.id} className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${keepId === p.id ? 'border-blue-400 bg-blue-50' : 'border-gray-200 hover:bg-gray-50'}`}>
-                <input type="radio" name="keepId" value={p.id} checked={keepId === p.id} onChange={() => setKeepId(p.id)} className="accent-blue-600" />
+              <label key={p.id} className={`flex items-center gap-3 p-3 rounded-md border cursor-pointer transition-colors ${keepId === p.id ? 'border-brand-500 bg-brand-50' : 'border-border hover:bg-hover'}`}>
+                <input type="radio" name="keepId" value={p.id} checked={keepId === p.id} onChange={() => setKeepId(p.id)} className="accent-brand-600" />
                 <div>
-                  <p className="text-sm font-medium text-gray-900">{p.name}</p>
-                  <p className="text-xs text-gray-400">{p.transactionCount} transaction{p.transactionCount !== 1 ? 's' : ''}</p>
+                  <p className="text-sm font-medium text-text">{p.name}</p>
+                  <p className="text-xs text-text-tertiary">{p.transactionCount} transaction{p.transactionCount !== 1 ? 's' : ''}</p>
                 </div>
               </label>
             ))}
           </div>
           <div className="flex justify-end gap-3 pt-1">
-            <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-              Cancel
-            </button>
-            <button
-              onClick={() => { onMerge(keepId, selected.filter(id => id !== keepId)); onClose(); }}
-              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              Merge
-            </button>
+            <Button variant="secondary" onClick={onClose}>Cancel</Button>
+            <Button onClick={() => { onMerge(keepId, selected.filter(id => id !== keepId)); onClose(); }}>Merge</Button>
           </div>
         </div>
       </div>
@@ -109,67 +103,65 @@ export default function PayeesPage() {
   const deleteTarget = payees.find(p => p.id === deleteId);
 
   return (
-    <div className="flex flex-col h-full bg-white">
-      {/* Header */}
-      <div className="px-6 py-5 border-b border-gray-100 bg-gradient-to-b from-white to-slate-50/50 shrink-0">
+    <div className="flex flex-col h-full bg-surface">
+      <div className="px-6 py-4 border-b border-border shrink-0">
         <div className="flex items-center justify-between gap-4">
-          <h1 className="text-xl font-bold text-gray-800">Payees</h1>
+          <h1 className="text-lg font-semibold text-text">Payees</h1>
           <div className="flex items-center gap-2">
             {selected.size >= 2 && (
               <button
                 onClick={() => setShowMerge(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-brand-700 bg-brand-50 border border-brand-200 rounded-md hover:bg-brand-100 transition-colors"
               >
                 <GitMerge size={13} />
                 Merge {selected.size} payees
               </button>
             )}
             <div className="relative">
-              <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+              <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-tertiary" />
               <input
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 placeholder="Search payees…"
-                className="pl-8 pr-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-400"
+                className="pl-8 pr-3 py-1.5 text-sm border border-border rounded-full focus:outline-none focus:ring-1 focus:ring-brand-600 focus:border-brand-600"
               />
             </div>
           </div>
         </div>
       </div>
 
-      {/* Table */}
       <div className="flex-1 overflow-y-auto">
         {isLoading ? (
-          <div className="flex items-center justify-center h-32 text-sm text-gray-400">Loading…</div>
+          <div className="flex items-center justify-center h-32 text-sm text-text-tertiary">Loading...</div>
         ) : filtered.length === 0 ? (
-          <div className="flex items-center justify-center h-32 text-sm text-gray-400">
+          <div className="flex items-center justify-center h-32 text-sm text-text-tertiary">
             {search ? 'No payees match your search.' : 'No payees yet. They\'re created automatically from transactions.'}
           </div>
         ) : (
           <table className="w-full">
-            <thead className="sticky top-0 bg-white border-b border-gray-100 z-10">
+            <thead className="sticky top-0 bg-surface-alt border-b border-border z-10">
               <tr>
-                <th className="w-10 px-4 py-3">
+                <th className="w-10 px-4 py-2">
                   <input
                     type="checkbox"
                     checked={selected.size === filtered.length && filtered.length > 0}
                     onChange={e => setSelected(e.target.checked ? new Set(filtered.map(p => p.id)) : new Set())}
-                    className="accent-blue-600"
+                    className="accent-brand-600"
                   />
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Name</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Default Category</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wide">Transactions</th>
-                <th className="w-12 px-4 py-3" />
+                <th className="px-4 py-2 text-left text-xs font-medium text-text-tertiary">Name</th>
+                <th className="px-4 py-2 text-left text-xs font-medium text-text-tertiary">Default category</th>
+                <th className="px-4 py-2 text-right text-xs font-medium text-text-tertiary">Transactions</th>
+                <th className="w-12 px-4 py-2" />
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
+            <tbody className="divide-y divide-border-light">
               {filtered.map(p => (
-                <tr key={p.id} className={`group hover:bg-gray-50 transition-colors ${selected.has(p.id) ? 'bg-blue-50/50' : ''}`}>
-                  <td className="px-4 py-3">
-                    <input type="checkbox" checked={selected.has(p.id)} onChange={() => toggleSelect(p.id)} className="accent-blue-600" />
+                <tr key={p.id} className={`group hover:bg-hover transition-colors ${selected.has(p.id) ? 'bg-brand-50' : ''}`}>
+                  <td className="px-4 py-2">
+                    <input type="checkbox" checked={selected.has(p.id)} onChange={() => toggleSelect(p.id)} className="accent-brand-600" />
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-2">
                     {editingId === p.id ? (
                       <input
                         autoFocus
@@ -180,11 +172,11 @@ export default function PayeesPage() {
                           if (e.key === 'Enter') commitEditName(p.id);
                           if (e.key === 'Escape') setEditingId(null);
                         }}
-                        className="text-sm border border-blue-400 rounded px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-400 w-full max-w-xs"
+                        className="text-sm border border-brand-500 rounded px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-brand-600 w-full max-w-xs"
                       />
                     ) : (
                       <span
-                        className="text-sm font-medium text-gray-900 cursor-text hover:text-blue-700 transition-colors"
+                        className="text-sm font-medium text-text cursor-text hover:text-brand-600 transition-colors"
                         onDoubleClick={() => startEditName(p)}
                         title="Double-click to rename"
                       >
@@ -192,11 +184,11 @@ export default function PayeesPage() {
                       </span>
                     )}
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-2">
                     <select
                       value={p.defaultCategoryId ?? ''}
                       onChange={e => handleCategoryChange(p.id, e.target.value)}
-                      className="text-sm border border-gray-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 max-w-[220px]"
+                      className="text-sm border border-border rounded-md px-2 py-1 bg-surface focus:outline-none focus:ring-1 focus:ring-brand-600 max-w-[220px]"
                     >
                       <option value="">No default</option>
                       {allCategories.map((c: any) => (
@@ -204,11 +196,11 @@ export default function PayeesPage() {
                       ))}
                     </select>
                   </td>
-                  <td className="px-4 py-3 text-right text-sm text-gray-500">{p.transactionCount}</td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-2 text-right text-sm text-text-secondary">{p.transactionCount}</td>
+                  <td className="px-4 py-2">
                     <button
                       onClick={() => setDeleteId(p.id)}
-                      className="opacity-0 group-hover:opacity-100 p-1 text-gray-400 hover:text-red-500 transition-all"
+                      className="opacity-0 group-hover:opacity-100 p-1 text-text-tertiary hover:text-negative transition-all"
                     >
                       <Trash2 size={14} />
                     </button>
@@ -220,7 +212,6 @@ export default function PayeesPage() {
         )}
       </div>
 
-      {/* Merge modal */}
       {showMerge && (
         <MergeModal
           selected={[...selected]}
@@ -230,7 +221,6 @@ export default function PayeesPage() {
         />
       )}
 
-      {/* Delete confirm */}
       <ConfirmModal
         isOpen={deleteId !== null}
         onClose={() => setDeleteId(null)}

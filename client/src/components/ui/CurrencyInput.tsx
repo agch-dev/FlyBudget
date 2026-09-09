@@ -33,7 +33,7 @@ export function CurrencyInput({ value, onChange, placeholder = '0.00', className
       onChange={(e) => setRaw(e.target.value)}
       placeholder={placeholder}
       step="0.01"
-      className={`block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 ${className}`}
+      className={`block w-full rounded-md border border-border px-3 py-2 text-sm text-text placeholder-text-disabled focus:border-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-600 ${className}`}
     />
   );
 }

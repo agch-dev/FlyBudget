@@ -82,7 +82,7 @@ export default function ReportBuilderSidebar({ config, onChange }: Props) {
   }
 
   return (
-    <div className="w-72 shrink-0 bg-white border-r border-gray-100 overflow-y-auto p-4 space-y-5">
+    <div className="w-72 shrink-0 bg-surface border-r border-border overflow-y-auto p-4 space-y-5">
       <Section label="Chart Type">
         <ChartTypeSelector
           value={config.chartType}
@@ -97,10 +97,10 @@ export default function ReportBuilderSidebar({ config, onChange }: Props) {
             <button
               key={m.id}
               onClick={() => handleModeChange(m.id)}
-              className={`flex-1 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+              className={`flex-1 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
                 config.mode === m.id
-                  ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                  : 'text-gray-600 hover:bg-gray-100 border border-transparent'
+                  ? 'bg-brand-50 text-brand-700 border border-brand-200'
+                  : 'text-text-secondary hover:bg-hover border border-transparent'
               }`}
             >
               {m.label}
@@ -113,7 +113,7 @@ export default function ReportBuilderSidebar({ config, onChange }: Props) {
         <select
           value={config.groupBy}
           onChange={e => onChange(set(config, 'groupBy', e.target.value as ReportGroupBy))}
-          className="w-full rounded-lg border border-gray-200 text-sm py-1.5 px-2 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+          className="w-full rounded-md border border-border text-sm py-1.5 px-2 focus:border-brand-600 focus:ring-1 focus:ring-brand-600 focus:outline-none"
         >
           {GROUP_BY_OPTIONS.filter(g => g.modes.includes(config.mode)).map(g => (
             <option key={g.id} value={g.id}>{g.label}</option>
@@ -127,10 +127,10 @@ export default function ReportBuilderSidebar({ config, onChange }: Props) {
             <button
               key={b.id}
               onClick={() => onChange(set(config, 'balanceType', b.id))}
-              className={`flex-1 px-2 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+              className={`flex-1 px-2 py-1.5 text-xs font-medium rounded-md transition-colors ${
                 config.balanceType === b.id
-                  ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                  : 'text-gray-600 hover:bg-gray-100 border border-transparent'
+                  ? 'bg-brand-50 text-brand-700 border border-brand-200'
+                  : 'text-text-secondary hover:bg-hover border border-transparent'
               }`}
             >
               {b.label}
@@ -145,10 +145,10 @@ export default function ReportBuilderSidebar({ config, onChange }: Props) {
             <button
               key={p.id}
               onClick={() => handlePresetChange(p.id)}
-              className={`px-2 py-1 text-xs font-medium rounded-lg transition-colors ${
+              className={`px-2 py-1 text-xs font-medium rounded-md transition-colors ${
                 config.dateRange.preset === p.id
-                  ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                  : 'text-gray-600 hover:bg-gray-100 border border-transparent'
+                  ? 'bg-brand-50 text-brand-700 border border-brand-200'
+                  : 'text-text-secondary hover:bg-hover border border-transparent'
               }`}
             >
               {p.label}
@@ -161,13 +161,13 @@ export default function ReportBuilderSidebar({ config, onChange }: Props) {
               type="month"
               value={config.dateRange.from}
               onChange={e => onChange(set(config, 'dateRange', { ...config.dateRange, from: e.target.value }))}
-              className="flex-1 rounded-lg border border-gray-200 text-xs py-1 px-2 focus:border-blue-500 focus:outline-none"
+              className="flex-1 rounded-md border border-border text-xs py-1 px-2 focus:border-brand-600 focus:outline-none"
             />
             <input
               type="month"
               value={config.dateRange.to}
               onChange={e => onChange(set(config, 'dateRange', { ...config.dateRange, to: e.target.value }))}
-              className="flex-1 rounded-lg border border-gray-200 text-xs py-1 px-2 focus:border-blue-500 focus:outline-none"
+              className="flex-1 rounded-md border border-border text-xs py-1 px-2 focus:border-brand-600 focus:outline-none"
             />
           </div>
         )}
@@ -195,7 +195,7 @@ export default function ReportBuilderSidebar({ config, onChange }: Props) {
 function Section({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <p className="text-xs font-semibold tracking-wider text-gray-400 uppercase mb-2">{label}</p>
+      <p className="text-xs font-medium text-text-tertiary mb-2">{label}</p>
       {children}
     </div>
   );

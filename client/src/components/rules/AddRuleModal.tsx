@@ -102,7 +102,7 @@ export function AddRuleModal({ isOpen, onClose, onSave, editRule }: Props) {
         {/* Conditions */}
         <div>
           <div className="flex items-center justify-between mb-2">
-            <p className="text-sm font-medium text-gray-700">Conditions <span className="text-xs text-gray-400 font-normal">(all must match)</span></p>
+            <p className="text-sm font-medium text-text-secondary">Conditions <span className="text-xs text-text-tertiary font-normal">(all must match)</span></p>
           </div>
           <div className="space-y-2">
             {conditions.map((c, i) => (
@@ -110,7 +110,7 @@ export function AddRuleModal({ isOpen, onClose, onSave, editRule }: Props) {
                 <select
                   value={c.field}
                   onChange={e => updateCondition(i, { field: e.target.value as RuleCondition['field'], value: '' })}
-                  className="text-sm border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400"
+                  className="text-sm border border-border rounded-lg px-2 py-1.5 bg-surface focus:outline-none focus:ring-1 focus:ring-brand-400"
                 >
                   {(Object.entries(FIELD_LABELS) as [RuleCondition['field'], string][]).map(([v, l]) => (
                     <option key={v} value={v}>{l}</option>
@@ -119,7 +119,7 @@ export function AddRuleModal({ isOpen, onClose, onSave, editRule }: Props) {
                 <select
                   value={c.op}
                   onChange={e => updateCondition(i, { op: e.target.value as RuleCondition['op'] })}
-                  className="text-sm border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400"
+                  className="text-sm border border-border rounded-lg px-2 py-1.5 bg-surface focus:outline-none focus:ring-1 focus:ring-brand-400"
                 >
                   {(Object.entries(OP_LABELS) as [RuleCondition['op'], string][]).map(([v, l]) => (
                     <option key={v} value={v}>{l}</option>
@@ -129,11 +129,11 @@ export function AddRuleModal({ isOpen, onClose, onSave, editRule }: Props) {
                   value={c.value}
                   onChange={e => updateCondition(i, { value: e.target.value })}
                   placeholder={c.field === 'amount' ? 'e.g. 5000 (cents)' : 'value…'}
-                  className="flex-1 text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                  className="flex-1 text-sm border border-border rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-brand-400"
                 />
                 {conditions.length > 1 && (
                   <button onClick={() => { setConditions(prev => prev.filter((_, idx) => idx !== i)); setTestResults(null); }}
-                    className="p-1 text-gray-400 hover:text-red-500 transition-colors">
+                    className="p-1 text-text-tertiary hover:text-negative transition-colors">
                     <Trash2 size={14} />
                   </button>
                 )}
@@ -142,7 +142,7 @@ export function AddRuleModal({ isOpen, onClose, onSave, editRule }: Props) {
           </div>
           <button
             onClick={() => setConditions(prev => [...prev, emptyCondition()])}
-            className="mt-2 flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700"
+            className="mt-2 flex items-center gap-1 text-xs text-brand-600 hover:text-brand-700"
           >
             <Plus size={12} /> Add Condition
           </button>
@@ -150,14 +150,14 @@ export function AddRuleModal({ isOpen, onClose, onSave, editRule }: Props) {
 
         {/* Actions */}
         <div>
-          <p className="text-sm font-medium text-gray-700 mb-2">Actions</p>
+          <p className="text-sm font-medium text-text-secondary mb-2">Actions</p>
           <div className="space-y-2">
             {actions.map((a, i) => (
               <div key={i} className="flex items-center gap-2">
                 <select
                   value={a.field}
                   onChange={e => updateAction(i, { field: e.target.value as RuleAction['field'], value: '' })}
-                  className="text-sm border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400"
+                  className="text-sm border border-border rounded-lg px-2 py-1.5 bg-surface focus:outline-none focus:ring-1 focus:ring-brand-400"
                 >
                   {(Object.entries(ACTION_LABELS) as [RuleAction['field'], string][]).map(([v, l]) => (
                     <option key={v} value={v}>{l}</option>
@@ -167,7 +167,7 @@ export function AddRuleModal({ isOpen, onClose, onSave, editRule }: Props) {
                   <select
                     value={a.value}
                     onChange={e => updateAction(i, { value: e.target.value })}
-                    className="flex-1 text-sm border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400"
+                    className="flex-1 text-sm border border-border rounded-lg px-2 py-1.5 bg-surface focus:outline-none focus:ring-1 focus:ring-brand-400"
                   >
                     <option value="">Select category…</option>
                     {allCategories.map((c: any) => (
@@ -178,7 +178,7 @@ export function AddRuleModal({ isOpen, onClose, onSave, editRule }: Props) {
                   <select
                     value={a.value}
                     onChange={e => updateAction(i, { value: e.target.value })}
-                    className="flex-1 text-sm border border-gray-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400"
+                    className="flex-1 text-sm border border-border rounded-lg px-2 py-1.5 bg-surface focus:outline-none focus:ring-1 focus:ring-brand-400"
                   >
                     <option value="">Select payee…</option>
                     {payees.map((p: any) => (
@@ -190,12 +190,12 @@ export function AddRuleModal({ isOpen, onClose, onSave, editRule }: Props) {
                     value={a.value}
                     onChange={e => updateAction(i, { value: e.target.value })}
                     placeholder="Notes text…"
-                    className="flex-1 text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                    className="flex-1 text-sm border border-border rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-brand-400"
                   />
                 )}
                 {actions.length > 1 && (
                   <button onClick={() => setActions(prev => prev.filter((_, idx) => idx !== i))}
-                    className="p-1 text-gray-400 hover:text-red-500 transition-colors">
+                    className="p-1 text-text-tertiary hover:text-negative transition-colors">
                     <Trash2 size={14} />
                   </button>
                 )}
@@ -204,7 +204,7 @@ export function AddRuleModal({ isOpen, onClose, onSave, editRule }: Props) {
           </div>
           <button
             onClick={() => setActions(prev => [...prev, emptyAction()])}
-            className="mt-2 flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700"
+            className="mt-2 flex items-center gap-1 text-xs text-brand-600 hover:text-brand-700"
           >
             <Plus size={12} /> Add Action
           </button>
@@ -215,29 +215,29 @@ export function AddRuleModal({ isOpen, onClose, onSave, editRule }: Props) {
           <button
             onClick={handleTest}
             disabled={!canTest || testing}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-text-secondary border border-border rounded-lg hover:bg-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             <FlaskConical size={13} />
             {testing ? 'Testing…' : 'Test Rule'}
           </button>
 
           {testResults !== null && (
-            <div className="mt-2 rounded-lg border border-gray-100 overflow-hidden">
-              <div className="px-3 py-2 bg-gray-50 border-b border-gray-100">
-                <p className="text-xs text-gray-500 font-medium">
+            <div className="mt-2 rounded-lg border border-border-light overflow-hidden">
+              <div className="px-3 py-2 bg-surface-alt border-b border-border-light">
+                <p className="text-xs text-text-secondary font-medium">
                   {testCount === 0 ? 'No matching transactions' : `Matches ${testCount} transaction${testCount === 1 ? '' : 's'}`}
                   {testCount !== null && testCount > 5 ? ` — showing 5` : ''}
                 </p>
               </div>
               {testResults.length > 0 && (
-                <div className="divide-y divide-gray-50">
+                <div className="divide-y divide-border-light">
                   {testResults.map(tx => (
                     <div key={tx.id} className="flex items-center justify-between px-3 py-2">
                       <div className="flex items-center gap-3">
-                        <span className="text-xs text-gray-400">{format(parseISO(tx.date), 'MMM d')}</span>
-                        <span className="text-xs text-gray-700">{tx.payeeName ?? '—'}</span>
+                        <span className="text-xs text-text-tertiary">{format(parseISO(tx.date), 'MMM d')}</span>
+                        <span className="text-xs text-text-secondary">{tx.payeeName ?? '—'}</span>
                       </div>
-                      <span className="text-xs font-medium text-gray-900">{formatCurrency(tx.amount)}</span>
+                      <span className="text-xs font-medium text-text">{formatCurrency(tx.amount)}</span>
                     </div>
                   ))}
                 </div>
@@ -247,13 +247,13 @@ export function AddRuleModal({ isOpen, onClose, onSave, editRule }: Props) {
         </div>
 
         {/* Footer */}
-        <div className="flex justify-end gap-3 pt-1 border-t border-gray-100">
+        <div className="flex justify-end gap-3 pt-1 border-t border-border-light">
           <button onClick={handleClose}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
+            className="px-4 py-2 text-sm font-medium text-text-secondary bg-surface border border-border rounded-lg hover:bg-hover transition-colors">
             Cancel
           </button>
           <button onClick={handleSave} disabled={!canSave}
-            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+            className="px-4 py-2 text-sm font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
             {editRule ? 'Save Changes' : 'Save Rule'}
           </button>
         </div>

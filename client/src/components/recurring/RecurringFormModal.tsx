@@ -80,30 +80,30 @@ export default function RecurringFormModal({ isOpen, onClose, onSave, editItem }
     <Modal isOpen={isOpen} onClose={onClose} title={editItem ? 'Edit Recurring' : 'Add Recurring'} size="lg">
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+          <label className="block text-sm font-medium text-text-secondary mb-1">Title</label>
           <input
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="e.g. Netflix, Rent, Paycheck…"
             required
-            className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="block w-full rounded-md border border-border px-3 py-2 text-sm bg-surface text-text focus:border-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-600"
           />
         </div>
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Amount</label>
+            <label className="block text-sm font-medium text-text-secondary mb-1">Amount</label>
             <CurrencyInput value={amount} onChange={setAmount} />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+            <label className="block text-sm font-medium text-text-secondary mb-1">Type</label>
             <div className="flex gap-1 mt-1">
               <button
                 type="button"
                 onClick={() => setIsExpense(true)}
                 className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg transition-all ${
-                  isExpense ? 'bg-red-50 text-red-700 ring-1 ring-red-200' : 'text-gray-500 hover:bg-gray-50'
+                  isExpense ? 'bg-negative-subtle text-negative ring-1 ring-negative/20' : 'text-text-tertiary hover:bg-hover'
                 }`}
               >
                 Expense
@@ -112,7 +112,7 @@ export default function RecurringFormModal({ isOpen, onClose, onSave, editItem }
                 type="button"
                 onClick={() => setIsExpense(false)}
                 className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg transition-all ${
-                  !isExpense ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200' : 'text-gray-500 hover:bg-gray-50'
+                  !isExpense ? 'bg-positive-subtle text-positive ring-1 ring-positive/20' : 'text-text-tertiary hover:bg-hover'
                 }`}
               >
                 Income
@@ -123,11 +123,11 @@ export default function RecurringFormModal({ isOpen, onClose, onSave, editItem }
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Frequency</label>
+            <label className="block text-sm font-medium text-text-secondary mb-1">Frequency</label>
             <select
               value={frequency}
               onChange={(e) => setFrequency(e.target.value as RecurringFrequency)}
-              className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="block w-full rounded-md border border-border px-3 py-2 text-sm bg-surface text-text focus:border-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-600"
             >
               {FREQUENCY_LABELS.map((f) => (
                 <option key={f.value} value={f.value}>{f.label}</option>
@@ -135,11 +135,11 @@ export default function RecurringFormModal({ isOpen, onClose, onSave, editItem }
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Account</label>
+            <label className="block text-sm font-medium text-text-secondary mb-1">Account</label>
             <select
               value={accountId}
               onChange={(e) => setAccountId(e.target.value)}
-              className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="block w-full rounded-md border border-border px-3 py-2 text-sm bg-surface text-text focus:border-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-600"
             >
               <option value="">No account</option>
               {accounts.map((a) => (
@@ -151,33 +151,33 @@ export default function RecurringFormModal({ isOpen, onClose, onSave, editItem }
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+            <label className="block text-sm font-medium text-text-secondary mb-1">Start Date</label>
             <input
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
               required
-              className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="block w-full rounded-md border border-border px-3 py-2 text-sm bg-surface text-text focus:border-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-600"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">End Date <span className="text-gray-400 font-normal">(optional)</span></label>
+            <label className="block text-sm font-medium text-text-secondary mb-1">End Date <span className="text-text-tertiary font-normal">(optional)</span></label>
             <input
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
               min={startDate}
-              className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="block w-full rounded-md border border-border px-3 py-2 text-sm bg-surface text-text focus:border-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-600"
             />
           </div>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+          <label className="block text-sm font-medium text-text-secondary mb-1">Category</label>
           <select
             value={categoryId}
             onChange={(e) => setCategoryId(e.target.value)}
-            className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="block w-full rounded-md border border-border px-3 py-2 text-sm bg-surface text-text focus:border-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-600"
           >
             <option value="">No category</option>
             {groups.map((g) => (
@@ -191,13 +191,13 @@ export default function RecurringFormModal({ isOpen, onClose, onSave, editItem }
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Notes <span className="text-gray-400 font-normal">(optional)</span></label>
+          <label className="block text-sm font-medium text-text-secondary mb-1">Notes <span className="text-text-tertiary font-normal">(optional)</span></label>
           <input
             type="text"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="Optional notes…"
-            className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="block w-full rounded-md border border-border px-3 py-2 text-sm bg-surface text-text focus:border-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-600"
           />
         </div>
 
@@ -207,18 +207,18 @@ export default function RecurringFormModal({ isOpen, onClose, onSave, editItem }
               type="checkbox"
               checked={isApproximate}
               onChange={(e) => setIsApproximate(e.target.checked)}
-              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              className="rounded border-border text-brand-600 focus:ring-brand-600"
             />
-            <span className="text-sm text-gray-600">Amount varies</span>
+            <span className="text-sm text-text-secondary">Amount varies</span>
           </label>
           <label className="flex items-center gap-2 cursor-pointer">
             <input
               type="checkbox"
               checked={autoCreate}
               onChange={(e) => setAutoCreate(e.target.checked)}
-              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              className="rounded border-border text-brand-600 focus:ring-brand-600"
             />
-            <span className="text-sm text-gray-600">Auto-create transactions</span>
+            <span className="text-sm text-text-secondary">Auto-create transactions</span>
           </label>
         </div>
 
@@ -226,14 +226,14 @@ export default function RecurringFormModal({ isOpen, onClose, onSave, editItem }
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+            className="px-4 py-2 text-sm font-medium text-text-secondary bg-surface border border-border rounded-md hover:bg-surface-alt transition-colors"
           >
             Cancel
           </button>
           <button
             type="submit"
             disabled={!title || amount === 0}
-            className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="px-4 py-2 text-sm font-medium text-white bg-brand-600 rounded-md hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {editItem ? 'Save Changes' : 'Add Recurring'}
           </button>

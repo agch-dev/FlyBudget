@@ -12,15 +12,15 @@ function AccountRow({ account }: { account: Account }) {
     <NavLink
       to={`/accounts/${account.id}`}
       className={({ isActive }) =>
-        `flex items-center justify-between px-3 py-1.5 rounded-lg text-sm transition-all duration-150 ${
+        `flex items-center justify-between px-3 py-1 rounded-md text-[13px] transition-all duration-150 ${
           isActive
-            ? 'bg-blue-600/20 text-blue-400 font-medium'
-            : 'text-gray-400 hover:bg-white/[0.07] hover:text-gray-200'
+            ? 'bg-sidebar-active text-sidebar-text-hi font-medium'
+            : 'text-sidebar-text hover:bg-sidebar-hover hover:text-sidebar-text-hi'
         }`
       }
     >
       <span className="truncate">{account.name}</span>
-      <span className={`ml-2 tabular-nums text-xs font-medium shrink-0 ${isNegative ? 'text-red-400' : 'text-gray-500'}`}>
+      <span className={`ml-2 tabular-nums text-xs shrink-0 ${isNegative ? 'text-negative' : 'text-sidebar-text'}`}>
         {formatCurrency(account.balance)}
       </span>
     </NavLink>
@@ -37,36 +37,36 @@ export function SidebarAccountList() {
 
   return (
     <>
-      <div className="px-3 mt-4">
+      <div className="px-3 mt-3">
         <div className="flex items-center justify-between mb-1">
-          <span className="text-xs font-semibold tracking-wider text-gray-500 uppercase">Accounts</span>
+          <span className="text-[11px] font-semibold tracking-wider text-sidebar-text uppercase">Accounts</span>
           <button
             onClick={() => setAddOpen(true)}
-            className="p-0.5 rounded text-gray-500 hover:text-gray-300 hover:bg-white/[0.07] transition-colors"
+            className="p-0.5 rounded text-sidebar-text hover:text-sidebar-text-hi hover:bg-sidebar-hover transition-colors"
             title="Add account"
           >
-            <Plus size={14} />
+            <Plus size={13} />
           </button>
         </div>
 
-        <div className="space-y-0.5">
+        <div className="space-y-px">
           {onBudget.map((a) => <AccountRow key={a.id} account={a} />)}
           {onBudget.length === 0 && (
-            <p className="px-3 py-2 text-xs text-gray-500">No accounts yet</p>
+            <p className="px-3 py-2 text-xs text-sidebar-text">No accounts yet</p>
           )}
         </div>
 
         {offBudget.length > 0 && (
-          <div className="mt-3">
+          <div className="mt-2">
             <button
               onClick={() => setOffBudgetOpen((o) => !o)}
-              className="flex items-center gap-1 w-full text-xs font-semibold tracking-wider text-gray-500 uppercase hover:text-gray-300 transition-colors mb-1"
+              className="flex items-center gap-1 w-full text-[11px] font-semibold tracking-wider text-sidebar-text uppercase hover:text-sidebar-text-hi transition-colors mb-1"
             >
-              {offBudgetOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+              {offBudgetOpen ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
               Off Budget
             </button>
             {offBudgetOpen && (
-              <div className="space-y-0.5">
+              <div className="space-y-px">
                 {offBudget.map((a) => <AccountRow key={a.id} account={a} />)}
               </div>
             )}

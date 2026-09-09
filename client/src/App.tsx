@@ -12,11 +12,12 @@ import RulesPage from './pages/Rules';
 import ReconcilePage from './pages/ReconcilePage';
 import RecurringTransactionsPage from './pages/RecurringTransactions';
 import SettingsPage from './pages/Settings';
+import GoalsPage from './pages/Goals';
 
 export default function App() {
   return (
     <BrowserRouter>
-      <div className="flex h-screen bg-slate-100 overflow-hidden">
+      <div className="flex h-screen bg-page overflow-hidden">
         <Sidebar />
         <main className="flex-1 overflow-y-auto">
           <Routes>
@@ -34,6 +35,7 @@ export default function App() {
             <Route path="/payees" element={<PayeesPage />} />
             <Route path="/rules" element={<RulesPage />} />
             <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/goals" element={<GoalsPage />} />
           </Routes>
         </main>
       </div>

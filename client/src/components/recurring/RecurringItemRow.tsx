@@ -1,13 +1,13 @@
-import { Check, Pencil, X } from 'lucide-react';
+import { Check, Pencil } from 'lucide-react';
 import { format, parseISO, differenceInDays } from 'date-fns';
 import { formatCurrency } from '../../utils/currency';
 import type { RecurringOccurrence, OccurrenceStatus } from '../../types';
 
 const STATUS_DOT: Record<OccurrenceStatus, string> = {
-  paid: 'bg-emerald-500',
-  paid_different: 'bg-amber-400',
-  upcoming: 'bg-blue-400',
-  overdue: 'bg-red-500',
+  paid: 'bg-positive',
+  paid_different: 'bg-caution',
+  upcoming: 'bg-brand-500',
+  overdue: 'bg-negative',
 };
 
 const STATUS_LABEL: Record<OccurrenceStatus, string> = {
@@ -40,46 +40,46 @@ export default function RecurringItemRow({ occurrence: occ, accountName, categor
   const isPaid = occ.status === 'paid' || occ.status === 'paid_different';
 
   return (
-    <div className={`flex items-center gap-3 px-4 py-3 bg-white rounded-lg border border-gray-100 hover:shadow-sm transition-all group ${
-      occ.status === 'overdue' ? 'border-l-2 border-l-red-400' : ''
+    <div className={`flex items-center gap-3 px-4 py-2.5 border-b border-border-light hover:bg-hover transition-colors group ${
+      occ.status === 'overdue' ? 'border-l-2 border-l-negative' : ''
     }`}>
-      <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${STATUS_DOT[occ.status]}`} title={STATUS_LABEL[occ.status]} />
+      <div className={`w-2 h-2 rounded-full shrink-0 ${STATUS_DOT[occ.status]}`} title={STATUS_LABEL[occ.status]} />
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
-          <span className={`text-sm font-medium truncate ${isPaid ? 'text-gray-400 line-through' : 'text-gray-800'}`}>
+          <span className={`text-sm font-medium truncate ${isPaid ? 'text-text-disabled line-through' : 'text-text'}`}>
             {occ.title}
           </span>
-          <span className="text-[10px] font-medium text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">
+          <span className="text-[10px] font-medium text-text-tertiary bg-surface-alt px-1.5 py-0.5 rounded">
             {FREQ_LABEL[occ.frequency] || occ.frequency}
           </span>
         </div>
         <div className="flex items-center gap-1.5 mt-0.5">
-          <span className="text-xs text-gray-400">{format(parseISO(occ.expectedDate), 'MMM d, yyyy')}</span>
+          <span className="text-xs text-text-tertiary">{format(parseISO(occ.expectedDate), 'MMM d, yyyy')}</span>
           {!isPaid && daysUntil >= 0 && (
-            <span className="text-xs text-gray-400">
+            <span className="text-xs text-text-tertiary">
               · {daysUntil === 0 ? 'Today' : daysUntil === 1 ? 'Tomorrow' : `in ${daysUntil} days`}
             </span>
           )}
           {occ.status === 'overdue' && (
-            <span className="text-xs text-red-500 font-medium">
+            <span className="text-xs text-negative font-medium">
               · {Math.abs(daysUntil)} {Math.abs(daysUntil) === 1 ? 'day' : 'days'} overdue
             </span>
           )}
-          {categoryName && <span className="text-xs text-gray-400">· {categoryName}</span>}
-          {accountName && <span className="text-xs text-gray-400">· {accountName}</span>}
+          {categoryName && <span className="text-xs text-text-tertiary">· {categoryName}</span>}
+          {accountName && <span className="text-xs text-text-tertiary">· {accountName}</span>}
         </div>
       </div>
 
       <div className="flex items-center gap-2">
-        <span className={`text-sm font-semibold tabular-nums whitespace-nowrap ${
-          occ.expectedAmount > 0 ? 'text-emerald-600' : 'text-gray-800'
-        } ${isPaid ? 'text-gray-400' : ''}`}>
+        <span className={`text-sm font-medium tabular-nums whitespace-nowrap ${
+          isPaid ? 'text-text-disabled' : occ.expectedAmount > 0 ? 'text-positive' : 'text-text'
+        }`}>
           {occ.isApproximate ? '~' : ''}{formatCurrency(occ.expectedAmount)}
         </span>
 
         {occ.status === 'paid_different' && occ.linkedAmount !== null && (
-          <span className="text-xs text-amber-600 tabular-nums">
+          <span className="text-xs text-caution tabular-nums">
             ({formatCurrency(occ.linkedAmount)})
           </span>
         )}
@@ -88,7 +88,7 @@ export default function RecurringItemRow({ occurrence: occ, accountName, categor
           {!isPaid && onMarkPaid && (
             <button
               onClick={onMarkPaid}
-              className="p-1.5 rounded-lg text-emerald-500 hover:bg-emerald-50 transition-colors"
+              className="p-1 rounded text-positive hover:bg-positive-subtle transition-colors"
               title="Mark as paid"
             >
               <Check size={14} />
@@ -97,7 +97,7 @@ export default function RecurringItemRow({ occurrence: occ, accountName, categor
           {onEdit && (
             <button
               onClick={onEdit}
-              className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+              className="p-1 rounded text-text-tertiary hover:text-text-secondary hover:bg-hover transition-colors"
               title="Edit"
             >
               <Pencil size={13} />

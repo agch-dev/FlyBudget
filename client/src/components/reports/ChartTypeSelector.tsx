@@ -28,12 +28,12 @@ export default function ChartTypeSelector({ value, mode, onChange }: Props) {
             disabled={disabled}
             onClick={() => onChange(t.id)}
             title={t.label}
-            className={`flex items-center gap-1 px-2 py-1.5 text-xs font-medium rounded-lg transition-colors ${
+            className={`flex items-center gap-1 px-2 py-1.5 text-xs font-medium rounded-md transition-colors ${
               active
-                ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                ? 'bg-brand-50 text-brand-700 border border-brand-200'
                 : disabled
-                  ? 'text-gray-300 cursor-not-allowed'
-                  : 'text-gray-600 hover:bg-gray-100 border border-transparent'
+                  ? 'text-text-disabled cursor-not-allowed'
+                  : 'text-text-secondary hover:bg-hover border border-transparent'
             }`}
           >
             <t.icon className="w-3.5 h-3.5" />

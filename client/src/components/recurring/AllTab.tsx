@@ -44,39 +44,39 @@ export default function AllTab({ allRecurring, onEdit }: Props) {
   function Row({ item }: { item: RecurringTransaction }) {
     const isPaused = item.status === 'paused';
     return (
-      <div className={`flex items-center gap-3 px-4 py-3 bg-white rounded-lg border border-gray-100 hover:shadow-sm transition-all group ${
+      <div className={`flex items-center gap-3 px-4 py-2.5 border-b border-border-light hover:bg-hover transition-colors group ${
         isPaused ? 'opacity-60' : ''
       }`}>
-        <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${
-          isPaused ? 'bg-gray-300' : item.amount > 0 ? 'bg-emerald-500' : 'bg-blue-400'
+        <div className={`w-2 h-2 rounded-full shrink-0 ${
+          isPaused ? 'bg-text-disabled' : item.amount > 0 ? 'bg-positive' : 'bg-brand-500'
         }`} />
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-gray-800 truncate">{item.title}</span>
-            <span className="text-[10px] font-medium text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">
+            <span className="text-sm font-medium text-text truncate">{item.title}</span>
+            <span className="text-[10px] font-medium text-text-tertiary bg-surface-alt px-1.5 py-0.5 rounded">
               {FREQ_LABEL[item.frequency] || item.frequency}
             </span>
             {isPaused && (
-              <span className="text-[10px] font-medium text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded">Paused</span>
+              <span className="text-[10px] font-medium text-caution bg-caution-subtle px-1.5 py-0.5 rounded">Paused</span>
             )}
             {Boolean(item.autoCreate) && (
-              <span className="text-[10px] font-medium text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">Auto</span>
+              <span className="text-[10px] font-medium text-brand-600 bg-brand-50 px-1.5 py-0.5 rounded">Auto</span>
             )}
           </div>
           <div className="flex items-center gap-1.5 mt-0.5">
             {item.categoryId && categoryMap.has(item.categoryId) && (
-              <span className="text-xs text-gray-400">{categoryMap.get(item.categoryId)}</span>
+              <span className="text-xs text-text-tertiary">{categoryMap.get(item.categoryId)}</span>
             )}
             {item.accountId && accountMap.has(item.accountId) && (
-              <span className="text-xs text-gray-400">· {accountMap.get(item.accountId)}</span>
+              <span className="text-xs text-text-tertiary">· {accountMap.get(item.accountId)}</span>
             )}
-            <span className="text-xs text-gray-400">· Since {item.startDate}</span>
+            <span className="text-xs text-text-tertiary">· Since {item.startDate}</span>
           </div>
         </div>
 
-        <span className={`text-sm font-semibold tabular-nums whitespace-nowrap ${
-          item.amount > 0 ? 'text-emerald-600' : 'text-gray-800'
+        <span className={`text-sm font-medium tabular-nums whitespace-nowrap ${
+          item.amount > 0 ? 'text-positive' : 'text-text'
         }`}>
           {Boolean(item.isApproximate) && '~'}{formatCurrency(item.amount)}
         </span>
@@ -87,21 +87,21 @@ export default function AllTab({ allRecurring, onEdit }: Props) {
               id: item.id,
               status: isPaused ? 'active' : 'paused',
             })}
-            className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+            className="p-1 rounded text-text-tertiary hover:bg-hover hover:text-text-secondary transition-colors"
             title={isPaused ? 'Resume' : 'Pause'}
           >
             {isPaused ? <Play size={13} /> : <Pause size={13} />}
           </button>
           <button
             onClick={() => onEdit(item)}
-            className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+            className="p-1 rounded text-text-tertiary hover:bg-hover hover:text-text-secondary transition-colors"
             title="Edit"
           >
             <Pencil size={13} />
           </button>
           <button
             onClick={() => setDeleteId(item.id)}
-            className="p-1.5 rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors"
+            className="p-1 rounded text-text-tertiary hover:bg-negative-subtle hover:text-negative transition-colors"
             title="Cancel"
           >
             <Trash2 size={13} />
@@ -113,13 +113,15 @@ export default function AllTab({ allRecurring, onEdit }: Props) {
 
   return (
     <div className="p-6 max-w-3xl mx-auto">
-      <div className="space-y-2 mb-6">
+      <div className="mb-6">
         {active.length === 0 ? (
-          <div className="text-center py-12 text-sm text-gray-400">
+          <div className="text-center py-12 text-sm text-text-tertiary">
             No active recurring items yet. Add one to get started.
           </div>
         ) : (
-          active.map((item) => <Row key={item.id} item={item} />)
+          <div className="bg-surface rounded-lg shadow-card border border-border-light overflow-hidden">
+            {active.map((item) => <Row key={item.id} item={item} />)}
+          </div>
         )}
       </div>
 
@@ -127,13 +129,13 @@ export default function AllTab({ allRecurring, onEdit }: Props) {
         <div>
           <button
             onClick={() => setCanceledOpen((o) => !o)}
-            className="flex items-center gap-1.5 text-xs font-semibold text-gray-400 uppercase tracking-wider hover:text-gray-500 mb-2"
+            className="flex items-center gap-1.5 text-xs font-medium text-text-tertiary hover:text-text-secondary mb-2"
           >
             {canceledOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
             Canceled ({canceled.length})
           </button>
           {canceledOpen && (
-            <div className="space-y-2 opacity-50">
+            <div className="opacity-50 bg-surface rounded-lg shadow-card border border-border-light overflow-hidden">
               {canceled.map((item) => <Row key={item.id} item={item} />)}
             </div>
           )}

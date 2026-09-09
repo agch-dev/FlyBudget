@@ -50,22 +50,22 @@ export function EditAccountModal({ account, onClose }: Props) {
       <Modal isOpen={!!account} onClose={onClose} title="Edit Account" size="sm">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Account Name</label>
+            <label className="block text-sm font-medium text-text-secondary mb-1">Account Name</label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
               autoFocus
-              className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="block w-full rounded-lg border border-border px-3 py-2 text-sm text-text focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Account Type</label>
+            <label className="block text-sm font-medium text-text-secondary mb-1">Account Type</label>
             <select
               value={type}
               onChange={(e) => setType(e.target.value as AccountType)}
-              className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="block w-full rounded-lg border border-border px-3 py-2 text-sm text-text focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
             >
               {ACCOUNT_TYPES.map((t) => (
                 <option key={t.value} value={t.value}>{t.label}</option>
@@ -74,7 +74,7 @@ export function EditAccountModal({ account, onClose }: Props) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Starting Balance</label>
+            <label className="block text-sm font-medium text-text-secondary mb-1">Starting Balance</label>
             <CurrencyInput value={startingBalance} onChange={setStartingBalance} />
           </div>
 
@@ -83,16 +83,16 @@ export function EditAccountModal({ account, onClose }: Props) {
               type="checkbox"
               checked={isOffBudget}
               onChange={(e) => setIsOffBudget(e.target.checked)}
-              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              className="h-4 w-4 rounded border-border text-brand-600 focus:ring-brand-500"
             />
-            <span className="text-sm text-gray-700">Off budget (excluded from budgeting)</span>
+            <span className="text-sm text-text-secondary">Off budget (excluded from budgeting)</span>
           </label>
 
-          <div className="flex items-center justify-between pt-2 border-t border-gray-100">
+          <div className="flex items-center justify-between pt-2 border-t border-border-light">
             <button
               type="button"
               onClick={() => setConfirmClose(true)}
-              className="text-sm text-red-600 hover:text-red-700 font-medium transition-colors"
+              className="text-sm text-negative hover:underline font-medium transition-colors"
             >
               Close Account
             </button>
@@ -100,14 +100,14 @@ export function EditAccountModal({ account, onClose }: Props) {
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                className="px-4 py-2 text-sm font-medium text-text-secondary bg-surface border border-border rounded-lg hover:bg-hover transition-colors"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={!name.trim() || updateAccount.isPending}
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="px-4 py-2 text-sm font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {updateAccount.isPending ? 'Saving…' : 'Save'}
               </button>

@@ -8,6 +8,7 @@ import { TransactionFilters, DEFAULT_FILTERS, filtersToParams } from './Transact
 import { TransactionFormRow } from './TransactionFormRow';
 import { TransactionRow } from './TransactionRow';
 import { ImportModal } from './ImportModal';
+import { Button } from '../ui/Button';
 import type { FilterState } from './TransactionFilters';
 import type { CategoryGroup } from '../../types';
 import type { CreateTransactionData } from '../../api/transactions';
@@ -74,37 +75,31 @@ export function TransactionTable({ accountId }: Props) {
   return (
     <div className="flex flex-col h-full">
       <TransactionFilters state={filters} onChange={setFilters} />
-      <div className="px-4 py-2 border-b border-gray-100 bg-white flex justify-between items-center">
-        <span className="text-xs text-gray-400">{transactions.length} transactions</span>
+      <div className="px-4 py-2 border-b border-border-light bg-surface flex justify-between items-center">
+        <span className="text-xs text-text-tertiary">{transactions.length} transactions</span>
         {accountId && (
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowImport(true)}
-              className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-            >
+            <Button variant="secondary" size="sm" onClick={() => setShowImport(true)}>
               <Upload size={13} /> Import CSV
-            </button>
-            <button
-              onClick={() => { setShowAdd(true); setEditingId(null); }}
-              className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
+            </Button>
+            <Button size="sm" onClick={() => { setShowAdd(true); setEditingId(null); }}>
               <Plus size={13} /> Add Transaction
-            </button>
+            </Button>
           </div>
         )}
       </div>
       <div className="flex-1 overflow-y-auto">
         <table className="w-full border-collapse">
-          <thead className="sticky top-0 bg-gray-50 z-10">
-            <tr className="border-b border-gray-100">
-              {showAccountCol && <th className="px-3 py-2 text-left text-xs font-medium text-gray-400 uppercase tracking-wide">Account</th>}
-              <th className="px-3 py-2 text-left text-xs font-medium text-gray-400 uppercase tracking-wide w-24">Date</th>
-              <th className="px-3 py-2 text-left text-xs font-medium text-gray-400 uppercase tracking-wide">Payee</th>
-              <th className="px-3 py-2 text-left text-xs font-medium text-gray-400 uppercase tracking-wide">Category</th>
-              <th className="px-3 py-2 text-left text-xs font-medium text-gray-400 uppercase tracking-wide">Notes</th>
-              <th className="px-3 py-2 text-right text-xs font-medium text-gray-400 uppercase tracking-wide w-28">Outflow</th>
-              <th className="px-3 py-2 text-right text-xs font-medium text-gray-400 uppercase tracking-wide w-28">Inflow</th>
-              <th className="px-3 py-2 text-center text-xs font-medium text-gray-400 uppercase tracking-wide w-10">C</th>
+          <thead className="sticky top-0 bg-surface-alt z-10">
+            <tr className="border-b border-border">
+              {showAccountCol && <th className="px-3 py-2 text-left text-xs font-medium text-text-tertiary">Account</th>}
+              <th className="px-3 py-2 text-left text-xs font-medium text-text-tertiary w-24">Date</th>
+              <th className="px-3 py-2 text-left text-xs font-medium text-text-tertiary">Payee</th>
+              <th className="px-3 py-2 text-left text-xs font-medium text-text-tertiary">Category</th>
+              <th className="px-3 py-2 text-left text-xs font-medium text-text-tertiary">Notes</th>
+              <th className="px-3 py-2 text-right text-xs font-medium text-text-tertiary w-28">Outflow</th>
+              <th className="px-3 py-2 text-right text-xs font-medium text-text-tertiary w-28">Inflow</th>
+              <th className="px-3 py-2 text-center text-xs font-medium text-text-tertiary w-10">C</th>
               <th className="px-3 py-2 w-16" />
             </tr>
           </thead>
@@ -120,9 +115,9 @@ export function TransactionTable({ accountId }: Props) {
               />
             )}
             {isLoading ? (
-              <tr><td colSpan={colCount} className="px-4 py-10 text-center text-sm text-gray-400">Loading...</td></tr>
+              <tr><td colSpan={colCount} className="px-4 py-10 text-center text-sm text-text-tertiary">Loading...</td></tr>
             ) : transactions.length === 0 && !showAdd ? (
-              <tr><td colSpan={colCount} className="px-4 py-10 text-center text-sm text-gray-400">No transactions found.</td></tr>
+              <tr><td colSpan={colCount} className="px-4 py-10 text-center text-sm text-text-tertiary">No transactions found.</td></tr>
             ) : transactions.map((tx) =>
               editingId === tx.id ? (
                 <TransactionFormRow

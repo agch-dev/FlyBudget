@@ -244,6 +244,21 @@ export interface RunRulesPreviewItem {
   actions: RuleAction[];
 }
 
+// Goals
+export interface Goal {
+  id: string;
+  name: string;
+  targetAmount: number;
+  currentAmount: number;
+  targetDate: string | null;
+  accountId: string | null;
+  icon: string;
+  color: string;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // Plaid Bank Sync
 export type PlaidSyncStatus = 'good' | 'syncing' | 'error' | 'login_required';
 
