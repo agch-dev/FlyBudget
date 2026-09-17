@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, Menu } from 'electron';
 import path from 'path';
 
 const IS_DEV = process.env.ELECTRON_DEV === 'true';
@@ -49,6 +49,8 @@ function createWindow(): void {
     win.loadFile(path.join(__dirname, '../../client/dist/index.html'));
   }
 }
+
+Menu.setApplicationMenu(null);
 
 app.whenReady().then(async () => {
   if (!IS_DEV) {
