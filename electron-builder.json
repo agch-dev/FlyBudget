@@ -20,12 +20,16 @@
     {
       "from": "server/src/db/migrations",
       "to": "migrations",
-      "filter": ["**/*.sql"]
+      "filter": ["**/*.sql", "meta/**"]
     }
   ],
   "npmRebuild": false,
+  "toolsets": {
+    "winCodeSign": "1.1.0"
+  },
   "win": {
-    "target": "nsis"
+    "target": "nsis",
+    "icon": "build/icon.png"
   },
   "mac": {
     "target": "dmg"

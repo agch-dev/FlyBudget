@@ -18,5 +18,15 @@ Thumbs.db
 .vscode/
 .idea/
 
+# Electron build output
+dist-electron/
+electron/dist/
+
+# Build assets (generated icon)
+build/
+
+# TypeScript build info
+*.tsbuildinfo
+
 # Claude
 .claude/

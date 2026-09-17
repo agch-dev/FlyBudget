@@ -4,8 +4,13 @@ import * as schema from './schema.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const dbPath = process.env.DB_PATH ?? path.resolve(__dirname, '../../budget.db');
+let dbPath: string;
+if (process.env.DB_PATH) {
+  dbPath = process.env.DB_PATH;
+} else {
+  const __dirname = path.dirname(fileURLToPath(import.meta.url));
+  dbPath = path.resolve(__dirname, '../../budget.db');
+}
 
 const dbOptions: ConstructorParameters<typeof Database>[1] = {};
 if (process.env.DB_NATIVE_BINDING) {
