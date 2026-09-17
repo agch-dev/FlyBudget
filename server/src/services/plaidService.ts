@@ -13,6 +13,8 @@ function getCredentials() {
 }
 
 function getPlaidClient(): PlaidApi {
+  if (plaidClient) return plaidClient;
+
   const creds = getCredentials();
   if (!creds) throw new Error('Plaid is not configured');
 

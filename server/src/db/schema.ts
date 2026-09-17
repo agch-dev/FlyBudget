@@ -57,6 +57,7 @@ export const transactions = sqliteTable('transactions', {
   index('transactions_category_idx').on(table.categoryId),
   index('transactions_date_idx').on(table.date),
   index('transactions_recurring_idx').on(table.recurringTransactionId),
+  index('transactions_imported_id_idx').on(table.importedId),
 ]);
 
 export const budgetMonths = sqliteTable('budget_months', {
