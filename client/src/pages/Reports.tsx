@@ -121,7 +121,7 @@ function CashFlowChart({ from, to }: { from: string; to: string }) {
         <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} vertical={false} />
         <XAxis dataKey="month" tick={{ fontSize: 11, fill: chartColors.axis }} axisLine={false} tickLine={false} />
         <YAxis tickFormatter={formatCentsAxis} tick={{ fontSize: 11, fill: chartColors.axis }} axisLine={false} tickLine={false} width={60} />
-        <Tooltip content={<CurrencyTooltip />} />
+        <Tooltip content={<CurrencyTooltip />} cursor={{ fill: 'rgba(37,99,235,0.1)' }} />
         <Bar dataKey="net" name="Net Cash Flow" radius={[3, 3, 0, 0]} maxBarSize={40}>
           {chartData.map((d, i) => (
             <Cell key={i} fill={d.net >= 0 ? chartColors.positive : chartColors.negativeLight} />

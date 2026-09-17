@@ -72,7 +72,7 @@ export default function IncomeExpensesMini({ sixMonthsAgo, currentMonth }: Props
                 axisLine={false}
                 tickLine={false}
               />
-              <Tooltip content={<CurrencyTooltip />} />
+              <Tooltip content={<CurrencyTooltip />} cursor={{ fill: 'rgba(37,99,235,0.1)' }} />
               <Legend
                 iconSize={8}
                 wrapperStyle={{ fontSize: 11, color: chartColors.axis }}
