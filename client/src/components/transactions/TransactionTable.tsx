@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Plus, Upload } from 'lucide-react';
-import { useTransactions, useCreateTransaction, useCreateTransfer, useUpdateTransaction, useDeleteTransaction, useToggleClearedTransaction } from '../../hooks/useTransactions';
+import { useTransactions, useCreateTransaction, useCreateTransfer, useUpdateTransaction, useDeleteTransaction, useToggleCleared } from '../../hooks/useTransactions';
 import { useCategories } from '../../hooks/useCategories';
 import { usePayees } from '../../hooks/usePayees';
 import { useAccounts } from '../../hooks/useAccounts';
@@ -36,7 +36,7 @@ export function TransactionTable({ accountId }: Props) {
   const createTransfer = useCreateTransfer();
   const updateTx = useUpdateTransaction();
   const deleteTx = useDeleteTransaction();
-  const toggleCleared = useToggleClearedTransaction();
+  const toggleCleared = useToggleCleared();
 
   const categoryMap = useMemo(() => {
     const map = new Map<string, string>();

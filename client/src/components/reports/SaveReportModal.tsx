@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Modal } from '../ui/Modal';
+import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
 
 interface Props {
@@ -22,13 +23,12 @@ export default function SaveReportModal({ isOpen, onClose, onSave, initialName =
     <Modal isOpen={isOpen} onClose={onClose} title={isUpdating ? 'Update Report' : 'Save Report'} size="sm">
       <form onSubmit={handleSubmit}>
         <label className="block text-sm font-medium text-text-secondary mb-1">Report Name</label>
-        <input
+        <Input
           type="text"
           value={name}
           onChange={e => setName(e.target.value)}
           placeholder="e.g. Monthly Spending by Payee"
           autoFocus
-          className="w-full rounded-md border border-border px-3 py-2 text-sm bg-surface text-text focus:border-brand-600 focus:ring-1 focus:ring-brand-600 focus:outline-none"
         />
         <div className="flex justify-end gap-2 mt-4">
           <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>

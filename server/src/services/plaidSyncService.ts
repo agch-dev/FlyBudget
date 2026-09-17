@@ -3,7 +3,7 @@ import { plaidItems, plaidAccountMappings, transactions, accounts } from '../db/
 import { eq, and, sql } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import { syncTransactions, plaidAmountToCents, plaidBalanceToCents } from './plaidService.js';
-import { resolvePayee, autoCategory } from './transactionHelpers.js';
+import { resolvePayee, inferCategory } from './transactionHelpers.js';
 
 export interface SyncResult {
   itemId: string;
@@ -14,6 +14,7 @@ export interface SyncResult {
   errors: string[];
 }
 
+// pulls new/modified/removed txns from plaid, adjusts balances to match
 export async function syncPlaidItem(plaidItemId: string): Promise<SyncResult> {
   const item = db.select().from(plaidItems).where(eq(plaidItems.id, plaidItemId)).get();
   if (!item) throw new Error(`Plaid item ${plaidItemId} not found`);
@@ -56,8 +57,8 @@ export async function syncPlaidItem(plaidItemId: string): Promise<SyncResult> {
 
       const amount = plaidAmountToCents(tx.amount);
       const payeeName = tx.merchantName || tx.name;
-      const { resolvedPayeeId, resolvedPayeeName } = resolvePayee(payeeName, null);
-      const auto = autoCategory(resolvedPayeeId, resolvedPayeeName, amount, null);
+      const payee = resolvePayee(payeeName, null);
+      const auto = inferCategory(payee.payeeId, payee.payeeName, amount, null);
 
       db.insert(transactions).values({
         id: nanoid(),
@@ -65,7 +66,7 @@ export async function syncPlaidItem(plaidItemId: string): Promise<SyncResult> {
         date: tx.date,
         amount,
         payeeId: auto.payeeId,
-        payeeName: resolvedPayeeName,
+        payeeName: payee.payeeName,
         categoryId: auto.categoryId,
         notes: null,
         cleared: 1,

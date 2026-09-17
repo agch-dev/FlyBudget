@@ -137,6 +137,7 @@ budgetRouter.get('/:month/summary', (req, res) => {
     .where(and(lt(budgetMonths.month, month), eq(categoryGroups.isIncome, 0)))
     .get();
 
+  // tbb = income + leftover from prior months - what's already budgeted
   const income = incomeRow?.total ?? 0;
   const totalBudgeted = budgetedRow?.total ?? 0;
   const carryOver = (priorIncomeRow?.total ?? 0) - (priorBudgetedRow?.total ?? 0);

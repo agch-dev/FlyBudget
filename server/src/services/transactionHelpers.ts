@@ -5,24 +5,25 @@ import { nanoid } from 'nanoid';
 import { applyRulesToNew } from './rulesEngine.js';
 
 export function resolvePayee(payeeName: string | null | undefined, payeeId: string | null | undefined) {
-  let resolvedPayeeId = payeeId ?? null;
-  let resolvedPayeeName = payeeName ?? null;
-  if (!resolvedPayeeId && payeeName) {
+  let id = payeeId ?? null;
+  let name = payeeName ?? null;
+  if (!id && payeeName) {
     const existing = db.select().from(payees).where(eq(payees.name, payeeName)).get();
     if (existing) {
-      resolvedPayeeId = existing.id;
+      id = existing.id;
     } else {
-      resolvedPayeeId = nanoid();
-      db.insert(payees).values({ id: resolvedPayeeId, name: payeeName, defaultCategoryId: null, createdAt: new Date().toISOString() }).run();
+      id = nanoid();
+      db.insert(payees).values({ id, name: payeeName, defaultCategoryId: null, createdAt: new Date().toISOString() }).run();
     }
-    resolvedPayeeName = payeeName;
+    name = payeeName;
   }
-  return { resolvedPayeeId, resolvedPayeeName };
+  return { payeeId: id, payeeName: name };
 }
 
-export function autoCategory(payeeId: string | null, payeeName: string | null, amount: number, notes: string | null) {
+// checks payee defaults then rules — first matching rule wins
+export function inferCategory(payeeId: string | null, payeeName: string | null, amount: number, notes: string | null) {
   let categoryId: string | null = null;
-  let resolvedPayeeId = payeeId;
+  let matchedPayeeId = payeeId;
   if (payeeId) {
     const payee = db.select().from(payees).where(eq(payees.id, payeeId)).get();
     if (payee?.defaultCategoryId) categoryId = payee.defaultCategoryId;
@@ -34,9 +35,9 @@ export function autoCategory(payeeId: string | null, payeeName: string | null, a
     if (actions) {
       for (const a of actions) {
         if (a.field === 'category_id') categoryId = a.value;
-        else if (a.field === 'payee_id') resolvedPayeeId = a.value;
+        else if (a.field === 'payee_id') matchedPayeeId = a.value;
       }
     }
   }
-  return { categoryId, payeeId: resolvedPayeeId };
+  return { categoryId, payeeId: matchedPayeeId };
 }

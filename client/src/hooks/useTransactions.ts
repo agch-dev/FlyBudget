@@ -32,7 +32,7 @@ export function useUpdateTransaction() {
   });
 }
 
-export function useToggleClearedTransaction() {
+export function useToggleCleared() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, cleared }: { id: string; cleared: 0 | 1 }) =>

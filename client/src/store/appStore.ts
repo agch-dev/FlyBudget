@@ -1,3 +1,4 @@
+// ui-only state — selected month, sidebar, active account
 import { create } from 'zustand';
 import { format } from 'date-fns';
 

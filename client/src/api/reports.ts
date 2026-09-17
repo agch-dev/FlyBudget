@@ -1,22 +1,22 @@
 import { apiFetch } from './client';
 import type { NetWorthPoint, IncomeExpensesPoint, CashFlowPoint, SpendingByCategory, IncomeByCategoryItem, SpendingTrendPoint } from '../types';
 
-const qs = (from: string, to: string) => `?from=${from}&to=${to}`;
+const toQueryString = (from: string, to: string) => `?from=${from}&to=${to}`;
 
 export const getNetWorth = (from: string, to: string) =>
-  apiFetch<NetWorthPoint[]>(`/reports/net-worth${qs(from, to)}`);
+  apiFetch<NetWorthPoint[]>(`/reports/net-worth${toQueryString(from, to)}`);
 
 export const getIncomeVsExpenses = (from: string, to: string) =>
-  apiFetch<IncomeExpensesPoint[]>(`/reports/income-vs-expenses${qs(from, to)}`);
+  apiFetch<IncomeExpensesPoint[]>(`/reports/income-vs-expenses${toQueryString(from, to)}`);
 
 export const getCashFlow = (from: string, to: string) =>
-  apiFetch<CashFlowPoint[]>(`/reports/cash-flow${qs(from, to)}`);
+  apiFetch<CashFlowPoint[]>(`/reports/cash-flow${toQueryString(from, to)}`);
 
 export const getSpendingByCategory = (from: string, to: string) =>
-  apiFetch<SpendingByCategory[]>(`/reports/spending-by-category${qs(from, to)}`);
+  apiFetch<SpendingByCategory[]>(`/reports/spending-by-category${toQueryString(from, to)}`);
 
 export const getIncomeByCategory = (from: string, to: string) =>
-  apiFetch<IncomeByCategoryItem[]>(`/reports/income-by-category${qs(from, to)}`);
+  apiFetch<IncomeByCategoryItem[]>(`/reports/income-by-category${toQueryString(from, to)}`);
 
 export const getSpendingTrends = (categoryIds: string[], from: string, to: string) =>
   apiFetch<SpendingTrendPoint[]>(

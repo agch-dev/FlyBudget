@@ -4,6 +4,7 @@ import * as schema from './schema.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
+// electron sets DB_PATH to appData, otherwise use project root
 let dbPath: string;
 if (process.env.DB_PATH) {
   dbPath = process.env.DB_PATH;

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
+import { Input, Select } from '../ui/Input';
 import { CurrencyInput } from '../ui/CurrencyInput';
 import { useAccounts } from '../../hooks/useAccounts';
 import { useCategories } from '../../hooks/useCategories';
@@ -81,13 +82,12 @@ export default function RecurringFormModal({ isOpen, onClose, onSave, editItem }
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-text-secondary mb-1">Title</label>
-          <input
+          <Input
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="e.g. Netflix, Rent, Paycheck…"
             required
-            className="block w-full rounded-md border border-border px-3 py-2 text-sm bg-surface text-text focus:border-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-600"
           />
         </div>
 
@@ -124,60 +124,55 @@ export default function RecurringFormModal({ isOpen, onClose, onSave, editItem }
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-text-secondary mb-1">Frequency</label>
-            <select
+            <Select
               value={frequency}
               onChange={(e) => setFrequency(e.target.value as RecurringFrequency)}
-              className="block w-full rounded-md border border-border px-3 py-2 text-sm bg-surface text-text focus:border-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-600"
             >
               {FREQUENCY_LABELS.map((f) => (
                 <option key={f.value} value={f.value}>{f.label}</option>
               ))}
-            </select>
+            </Select>
           </div>
           <div>
             <label className="block text-sm font-medium text-text-secondary mb-1">Account</label>
-            <select
+            <Select
               value={accountId}
               onChange={(e) => setAccountId(e.target.value)}
-              className="block w-full rounded-md border border-border px-3 py-2 text-sm bg-surface text-text focus:border-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-600"
             >
               <option value="">No account</option>
               {accounts.map((a) => (
                 <option key={a.id} value={a.id}>{a.name}</option>
               ))}
-            </select>
+            </Select>
           </div>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-text-secondary mb-1">Start Date</label>
-            <input
+            <Input
               type="date"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
               required
-              className="block w-full rounded-md border border-border px-3 py-2 text-sm bg-surface text-text focus:border-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-600"
             />
           </div>
           <div>
             <label className="block text-sm font-medium text-text-secondary mb-1">End Date <span className="text-text-tertiary font-normal">(optional)</span></label>
-            <input
+            <Input
               type="date"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
               min={startDate}
-              className="block w-full rounded-md border border-border px-3 py-2 text-sm bg-surface text-text focus:border-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-600"
             />
           </div>
         </div>
 
         <div>
           <label className="block text-sm font-medium text-text-secondary mb-1">Category</label>
-          <select
+          <Select
             value={categoryId}
             onChange={(e) => setCategoryId(e.target.value)}
-            className="block w-full rounded-md border border-border px-3 py-2 text-sm bg-surface text-text focus:border-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-600"
           >
             <option value="">No category</option>
             {groups.map((g) => (
@@ -187,17 +182,16 @@ export default function RecurringFormModal({ isOpen, onClose, onSave, editItem }
                 ))}
               </optgroup>
             ))}
-          </select>
+          </Select>
         </div>
 
         <div>
           <label className="block text-sm font-medium text-text-secondary mb-1">Notes <span className="text-text-tertiary font-normal">(optional)</span></label>
-          <input
+          <Input
             type="text"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="Optional notes…"
-            className="block w-full rounded-md border border-border px-3 py-2 text-sm bg-surface text-text focus:border-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-600"
           />
         </div>
 

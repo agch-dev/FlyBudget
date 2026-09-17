@@ -1,3 +1,4 @@
+// all money is integer cents — convert at the UI edges only
 import { usePreferencesStore } from '../store/preferencesStore';
 
 export function centsToInput(cents: number): string {

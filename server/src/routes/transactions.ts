@@ -4,7 +4,7 @@ import { transactions, payees, accounts } from '../db/schema.js';
 import { eq, and, like, gte, lte, sql, isNull, inArray } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import { z } from 'zod';
-import { resolvePayee, autoCategory } from '../services/transactionHelpers.js';
+import { resolvePayee, inferCategory } from '../services/transactionHelpers.js';
 
 export const transactionsRouter = Router();
 
@@ -96,8 +96,8 @@ transactionsRouter.post('/', (req, res) => {
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
 
   const { payeeName, payeeId, splits, ...rest } = parsed.data;
-  const { resolvedPayeeId, resolvedPayeeName } = resolvePayee(payeeName, payeeId);
-  let finalPayeeId = resolvedPayeeId;
+  const payee = resolvePayee(payeeName, payeeId);
+  let finalPayeeId = payee.payeeId;
 
   if (splits && splits.length > 0) {
     const splitSum = splits.reduce((sum, s) => sum + s.amount, 0);
@@ -109,7 +109,7 @@ transactionsRouter.post('/', (req, res) => {
     const parent = {
       id: parentId, ...rest,
       categoryId: null,
-      payeeId: finalPayeeId, payeeName: resolvedPayeeName,
+      payeeId: finalPayeeId, payeeName: payee.payeeName,
       reconciled: 0, isParent: 1,
       transferTransactionId: null, parentTransactionId: null, importedId: null,
       createdAt: new Date().toISOString(),
@@ -120,7 +120,7 @@ transactionsRouter.post('/', (req, res) => {
       id: nanoid(),
       accountId: rest.accountId, date: rest.date,
       amount: s.amount,
-      payeeId: finalPayeeId, payeeName: resolvedPayeeName,
+      payeeId: finalPayeeId, payeeName: payee.payeeName,
       categoryId: s.categoryId, notes: s.notes ?? null,
       cleared: rest.cleared, reconciled: 0, isParent: 0,
       transferTransactionId: null, parentTransactionId: parentId, importedId: null,
@@ -131,14 +131,14 @@ transactionsRouter.post('/', (req, res) => {
     return res.status(201).json({ ...parent, children: childRows });
   }
 
-  const auto = autoCategory(finalPayeeId, resolvedPayeeName, rest.amount, rest.notes ?? null);
+  const auto = inferCategory(finalPayeeId, payee.payeeName, rest.amount, rest.notes ?? null);
   const resolvedCategoryId = rest.categoryId ?? auto.categoryId;
   finalPayeeId = auto.payeeId;
 
   const transaction = {
     id: nanoid(), ...rest,
     categoryId: resolvedCategoryId,
-    payeeId: finalPayeeId, payeeName: resolvedPayeeName,
+    payeeId: finalPayeeId, payeeName: payee.payeeName,
     reconciled: 0, isParent: 0,
     transferTransactionId: null, parentTransactionId: null, importedId: null,
     createdAt: new Date().toISOString(),
@@ -213,12 +213,12 @@ transactionsRouter.post('/import/confirm', (req, res) => {
       .where(and(eq(transactions.accountId, accountId), eq(transactions.importedId, row.importedId))).get();
     if (dup) continue;
 
-    const { resolvedPayeeId, resolvedPayeeName } = resolvePayee(row.payeeName, null);
-    const auto = autoCategory(resolvedPayeeId, resolvedPayeeName, row.amount, row.notes ?? null);
+    const payee = resolvePayee(row.payeeName, null);
+    const auto = inferCategory(payee.payeeId, payee.payeeName, row.amount, row.notes ?? null);
 
     db.insert(transactions).values({
       id: nanoid(), accountId, date: row.date, amount: row.amount,
-      payeeId: auto.payeeId, payeeName: resolvedPayeeName,
+      payeeId: auto.payeeId, payeeName: payee.payeeName,
       categoryId: auto.categoryId, notes: row.notes ?? null,
       cleared: 0, reconciled: 0, isParent: 0,
       transferTransactionId: null, parentTransactionId: null,

@@ -14,6 +14,7 @@ import RecurringTransactionsPage from './pages/RecurringTransactions';
 import SettingsPage from './pages/Settings';
 import GoalsPage from './pages/Goals';
 
+// electron loads via file:// so we need hash routing there
 const isElectron = Boolean((window as any).__API_BASE__);
 const Router = isElectron ? HashRouter : BrowserRouter;
 

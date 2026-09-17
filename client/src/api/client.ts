@@ -1,3 +1,4 @@
+// electron preload injects the full url, dev uses vite proxy
 const BASE = window.__API_BASE__ ?? '/api';
 
 export async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
