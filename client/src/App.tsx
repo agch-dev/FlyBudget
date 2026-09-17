@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Sidebar } from './components/layout/Sidebar';
 import DashboardPage from './pages/Dashboard';
 import AccountsPage from './pages/Accounts';
@@ -14,9 +14,12 @@ import RecurringTransactionsPage from './pages/RecurringTransactions';
 import SettingsPage from './pages/Settings';
 import GoalsPage from './pages/Goals';
 
+const isElectron = Boolean((window as any).__API_BASE__);
+const Router = isElectron ? HashRouter : BrowserRouter;
+
 export default function App() {
   return (
-    <BrowserRouter>
+    <Router>
       <div className="flex h-screen bg-page overflow-hidden">
         <Sidebar />
         <main className="flex-1 overflow-y-auto">
@@ -39,6 +42,6 @@ export default function App() {
           </Routes>
         </main>
       </div>
-    </BrowserRouter>
+    </Router>
   );
 }
