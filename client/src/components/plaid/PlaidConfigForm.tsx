@@ -6,7 +6,7 @@ import { Button } from '../ui/Button';
 export function PlaidConfigForm() {
   const [clientId, setClientId] = useState('');
   const [secret, setSecret] = useState('');
-  const [environment, setEnvironment] = useState('sandbox');
+  const [environment, setEnvironment] = useState('development');
   const configure = useConfigurePlaid();
 
   async function handleSubmit(e: React.FormEvent) {

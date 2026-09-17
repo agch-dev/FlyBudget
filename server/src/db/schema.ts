@@ -123,7 +123,7 @@ export const plaidConfig = sqliteTable('plaid_config', {
   id: text('id').primaryKey(),
   clientId: text('client_id').notNull(),
   secret: text('secret').notNull(),
-  environment: text('environment').notNull().default('sandbox'),
+  environment: text('environment').notNull().default('development'),
   createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
   updatedAt: text('updated_at').notNull().default(sql`(datetime('now'))`),
 });
