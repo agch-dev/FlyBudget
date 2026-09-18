@@ -1,5 +1,9 @@
 import { app, BrowserWindow, Menu } from 'electron';
 import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const IS_DEV = process.env.ELECTRON_DEV === 'true';
 const PORT = 58342;

@@ -1,9 +1,11 @@
-import { useState } from 'react';
-import { NavLink } from 'react-router-dom';
-import { Plus, ChevronDown, ChevronRight } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { NavLink, useNavigate } from 'react-router-dom';
+import { Plus, ChevronDown, ChevronRight, Building2 } from 'lucide-react';
 import { useAccounts } from '../../hooks/useAccounts';
+import { usePlaidStatus } from '../../hooks/usePlaid';
 import { formatCurrency } from '../../utils/currency';
 import { AddAccountModal } from '../accounts/AddAccountModal';
+import { ConnectBankModal } from '../plaid/ConnectBankModal';
 import type { Account } from '../../types';
 
 function AccountRow({ account }: { account: Account }) {
@@ -29,26 +31,83 @@ function AccountRow({ account }: { account: Account }) {
 
 export function SidebarAccountList() {
   const { data: accounts = [] } = useAccounts();
+  const { data: plaidStatus } = usePlaidStatus();
+  const plaidConfigured = plaidStatus?.configured ?? false;
+  const navigate = useNavigate();
+
   const [offBudgetOpen, setOffBudgetOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [connectOpen, setConnectOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    function handleClickOutside(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') setMenuOpen(false);
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [menuOpen]);
 
   const onBudget = accounts.filter((a) => a.isOffBudget === 0);
   const offBudget = accounts.filter((a) => a.isOffBudget === 1);
 
   return (
     <>
-      <div className="px-3 mt-3">
+      {/* Header — outside scroll container so dropdown isn't clipped */}
+      <div className="shrink-0 px-3 mt-3">
         <div className="flex items-center justify-between mb-1">
           <span className="text-[11px] font-semibold tracking-wider text-sidebar-text uppercase">Accounts</span>
-          <button
-            onClick={() => setAddOpen(true)}
-            className="p-0.5 rounded text-sidebar-text hover:text-sidebar-text-hi hover:bg-sidebar-hover transition-colors"
-            title="Add account"
-          >
-            <Plus size={13} />
-          </button>
-        </div>
+          <div className="relative" ref={menuRef}>
+            <button
+              onClick={() => setMenuOpen((o) => !o)}
+              className="p-0.5 rounded text-sidebar-text hover:text-sidebar-text-hi hover:bg-sidebar-hover transition-colors"
+              title="Add account"
+            >
+              <Plus size={13} />
+            </button>
 
+            {menuOpen && (
+              <div className="absolute right-0 top-full mt-1 w-48 bg-surface rounded-md border border-border shadow-hover z-30 py-1">
+                <button
+                  onClick={() => { setMenuOpen(false); setAddOpen(true); }}
+                  className="flex items-center gap-2 w-full px-3 py-2 text-left text-sm text-text-secondary hover:bg-hover hover:text-text transition-colors"
+                >
+                  <Plus size={14} className="shrink-0" />
+                  Add Manual Account
+                </button>
+                <button
+                  onClick={() => {
+                    setMenuOpen(false);
+                    if (plaidConfigured) {
+                      setConnectOpen(true);
+                    } else {
+                      navigate('/settings?tab=connections');
+                    }
+                  }}
+                  className="flex items-center gap-2 w-full px-3 py-2 text-left text-sm text-text-secondary hover:bg-hover hover:text-text transition-colors"
+                >
+                  <Building2 size={14} className="shrink-0" />
+                  Connect Bank
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Scrollable account list */}
+      <div className="flex-1 overflow-y-auto px-3">
         <div className="space-y-px">
           {onBudget.map((a) => <AccountRow key={a.id} account={a} />)}
           {onBudget.length === 0 && (
@@ -75,6 +134,7 @@ export function SidebarAccountList() {
       </div>
 
       <AddAccountModal isOpen={addOpen} onClose={() => setAddOpen(false)} />
+      <ConnectBankModal isOpen={connectOpen} onClose={() => setConnectOpen(false)} />
     </>
   );
 }

@@ -59,7 +59,7 @@ export async function startServer(port: number | string): Promise<void> {
   });
 }
 
-// Web dev: start immediately when neither Electron flag is set
-if (!process.env.ELECTRON_DEV && !process.env.ELECTRON_PROD) {
-  startServer(process.env.PORT ?? 3001).catch(console.error);
+// Auto-start unless bundled for Electron production (where main.ts calls startServer directly)
+if (!process.env.ELECTRON_PROD) {
+  startServer(process.env.EXPRESS_PORT ?? process.env.PORT ?? 3001).catch(console.error);
 }

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Layers, ArrowUpDown, Download, SlidersHorizontal, Link2 } from 'lucide-react';
 import { CategoryManager } from '../components/settings/CategoryManager';
 import { AccountReorder } from '../components/settings/AccountReorder';
@@ -16,8 +17,13 @@ const tabs = [
 
 type TabId = (typeof tabs)[number]['id'];
 
+const tabIds = new Set<string>(tabs.map(t => t.id));
+
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState<TabId>('categories');
+  const [searchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab');
+  const initialTab = tabParam && tabIds.has(tabParam) ? tabParam as TabId : 'categories';
+  const [activeTab, setActiveTab] = useState<TabId>(initialTab);
 
   return (
     <div className="flex flex-col h-full bg-surface">
