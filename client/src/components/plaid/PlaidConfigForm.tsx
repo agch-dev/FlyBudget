@@ -6,13 +6,12 @@ import { Button } from '../ui/Button';
 export function PlaidConfigForm() {
   const [clientId, setClientId] = useState('');
   const [secret, setSecret] = useState('');
-  const [environment, setEnvironment] = useState('development');
   const configure = useConfigurePlaid();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!clientId.trim() || !secret.trim()) return;
-    await configure.mutateAsync({ clientId: clientId.trim(), secret: secret.trim(), environment });
+    await configure.mutateAsync({ clientId: clientId.trim(), secret: secret.trim(), environment: 'development' });
   }
 
   return (
@@ -60,18 +59,6 @@ export function PlaidConfigForm() {
             placeholder="Enter your Plaid Secret"
             className="w-full text-sm border border-border rounded-md px-3 py-2 bg-surface text-text focus:outline-none focus:ring-1 focus:ring-brand-600 focus:border-brand-600"
           />
-        </div>
-        <div>
-          <label className="block text-xs font-medium text-text-tertiary mb-1">Environment</label>
-          <select
-            value={environment}
-            onChange={e => setEnvironment(e.target.value)}
-            className="text-sm border border-border rounded-md px-3 py-2 bg-surface text-text focus:outline-none focus:ring-1 focus:ring-brand-600 focus:border-brand-600"
-          >
-            <option value="sandbox">Sandbox (Testing)</option>
-            <option value="development">Development (Real banks, limited)</option>
-            <option value="production">Production</option>
-          </select>
         </div>
         <Button type="submit" disabled={!clientId.trim() || !secret.trim() || configure.isPending}>
           {configure.isPending ? 'Saving...' : 'Save Credentials'}

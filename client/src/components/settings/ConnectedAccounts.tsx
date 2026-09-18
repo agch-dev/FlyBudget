@@ -84,11 +84,6 @@ export function ConnectedAccounts() {
 
       <div className="bg-surface-alt rounded-lg p-5 space-y-3">
         <h3 className="text-sm font-medium text-text">Plaid Configuration</h3>
-        <div className="flex items-center gap-3 text-xs text-text-tertiary">
-          <span>
-            Environment: <span className="font-medium text-text-secondary capitalize">{status.environment}</span>
-          </span>
-        </div>
         <PlaidConfigForm />
       </div>
 
