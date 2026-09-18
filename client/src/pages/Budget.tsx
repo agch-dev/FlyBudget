@@ -215,13 +215,12 @@ export default function BudgetPage() {
             <p className={`text-2xl font-semibold tabular-nums ${tbbColor}`}>{formatCurrency(tbb)}</p>
           </div>
         </div>
-        <div className="grid grid-cols-3 gap-3">
+        <div className={`grid gap-3 ${carryOver !== 0 ? 'grid-cols-3' : 'grid-cols-2'}`}>
           {carryOver !== 0 && (
             <StatCard label="Carry Over" value={formatCurrency(carryOver)} valueColor={carryOver >= 0 ? 'text-positive' : 'text-negative'} />
           )}
           <StatCard label="Income" value={formatCurrency(summary?.income ?? 0)} valueColor="text-positive" />
           <StatCard label="Planned" value={formatCurrency(summary?.totalBudgeted ?? 0)} valueColor="text-brand-600" />
-          <StatCard label="Remaining" value={formatCurrency(tbb)} valueColor={tbbColor} />
         </div>
       </div>
 
