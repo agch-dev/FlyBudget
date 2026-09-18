@@ -65,6 +65,26 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #2563EB transparent;
+}
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: #2563EB;
+  border-radius: 3px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: #1D4ED8;
+}
+
 .recharts-wrapper:focus,
 .recharts-surface:focus,
 .recharts-wrapper *:focus {
