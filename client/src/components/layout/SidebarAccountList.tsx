@@ -1,11 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import { Plus, ChevronDown, ChevronRight, Building2, Link2 } from 'lucide-react';
 import { useAccounts } from '../../hooks/useAccounts';
 import { usePlaidStatus } from '../../hooks/usePlaid';
 import { formatCurrency } from '../../utils/currency';
 import { AddAccountModal } from '../accounts/AddAccountModal';
 import { ConnectBankModal } from '../plaid/ConnectBankModal';
+import { PlaidSetupModal } from '../plaid/PlaidSetupModal';
 import { SimplefinConnectModal } from '../simplefin/SimplefinConnectModal';
 import type { Account } from '../../types';
 
@@ -34,12 +35,12 @@ export function SidebarAccountList() {
   const { data: accounts = [] } = useAccounts();
   const { data: plaidStatus } = usePlaidStatus();
   const plaidConfigured = plaidStatus?.configured ?? false;
-  const navigate = useNavigate();
 
   const [offBudgetOpen, setOffBudgetOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [connectOpen, setConnectOpen] = useState(false);
+  const [plaidSetupOpen, setPlaidSetupOpen] = useState(false);
   const [simplefinOpen, setSimplefinOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -88,21 +89,22 @@ export function SidebarAccountList() {
                   <Plus size={14} className="shrink-0" />
                   Add Manual Account
                 </button>
-                {plaidConfigured && (
-                  <button
-                    onClick={() => { setMenuOpen(false); setConnectOpen(true); }}
-                    className="flex items-center gap-2 w-full px-3 py-2 text-left text-sm text-text-secondary hover:bg-hover hover:text-text transition-colors"
-                  >
-                    <Building2 size={14} className="shrink-0" />
-                    Connect Bank
-                  </button>
-                )}
-                <div className="border-t border-border my-1" />
+                <button
+                  onClick={() => {
+                    setMenuOpen(false);
+                    if (plaidConfigured) setConnectOpen(true);
+                    else setPlaidSetupOpen(true);
+                  }}
+                  className="flex items-center gap-2 w-full px-3 py-2 text-left text-sm text-text-secondary hover:bg-hover hover:text-text transition-colors"
+                >
+                  <Building2 size={14} className="shrink-0" />
+                  Connect via Plaid
+                </button>
                 <button
                   onClick={() => { setMenuOpen(false); setSimplefinOpen(true); }}
-                  className="flex items-center gap-2 w-full px-3 py-2 text-left text-[11px] text-text-tertiary hover:bg-hover hover:text-text-secondary transition-colors"
+                  className="flex items-center gap-2 w-full px-3 py-2 text-left text-sm text-text-secondary hover:bg-hover hover:text-text transition-colors"
                 >
-                  <Link2 size={12} className="shrink-0" />
+                  <Link2 size={14} className="shrink-0" />
                   Connect via SimpleFIN
                 </button>
               </div>
@@ -140,6 +142,7 @@ export function SidebarAccountList() {
 
       <AddAccountModal isOpen={addOpen} onClose={() => setAddOpen(false)} />
       <ConnectBankModal isOpen={connectOpen} onClose={() => setConnectOpen(false)} />
+      <PlaidSetupModal isOpen={plaidSetupOpen} onClose={() => setPlaidSetupOpen(false)} onConfigured={() => setConnectOpen(true)} />
       <SimplefinConnectModal isOpen={simplefinOpen} onClose={() => setSimplefinOpen(false)} />
     </>
   );
