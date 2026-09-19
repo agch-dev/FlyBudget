@@ -19,11 +19,12 @@ import { Download, Plus } from 'lucide-react';
 import { CurrencyTooltip, ChartSkeleton, EmptyState, StatCardRow, EXPENSE_COLORS, monthLabel } from '../components/reports/ChartHelpers';
 import type { StatCard } from '../components/reports/ChartHelpers';
 
-type Tab = 'net-worth' | 'income' | 'cash-flow' | 'spending' | 'sankey' | 'trends';
-type Preset = '3m' | '6m' | 'ytd' | 'last-year' | 'custom';
+type Tab = 'all' | 'net-worth' | 'income' | 'cash-flow' | 'spending' | 'sankey' | 'trends';
+type Preset = '1m' | '3m' | '6m' | 'ytd' | 'last-year' | 'custom';
 type NodeType = 'income' | 'hub' | 'expense' | 'savings';
 
 const TABS: { id: Tab; label: string }[] = [
+  { id: 'all', label: 'All' },
   { id: 'net-worth', label: 'Net Worth' },
   { id: 'income', label: 'Income & Expenses' },
   { id: 'cash-flow', label: 'Cash Flow' },
@@ -33,6 +34,7 @@ const TABS: { id: Tab; label: string }[] = [
 ];
 
 const PRESETS: { id: Preset; label: string }[] = [
+  { id: '1m', label: '1M' },
   { id: '3m', label: '3M' },
   { id: '6m', label: '6M' },
   { id: 'ytd', label: 'This Year' },
@@ -41,6 +43,7 @@ const PRESETS: { id: Preset; label: string }[] = [
 ];
 
 const CHART_HEIGHT: Record<Tab, string> = {
+  'all': 'h-auto',
   'net-worth': 'h-72',
   'income': 'h-72',
   'cash-flow': 'h-72',
@@ -426,17 +429,57 @@ function SankeyDiagram({ from, to }: { from: string; to: string }) {
   );
 }
 
+const OVERVIEW_CHARTS: { id: Exclude<Tab, 'all'>; label: string }[] = [
+  { id: 'net-worth', label: 'Net Worth' },
+  { id: 'income', label: 'Income & Expenses' },
+  { id: 'cash-flow', label: 'Cash Flow' },
+  { id: 'spending', label: 'Spending by Category' },
+  { id: 'sankey', label: 'Cash Flow Diagram' },
+  { id: 'trends', label: 'Spending Trends' },
+];
+
+function OverviewGrid({ from, to, onSelectTab }: { from: string; to: string; onSelectTab: (tab: Tab) => void }) {
+  return (
+    <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+      {OVERVIEW_CHARTS.map(chart => (
+        <button
+          key={chart.id}
+          onClick={() => onSelectTab(chart.id)}
+          className="bg-surface-alt rounded-lg border border-border-light p-3 hover:shadow-hover hover:border-brand-200 transition-all text-left cursor-pointer group"
+        >
+          <p className="text-xs font-medium text-text-secondary mb-2 group-hover:text-brand-600 transition-colors">
+            {chart.label}
+          </p>
+          <div className="h-48 pointer-events-none">
+            {chart.id === 'net-worth' && <NetWorthChart from={from} to={to} />}
+            {chart.id === 'income' && <IncomeExpensesChart from={from} to={to} />}
+            {chart.id === 'cash-flow' && <CashFlowChart from={from} to={to} />}
+            {chart.id === 'spending' && <SpendingChart from={from} to={to} />}
+            {chart.id === 'sankey' && <SankeyDiagram from={from} to={to} />}
+            {chart.id === 'trends' && (
+              <div className="h-full flex items-center justify-center">
+                <p className="text-xs text-text-tertiary">Select categories to view trends</p>
+              </div>
+            )}
+          </div>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export default function ReportsPage() {
   const today = new Date();
-  const [preset, setPreset] = useState<Preset>('custom');
-  const [from, setFrom] = useState(() => format(subMonths(today, 11), 'yyyy-MM'));
+  const [preset, setPreset] = useState<Preset>('1m');
+  const [from, setFrom] = useState(() => format(today, 'yyyy-MM'));
   const [to, setTo] = useState(() => format(today, 'yyyy-MM'));
-  const [activeTab, setActiveTab] = useState<Tab>('net-worth');
+  const [activeTab, setActiveTab] = useState<Tab>('all');
 
   useEffect(() => {
     if (preset === 'custom') return;
     const now = new Date();
     const ranges: Record<string, { from: string; to: string }> = {
+      '1m':        { from: format(now, 'yyyy-MM'), to: format(now, 'yyyy-MM') },
       '3m':        { from: format(subMonths(now, 2), 'yyyy-MM'), to: format(now, 'yyyy-MM') },
       '6m':        { from: format(subMonths(now, 5), 'yyyy-MM'), to: format(now, 'yyyy-MM') },
       'ytd':       { from: format(startOfYear(now), 'yyyy-MM'),  to: format(now, 'yyyy-MM') },
@@ -455,6 +498,8 @@ export default function ReportsPage() {
 
   const statCards = useMemo((): StatCard[] => {
     switch (activeTab) {
+      case 'all':
+        return [];
       case 'net-worth': {
         if (!nwData.length) return [];
         const latest = nwData[nwData.length - 1].netWorth;
@@ -508,6 +553,7 @@ export default function ReportsPage() {
   }, [activeTab, nwData, ieData, cfData, spData, incData]);
 
   function handleExport() {
+    if (activeTab === 'all') return;
     const filename = `reports-${activeTab}-${from}-${to}.csv`;
     switch (activeTab) {
       case 'net-worth':
@@ -572,7 +618,7 @@ export default function ReportsPage() {
                 />
               </>
             )}
-            <Button variant="secondary" size="sm" onClick={handleExport}>
+            <Button variant="secondary" size="sm" onClick={handleExport} disabled={activeTab === 'all'}>
               <Download size={13} /> Export CSV
             </Button>
             <Link
@@ -602,15 +648,21 @@ export default function ReportsPage() {
       </div>
 
       <div className="flex-1 overflow-y-auto px-6 py-6">
-        <StatCardRow cards={statCards} />
-        <div className={`w-full ${chartHeight}`}>
-          {activeTab === 'net-worth' && <NetWorthChart from={from} to={to} />}
-          {activeTab === 'income' && <IncomeExpensesChart from={from} to={to} />}
-          {activeTab === 'cash-flow' && <CashFlowChart from={from} to={to} />}
-          {activeTab === 'spending' && <SpendingChart from={from} to={to} />}
-          {activeTab === 'sankey' && <SankeyDiagram from={from} to={to} />}
-          {activeTab === 'trends' && <SpendingTrendsChart from={from} to={to} />}
-        </div>
+        {activeTab === 'all' ? (
+          <OverviewGrid from={from} to={to} onSelectTab={setActiveTab} />
+        ) : (
+          <>
+            <StatCardRow cards={statCards} />
+            <div className={`w-full ${chartHeight}`}>
+              {activeTab === 'net-worth' && <NetWorthChart from={from} to={to} />}
+              {activeTab === 'income' && <IncomeExpensesChart from={from} to={to} />}
+              {activeTab === 'cash-flow' && <CashFlowChart from={from} to={to} />}
+              {activeTab === 'spending' && <SpendingChart from={from} to={to} />}
+              {activeTab === 'sankey' && <SankeyDiagram from={from} to={to} />}
+              {activeTab === 'trends' && <SpendingTrendsChart from={from} to={to} />}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
