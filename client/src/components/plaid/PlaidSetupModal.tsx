@@ -46,13 +46,13 @@ export function PlaidSetupModal({ isOpen, onClose, onConfigured }: Props) {
             <div className="w-16 h-16 rounded-lg bg-brand-50 flex items-center justify-center mx-auto mb-4">
               <KeyRound size={32} className="text-brand-600" />
             </div>
-            <h3 className="text-sm font-semibold text-text">Set Up Plaid</h3>
+            <h3 className="text-sm font-semibold text-text">Connect with Plaid</h3>
             <p className="text-xs text-text-secondary mt-2 max-w-sm mx-auto leading-relaxed">
-              Visit{' '}
+              Create a free{' '}
               <a href="https://dashboard.plaid.com/signup" target="_blank" rel="noopener noreferrer" className="text-brand-600 underline">
-                Plaid Dashboard
+                Plaid developer account
               </a>{' '}
-              to create a free developer account and get your API credentials, then enter them below.
+              to get your API credentials, then enter them below.
             </p>
           </div>
 
