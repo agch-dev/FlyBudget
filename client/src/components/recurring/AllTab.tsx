@@ -47,9 +47,13 @@ export default function AllTab({ allRecurring, onEdit }: Props) {
       <div className={`flex items-center gap-3 px-4 py-2.5 border-b border-border-light hover:bg-hover transition-colors group ${
         isPaused ? 'opacity-60' : ''
       }`}>
-        <div className={`w-2 h-2 rounded-full shrink-0 ${
-          isPaused ? 'bg-text-disabled' : item.amount > 0 ? 'bg-positive' : 'bg-brand-500'
-        }`} />
+        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded shrink-0 ${
+          isPaused ? 'bg-surface-alt text-text-disabled'
+          : item.amount > 0 ? 'bg-positive-subtle text-positive'
+          : 'bg-brand-50 text-brand-600'
+        }`}>
+          {item.amount > 0 ? 'Income' : 'Expense'}
+        </span>
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">

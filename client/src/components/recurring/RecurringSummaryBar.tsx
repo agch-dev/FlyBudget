@@ -32,10 +32,7 @@ export default function RecurringSummaryBar({ summary, isLoading }: Props) {
       {cards.map((c) => (
         <div
           key={c.label}
-          className={`flex-1 bg-surface-alt rounded-lg border border-border-light px-4 py-3 ${
-            c.accent === 'positive' ? 'border-l-4 border-l-positive' :
-            c.accent === 'negative' ? 'border-l-4 border-l-negative' : ''
-          }`}
+          className="flex-1 bg-surface-alt rounded-lg border border-border-light px-4 py-3"
         >
           <p className="text-xs text-text-tertiary">{c.label}</p>
           <p className={`text-lg font-semibold tabular-nums mt-0.5 ${c.color}`}>{c.value}</p>

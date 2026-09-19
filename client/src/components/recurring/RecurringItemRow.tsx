@@ -3,11 +3,18 @@ import { format, parseISO, differenceInDays } from 'date-fns';
 import { formatCurrency } from '../../utils/currency';
 import type { RecurringOccurrence, OccurrenceStatus } from '../../types';
 
-const STATUS_DOT: Record<OccurrenceStatus, string> = {
-  paid: 'bg-positive',
-  paid_different: 'bg-caution',
-  upcoming: 'bg-brand-500',
-  overdue: 'bg-negative',
+const STATUS_PILL: Record<OccurrenceStatus, string> = {
+  paid: 'bg-positive-subtle text-positive',
+  paid_different: 'bg-caution-subtle text-caution',
+  upcoming: 'bg-brand-50 text-brand-600',
+  overdue: 'bg-negative-subtle text-negative',
+};
+
+const STATUS_PILL_LABEL: Record<OccurrenceStatus, string> = {
+  paid: 'Paid',
+  paid_different: 'Diff',
+  upcoming: 'Due',
+  overdue: 'Late',
 };
 
 const STATUS_LABEL: Record<OccurrenceStatus, string> = {
@@ -41,9 +48,11 @@ export default function RecurringItemRow({ occurrence: occ, accountName, categor
 
   return (
     <div className={`flex items-center gap-3 px-4 py-2.5 border-b border-border-light hover:bg-hover transition-colors group ${
-      occ.status === 'overdue' ? 'border-l-2 border-l-negative' : ''
+      occ.status === 'overdue' ? 'bg-negative-subtle/50' : ''
     }`}>
-      <div className={`w-2 h-2 rounded-full shrink-0 ${STATUS_DOT[occ.status]}`} title={STATUS_LABEL[occ.status]} />
+      <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded shrink-0 ${STATUS_PILL[occ.status]}`} title={STATUS_LABEL[occ.status]}>
+        {STATUS_PILL_LABEL[occ.status]}
+      </span>
 
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
