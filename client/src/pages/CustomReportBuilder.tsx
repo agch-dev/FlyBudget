@@ -33,12 +33,14 @@ export default function CustomReportBuilder() {
   const createMutation = useCreateSavedReport();
   const updateMutation = useUpdateSavedReport();
 
+  const savedReportId = savedReport?.id;
+  const savedReportUpdatedAt = savedReport?.updatedAt;
   useEffect(() => {
     if (savedReport) {
       setConfig(savedReport.config);
       setReportName(savedReport.name);
     }
-  }, [savedReport]);
+  }, [savedReportId, savedReportUpdatedAt]);
 
   const debouncedConfig = useDebounce(config, 300);
   const { data, isLoading } = useCustomReportData(debouncedConfig);
@@ -97,7 +99,7 @@ export default function CustomReportBuilder() {
       <div className="flex flex-1 overflow-hidden">
         <ReportBuilderSidebar config={config} onChange={setConfig} />
         <div className="flex-1 p-6 overflow-auto bg-page">
-          <div className="h-[500px]">
+          <div className="h-[500px]" key={id ?? 'new'}>
             <ReportChartArea config={config} data={data} isLoading={isLoading} />
           </div>
         </div>
