@@ -1,18 +1,30 @@
 import { useState } from 'react';
-import { RefreshCw, Plus, Building2, Loader2 } from 'lucide-react';
+import { RefreshCw, Plus, Loader2 } from 'lucide-react';
 import { usePlaidStatus, usePlaidItems, useSyncAll } from '../../hooks/usePlaid';
+import { useSimplefinConnections, useSyncAllSimplefin } from '../../hooks/useSimplefin';
 import { PlaidConfigForm } from '../plaid/PlaidConfigForm';
 import { ConnectBankModal } from '../plaid/ConnectBankModal';
 import { ConnectedInstitutionCard } from '../plaid/ConnectedInstitutionCard';
+import { SimplefinConnectModal } from '../simplefin/SimplefinConnectModal';
+import { SimplefinConnectionCard } from '../simplefin/SimplefinConnectionCard';
 import { Button } from '../ui/Button';
+
+type Provider = 'plaid' | 'simplefin';
 
 export function ConnectedAccounts() {
   const { data: status, isLoading: statusLoading } = usePlaidStatus();
   const { data: items = [], isLoading: itemsLoading } = usePlaidItems();
+  const { data: sfConnections = [], isLoading: sfLoading } = useSimplefinConnections();
   const syncAll = useSyncAll();
+  const syncAllSf = useSyncAllSimplefin();
+  const [provider, setProvider] = useState<Provider>('plaid');
   const [showConnect, setShowConnect] = useState(false);
+  const [showSimplefin, setShowSimplefin] = useState(false);
 
-  if (statusLoading) {
+  const plaidConfigured = status?.configured ?? false;
+  const isLoading = statusLoading || itemsLoading || sfLoading;
+
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
         <Loader2 size={24} className="animate-spin text-text-tertiary" />
@@ -20,74 +32,151 @@ export function ConnectedAccounts() {
     );
   }
 
-  if (!status?.configured) {
-    return <PlaidConfigForm />;
-  }
-
   return (
-    <div className="space-y-6">
-      <div className="flex items-start justify-between">
-        <div>
-          <h2 className="text-sm font-semibold text-text">Connected Banks</h2>
-          <p className="text-xs text-text-tertiary mt-0.5">
-            Automatically import transactions from your financial institutions.
-          </p>
-        </div>
-        {items.length > 0 && (
-          <Button variant="secondary" size="sm" onClick={() => syncAll.mutate()} disabled={syncAll.isPending}>
-            {syncAll.isPending ? (
-              <><Loader2 size={12} className="animate-spin" /> Syncing All...</>
-            ) : (
-              <><RefreshCw size={12} /> Sync All</>
-            )}
-          </Button>
-        )}
+    <div className="space-y-5">
+      <div>
+        <h2 className="text-sm font-semibold text-text">Connected Banks</h2>
+        <p className="text-xs text-text-tertiary mt-0.5">
+          Automatically import transactions from your financial institutions.
+        </p>
       </div>
 
-      {syncAll.isSuccess && syncAll.data && (
-        <div className="bg-positive-subtle border border-positive/10 rounded-md px-4 py-2">
-          <p className="text-xs text-positive">
-            Sync complete:{' '}
-            {syncAll.data.results.reduce((s, r) => s + r.added, 0)} new transactions imported.
-          </p>
-        </div>
-      )}
+      {/* Provider toggle */}
+      <div className="flex rounded-lg bg-surface-alt p-1 w-fit">
+        <button
+          onClick={() => setProvider('plaid')}
+          className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all duration-200 ease-in-out ${
+            provider === 'plaid'
+              ? 'bg-surface text-text shadow-sm ring-2 ring-brand-600'
+              : 'text-text-tertiary hover:text-text-secondary ring-0 ring-transparent'
+          }`}
+        >
+          Plaid
+          {items.length > 0 && (
+            <span className="ml-1.5 text-[10px] bg-brand-50 text-brand-600 px-1.5 py-0.5 rounded-full">{items.length}</span>
+          )}
+        </button>
+        <button
+          onClick={() => setProvider('simplefin')}
+          className={`px-4 py-1.5 text-sm font-medium rounded-md transition-all duration-200 ease-in-out ${
+            provider === 'simplefin'
+              ? 'bg-surface text-text shadow-sm ring-2 ring-brand-600'
+              : 'text-text-tertiary hover:text-text-secondary ring-0 ring-transparent'
+          }`}
+        >
+          SimpleFIN
+          {sfConnections.length > 0 && (
+            <span className="ml-1.5 text-[10px] bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded-full">{sfConnections.length}</span>
+          )}
+        </button>
+      </div>
 
-      {itemsLoading ? (
-        <div className="flex items-center justify-center py-8">
-          <Loader2 size={24} className="animate-spin text-text-tertiary" />
-        </div>
-      ) : items.length === 0 ? (
-        <div className="text-center py-12 bg-surface-alt rounded-lg">
-          <div className="w-16 h-16 rounded-lg bg-brand-50 flex items-center justify-center mx-auto mb-4">
-            <Building2 size={32} className="text-brand-500" />
-          </div>
-          <h3 className="text-sm font-medium text-text-secondary">No Connected Banks</h3>
-          <p className="text-xs text-text-tertiary mt-1 max-w-xs mx-auto">
-            Connect your first financial institution to start automatically importing transactions.
-          </p>
-          <Button onClick={() => setShowConnect(true)} className="mt-4 mx-auto">
-            <Plus size={14} /> Connect Bank
-          </Button>
-        </div>
-      ) : (
+      {/* Plaid content */}
+      {provider === 'plaid' && (
         <div className="space-y-4">
-          {items.map(item => (
-            <ConnectedInstitutionCard key={item.id} item={item} />
-          ))}
+          {syncAll.isSuccess && syncAll.data && (
+            <div className="bg-positive-subtle border border-positive/10 rounded-md px-4 py-2">
+              <p className="text-xs text-positive">
+                Plaid sync complete:{' '}
+                {syncAll.data.results.reduce((s, r) => s + r.added, 0)} new transactions imported.
+              </p>
+            </div>
+          )}
 
-          <Button variant="secondary" onClick={() => setShowConnect(true)}>
-            <Plus size={14} /> Connect Another Bank
-          </Button>
+          {items.length > 0 ? (
+            <div className="space-y-3">
+              {items.map(item => (
+                <ConnectedInstitutionCard key={item.id} item={item} />
+              ))}
+              <div className="flex items-center gap-2">
+                {plaidConfigured && (
+                  <Button variant="secondary" size="sm" onClick={() => setShowConnect(true)}>
+                    <Plus size={14} /> Add Another Bank
+                  </Button>
+                )}
+                <Button variant="secondary" size="sm" onClick={() => syncAll.mutate()} disabled={syncAll.isPending}>
+                  {syncAll.isPending ? (
+                    <><Loader2 size={12} className="animate-spin" /> Syncing...</>
+                  ) : (
+                    <><RefreshCw size={12} /> Sync All</>
+                  )}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-surface-alt rounded-lg px-5 py-8 text-center">
+              {plaidConfigured ? (
+                <>
+                  <p className="text-xs text-text-tertiary mb-3">No banks connected via Plaid yet.</p>
+                  <Button onClick={() => setShowConnect(true)}>
+                    <Plus size={14} /> Connect Bank
+                  </Button>
+                </>
+              ) : (
+                <p className="text-xs text-text-tertiary">Configure your Plaid credentials below to get started.</p>
+              )}
+            </div>
+          )}
+
+          <div className="bg-surface-alt rounded-lg p-5 space-y-3">
+            <h3 className="text-sm font-medium text-text">Plaid Configuration</h3>
+            {!plaidConfigured && (
+              <p className="text-xs text-text-tertiary">
+                Enter your Plaid API credentials to enable bank connections.
+              </p>
+            )}
+            <PlaidConfigForm />
+          </div>
         </div>
       )}
 
-      <div className="bg-surface-alt rounded-lg p-5 space-y-3">
-        <h3 className="text-sm font-medium text-text">Plaid Configuration</h3>
-        <PlaidConfigForm />
-      </div>
+      {/* SimpleFIN content */}
+      {provider === 'simplefin' && (
+        <div className="space-y-4">
+          <p className="text-xs text-text-tertiary">
+            SimpleFIN Bridge connects to your bank without requiring API credentials. $1.50/month paid directly to SimpleFIN.
+          </p>
+
+          {syncAllSf.isSuccess && syncAllSf.data && (
+            <div className="bg-positive-subtle border border-positive/10 rounded-md px-4 py-2">
+              <p className="text-xs text-positive">
+                SimpleFIN sync complete:{' '}
+                {syncAllSf.data.results.reduce((s, r) => s + r.added, 0)} new transactions imported.
+              </p>
+            </div>
+          )}
+
+          {sfConnections.length > 0 ? (
+            <div className="space-y-3">
+              {sfConnections.map(conn => (
+                <SimplefinConnectionCard key={conn.id} connection={conn} />
+              ))}
+              <div className="flex items-center gap-2">
+                <Button variant="secondary" size="sm" onClick={() => setShowSimplefin(true)}>
+                  <Plus size={14} /> Add Another Connection
+                </Button>
+                <Button variant="secondary" size="sm" onClick={() => syncAllSf.mutate()} disabled={syncAllSf.isPending}>
+                  {syncAllSf.isPending ? (
+                    <><Loader2 size={12} className="animate-spin" /> Syncing...</>
+                  ) : (
+                    <><RefreshCw size={12} /> Sync All</>
+                  )}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="bg-surface-alt rounded-lg px-5 py-8 text-center">
+              <p className="text-xs text-text-tertiary mb-3">No SimpleFIN connections yet.</p>
+              <Button onClick={() => setShowSimplefin(true)}>
+                <Plus size={14} /> Connect via SimpleFIN
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
 
       <ConnectBankModal isOpen={showConnect} onClose={() => setShowConnect(false)} />
+      <SimplefinConnectModal isOpen={showSimplefin} onClose={() => setShowSimplefin(false)} />
     </div>
   );
 }

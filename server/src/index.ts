@@ -12,8 +12,10 @@ import { customReportsRouter } from './routes/customReports.js';
 import { recurringTransactionsRouter, autoCreateDueRecurring } from './routes/recurringTransactions.js';
 import { goalsRouter } from './routes/goals.js';
 import { plaidRouter } from './routes/plaid.js';
+import { simplefinRouter } from './routes/simplefin.js';
 import { syncAllItems } from './services/plaidSyncService.js';
 import { isPlaidConfigured } from './services/plaidService.js';
+import { syncAllSimplefinConnections } from './services/simplefinSyncService.js';
 
 const app = express();
 
@@ -34,6 +36,7 @@ app.use('/api/custom-reports', customReportsRouter);
 app.use('/api/recurring-transactions', recurringTransactionsRouter);
 app.use('/api/goals', goalsRouter);
 app.use('/api/plaid', plaidRouter);
+app.use('/api/simplefin', simplefinRouter);
 
 export async function startServer(port: number | string): Promise<void> {
   if (process.env.ELECTRON_PROD) {
@@ -50,9 +53,14 @@ export async function startServer(port: number | string): Promise<void> {
       if (isPlaidConfigured()) {
         syncAllItems().then(results => {
           const total = results.reduce((s, r) => s + r.added, 0);
-          if (total > 0) console.log(`Bank sync: imported ${total} new transaction(s)`);
-        }).catch(err => console.error('Bank sync error:', err.message));
+          if (total > 0) console.log(`Plaid sync: imported ${total} new transaction(s)`);
+        }).catch(err => console.error('Plaid sync error:', err.message));
       }
+
+      syncAllSimplefinConnections().then(results => {
+        const total = results.reduce((s, r) => s + r.added, 0);
+        if (total > 0) console.log(`SimpleFIN sync: imported ${total} new transaction(s)`);
+      }).catch(err => console.error('SimpleFIN sync error:', err.message));
 
       resolve();
     });

@@ -119,6 +119,28 @@ export const goals = sqliteTable('goals', {
   updatedAt: text('updated_at').notNull().default(sql`(datetime('now'))`),
 });
 
+export const simplefinConnections = sqliteTable('simplefin_connections', {
+  id: text('id').primaryKey(),
+  accessUrl: text('access_url').notNull(),
+  connectionName: text('connection_name').notNull(),
+  syncStatus: text('sync_status').notNull().default('good'),
+  syncError: text('sync_error'),
+  lastSyncedAt: text('last_synced_at'),
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
+});
+
+export const simplefinAccountMappings = sqliteTable('simplefin_account_mappings', {
+  id: text('id').primaryKey(),
+  connectionId: text('connection_id').notNull().references(() => simplefinConnections.id, { onDelete: 'cascade' }),
+  simplefinAccountId: text('simplefin_account_id').notNull(),
+  accountId: text('account_id').references(() => accounts.id, { onDelete: 'set null' }),
+  simplefinAccountName: text('simplefin_account_name').notNull(),
+  isEnabled: integer('is_enabled').notNull().default(1),
+  createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
+}, (table) => [
+  uniqueIndex('simplefin_account_mapping_unique').on(table.connectionId, table.simplefinAccountId),
+]);
+
 export const plaidConfig = sqliteTable('plaid_config', {
   id: text('id').primaryKey(),
   clientId: text('client_id').notNull(),

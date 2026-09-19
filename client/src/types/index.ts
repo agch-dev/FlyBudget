@@ -307,3 +307,43 @@ export interface PlaidSyncResult {
   removed: number;
   errors: string[];
 }
+
+// SimpleFIN Bank Sync
+export type SimplefinSyncStatus = 'good' | 'syncing' | 'error';
+
+export interface SimplefinDiscoveredAccount {
+  simplefinAccountId: string;
+  name: string;
+  balance: number;
+  currency: string;
+}
+
+export interface SimplefinAccountMapping {
+  simplefinAccountId: string;
+  simplefinAccountName: string;
+  accountId: string | null;
+  accountName: string | null;
+  isEnabled: number;
+}
+
+export interface SimplefinConnection {
+  id: string;
+  connectionName: string;
+  lastSyncedAt: string | null;
+  syncStatus: SimplefinSyncStatus;
+  syncError: string | null;
+  accounts: SimplefinAccountMapping[];
+}
+
+export interface SimplefinSetupResult {
+  connectionId: string;
+  connectionName: string;
+  accounts: SimplefinDiscoveredAccount[];
+}
+
+export interface SimplefinSyncResult {
+  connectionId: string;
+  connectionName: string;
+  added: number;
+  errors: string[];
+}
