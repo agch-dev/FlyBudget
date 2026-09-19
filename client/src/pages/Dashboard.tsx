@@ -2,8 +2,10 @@ import { useState } from 'react';
 import { format, subMonths } from 'date-fns';
 import { Building2, Link2, Plus, Wallet } from 'lucide-react';
 import { useAccounts } from '../hooks/useAccounts';
+import { usePlaidStatus } from '../hooks/usePlaid';
 import { AddAccountModal } from '../components/accounts/AddAccountModal';
 import { ConnectBankModal } from '../components/plaid/ConnectBankModal';
+import { PlaidSetupModal } from '../components/plaid/PlaidSetupModal';
 import { SimplefinConnectModal } from '../components/simplefin/SimplefinConnectModal';
 import SummaryStats from '../components/dashboard/SummaryStats';
 import AccountsOverview from '../components/dashboard/AccountsOverview';
@@ -19,7 +21,11 @@ const currentMonth = format(now, 'yyyy-MM');
 const sixMonthsAgo = format(subMonths(now, 5), 'yyyy-MM');
 
 function WelcomeScreen() {
+  const { data: plaidStatus } = usePlaidStatus();
+  const plaidConfigured = plaidStatus?.configured ?? false;
+
   const [showPlaid, setShowPlaid] = useState(false);
+  const [showPlaidSetup, setShowPlaidSetup] = useState(false);
   const [showSimplefin, setShowSimplefin] = useState(false);
   const [showManual, setShowManual] = useState(false);
 
@@ -37,7 +43,10 @@ function WelcomeScreen() {
 
         <div className="grid gap-4 mt-8 grid-cols-1 sm:grid-cols-3">
           <button
-            onClick={() => setShowPlaid(true)}
+            onClick={() => {
+              if (plaidConfigured) setShowPlaid(true);
+              else setShowPlaidSetup(true);
+            }}
             className="group bg-surface border-2 border-brand-200 hover:border-brand-500 hover:shadow-hover rounded-xl p-6 text-left transition-all duration-200"
           >
             <div className="w-10 h-10 rounded-lg bg-brand-50 flex items-center justify-center mb-4 group-hover:bg-brand-200 transition-colors duration-200">
@@ -77,6 +86,7 @@ function WelcomeScreen() {
         </div>
 
         <ConnectBankModal isOpen={showPlaid} onClose={() => setShowPlaid(false)} />
+        <PlaidSetupModal isOpen={showPlaidSetup} onClose={() => setShowPlaidSetup(false)} onConfigured={() => setShowPlaid(true)} />
         <SimplefinConnectModal isOpen={showSimplefin} onClose={() => setShowSimplefin(false)} />
         <AddAccountModal isOpen={showManual} onClose={() => setShowManual(false)} />
       </div>
