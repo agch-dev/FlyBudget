@@ -13,6 +13,7 @@ import ReconcilePage from './pages/ReconcilePage';
 import RecurringTransactionsPage from './pages/RecurringTransactions';
 import SettingsPage from './pages/Settings';
 import GoalsPage from './pages/Goals';
+import CashFlowPage from './pages/CashFlow';
 
 // electron loads via file:// so we need hash routing there
 const isElectron = Boolean((window as any).__API_BASE__);
@@ -33,6 +34,7 @@ export default function App() {
             <Route path="/accounts/:id" element={<AccountTransactionsPage />} />
             <Route path="/transactions" element={<TransactionsPage />} />
             <Route path="/recurring" element={<RecurringTransactionsPage />} />
+            <Route path="/cash-flow" element={<CashFlowPage />} />
             <Route path="/reports" element={<ReportsPage />} />
             <Route path="/reports/custom" element={<CustomReportBuilder />} />
             <Route path="/reports/custom/:id" element={<CustomReportBuilder />} />

@@ -1,14 +1,14 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { format, subMonths, parseISO, startOfYear, endOfYear, subYears } from 'date-fns';
 import {
   AreaChart, Area, BarChart, Bar, LineChart, Line, Legend,
   XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, Cell, Sankey,
+  ResponsiveContainer, Cell,
 } from 'recharts';
 import {
   useNetWorth, useIncomeVsExpenses, useCashFlow,
-  useSpendingByCategory, useIncomeByCategory, useSpendingTrends,
+  useSpendingByCategory, useSpendingTrends,
 } from '../hooks/useReports';
 import { useCategories } from '../hooks/useCategories';
 import { formatCurrency, formatCentsAxis } from '../utils/currency';
@@ -19,9 +19,8 @@ import { Download, Plus } from 'lucide-react';
 import { CurrencyTooltip, ChartSkeleton, EmptyState, StatCardRow, EXPENSE_COLORS, monthLabel } from '../components/reports/ChartHelpers';
 import type { StatCard } from '../components/reports/ChartHelpers';
 
-type Tab = 'all' | 'net-worth' | 'income' | 'cash-flow' | 'spending' | 'sankey' | 'trends';
+type Tab = 'all' | 'net-worth' | 'income' | 'cash-flow' | 'spending' | 'trends';
 type Preset = '1m' | '3m' | '6m' | 'ytd' | 'last-year' | 'custom';
-type NodeType = 'income' | 'hub' | 'expense' | 'savings';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'all', label: 'All' },
@@ -29,7 +28,6 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'income', label: 'Income & Expenses' },
   { id: 'cash-flow', label: 'Cash Flow' },
   { id: 'spending', label: 'Spending by Category' },
-  { id: 'sankey', label: 'Cash Flow Diagram' },
   { id: 'trends', label: 'Spending Trends' },
 ];
 
@@ -48,11 +46,8 @@ const CHART_HEIGHT: Record<Tab, string> = {
   'income': 'h-72',
   'cash-flow': 'h-72',
   'spending': 'h-96',
-  'sankey': 'h-[540px]',
   'trends': 'h-80',
 };
-
-const MIN_SAVINGS_CENTS = 500;
 
 function NetWorthChart({ from, to }: { from: string; to: string }) {
   const { data = [], isLoading } = useNetWorth(from, to);
@@ -174,10 +169,11 @@ function SpendingChart({ from, to }: { from: string; to: string }) {
   );
 }
 
-function SpendingTrendsChart({ from, to }: { from: string; to: string }) {
+function SpendingTrendsChart({ from, to, compact, topCategoryIds }: { from: string; to: string; compact?: boolean; topCategoryIds?: string[] }) {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const activeIds = compact && topCategoryIds?.length ? topCategoryIds : selectedIds;
   const { data: groups = [] } = useCategories();
-  const { data: trendData = [], isLoading } = useSpendingTrends(selectedIds, from, to);
+  const { data: trendData = [], isLoading } = useSpendingTrends(activeIds, from, to);
 
   const expenseCategories = useMemo(
     () => (groups as any[]).filter((g: any) => g.isIncome === 0).flatMap((g: any) => g.categories),
@@ -198,11 +194,11 @@ function SpendingTrendsChart({ from, to }: { from: string; to: string }) {
   }, [trendData]);
 
   const selectedNames = useMemo(() => {
-    return selectedIds.map(id => {
+    return activeIds.map(id => {
       const cat = expenseCategories.find((c: any) => c.id === id);
       return cat?.name ?? id;
     });
-  }, [selectedIds, expenseCategories]);
+  }, [activeIds, expenseCategories]);
 
   function toggleCategory(id: string) {
     setSelectedIds(prev =>
@@ -212,33 +208,35 @@ function SpendingTrendsChart({ from, to }: { from: string; to: string }) {
 
   return (
     <div className="h-full flex flex-col gap-3">
-      <div className="flex flex-wrap gap-1.5 shrink-0">
-        {expenseCategories.map((cat: any) => {
-          const checked = selectedIds.includes(cat.id);
-          const disabled = !checked && selectedIds.length >= 5;
-          return (
-            <button
-              key={cat.id}
-              onClick={() => !disabled && toggleCategory(cat.id)}
-              className={`px-2.5 py-1 text-xs font-medium rounded-full border transition-colors ${
-                checked
-                  ? 'bg-brand-50 border-brand-500 text-brand-700'
-                  : disabled
-                  ? 'bg-surface-alt border-border-light text-text-disabled cursor-not-allowed'
-                  : 'bg-surface border-border text-text-secondary hover:border-text-tertiary'
-              }`}
-            >
-              {cat.name}
-            </button>
-          );
-        })}
-        {expenseCategories.length === 0 && (
-          <span className="text-xs text-text-tertiary">No expense categories found.</span>
-        )}
-      </div>
+      {!compact && (
+        <div className="flex flex-wrap gap-1.5 shrink-0">
+          {expenseCategories.map((cat: any) => {
+            const checked = selectedIds.includes(cat.id);
+            const disabled = !checked && selectedIds.length >= 5;
+            return (
+              <button
+                key={cat.id}
+                onClick={() => !disabled && toggleCategory(cat.id)}
+                className={`px-2.5 py-1 text-xs font-medium rounded-full border transition-colors ${
+                  checked
+                    ? 'bg-brand-50 border-brand-500 text-brand-700'
+                    : disabled
+                    ? 'bg-surface-alt border-border-light text-text-disabled cursor-not-allowed'
+                    : 'bg-surface border-border text-text-secondary hover:border-text-tertiary'
+                }`}
+              >
+                {cat.name}
+              </button>
+            );
+          })}
+          {expenseCategories.length === 0 && (
+            <span className="text-xs text-text-tertiary">No expense categories found.</span>
+          )}
+        </div>
+      )}
 
       <div className="flex-1 min-h-0">
-        {selectedIds.length === 0 ? (
+        {activeIds.length === 0 ? (
           <EmptyState message="Select categories above to compare trends." />
         ) : isLoading ? (
           <ChartSkeleton />
@@ -271,176 +269,27 @@ function SpendingTrendsChart({ from, to }: { from: string; to: string }) {
   );
 }
 
-function SankeyDiagram({ from, to }: { from: string; to: string }) {
-  const { data: incomeData = [], isLoading: il } = useIncomeByCategory(from, to);
-  const { data: spendingData = [], isLoading: sl } = useSpendingByCategory(from, to);
-  const [tooltip, setTooltip] = useState<{ x: number; y: number; title: string; value: string } | null>(null);
-
-  const sankeyData = useMemo(() => {
-    if (!incomeData.length && !spendingData.length) return null;
-
-    const groupTotals = new Map<string, number>();
-    for (const item of spendingData) {
-      const key = item.groupName ?? 'Uncategorized';
-      groupTotals.set(key, (groupTotals.get(key) ?? 0) + item.totalSpent);
-    }
-    const sortedGroups = [...groupTotals.entries()].sort((a, b) => b[1] - a[1]);
-
-    const totalIncome = incomeData.reduce((sum, c) => sum + c.totalReceived, 0);
-    const totalExpenses = sortedGroups.reduce((sum, [, v]) => sum + v, 0);
-    const savings = totalIncome - totalExpenses;
-
-    const incomeNodes = incomeData.map(c => ({
-      name: c.categoryName ?? 'Income',
-      nodeType: 'income' as NodeType,
-      amount: c.totalReceived,
-      color: chartColors.positive,
-    }));
-
-    const hubIdx = incomeNodes.length;
-
-    const expenseNodes = sortedGroups.map(([name, amount], i) => ({
-      name,
-      nodeType: 'expense' as NodeType,
-      amount,
-      color: EXPENSE_COLORS[i % EXPENSE_COLORS.length],
-    }));
-
-    const savingsNode = savings > MIN_SAVINGS_CENTS
-      ? [{ name: 'Savings', nodeType: 'savings' as NodeType, amount: savings, color: '#8b5cf6' }]
-      : [];
-
-    const nodes = [
-      ...incomeNodes,
-      { name: 'Total Income', nodeType: 'hub' as NodeType, amount: totalIncome, color: chartColors.brand },
-      ...expenseNodes,
-      ...savingsNode,
-    ];
-
-    const links = [
-      ...incomeNodes.map((_, i) => ({ source: i, target: hubIdx, value: incomeData[i].totalReceived })),
-      ...sortedGroups.map(([, amount], i) => ({ source: hubIdx, target: hubIdx + 1 + i, value: amount })),
-      ...(savingsNode.length ? [{ source: hubIdx, target: nodes.length - 1, value: savings }] : []),
-    ].filter(l => l.value > 0);
-
-    return links.length ? { nodes, links } : null;
-  }, [incomeData, spendingData]);
-
-  const renderNode = useCallback((props: any) => {
-    const { x, y, width, height, payload } = props;
-    if (!payload || height < 1) return null;
-
-    const { name, nodeType, amount, color } = payload;
-    const isLeft = nodeType === 'income';
-    const labelX = isLeft ? x - 8 : x + width + 8;
-    const anchor = isLeft ? 'end' : 'start';
-    const midY = y + height / 2;
-
-    return (
-      <g
-        onMouseEnter={(e: React.MouseEvent) => setTooltip({ x: e.clientX, y: e.clientY, title: name, value: formatCurrency(amount) })}
-        onMouseLeave={() => setTooltip(null)}
-        style={{ cursor: 'default' }}
-      >
-        <rect x={x} y={y} width={width} height={height} fill={color} rx={3} />
-        <text
-          x={labelX}
-          y={height > 22 ? midY - 6 : midY + 1}
-          textAnchor={anchor}
-          fontSize={11}
-          fill="#374151"
-          fontWeight="500"
-        >
-          {name}
-        </text>
-        {height > 22 && (
-          <text x={labelX} y={midY + 9} textAnchor={anchor} fontSize={10} fill={chartColors.axis}>
-            {formatCentsAxis(amount)}
-          </text>
-        )}
-      </g>
-    );
-  }, [setTooltip]);
-
-  const renderLink = useCallback((props: any) => {
-    const { sourceX, sourceY, sourceControlX, targetX, targetY, targetControlX, linkWidth, payload } = props;
-    if (!linkWidth || linkWidth < 1) return null;
-
-    const halfW = linkWidth / 2;
-    const color = payload?.target?.color ?? '#94a3b8';
-    const d = [
-      `M${sourceX},${sourceY - halfW}`,
-      `C${sourceControlX},${sourceY - halfW} ${targetControlX},${targetY - halfW} ${targetX},${targetY - halfW}`,
-      `L${targetX},${targetY + halfW}`,
-      `C${targetControlX},${targetY + halfW} ${sourceControlX},${sourceY + halfW} ${sourceX},${sourceY + halfW}`,
-      'Z',
-    ].join(' ');
-
-    const srcName = payload?.source?.name ?? '';
-    const tgtName = payload?.target?.name ?? '';
-    const value = payload?.value ?? 0;
-
-    return (
-      <path
-        d={d}
-        fill={color}
-        fillOpacity={0.2}
-        stroke={color}
-        strokeWidth={0.5}
-        strokeOpacity={0.4}
-        onMouseEnter={(e: React.MouseEvent) => setTooltip({
-          x: e.clientX,
-          y: e.clientY,
-          title: `${srcName} → ${tgtName}`,
-          value: formatCurrency(value),
-        })}
-        onMouseLeave={() => setTooltip(null)}
-        style={{ cursor: 'default' }}
-      />
-    );
-  }, [setTooltip]);
-
-  if (il || sl) return <ChartSkeleton />;
-  if (!sankeyData) return <EmptyState />;
-
-  return (
-    <div className="relative w-full h-full">
-      <ResponsiveContainer width="100%" height="100%">
-        <Sankey
-          data={sankeyData}
-          nodePadding={14}
-          nodeWidth={18}
-          linkCurvature={0.5}
-          margin={{ top: 20, right: 220, left: 220, bottom: 20 }}
-          node={renderNode as any}
-          link={renderLink as any}
-        />
-      </ResponsiveContainer>
-      {tooltip && (
-        <div
-          className="fixed z-50 pointer-events-none bg-surface rounded-md shadow-hover border border-border px-3 py-2"
-          style={{ left: tooltip.x + 12, top: tooltip.y - 10 }}
-        >
-          <p className="text-xs font-medium text-text">{tooltip.title}</p>
-          <p className="text-xs text-positive font-medium">{tooltip.value}</p>
-        </div>
-      )}
-    </div>
-  );
-}
-
 const OVERVIEW_CHARTS: { id: Exclude<Tab, 'all'>; label: string }[] = [
   { id: 'net-worth', label: 'Net Worth' },
   { id: 'income', label: 'Income & Expenses' },
   { id: 'cash-flow', label: 'Cash Flow' },
   { id: 'spending', label: 'Spending by Category' },
-  { id: 'sankey', label: 'Cash Flow Diagram' },
   { id: 'trends', label: 'Spending Trends' },
 ];
 
 function OverviewGrid({ from, to, onSelectTab }: { from: string; to: string; onSelectTab: (tab: Tab) => void }) {
+  const { data: spData = [] } = useSpendingByCategory(from, to);
+  const topCategoryIds = useMemo(
+    () => [...spData]
+      .filter(d => d.categoryId)
+      .sort((a, b) => b.totalSpent - a.totalSpent)
+      .slice(0, 3)
+      .map(d => d.categoryId!),
+    [spData],
+  );
+
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
       {OVERVIEW_CHARTS.map(chart => (
         <button
           key={chart.id}
@@ -450,17 +299,12 @@ function OverviewGrid({ from, to, onSelectTab }: { from: string; to: string; onS
           <p className="text-xs font-medium text-text-secondary mb-2 group-hover:text-brand-600 transition-colors">
             {chart.label}
           </p>
-          <div className="h-48 pointer-events-none">
+          <div className="h-64 pointer-events-none">
             {chart.id === 'net-worth' && <NetWorthChart from={from} to={to} />}
             {chart.id === 'income' && <IncomeExpensesChart from={from} to={to} />}
             {chart.id === 'cash-flow' && <CashFlowChart from={from} to={to} />}
             {chart.id === 'spending' && <SpendingChart from={from} to={to} />}
-            {chart.id === 'sankey' && <SankeyDiagram from={from} to={to} />}
-            {chart.id === 'trends' && (
-              <div className="h-full flex items-center justify-center">
-                <p className="text-xs text-text-tertiary">Select categories to view trends</p>
-              </div>
-            )}
+            {chart.id === 'trends' && <SpendingTrendsChart from={from} to={to} compact topCategoryIds={topCategoryIds} />}
           </div>
         </button>
       ))}
@@ -470,8 +314,8 @@ function OverviewGrid({ from, to, onSelectTab }: { from: string; to: string; onS
 
 export default function ReportsPage() {
   const today = new Date();
-  const [preset, setPreset] = useState<Preset>('1m');
-  const [from, setFrom] = useState(() => format(today, 'yyyy-MM'));
+  const [preset, setPreset] = useState<Preset>('6m');
+  const [from, setFrom] = useState(() => format(subMonths(today, 5), 'yyyy-MM'));
   const [to, setTo] = useState(() => format(today, 'yyyy-MM'));
   const [activeTab, setActiveTab] = useState<Tab>('all');
 
@@ -494,12 +338,28 @@ export default function ReportsPage() {
   const { data: ieData = [] } = useIncomeVsExpenses(from, to);
   const { data: cfData = [] } = useCashFlow(from, to);
   const { data: spData = [] } = useSpendingByCategory(from, to);
-  const { data: incData = [] } = useIncomeByCategory(from, to);
 
   const statCards = useMemo((): StatCard[] => {
     switch (activeTab) {
-      case 'all':
-        return [];
+      case 'all': {
+        const cards: StatCard[] = [];
+        if (nwData.length) {
+          cards.push({ label: 'Net Worth', value: formatCurrency(nwData[nwData.length - 1].netWorth) });
+        }
+        const totalInc = ieData.reduce((s, d) => s + d.income, 0);
+        const totalExp = ieData.reduce((s, d) => s + d.expenses, 0);
+        if (totalInc > 0 || totalExp > 0) {
+          cards.push(
+            { label: 'Income', value: formatCurrency(totalInc) },
+            { label: 'Expenses', value: formatCurrency(totalExp) },
+          );
+        }
+        const periodNet = cfData.reduce((s, d) => s + d.net, 0);
+        if (cfData.length) {
+          cards.push({ label: 'Net Cash Flow', value: formatCurrency(periodNet) });
+        }
+        return cards;
+      }
       case 'net-worth': {
         if (!nwData.length) return [];
         const latest = nwData[nwData.length - 1].netWorth;
@@ -537,20 +397,10 @@ export default function ReportsPage() {
           { label: 'Categories', value: String(spData.length) },
         ];
       }
-      case 'sankey': {
-        const totalIncome = incData.reduce((s, d) => s + d.totalReceived, 0);
-        const totalExpenses = spData.reduce((s, d) => s + d.totalSpent, 0);
-        const savings = totalIncome - totalExpenses;
-        return [
-          { label: 'Total Income', value: formatCurrency(totalIncome) },
-          { label: 'Total Expenses', value: formatCurrency(totalExpenses) },
-          { label: 'Savings', value: formatCurrency(Math.max(savings, 0)) },
-        ];
-      }
       case 'trends':
         return [];
     }
-  }, [activeTab, nwData, ieData, cfData, spData, incData]);
+  }, [activeTab, nwData, ieData, cfData, spData]);
 
   function handleExport() {
     if (activeTab === 'all') return;
@@ -566,7 +416,6 @@ export default function ReportsPage() {
         downloadCsv(filename, cfData.map(d => ({ month: d.month, net_cents: d.net })));
         break;
       case 'spending':
-      case 'sankey':
         downloadCsv(filename, spData.map(d => ({ category: d.categoryName ?? 'Uncategorized', group: d.groupName ?? '', total_cents: d.totalSpent })));
         break;
       case 'trends':
@@ -648,20 +497,17 @@ export default function ReportsPage() {
       </div>
 
       <div className="flex-1 overflow-y-auto px-6 py-6">
+        <StatCardRow cards={statCards} />
         {activeTab === 'all' ? (
           <OverviewGrid from={from} to={to} onSelectTab={setActiveTab} />
         ) : (
-          <>
-            <StatCardRow cards={statCards} />
-            <div className={`w-full ${chartHeight}`}>
+          <div className={`w-full ${chartHeight}`}>
               {activeTab === 'net-worth' && <NetWorthChart from={from} to={to} />}
               {activeTab === 'income' && <IncomeExpensesChart from={from} to={to} />}
               {activeTab === 'cash-flow' && <CashFlowChart from={from} to={to} />}
               {activeTab === 'spending' && <SpendingChart from={from} to={to} />}
-              {activeTab === 'sankey' && <SankeyDiagram from={from} to={to} />}
               {activeTab === 'trends' && <SpendingTrendsChart from={from} to={to} />}
-            </div>
-          </>
+          </div>
         )}
       </div>
     </div>
