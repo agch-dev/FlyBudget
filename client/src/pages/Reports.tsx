@@ -7,7 +7,7 @@ import {
   ResponsiveContainer, Cell,
 } from 'recharts';
 import {
-  useNetWorth, useIncomeVsExpenses, useCashFlow,
+  useNetWorth, useIncomeVsExpenses,
   useSpendingByCategory, useSpendingTrends,
 } from '../hooks/useReports';
 import { useCategories } from '../hooks/useCategories';
@@ -19,14 +19,13 @@ import { Download, Plus } from 'lucide-react';
 import { CurrencyTooltip, ChartSkeleton, EmptyState, StatCardRow, EXPENSE_COLORS, monthLabel } from '../components/reports/ChartHelpers';
 import type { StatCard } from '../components/reports/ChartHelpers';
 
-type Tab = 'all' | 'net-worth' | 'income' | 'cash-flow' | 'spending' | 'trends';
+type Tab = 'all' | 'net-worth' | 'income' | 'spending' | 'trends';
 type Preset = '1m' | '3m' | '6m' | 'ytd' | 'last-year' | 'custom';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'all', label: 'All' },
   { id: 'net-worth', label: 'Net Worth' },
   { id: 'income', label: 'Income & Expenses' },
-  { id: 'cash-flow', label: 'Cash Flow' },
   { id: 'spending', label: 'Spending by Category' },
   { id: 'trends', label: 'Spending Trends' },
 ];
@@ -44,7 +43,6 @@ const CHART_HEIGHT: Record<Tab, string> = {
   'all': 'h-auto',
   'net-worth': 'h-72',
   'income': 'h-72',
-  'cash-flow': 'h-72',
   'spending': 'h-96',
   'trends': 'h-80',
 };
@@ -101,30 +99,6 @@ function IncomeExpensesChart({ from, to }: { from: string; to: string }) {
         <Tooltip content={<CurrencyTooltip />} />
         <Bar dataKey="income" name="Income" fill={chartColors.positive} radius={[3, 3, 0, 0]} maxBarSize={32} />
         <Bar dataKey="expenses" name="Expenses" fill={chartColors.negativeLight} radius={[3, 3, 0, 0]} maxBarSize={32} />
-      </BarChart>
-    </ResponsiveContainer>
-  );
-}
-
-function CashFlowChart({ from, to }: { from: string; to: string }) {
-  const { data = [], isLoading } = useCashFlow(from, to);
-  const chartData = useMemo(() => data.map(d => ({ ...d, month: monthLabel(d.month) })), [data]);
-
-  if (isLoading) return <ChartSkeleton />;
-  if (!chartData.length) return <EmptyState />;
-
-  return (
-    <ResponsiveContainer width="100%" height="100%">
-      <BarChart data={chartData} margin={{ top: 4, right: 16, left: 16, bottom: 0 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} vertical={false} />
-        <XAxis dataKey="month" tick={{ fontSize: 11, fill: chartColors.axis }} axisLine={false} tickLine={false} />
-        <YAxis tickFormatter={formatCentsAxis} tick={{ fontSize: 11, fill: chartColors.axis }} axisLine={false} tickLine={false} width={60} />
-        <Tooltip content={<CurrencyTooltip />} cursor={{ fill: 'rgba(37,99,235,0.1)' }} />
-        <Bar dataKey="net" name="Net Cash Flow" radius={[3, 3, 0, 0]} maxBarSize={40}>
-          {chartData.map((d, i) => (
-            <Cell key={i} fill={d.net >= 0 ? chartColors.positive : chartColors.negativeLight} />
-          ))}
-        </Bar>
       </BarChart>
     </ResponsiveContainer>
   );
@@ -272,7 +246,6 @@ function SpendingTrendsChart({ from, to, compact, topCategoryIds }: { from: stri
 const OVERVIEW_CHARTS: { id: Exclude<Tab, 'all'>; label: string }[] = [
   { id: 'net-worth', label: 'Net Worth' },
   { id: 'income', label: 'Income & Expenses' },
-  { id: 'cash-flow', label: 'Cash Flow' },
   { id: 'spending', label: 'Spending by Category' },
   { id: 'trends', label: 'Spending Trends' },
 ];
@@ -302,7 +275,6 @@ function OverviewGrid({ from, to, onSelectTab }: { from: string; to: string; onS
           <div className="h-64 pointer-events-none">
             {chart.id === 'net-worth' && <NetWorthChart from={from} to={to} />}
             {chart.id === 'income' && <IncomeExpensesChart from={from} to={to} />}
-            {chart.id === 'cash-flow' && <CashFlowChart from={from} to={to} />}
             {chart.id === 'spending' && <SpendingChart from={from} to={to} />}
             {chart.id === 'trends' && <SpendingTrendsChart from={from} to={to} compact topCategoryIds={topCategoryIds} />}
           </div>
@@ -336,7 +308,6 @@ export default function ReportsPage() {
 
   const { data: nwData = [] } = useNetWorth(from, to);
   const { data: ieData = [] } = useIncomeVsExpenses(from, to);
-  const { data: cfData = [] } = useCashFlow(from, to);
   const { data: spData = [] } = useSpendingByCategory(from, to);
 
   const statCards = useMemo((): StatCard[] => {
@@ -353,10 +324,6 @@ export default function ReportsPage() {
             { label: 'Income', value: formatCurrency(totalInc) },
             { label: 'Expenses', value: formatCurrency(totalExp) },
           );
-        }
-        const periodNet = cfData.reduce((s, d) => s + d.net, 0);
-        if (cfData.length) {
-          cards.push({ label: 'Net Cash Flow', value: formatCurrency(periodNet) });
         }
         return cards;
       }
@@ -382,14 +349,6 @@ export default function ReportsPage() {
           { label: 'Savings Rate', value: `${rate}%` },
         ];
       }
-      case 'cash-flow': {
-        const periodNet = cfData.reduce((s, d) => s + d.net, 0);
-        const positiveMonths = cfData.filter(d => d.net > 0).length;
-        return [
-          { label: 'Period Net', value: formatCurrency(periodNet) },
-          { label: 'Positive Months', value: `${positiveMonths} of ${cfData.length}` },
-        ];
-      }
       case 'spending': {
         const totalSpent = spData.reduce((s, d) => s + d.totalSpent, 0);
         return [
@@ -400,7 +359,7 @@ export default function ReportsPage() {
       case 'trends':
         return [];
     }
-  }, [activeTab, nwData, ieData, cfData, spData]);
+  }, [activeTab, nwData, ieData, spData]);
 
   function handleExport() {
     if (activeTab === 'all') return;
@@ -411,9 +370,6 @@ export default function ReportsPage() {
         break;
       case 'income':
         downloadCsv(filename, ieData.map(d => ({ month: d.month, income_cents: d.income, expenses_cents: d.expenses, net_cents: d.net })));
-        break;
-      case 'cash-flow':
-        downloadCsv(filename, cfData.map(d => ({ month: d.month, net_cents: d.net })));
         break;
       case 'spending':
         downloadCsv(filename, spData.map(d => ({ category: d.categoryName ?? 'Uncategorized', group: d.groupName ?? '', total_cents: d.totalSpent })));
@@ -504,7 +460,6 @@ export default function ReportsPage() {
           <div className={`w-full ${chartHeight}`}>
               {activeTab === 'net-worth' && <NetWorthChart from={from} to={to} />}
               {activeTab === 'income' && <IncomeExpensesChart from={from} to={to} />}
-              {activeTab === 'cash-flow' && <CashFlowChart from={from} to={to} />}
               {activeTab === 'spending' && <SpendingChart from={from} to={to} />}
               {activeTab === 'trends' && <SpendingTrendsChart from={from} to={to} />}
           </div>
