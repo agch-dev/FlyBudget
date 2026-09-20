@@ -1,9 +1,5 @@
 import { app, BrowserWindow, Menu } from 'electron';
 import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 const IS_DEV = process.env.ELECTRON_DEV === 'true';
 const PORT = 58342;
@@ -35,9 +31,14 @@ async function waitForServer(port: number, ms = 15000): Promise<void> {
 }
 
 function createWindow(): void {
+  const iconPath = IS_DEV
+    ? path.join(__dirname, '../../client/public/logo.png')
+    : path.join(__dirname, '../../build/icon.png');
+
   const win = new BrowserWindow({
     width: 1280,
     height: 800,
+    icon: iconPath,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,

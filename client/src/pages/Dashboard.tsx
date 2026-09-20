@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { format, subMonths } from 'date-fns';
-import { Building2, Link2, Plus, Wallet } from 'lucide-react';
+import { Building2, Link2, Plus } from 'lucide-react';
+import logoUrl from '/logo.png';
 import { useAccounts } from '../hooks/useAccounts';
 import { usePlaidStatus } from '../hooks/usePlaid';
 import { AddAccountModal } from '../components/accounts/AddAccountModal';
@@ -32,9 +33,7 @@ function WelcomeScreen() {
   return (
     <div className="flex-1 flex items-center justify-center p-6">
       <div className="max-w-2xl w-full text-center">
-        <div className="w-16 h-16 rounded-2xl bg-brand-50 flex items-center justify-center mx-auto mb-6">
-          <Wallet size={32} className="text-brand-600" />
-        </div>
+        <img src={logoUrl} alt="Budget" className="w-16 h-16 mx-auto mb-6" />
 
         <h1 className="text-2xl font-semibold text-text">Welcome to your budget</h1>
         <p className="text-sm text-text-secondary mt-2 max-w-md mx-auto">

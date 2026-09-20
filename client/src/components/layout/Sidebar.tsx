@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { useAppStore } from '../../store/appStore';
 import { SidebarAccountList } from './SidebarAccountList';
+import logoUrl from '/logo.png';
 
 interface NavItemProps {
   to: string;
@@ -46,9 +47,7 @@ export function Sidebar() {
     >
       {/* Logo */}
       <div className={`flex items-center gap-2.5 border-b border-sidebar-border ${collapsed ? 'justify-center px-2 py-3' : 'px-4 py-3'}`}>
-        <div className="w-7 h-7 rounded-lg bg-brand-600 flex items-center justify-center shrink-0">
-          <Wallet size={14} className="text-white" />
-        </div>
+        <img src={logoUrl} alt="Budget" className="w-7 h-7 shrink-0" />
         {!collapsed && <span className="text-sm font-semibold text-sidebar-text-hi tracking-tight">Budget</span>}
       </div>
 
