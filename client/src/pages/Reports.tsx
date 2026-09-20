@@ -316,9 +316,6 @@ export default function ReportsPage() {
     switch (activeTab) {
       case 'all': {
         const cards: StatCard[] = [];
-        if (nwData.length) {
-          cards.push({ label: 'Net Worth', value: formatCurrency(nwData[nwData.length - 1].netWorth) });
-        }
         const totalInc = ieData.reduce((s, d) => s + d.income, 0);
         const totalExp = ieData.reduce((s, d) => s + d.expenses, 0);
         if (totalInc > 0 || totalExp > 0) {
