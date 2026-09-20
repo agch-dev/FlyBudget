@@ -52,7 +52,8 @@ function NetWorthChart({ from, to }: { from: string; to: string }) {
   const chartData = useMemo(() => data.map(d => ({ ...d, month: monthLabel(d.month) })), [data]);
 
   if (isLoading) return <ChartSkeleton />;
-  if (!chartData.length) return <EmptyState />;
+  const hasData = chartData.length > 0 && data.some(d => d.assets !== 0 || d.liabilities !== 0 || d.netWorth !== 0);
+  if (!hasData) return <EmptyState />;
 
   return (
     <ResponsiveContainer width="100%" height="100%">
@@ -88,7 +89,8 @@ function IncomeExpensesChart({ from, to }: { from: string; to: string }) {
   const chartData = useMemo(() => data.map(d => ({ ...d, month: monthLabel(d.month) })), [data]);
 
   if (isLoading) return <ChartSkeleton />;
-  if (!chartData.length) return <EmptyState />;
+  const hasData = chartData.length > 0 && data.some(d => d.income !== 0 || d.expenses !== 0);
+  if (!hasData) return <EmptyState />;
 
   return (
     <ResponsiveContainer width="100%" height="100%">
