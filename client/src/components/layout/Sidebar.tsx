@@ -1,6 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import {
-  LayoutDashboard, Landmark, ArrowLeftRight, Wallet, Repeat, BarChart3,
+  LayoutDashboard, Landmark, ArrowLeftRight, Wallet, Repeat, BarChart3, Workflow,
   Target, Users, Zap, Settings, PanelLeftClose, PanelLeftOpen,
 } from 'lucide-react';
 import { useAppStore } from '../../store/appStore';
@@ -60,6 +60,7 @@ export function Sidebar() {
         <NavItem to="/budget" icon={<Wallet size={18} />} label="Budget" collapsed={collapsed} />
         <NavItem to="/recurring" icon={<Repeat size={18} />} label="Recurring" collapsed={collapsed} />
         <NavItem to="/reports" icon={<BarChart3 size={18} />} label="Reports" collapsed={collapsed} />
+        <NavItem to="/cash-flow" icon={<Workflow size={18} />} label="Cash Flow" collapsed={collapsed} />
         <NavItem to="/goals" icon={<Target size={18} />} label="Goals" collapsed={collapsed} />
       </nav>
 
