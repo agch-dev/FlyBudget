@@ -9,7 +9,7 @@ export const categoriesRouter = Router();
 
 const groupSchema = z.object({
   name: z.string().min(1),
-  isIncome: z.number().int().min(0).max(1).default(0),
+  isIncome: z.number().int().min(0).max(1),
 });
 
 const categorySchema = z.object({
