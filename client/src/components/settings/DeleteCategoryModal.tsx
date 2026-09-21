@@ -42,7 +42,7 @@ export function DeleteCategoryModal({ isOpen, onClose, onConfirm, categoryName, 
               {g.categories
                 .filter((c) => c.id !== categoryId)
                 .map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
+                  <option key={c.id} value={c.id}>{c.icon ? `${c.icon} ` : ''}{c.name}</option>
                 ))}
             </optgroup>
           ))}
