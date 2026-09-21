@@ -103,20 +103,14 @@ export function ConnectedAccounts() {
                 </Button>
               </div>
             </div>
-          ) : (
+          ) : plaidConfigured ? (
             <div className="bg-surface-alt rounded-lg px-5 py-8 text-center">
-              {plaidConfigured ? (
-                <>
-                  <p className="text-xs text-text-tertiary mb-3">No banks connected via Plaid yet.</p>
-                  <Button onClick={() => setShowConnect(true)}>
-                    <Plus size={14} /> Connect Bank
-                  </Button>
-                </>
-              ) : (
-                <p className="text-xs text-text-tertiary">Configure your Plaid credentials below to get started.</p>
-              )}
+              <p className="text-xs text-text-tertiary mb-3">No banks connected via Plaid yet.</p>
+              <Button onClick={() => setShowConnect(true)}>
+                <Plus size={14} /> Connect Bank
+              </Button>
             </div>
-          )}
+          ) : null}
 
           <div className="bg-surface-alt rounded-lg p-5 space-y-3">
             <h3 className="text-sm font-medium text-text">Plaid Configuration</h3>
