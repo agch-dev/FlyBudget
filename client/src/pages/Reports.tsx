@@ -57,7 +57,7 @@ function NetWorthChart({ from, to }: { from: string; to: string }) {
 
   return (
     <ResponsiveContainer width="100%" height="100%">
-      <AreaChart data={chartData} margin={{ top: 4, right: 16, left: 16, bottom: 0 }}>
+      <AreaChart data={chartData} margin={{ top: 4, right: 24, left: 16, bottom: 4 }}>
         <defs>
           <linearGradient id="gAssets" x1="0" y1="0" x2="0" y2="1">
             <stop offset="5%" stopColor={chartColors.positive} stopOpacity={0.15} />
