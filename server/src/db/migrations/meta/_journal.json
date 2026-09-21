@@ -57,6 +57,13 @@
       "when": 1789697257392,
       "tag": "0007_wild_purifiers",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1789947844875,
+      "tag": "0008_flaky_invaders",
+      "breakpoints": true
     }
   ]
 }

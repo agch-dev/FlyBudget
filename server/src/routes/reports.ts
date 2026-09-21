@@ -88,6 +88,7 @@ reportsRouter.get('/spending-by-category', (req, res) => {
     .select({
       categoryId: transactions.categoryId,
       categoryName: categories.name,
+      categoryIcon: categories.icon,
       groupName: categoryGroups.name,
       totalSpent: sql<number>`coalesce(sum(${transactions.amount}), 0)`,
     })
@@ -168,6 +169,7 @@ reportsRouter.get('/income-by-category', (req, res) => {
     .select({
       categoryId: transactions.categoryId,
       categoryName: categories.name,
+      categoryIcon: categories.icon,
       groupName: categoryGroups.name,
       totalReceived: sql<number>`coalesce(sum(${transactions.amount}), 0)`,
     })
@@ -194,6 +196,7 @@ reportsRouter.get('/spending-trends', (req, res) => {
     .select({
       categoryId: transactions.categoryId,
       categoryName: categories.name,
+      categoryIcon: categories.icon,
       month: sql<string>`strftime('%Y-%m', ${transactions.date})`,
       total: sql<number>`coalesce(sum(${transactions.amount}), 0)`,
     })

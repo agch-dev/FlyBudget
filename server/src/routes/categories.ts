@@ -15,6 +15,7 @@ const groupSchema = z.object({
 const categorySchema = z.object({
   groupId: z.string(),
   name: z.string().min(1),
+  icon: z.string().optional(),
 });
 
 categoriesRouter.get('/', (_req, res) => {
