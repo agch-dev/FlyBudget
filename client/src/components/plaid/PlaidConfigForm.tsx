@@ -25,7 +25,7 @@ export function PlaidConfigForm() {
             <h3 className="text-sm font-semibold text-text">Set Up Bank Sync</h3>
             <p className="text-xs text-text-secondary mt-1 leading-relaxed">
               Connect your bank accounts to automatically import transactions using Plaid.
-              You'll need a free Plaid developer account to get your API credentials.
+              A developer account is free and always includes up to 10 bank connections.
             </p>
             <a
               href="https://dashboard.plaid.com/signup"
