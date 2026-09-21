@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Loader2, CheckCircle2, Link2 } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
@@ -11,6 +11,7 @@ import type { SimplefinAccountMappingAction } from '../../api/simplefin';
 interface Props {
   isOpen: boolean;
   onClose: () => void;
+  initialSetupResult?: SimplefinSetupResult;
 }
 
 type Step = 'token' | 'mapping' | 'syncing' | 'done';
@@ -23,12 +24,27 @@ interface MappingChoice {
   accountType: AccountType;
 }
 
-export function SimplefinConnectModal({ isOpen, onClose }: Props) {
+export function SimplefinConnectModal({ isOpen, onClose, initialSetupResult }: Props) {
   const [step, setStep] = useState<Step>('token');
   const [token, setToken] = useState('');
   const [setupResult, setSetupResult] = useState<SimplefinSetupResult | null>(null);
   const [mappings, setMappings] = useState<MappingChoice[]>([]);
   const [syncSummary, setSyncSummary] = useState<{ added: number; accounts: number } | null>(null);
+
+  useEffect(() => {
+    if (isOpen && initialSetupResult) {
+      setSetupResult(initialSetupResult);
+      setMappings(
+        initialSetupResult.accounts.map((a: SimplefinDiscoveredAccount) => ({
+          simplefinAccountId: a.simplefinAccountId,
+          action: 'create' as const,
+          accountName: a.name,
+          accountType: 'checking' as AccountType,
+        }))
+      );
+      setStep('mapping');
+    }
+  }, [isOpen, initialSetupResult]);
 
   const setupSimplefin = useSetupSimplefin();
   const mapAccounts = useMapSimplefinAccounts();
@@ -104,8 +120,8 @@ export function SimplefinConnectModal({ isOpen, onClose }: Props) {
       {step === 'token' && (
         <div className="space-y-5">
           <div className="text-center py-4">
-            <div className="w-16 h-16 rounded-lg bg-emerald-50 flex items-center justify-center mx-auto mb-4">
-              <Link2 size={32} className="text-emerald-600" />
+            <div className="w-16 h-16 rounded-lg bg-brand-50 flex items-center justify-center mx-auto mb-4">
+              <Link2 size={32} className="text-brand-600" />
             </div>
             <h3 className="text-sm font-semibold text-text">Connect with SimpleFIN Bridge</h3>
             <p className="text-xs text-text-secondary mt-2 max-w-sm mx-auto leading-relaxed">
@@ -225,7 +241,7 @@ function SimplefinAccountMappingCard({ account, mapping, existingAccounts, linke
   );
 
   return (
-    <div className="bg-emerald-50 border border-emerald-100 rounded-lg p-4 space-y-3">
+    <div className="bg-brand-50 border border-brand-100 rounded-lg p-4 space-y-3">
       <div className="flex items-center justify-between">
         <span className="text-sm font-medium text-text">{account.name}</span>
         <span className="text-sm font-medium text-text-secondary">

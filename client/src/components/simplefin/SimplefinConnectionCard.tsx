@@ -31,13 +31,13 @@ export function SimplefinConnectionCard({ connection }: Props) {
       <div className="bg-surface border border-border-light rounded-lg p-5 space-y-4 shadow-card">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-emerald-600 flex items-center justify-center text-white font-semibold text-sm">
+            <div className="w-10 h-10 rounded-lg bg-brand-600 flex items-center justify-center text-white font-semibold text-sm">
               {initial}
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-sm font-semibold text-text">{connection.connectionName}</h3>
-                <span className="text-[10px] font-medium text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">SimpleFIN</span>
+                <span className="text-[10px] font-medium text-brand-600 bg-brand-50 px-1.5 py-0.5 rounded">SimpleFIN</span>
               </div>
               <span className="inline-flex items-center gap-1.5 text-xs font-medium text-text-secondary mt-0.5">
                 {connection.syncStatus === 'syncing' ? (

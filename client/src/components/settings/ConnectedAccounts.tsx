@@ -7,7 +7,9 @@ import { ConnectBankModal } from '../plaid/ConnectBankModal';
 import { ConnectedInstitutionCard } from '../plaid/ConnectedInstitutionCard';
 import { SimplefinConnectModal } from '../simplefin/SimplefinConnectModal';
 import { SimplefinConnectionCard } from '../simplefin/SimplefinConnectionCard';
+import { SimplefinConfigForm } from '../simplefin/SimplefinConfigForm';
 import { Button } from '../ui/Button';
+import type { SimplefinSetupResult } from '../../types';
 
 type Provider = 'plaid' | 'simplefin';
 
@@ -20,6 +22,7 @@ export function ConnectedAccounts() {
   const [provider, setProvider] = useState<Provider>('plaid');
   const [showConnect, setShowConnect] = useState(false);
   const [showSimplefin, setShowSimplefin] = useState(false);
+  const [sfSetupResult, setSfSetupResult] = useState<SimplefinSetupResult | undefined>();
 
   const plaidConfigured = status?.configured ?? false;
   const isLoading = statusLoading || itemsLoading || sfLoading;
@@ -66,7 +69,7 @@ export function ConnectedAccounts() {
         >
           SimpleFIN
           {sfConnections.length > 0 && (
-            <span className="ml-1.5 text-[10px] bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded-full">{sfConnections.length}</span>
+            <span className="ml-1.5 text-[10px] bg-brand-50 text-brand-600 px-1.5 py-0.5 rounded-full">{sfConnections.length}</span>
           )}
         </button>
       </div>
@@ -127,10 +130,6 @@ export function ConnectedAccounts() {
       {/* SimpleFIN content */}
       {provider === 'simplefin' && (
         <div className="space-y-4">
-          <p className="text-xs text-text-tertiary">
-            SimpleFIN Bridge connects to your bank without requiring API credentials. $1.50/month paid directly to SimpleFIN.
-          </p>
-
           {syncAllSf.isSuccess && syncAllSf.data && (
             <div className="bg-positive-subtle border border-positive/10 rounded-md px-4 py-2">
               <p className="text-xs text-positive">
@@ -158,19 +157,31 @@ export function ConnectedAccounts() {
                 </Button>
               </div>
             </div>
-          ) : (
-            <div className="bg-surface-alt rounded-lg px-5 py-8 text-center">
-              <p className="text-xs text-text-tertiary mb-3">No SimpleFIN connections yet.</p>
-              <Button onClick={() => setShowSimplefin(true)}>
-                <Plus size={14} /> Connect via SimpleFIN
-              </Button>
-            </div>
-          )}
+          ) : null}
+
+          <div className="bg-surface-alt rounded-lg p-5 space-y-3">
+            <h3 className="text-sm font-medium text-text">SimpleFIN Configuration</h3>
+            {sfConnections.length === 0 && (
+              <p className="text-xs text-text-tertiary">
+                Enter your SimpleFIN setup token to enable bank connections.
+              </p>
+            )}
+            <SimplefinConfigForm
+              onSetupComplete={(result) => {
+                setSfSetupResult(result);
+                setShowSimplefin(true);
+              }}
+            />
+          </div>
         </div>
       )}
 
       <ConnectBankModal isOpen={showConnect} onClose={() => setShowConnect(false)} />
-      <SimplefinConnectModal isOpen={showSimplefin} onClose={() => setShowSimplefin(false)} />
+      <SimplefinConnectModal
+        isOpen={showSimplefin}
+        onClose={() => { setShowSimplefin(false); setSfSetupResult(undefined); }}
+        initialSetupResult={sfSetupResult}
+      />
     </div>
   );
 }
