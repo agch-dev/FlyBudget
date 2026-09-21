@@ -61,7 +61,7 @@ export default function NetWorthMini({ sixMonthsAgo, currentMonth }: Props) {
       {chartData.length > 1 && (
         <div className="h-28 mt-4">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData} margin={{ top: 4, right: 4, left: 4, bottom: 0 }}>
+            <AreaChart data={chartData} margin={{ top: 4, right: 8, left: 8, bottom: 0 }}>
               <defs>
                 <linearGradient id="gNetMini" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor={chartColors.brand} stopOpacity={0.15} />
@@ -73,6 +73,7 @@ export default function NetWorthMini({ sixMonthsAgo, currentMonth }: Props) {
                 tick={{ fontSize: 10, fill: chartColors.axis }}
                 axisLine={false}
                 tickLine={false}
+                padding={{ left: 8, right: 8 }}
               />
               <YAxis hide domain={['auto', 'auto']} />
               <Tooltip content={<MiniTooltip />} />

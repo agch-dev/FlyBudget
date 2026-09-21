@@ -73,7 +73,7 @@ function NetWorthChart({ from, to }: { from: string; to: string }) {
           </linearGradient>
         </defs>
         <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />
-        <XAxis dataKey="month" tick={{ fontSize: 11, fill: chartColors.axis }} axisLine={false} tickLine={false} />
+        <XAxis dataKey="month" tick={{ fontSize: 11, fill: chartColors.axis }} axisLine={false} tickLine={false} padding={{ left: 8, right: 8 }} />
         <YAxis tickFormatter={formatCentsAxis} tick={{ fontSize: 11, fill: chartColors.axis }} axisLine={false} tickLine={false} width={60} domain={['auto', 'auto']} />
         <Tooltip content={<CurrencyTooltip />} />
         <Area type="monotone" dataKey="assets" name="Assets" stroke={chartColors.positiveLight} strokeWidth={2} fill="url(#gAssets)" dot={false} />
