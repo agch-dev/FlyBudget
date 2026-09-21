@@ -6,8 +6,8 @@ import { formatCurrency } from '../../utils/currency';
 
 interface Props {
   tx: Transaction;
-  categoryName: string;
-  categoryMap: Map<string, string>;
+  categoryEntry: { name: string; icon: string | null } | null;
+  categoryMap: Map<string, { name: string; icon: string | null }>;
   accountName?: string;
   showAccountCol?: boolean;
   onEdit: (id: string) => void;
@@ -15,7 +15,7 @@ interface Props {
   onToggleCleared: (id: string, cleared: number) => void;
 }
 
-export function TransactionRow({ tx, categoryName, categoryMap, accountName, showAccountCol, onEdit, onDelete, onToggleCleared }: Props) {
+export function TransactionRow({ tx, categoryEntry, categoryMap, accountName, showAccountCol, onEdit, onDelete, onToggleCleared }: Props) {
   const [expanded, setExpanded] = useState(false);
   const isTransfer = !!tx.transferTransactionId;
   const isSplitParent = tx.isParent === 1 && tx.children && tx.children.length > 0;
@@ -49,8 +49,10 @@ export function TransactionRow({ tx, categoryName, categoryMap, accountName, sho
             </button>
           ) : isTransfer ? (
             <span className="text-brand-500 text-xs">Transfer</span>
+          ) : categoryEntry ? (
+            <span>{categoryEntry.icon ? `${categoryEntry.icon} ` : ''}{categoryEntry.name}</span>
           ) : (
-            categoryName || <span className="text-text-disabled">—</span>
+            <span className="text-text-disabled">—</span>
           )}
         </td>
         <td className="px-3 py-1.5 text-sm text-text-tertiary">{tx.notes ?? ''}</td>
@@ -96,7 +98,7 @@ export function TransactionRow({ tx, categoryName, categoryMap, accountName, sho
           <td />
           <td />
           <td className="px-3 py-1.5 text-xs text-text-tertiary pl-8">
-            {child.categoryId ? categoryMap.get(child.categoryId) ?? '—' : '—'}
+            {child.categoryId ? (() => { const e = categoryMap.get(child.categoryId!); return e ? `${e.icon ? e.icon + ' ' : ''}${e.name}` : '—'; })() : '—'}
           </td>
           <td className="px-3 py-1.5 text-xs text-text-tertiary">{child.notes ?? ''}</td>
           <td className="px-3 py-1.5 text-xs text-right tabular-nums text-text-secondary">

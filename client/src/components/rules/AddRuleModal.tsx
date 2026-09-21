@@ -171,7 +171,7 @@ export function AddRuleModal({ isOpen, onClose, onSave, editRule }: Props) {
                   >
                     <option value="">Select category…</option>
                     {allCategories.map((c: any) => (
-                      <option key={c.id} value={c.id}>{c.groupName} → {c.name}</option>
+                      <option key={c.id} value={c.id}>{c.groupName} → {c.icon ? `${c.icon} ` : ''}{c.name}</option>
                     ))}
                   </select>
                 ) : a.field === 'payee_id' ? (

@@ -112,7 +112,7 @@ function SpendingChart({ from, to }: { from: string; to: string }) {
     () => [...data]
       .sort((a, b) => b.totalSpent - a.totalSpent)
       .slice(0, 15)
-      .map(d => ({ name: d.categoryName ?? 'Uncategorized', value: d.totalSpent })),
+      .map(d => ({ name: `${d.categoryIcon ? d.categoryIcon + ' ' : ''}${d.categoryName ?? 'Uncategorized'}`, value: d.totalSpent })),
     [data],
   );
 
@@ -163,7 +163,10 @@ function SpendingTrendsChart({ from, to, compact, topCategoryIds }: { from: stri
     return months.map(month => {
       const row: Record<string, string | number> = { month: monthLabel(month) };
       for (const point of trendData) {
-        if (point.month === month) row[point.categoryName ?? point.categoryId] = point.total;
+        if (point.month === month) {
+          const key = point.categoryName ? `${point.categoryIcon ? point.categoryIcon + ' ' : ''}${point.categoryName}` : point.categoryId;
+          row[key] = point.total;
+        }
       }
       return row;
     });
@@ -172,7 +175,7 @@ function SpendingTrendsChart({ from, to, compact, topCategoryIds }: { from: stri
   const selectedNames = useMemo(() => {
     return activeIds.map(id => {
       const cat = expenseCategories.find((c: any) => c.id === id);
-      return cat?.name ?? id;
+      return cat ? `${cat.icon ? cat.icon + ' ' : ''}${cat.name}` : id;
     });
   }, [activeIds, expenseCategories]);
 
@@ -201,7 +204,7 @@ function SpendingTrendsChart({ from, to, compact, topCategoryIds }: { from: stri
                     : 'bg-surface border-border text-text-secondary hover:border-text-tertiary'
                 }`}
               >
-                {cat.name}
+                {cat.icon ? `${cat.icon} ` : ''}{cat.name}
               </button>
             );
           })}
@@ -371,7 +374,7 @@ export default function ReportsPage() {
         downloadCsv(filename, ieData.map(d => ({ month: d.month, income_cents: d.income, expenses_cents: d.expenses, net_cents: d.net })));
         break;
       case 'spending':
-        downloadCsv(filename, spData.map(d => ({ category: d.categoryName ?? 'Uncategorized', group: d.groupName ?? '', total_cents: d.totalSpent })));
+        downloadCsv(filename, spData.map(d => ({ category: `${d.categoryIcon ? d.categoryIcon + ' ' : ''}${d.categoryName ?? 'Uncategorized'}`, group: d.groupName ?? '', total_cents: d.totalSpent })));
         break;
       case 'trends':
         break;

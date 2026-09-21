@@ -94,7 +94,7 @@ export default function CategoryTreePicker({ selectedCategoryIds, selectedGroupI
                     onChange={() => toggleCategory(c.id)}
                     className="rounded border-border text-brand-600 focus:ring-brand-600"
                   />
-                  <span className="text-sm text-text-secondary">{c.name}</span>
+                  <span className="text-sm text-text-secondary">{c.icon ? `${c.icon} ` : ''}{c.name}</span>
                 </label>
               ))}
             </div>

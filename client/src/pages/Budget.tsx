@@ -57,7 +57,7 @@ function CategoryRow({ cat, isIncome, editingId, onStartEdit, onSave, onCancel }
   return (
     <tr className="hover:bg-brand-50 border-b border-border-light group">
       <td className="py-2 pl-10 pr-3 text-sm text-text-secondary">
-        {cat.name}
+        {cat.icon ? `${cat.icon} ` : ''}{cat.name}
         {!isIncome && cat.carryOver !== 0 && (
           <span className={`ml-2 text-xs ${cat.carryOver > 0 ? 'text-positive' : 'text-negative'}`} title="Carried from prior months">
             ({cat.carryOver > 0 ? '+' : ''}{formatCurrency(cat.carryOver)})

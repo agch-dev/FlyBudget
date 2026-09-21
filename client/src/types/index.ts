@@ -41,6 +41,7 @@ export interface Category {
   id: string;
   groupId: string;
   name: string;
+  icon: string | null;
   sortOrder: number;
   createdAt: string;
 }
@@ -78,6 +79,7 @@ export interface BudgetCategory {
   id: string;
   groupId: string;
   name: string;
+  icon: string | null;
   sortOrder: number;
   createdAt: string;
   budgeted: number;
@@ -118,9 +120,9 @@ export interface Account {
 export interface NetWorthPoint { month: string; assets: number; liabilities: number; netWorth: number; }
 export interface IncomeExpensesPoint { month: string; income: number; expenses: number; net: number; }
 export interface CashFlowPoint { month: string; net: number; }
-export interface SpendingByCategory { categoryId: string | null; categoryName: string | null; groupName: string | null; totalSpent: number; }
-export interface IncomeByCategoryItem { categoryId: string | null; categoryName: string | null; groupName: string | null; totalReceived: number; }
-export interface SpendingTrendPoint { categoryId: string; categoryName: string | null; month: string; total: number; }
+export interface SpendingByCategory { categoryId: string | null; categoryName: string | null; categoryIcon: string | null; groupName: string | null; totalSpent: number; }
+export interface IncomeByCategoryItem { categoryId: string | null; categoryName: string | null; categoryIcon: string | null; groupName: string | null; totalReceived: number; }
+export interface SpendingTrendPoint { categoryId: string; categoryName: string | null; categoryIcon: string | null; month: string; total: number; }
 
 // Custom Reports
 export type ChartType = 'bar' | 'stacked-bar' | 'line' | 'area' | 'donut' | 'table';

@@ -23,7 +23,7 @@ export default function UpcomingTab({ onEdit, allRecurring }: Props) {
   const accountMap = useMemo(() => new Map(accounts.map((a) => [a.id, a.name])), [accounts]);
   const categoryMap = useMemo(() => {
     const map = new Map<string, string>();
-    for (const g of groups) for (const c of g.categories) map.set(c.id, c.name);
+    for (const g of groups) for (const c of g.categories) map.set(c.id, `${c.icon ? c.icon + ' ' : ''}${c.name}`);
     return map;
   }, [groups]);
 

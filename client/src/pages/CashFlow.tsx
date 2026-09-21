@@ -44,7 +44,7 @@ function SankeyDiagram({ from, to }: { from: string; to: string }) {
     const savings = totalIncome - totalExpenses;
 
     const incomeNodes = incomeData.map(c => ({
-      name: c.categoryName ?? 'Income',
+      name: `${c.categoryIcon ? c.categoryIcon + ' ' : ''}${c.categoryName ?? 'Income'}`,
       nodeType: 'income' as NodeType,
       amount: c.totalReceived,
       color: chartColors.positive,
@@ -220,7 +220,7 @@ export default function CashFlowPage() {
   function handleExport() {
     const filename = `cash-flow-${from}-${to}.csv`;
     downloadCsv(filename, spData.map(d => ({
-      category: d.categoryName ?? 'Uncategorized',
+      category: `${d.categoryIcon ? d.categoryIcon + ' ' : ''}${d.categoryName ?? 'Uncategorized'}`,
       group: d.groupName ?? '',
       total_cents: d.totalSpent,
     })));

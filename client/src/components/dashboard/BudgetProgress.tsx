@@ -61,7 +61,7 @@ export default function BudgetProgress({ currentMonth }: Props) {
             return (
               <div key={cat.id}>
                 <div className="flex items-center justify-between mb-0.5">
-                  <span className="text-sm text-text-secondary truncate mr-2">{cat.name}</span>
+                  <span className="text-sm text-text-secondary truncate mr-2">{cat.icon ? `${cat.icon} ` : ''}{cat.name}</span>
                   <span className="text-xs text-text-tertiary tabular-nums whitespace-nowrap">
                     {formatCurrency(cat.spent)} / {formatCurrency(cat.budgeted)}
                   </span>

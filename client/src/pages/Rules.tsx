@@ -42,7 +42,8 @@ function actionSummary(actions: RuleAction[], categories: any[], payees: any[]):
   const a = actions[0];
   let val = a.value;
   if (a.field === 'category_id') {
-    val = categories.find((c: any) => c.id === a.value)?.name ?? a.value;
+    const cat = categories.find((c: any) => c.id === a.value);
+    val = cat ? `${cat.icon ? cat.icon + ' ' : ''}${cat.name}` : a.value;
   } else if (a.field === 'payee_id') {
     val = payees.find((p: any) => p.id === a.value)?.name ?? a.value;
   }

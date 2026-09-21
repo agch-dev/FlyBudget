@@ -13,10 +13,10 @@ export default function RecentTransactions() {
   const { data: accounts = [] } = useAccounts();
 
   const categoryMap = useMemo(() => {
-    const map = new Map<string, string>();
+    const map = new Map<string, { name: string; icon: string | null }>();
     for (const g of categoryGroups) {
       for (const c of g.categories) {
-        map.set(c.id, c.name);
+        map.set(c.id, { name: c.name, icon: c.icon });
       }
     }
     return map;
@@ -60,7 +60,7 @@ export default function RecentTransactions() {
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-text truncate">{tx.payeeName || 'No payee'}</p>
                 <p className="text-xs text-text-tertiary truncate">
-                  {tx.categoryId ? categoryMap.get(tx.categoryId) || 'Uncategorized' : 'Uncategorized'}
+                  {tx.categoryId ? (() => { const e = categoryMap.get(tx.categoryId!); return e ? `${e.icon ? e.icon + ' ' : ''}${e.name}` : 'Uncategorized'; })() : 'Uncategorized'}
                   {' · '}
                   {accountMap.get(tx.accountId) || ''}
                 </p>

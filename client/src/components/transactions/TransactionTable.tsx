@@ -39,9 +39,9 @@ export function TransactionTable({ accountId }: Props) {
   const toggleCleared = useToggleCleared();
 
   const categoryMap = useMemo(() => {
-    const map = new Map<string, string>();
+    const map = new Map<string, { name: string; icon: string | null }>();
     for (const g of groups as CategoryGroup[]) {
-      for (const c of g.categories) map.set(c.id, c.name);
+      for (const c of g.categories) map.set(c.id, { name: c.name, icon: c.icon });
     }
     return map;
   }, [groups]);
@@ -135,7 +135,7 @@ export function TransactionTable({ accountId }: Props) {
                 <TransactionRow
                   key={tx.id}
                   tx={tx}
-                  categoryName={tx.categoryId ? (categoryMap.get(tx.categoryId) ?? '') : ''}
+                  categoryEntry={tx.categoryId ? (categoryMap.get(tx.categoryId) ?? null) : null}
                   categoryMap={categoryMap}
                   accountName={showAccountCol ? accountMap.get(tx.accountId) : undefined}
                   showAccountCol={showAccountCol}

@@ -22,7 +22,7 @@ export function CategorySelect({ value, onChange, groups, accounts, currentAccou
       {groups.map((g) => (
         <optgroup key={g.id} label={g.name}>
           {g.categories.map((c) => (
-            <option key={c.id} value={c.id}>{c.name}</option>
+            <option key={c.id} value={c.id}>{c.icon ? `${c.icon} ` : ''}{c.name}</option>
           ))}
         </optgroup>
       ))}
