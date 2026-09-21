@@ -6,7 +6,8 @@
     "dev": "tsx watch src/index.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:seed": "tsx src/db/seed.ts"
+    "db:seed": "tsx src/db/seed.ts",
+    "db:seed-rich": "tsx src/db/seed-rich.ts"
   },
   "dependencies": {
     "better-sqlite3": "^12.9.0",
