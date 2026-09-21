@@ -10,7 +10,7 @@ const styles: Record<Variant, string> = {
   savings:    'bg-positive-subtle text-positive',
   credit:     'bg-caution-subtle text-caution',
   cash:       'bg-surface-alt text-text-secondary',
-  investment: 'bg-purple-100 text-purple-700',
+  investment: 'bg-invest-bg text-invest-text',
   positive:   'bg-positive-subtle text-positive',
   negative:   'bg-negative-subtle text-negative',
 };

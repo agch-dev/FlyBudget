@@ -123,7 +123,7 @@ export default function PayeesPage() {
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 placeholder="Search payees…"
-                className="pl-8 pr-3 py-1.5 text-sm border border-border rounded-full focus:outline-none focus:ring-1 focus:ring-brand-600 focus:border-brand-600"
+                className="pl-8 pr-3 py-1.5 text-sm border border-border rounded-full bg-surface text-text focus:outline-none focus:ring-1 focus:ring-brand-600 focus:border-brand-600"
               />
             </div>
           </div>
@@ -188,7 +188,7 @@ export default function PayeesPage() {
                     <select
                       value={p.defaultCategoryId ?? ''}
                       onChange={e => handleCategoryChange(p.id, e.target.value)}
-                      className="text-sm border border-border rounded-md px-2 py-1 bg-surface focus:outline-none focus:ring-1 focus:ring-brand-600 max-w-[220px]"
+                      className="text-sm border border-border rounded-md px-2 py-1 bg-surface text-text focus:outline-none focus:ring-1 focus:ring-brand-600 max-w-[220px]"
                     >
                       <option value="">No default</option>
                       {allCategories.map((c: any) => (

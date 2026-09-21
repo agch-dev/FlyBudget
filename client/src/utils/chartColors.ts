@@ -1,3 +1,8 @@
+function cssVar(name: string, fallback: string): string {
+  if (typeof document === 'undefined') return fallback;
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
+}
+
 export const chartColors = {
   brand: '#2563EB',
   brandLight: '#3B82F6',
@@ -14,10 +19,12 @@ export const chartColors = {
 
   caution: '#D97706',
 
-  grid: '#F3F4F6',
-  axis: '#9CA3AF',
-  tooltipBorder: '#E5E7EB',
-} as const;
+  get grid() { return cssVar('--color-chart-grid', '#F3F4F6'); },
+  get axis() { return cssVar('--color-chart-axis', '#9CA3AF'); },
+  get tooltipBorder() { return cssVar('--color-chart-tooltip-border', '#E5E7EB'); },
+  get tooltipBg() { return cssVar('--color-chart-tooltip-bg', '#FFFFFF'); },
+  get label() { return cssVar('--color-chart-label', '#374151'); },
+};
 
 export const CATEGORY_COLORS = [
   '#2563EB', // brand blue

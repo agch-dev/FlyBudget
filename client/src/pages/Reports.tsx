@@ -124,7 +124,7 @@ function SpendingChart({ from, to }: { from: string; to: string }) {
       <BarChart data={chartData} layout="vertical" margin={{ top: 4, right: 24, left: 8, bottom: 0 }}>
         <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} horizontal={false} />
         <XAxis type="number" tickFormatter={formatCentsAxis} tick={{ fontSize: 11, fill: chartColors.axis }} axisLine={false} tickLine={false} />
-        <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: '#6B7280' }} axisLine={false} tickLine={false} width={110} />
+        <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: chartColors.axis }} axisLine={false} tickLine={false} width={110} />
         <Tooltip
           content={({ active, payload, label }) =>
             active && payload?.length ? (
@@ -412,7 +412,7 @@ export default function ReportsPage() {
                   value={from}
                   max={to}
                   onChange={(e) => setFrom(e.target.value)}
-                  className="text-sm border border-border rounded-md px-2 py-1 text-text focus:outline-none focus:ring-1 focus:ring-brand-600 focus:border-brand-600"
+                  className="text-sm border border-border rounded-md px-2 py-1 bg-surface text-text focus:outline-none focus:ring-1 focus:ring-brand-600 focus:border-brand-600"
                 />
                 <span className="text-xs text-text-tertiary">to</span>
                 <input
@@ -421,7 +421,7 @@ export default function ReportsPage() {
                   min={from}
                   max={format(today, 'yyyy-MM')}
                   onChange={(e) => setTo(e.target.value)}
-                  className="text-sm border border-border rounded-md px-2 py-1 text-text focus:outline-none focus:ring-1 focus:ring-brand-600 focus:border-brand-600"
+                  className="text-sm border border-border rounded-md px-2 py-1 bg-surface text-text focus:outline-none focus:ring-1 focus:ring-brand-600 focus:border-brand-600"
                 />
               </>
             )}

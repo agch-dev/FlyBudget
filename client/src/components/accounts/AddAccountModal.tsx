@@ -40,7 +40,7 @@ export function AddAccountModal({ isOpen, onClose }: Props) {
             onChange={(e) => setName(e.target.value)}
             placeholder="e.g. Chase Checking"
             autoFocus
-            className="block w-full rounded-lg border border-border px-3 py-2 text-sm text-text placeholder-text-tertiary focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+            className="block w-full rounded-lg border border-border px-3 py-2 text-sm bg-surface text-text placeholder-text-tertiary focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
           />
         </div>
 
@@ -49,7 +49,7 @@ export function AddAccountModal({ isOpen, onClose }: Props) {
           <select
             value={type}
             onChange={(e) => setType(e.target.value as AccountType)}
-            className="block w-full rounded-lg border border-border px-3 py-2 text-sm text-text focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
+            className="block w-full rounded-lg border border-border px-3 py-2 text-sm bg-surface text-text focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
           >
             {ACCOUNT_TYPES.map((t) => (
               <option key={t.value} value={t.value}>{t.label}</option>

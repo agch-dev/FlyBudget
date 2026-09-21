@@ -89,7 +89,7 @@ export function TransactionFilters({ state, onChange }: Props) {
           value={rawSearch}
           onChange={handleSearchChange}
           placeholder="Search payee or notes…"
-          className="w-full pl-8 pr-3 py-1.5 text-sm border border-border rounded-full focus:border-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-600"
+          className="w-full pl-8 pr-3 py-1.5 text-sm border border-border rounded-full bg-surface text-text focus:border-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-600"
         />
         {rawSearch && (
           <button

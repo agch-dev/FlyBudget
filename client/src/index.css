@@ -52,11 +52,75 @@
   --shadow-hover: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -2px rgba(0,0,0,0.03);
   --shadow-modal: 0 20px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.06);
 
+  /* Chart */
+  --color-chart-grid: #F3F4F6;
+  --color-chart-axis: #9CA3AF;
+  --color-chart-tooltip-bg: #FFFFFF;
+  --color-chart-tooltip-border: #E5E7EB;
+  --color-chart-label: #374151;
+
+  /* Investment badge */
+  --color-invest-bg: #EDE9FE;
+  --color-invest-text: #6D28D9;
+
   /* Radii */
   --radius-sm: 6px;
   --radius-md: 8px;
   --radius-lg: 10px;
   --radius-xl: 14px;
+}
+
+.dark {
+  --color-page:        #0F1117;
+  --color-surface:     #1A1F2E;
+  --color-surface-alt: #232836;
+  --color-hover:       #282D3E;
+
+  --color-border:       #333A4A;
+  --color-border-light: #282D3E;
+
+  --color-text:           #F1F3F5;
+  --color-text-secondary: #9CA3AF;
+  --color-text-tertiary:  #6B7280;
+  --color-text-disabled:  #4B5563;
+
+  --color-brand-50:  #172554;
+  --color-brand-100: #1E3A5F;
+  --color-brand-200: #1E40AF;
+  --color-brand-300: #2563EB;
+  --color-brand-500: #3B82F6;
+  --color-brand-600: #60A5FA;
+  --color-brand-700: #93BBFD;
+  --color-brand-800: #BFDBFE;
+
+  --color-positive:        #34D399;
+  --color-positive-subtle: rgba(16, 185, 129, 0.15);
+  --color-negative:        #F87171;
+  --color-negative-subtle: rgba(239, 68, 68, 0.15);
+  --color-caution:         #FBBF24;
+  --color-caution-subtle:  rgba(245, 158, 11, 0.15);
+
+  --color-sidebar-bg:      #0D1017;
+  --color-sidebar-deep:    #080A0F;
+  --color-sidebar-hover:   rgba(255,255,255,0.06);
+  --color-sidebar-active:  rgba(96,165,250,0.15);
+  --color-sidebar-border:  rgba(255,255,255,0.06);
+  --color-sidebar-text:    #9CA3AF;
+  --color-sidebar-text-hi: #F1F3F5;
+
+  --color-chart-grid: #282D3E;
+  --color-chart-axis: #6B7280;
+  --color-chart-tooltip-bg: #232836;
+  --color-chart-tooltip-border: #333A4A;
+  --color-chart-label: #D1D5DB;
+
+  --color-invest-bg: rgba(109, 40, 217, 0.2);
+  --color-invest-text: #A78BFA;
+
+  --shadow-xs:    0 1px 2px rgba(0,0,0,0.3);
+  --shadow-card:  0 1px 3px rgba(0,0,0,0.4);
+  --shadow-hover: 0 4px 12px rgba(0,0,0,0.4);
+  --shadow-modal: 0 20px 60px rgba(0,0,0,0.6);
 }
 
 body {
@@ -68,7 +132,7 @@ body {
 /* Scrollbar */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #2563EB transparent;
+  scrollbar-color: var(--color-brand-600) transparent;
 }
 *::-webkit-scrollbar {
   width: 6px;
@@ -78,11 +142,11 @@ body {
   background: transparent;
 }
 *::-webkit-scrollbar-thumb {
-  background: #2563EB;
+  background: var(--color-brand-600);
   border-radius: 3px;
 }
 *::-webkit-scrollbar-thumb:hover {
-  background: #1D4ED8;
+  background: var(--color-brand-700);
 }
 
 .recharts-wrapper:focus,

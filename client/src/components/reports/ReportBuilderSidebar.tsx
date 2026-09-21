@@ -113,7 +113,7 @@ export default function ReportBuilderSidebar({ config, onChange }: Props) {
         <select
           value={config.groupBy}
           onChange={e => onChange(set(config, 'groupBy', e.target.value as ReportGroupBy))}
-          className="w-full rounded-md border border-border text-sm py-1.5 px-2 focus:border-brand-600 focus:ring-1 focus:ring-brand-600 focus:outline-none"
+          className="w-full rounded-md border border-border text-sm py-1.5 px-2 bg-surface text-text focus:border-brand-600 focus:ring-1 focus:ring-brand-600 focus:outline-none"
         >
           {GROUP_BY_OPTIONS.filter(g => g.modes.includes(config.mode)).map(g => (
             <option key={g.id} value={g.id}>{g.label}</option>
@@ -161,13 +161,13 @@ export default function ReportBuilderSidebar({ config, onChange }: Props) {
               type="month"
               value={config.dateRange.from}
               onChange={e => onChange(set(config, 'dateRange', { ...config.dateRange, from: e.target.value }))}
-              className="flex-1 rounded-md border border-border text-xs py-1 px-2 focus:border-brand-600 focus:outline-none"
+              className="flex-1 rounded-md border border-border text-xs py-1 px-2 bg-surface text-text focus:border-brand-600 focus:outline-none"
             />
             <input
               type="month"
               value={config.dateRange.to}
               onChange={e => onChange(set(config, 'dateRange', { ...config.dateRange, to: e.target.value }))}
-              className="flex-1 rounded-md border border-border text-xs py-1 px-2 focus:border-brand-600 focus:outline-none"
+              className="flex-1 rounded-md border border-border text-xs py-1 px-2 bg-surface text-text focus:border-brand-600 focus:outline-none"
             />
           </div>
         )}

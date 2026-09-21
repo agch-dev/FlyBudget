@@ -40,9 +40,6 @@ export function PreferencesPanel() {
             </button>
           ))}
         </div>
-        {theme !== 'light' && (
-          <p className="text-xs text-caution">Dark mode styling is coming in a future update. The setting will be remembered.</p>
-        )}
       </div>
 
       <div className="bg-surface-alt rounded-lg p-5 space-y-4">

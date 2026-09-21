@@ -101,7 +101,7 @@ function SankeyDiagram({ from, to }: { from: string; to: string }) {
           y={height > 22 ? midY - 6 : midY + 1}
           textAnchor={anchor}
           fontSize={11}
-          fill="#374151"
+          fill={chartColors.label}
           fontWeight="500"
         >
           {name}
@@ -120,7 +120,7 @@ function SankeyDiagram({ from, to }: { from: string; to: string }) {
     if (!linkWidth || linkWidth < 1) return null;
 
     const halfW = linkWidth / 2;
-    const color = payload?.target?.color ?? '#94a3b8';
+    const color = payload?.target?.color ?? chartColors.axis;
     const d = [
       `M${sourceX},${sourceY - halfW}`,
       `C${sourceControlX},${sourceY - halfW} ${targetControlX},${targetY - halfW} ${targetX},${targetY - halfW}`,
@@ -255,7 +255,7 @@ export default function CashFlowPage() {
                   value={from}
                   max={to}
                   onChange={(e) => setFrom(e.target.value)}
-                  className="text-sm border border-border rounded-md px-2 py-1 text-text focus:outline-none focus:ring-1 focus:ring-brand-600 focus:border-brand-600"
+                  className="text-sm border border-border rounded-md px-2 py-1 bg-surface text-text focus:outline-none focus:ring-1 focus:ring-brand-600 focus:border-brand-600"
                 />
                 <span className="text-xs text-text-tertiary">to</span>
                 <input
@@ -264,7 +264,7 @@ export default function CashFlowPage() {
                   min={from}
                   max={format(today, 'yyyy-MM')}
                   onChange={(e) => setTo(e.target.value)}
-                  className="text-sm border border-border rounded-md px-2 py-1 text-text focus:outline-none focus:ring-1 focus:ring-brand-600 focus:border-brand-600"
+                  className="text-sm border border-border rounded-md px-2 py-1 bg-surface text-text focus:outline-none focus:ring-1 focus:ring-brand-600 focus:border-brand-600"
                 />
               </>
             )}

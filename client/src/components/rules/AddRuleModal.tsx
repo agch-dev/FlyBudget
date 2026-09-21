@@ -110,7 +110,7 @@ export function AddRuleModal({ isOpen, onClose, onSave, editRule }: Props) {
                 <select
                   value={c.field}
                   onChange={e => updateCondition(i, { field: e.target.value as RuleCondition['field'], value: '' })}
-                  className="text-sm border border-border rounded-lg px-2 py-1.5 bg-surface focus:outline-none focus:ring-1 focus:ring-brand-400"
+                  className="text-sm border border-border rounded-lg px-2 py-1.5 bg-surface text-text focus:outline-none focus:ring-1 focus:ring-brand-400"
                 >
                   {(Object.entries(FIELD_LABELS) as [RuleCondition['field'], string][]).map(([v, l]) => (
                     <option key={v} value={v}>{l}</option>
@@ -119,7 +119,7 @@ export function AddRuleModal({ isOpen, onClose, onSave, editRule }: Props) {
                 <select
                   value={c.op}
                   onChange={e => updateCondition(i, { op: e.target.value as RuleCondition['op'] })}
-                  className="text-sm border border-border rounded-lg px-2 py-1.5 bg-surface focus:outline-none focus:ring-1 focus:ring-brand-400"
+                  className="text-sm border border-border rounded-lg px-2 py-1.5 bg-surface text-text focus:outline-none focus:ring-1 focus:ring-brand-400"
                 >
                   {(Object.entries(OP_LABELS) as [RuleCondition['op'], string][]).map(([v, l]) => (
                     <option key={v} value={v}>{l}</option>
@@ -129,7 +129,7 @@ export function AddRuleModal({ isOpen, onClose, onSave, editRule }: Props) {
                   value={c.value}
                   onChange={e => updateCondition(i, { value: e.target.value })}
                   placeholder={c.field === 'amount' ? 'e.g. 5000 (cents)' : 'value…'}
-                  className="flex-1 text-sm border border-border rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-brand-400"
+                  className="flex-1 text-sm border border-border rounded-lg px-2 py-1.5 bg-surface text-text focus:outline-none focus:ring-1 focus:ring-brand-400"
                 />
                 {conditions.length > 1 && (
                   <button onClick={() => { setConditions(prev => prev.filter((_, idx) => idx !== i)); setTestResults(null); }}
@@ -157,7 +157,7 @@ export function AddRuleModal({ isOpen, onClose, onSave, editRule }: Props) {
                 <select
                   value={a.field}
                   onChange={e => updateAction(i, { field: e.target.value as RuleAction['field'], value: '' })}
-                  className="text-sm border border-border rounded-lg px-2 py-1.5 bg-surface focus:outline-none focus:ring-1 focus:ring-brand-400"
+                  className="text-sm border border-border rounded-lg px-2 py-1.5 bg-surface text-text focus:outline-none focus:ring-1 focus:ring-brand-400"
                 >
                   {(Object.entries(ACTION_LABELS) as [RuleAction['field'], string][]).map(([v, l]) => (
                     <option key={v} value={v}>{l}</option>
@@ -167,7 +167,7 @@ export function AddRuleModal({ isOpen, onClose, onSave, editRule }: Props) {
                   <select
                     value={a.value}
                     onChange={e => updateAction(i, { value: e.target.value })}
-                    className="flex-1 text-sm border border-border rounded-lg px-2 py-1.5 bg-surface focus:outline-none focus:ring-1 focus:ring-brand-400"
+                    className="flex-1 text-sm border border-border rounded-lg px-2 py-1.5 bg-surface text-text focus:outline-none focus:ring-1 focus:ring-brand-400"
                   >
                     <option value="">Select category…</option>
                     {allCategories.map((c: any) => (
@@ -178,7 +178,7 @@ export function AddRuleModal({ isOpen, onClose, onSave, editRule }: Props) {
                   <select
                     value={a.value}
                     onChange={e => updateAction(i, { value: e.target.value })}
-                    className="flex-1 text-sm border border-border rounded-lg px-2 py-1.5 bg-surface focus:outline-none focus:ring-1 focus:ring-brand-400"
+                    className="flex-1 text-sm border border-border rounded-lg px-2 py-1.5 bg-surface text-text focus:outline-none focus:ring-1 focus:ring-brand-400"
                   >
                     <option value="">Select payee…</option>
                     {payees.map((p: any) => (
@@ -190,7 +190,7 @@ export function AddRuleModal({ isOpen, onClose, onSave, editRule }: Props) {
                     value={a.value}
                     onChange={e => updateAction(i, { value: e.target.value })}
                     placeholder="Notes text…"
-                    className="flex-1 text-sm border border-border rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-brand-400"
+                    className="flex-1 text-sm border border-border rounded-lg px-2 py-1.5 bg-surface text-text focus:outline-none focus:ring-1 focus:ring-brand-400"
                   />
                 )}
                 {actions.length > 1 && (

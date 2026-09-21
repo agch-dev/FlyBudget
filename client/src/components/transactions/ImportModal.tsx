@@ -200,7 +200,7 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
                       <select
                         value={roles[i]}
                         onChange={(e) => setRole(i, e.target.value as ColumnRole)}
-                        className="w-full text-xs border border-border rounded px-1.5 py-1 bg-surface"
+                        className="w-full text-xs border border-border rounded px-1.5 py-1 bg-surface text-text"
                       >
                         {roleOptions.map(o => (
                           <option key={o.value} value={o.value}>{o.label}</option>
