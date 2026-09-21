@@ -59,10 +59,10 @@ function WelcomeScreen() {
 
           <button
             onClick={() => setShowSimplefin(true)}
-            className="group bg-surface border-2 border-brand-200 hover:border-brand-300 rounded-xl p-6 text-left transition-all duration-200 hover:shadow-hover"
+            className="group bg-surface border-2 border-emerald-200 hover:border-emerald-300 rounded-xl p-6 text-left transition-all duration-200 hover:shadow-hover"
           >
-            <div className="w-10 h-10 rounded-lg bg-brand-50 flex items-center justify-center mb-4 group-hover:bg-brand-100 transition-colors">
-              <Link2 size={20} className="text-brand-600" />
+            <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center mb-4 group-hover:bg-emerald-100 transition-colors">
+              <Link2 size={20} className="text-emerald-600" />
             </div>
             <h3 className="text-sm font-semibold text-text">Connect via SimpleFIN</h3>
             <p className="text-xs text-text-tertiary mt-1 leading-relaxed">
