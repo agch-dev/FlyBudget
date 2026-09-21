@@ -46,8 +46,9 @@ function WelcomeScreen() {
               if (plaidConfigured) setShowPlaid(true);
               else setShowPlaidSetup(true);
             }}
-            className="group bg-surface border-2 border-brand-200 hover:border-brand-500 hover:shadow-hover rounded-xl p-6 text-left transition-all duration-200"
+            className="group relative bg-surface border-2 border-brand-200 hover:border-brand-500 hover:shadow-hover rounded-xl p-6 text-left transition-all duration-200"
           >
+            <span className="absolute top-3 right-3 border border-brand-500 text-brand-700 text-[10px] font-medium px-2 py-0.5 rounded-md">Suggested</span>
             <div className="w-10 h-10 rounded-lg bg-brand-50 flex items-center justify-center mb-4 group-hover:bg-brand-200 transition-colors duration-200">
               <Building2 size={20} className="text-brand-600" />
             </div>
