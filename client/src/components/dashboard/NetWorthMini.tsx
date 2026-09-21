@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { format, parseISO } from 'date-fns';
-import { AreaChart, Area, XAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { useNetWorth } from '../../hooks/useReports';
 import { formatCurrency } from '../../utils/currency';
 import { chartColors } from '../../utils/chartColors';
@@ -74,6 +74,7 @@ export default function NetWorthMini({ sixMonthsAgo, currentMonth }: Props) {
                 axisLine={false}
                 tickLine={false}
               />
+              <YAxis hide domain={['auto', 'auto']} />
               <Tooltip content={<MiniTooltip />} />
               <Area
                 type="monotone"
