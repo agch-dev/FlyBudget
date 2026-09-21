@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { GripVertical, Pencil, Trash2, Plus, Check, X } from 'lucide-react';
+import { Pencil, Trash2, Plus, Check, X } from 'lucide-react';
 import EmojiPicker, { type EmojiClickData } from 'emoji-picker-react';
 import {
   DndContext,
@@ -238,7 +238,7 @@ function GroupCard({
               className="text-text-disabled hover:text-text-tertiary cursor-grab active:cursor-grabbing touch-none shrink-0 -ml-1"
               aria-label="Drag to reorder group"
             >
-              <GripVertical size={14} />
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><circle cx="4" cy="4" r="1.5"/><circle cx="10" cy="4" r="1.5"/><circle cx="4" cy="10" r="1.5"/><circle cx="10" cy="10" r="1.5"/></svg>
             </button>
           )}
           {isEditingGroup ? (
