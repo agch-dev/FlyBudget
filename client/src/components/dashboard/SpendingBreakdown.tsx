@@ -14,10 +14,9 @@ export default function SpendingBreakdown({ currentMonth }: Props) {
 
   const topCategories = useMemo(() => {
     return data
-      .filter(c => c.totalSpent < 0)
-      .sort((a, b) => a.totalSpent - b.totalSpent)
+      .sort((a, b) => b.totalSpent - a.totalSpent)
       .slice(0, 8)
-      .map(c => ({ ...c, amount: Math.abs(c.totalSpent) }));
+      .map(c => ({ ...c, amount: c.totalSpent }));
   }, [data]);
 
   const maxAmount = topCategories.length > 0 ? topCategories[0].amount : 1;
@@ -53,7 +52,7 @@ export default function SpendingBreakdown({ currentMonth }: Props) {
               <div key={cat.categoryId ?? i}>
                 <div className="flex items-center justify-between mb-0.5">
                   <span className="text-sm text-text-secondary truncate mr-2">{cat.categoryIcon ? `${cat.categoryIcon} ` : ''}{cat.categoryName || 'Uncategorized'}</span>
-                  <span className="text-xs text-text-tertiary tabular-nums whitespace-nowrap">{formatCurrency(-cat.amount)}</span>
+                  <span className="text-xs text-text-tertiary tabular-nums whitespace-nowrap">{formatCurrency(cat.amount)}</span>
                 </div>
                 <div className="h-1.5 w-full bg-surface-alt rounded-full overflow-hidden">
                   <div
