@@ -15,7 +15,7 @@ const sixMonthsAgo = format(subMonths(now, 5), 'yyyy-MM');
 export default function Dashboard() {
   return (
     <div className="p-6 max-w-[1400px] mx-auto">
-      <NetWorthMini sixMonthsAgo={sixMonthsAgo} currentMonth={currentMonth} />
+      <NetWorthMini />
 
       <div className="mt-5">
         <SummaryStats currentMonth={currentMonth} sixMonthsAgo={sixMonthsAgo} />

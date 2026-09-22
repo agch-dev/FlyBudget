@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { format, parseISO } from 'date-fns';
+import { useState, useMemo } from 'react';
+import { format, parseISO, subMonths, startOfYear } from 'date-fns';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { useNetWorth } from '../../hooks/useReports';
 import { formatCurrency } from '../../utils/currency';
@@ -19,13 +19,35 @@ function MiniTooltip({ active, payload, label }: any) {
   );
 }
 
-interface Props {
-  sixMonthsAgo: string;
-  currentMonth: string;
+type Preset = '1m' | '3m' | '6m' | 'ytd' | '1y' | 'all';
+
+const PRESETS: { value: Preset; label: string }[] = [
+  { value: '1m', label: '1 month' },
+  { value: '3m', label: '3 months' },
+  { value: '6m', label: '6 months' },
+  { value: 'ytd', label: 'Year to date' },
+  { value: '1y', label: '1 year' },
+  { value: 'all', label: 'All time' },
+];
+
+function computeRange(preset: Preset): { from: string; to: string } {
+  const now = new Date();
+  const to = format(now, 'yyyy-MM');
+  switch (preset) {
+    case '1m': return { from: format(subMonths(now, 1), 'yyyy-MM'), to };
+    case '3m': return { from: format(subMonths(now, 2), 'yyyy-MM'), to };
+    case '6m': return { from: format(subMonths(now, 5), 'yyyy-MM'), to };
+    case 'ytd': return { from: format(startOfYear(now), 'yyyy-MM'), to };
+    case '1y': return { from: format(subMonths(now, 11), 'yyyy-MM'), to };
+    case 'all': return { from: '2000-01', to };
+  }
 }
 
-export default function NetWorthMini({ sixMonthsAgo, currentMonth }: Props) {
-  const { data = [], isLoading } = useNetWorth(sixMonthsAgo, currentMonth);
+export default function NetWorthMini() {
+  const [preset, setPreset] = useState<Preset>('1m');
+
+  const { from, to } = useMemo(() => computeRange(preset), [preset]);
+  const { data = [], isLoading } = useNetWorth(from, to);
 
   const chartData = useMemo(
     () => data.map(d => ({ ...d, month: format(parseISO(`${d.month}-01`), 'MMM yy') })),
@@ -33,30 +55,47 @@ export default function NetWorthMini({ sixMonthsAgo, currentMonth }: Props) {
   );
 
   const latest = data.length > 0 ? data[data.length - 1].netWorth : 0;
-  const prev = data.length > 1 ? data[data.length - 2].netWorth : latest;
-  const change = latest - prev;
+  const first = data.length > 0 ? data[0].netWorth : latest;
+  const change = latest - first;
+  const pct = first !== 0 ? (change / Math.abs(first)) * 100 : 0;
 
   if (isLoading) {
     return (
       <div className="py-2">
-        <div className="h-4 w-20 bg-surface-alt rounded animate-pulse mb-2" />
-        <div className="h-8 w-40 bg-surface-alt rounded animate-pulse mb-1" />
-        <div className="h-3 w-24 bg-surface-alt rounded animate-pulse" />
+        <div className="flex items-center justify-between mb-2">
+          <div className="h-8 w-48 bg-surface-alt rounded animate-pulse" />
+          <div className="h-8 w-28 bg-surface-alt rounded animate-pulse" />
+        </div>
+        <div className="h-28 bg-surface-alt rounded animate-pulse mt-4" />
       </div>
     );
   }
 
   return (
     <div>
-      <p className="text-xs font-medium text-text-tertiary uppercase tracking-wide">Net Worth</p>
-      <p className={`text-3xl font-semibold tabular-nums mt-1 ${latest >= 0 ? 'text-text' : 'text-negative'}`}>
-        {formatCurrency(latest)}
-      </p>
-      {data.length > 1 && (
-        <p className={`text-sm tabular-nums mt-0.5 ${change >= 0 ? 'text-positive' : 'text-negative'}`}>
-          {change >= 0 ? '+' : ''}{formatCurrency(change)} this month
-        </p>
-      )}
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-xs font-medium text-text-tertiary uppercase tracking-wide">Net Worth</p>
+          <p className={`text-3xl font-semibold tabular-nums mt-1 ${latest >= 0 ? 'text-text' : 'text-negative'}`}>
+            {formatCurrency(latest)}
+          </p>
+          {data.length > 1 && (
+            <p className={`text-sm tabular-nums mt-0.5 ${change >= 0 ? 'text-positive' : 'text-negative'}`}>
+              {change >= 0 ? '+' : ''}{formatCurrency(change)} ({Math.abs(pct).toFixed(1)}%)
+            </p>
+          )}
+        </div>
+
+        <select
+          value={preset}
+          onChange={e => setPreset(e.target.value as Preset)}
+          className="text-sm border border-border rounded-lg px-3 py-1.5 bg-surface text-text cursor-pointer focus:outline-none focus:ring-1 focus:ring-brand-600"
+        >
+          {PRESETS.map(p => (
+            <option key={p.value} value={p.value}>{p.label}</option>
+          ))}
+        </select>
+      </div>
 
       {chartData.length > 1 && (
         <div className="h-28 mt-4">
