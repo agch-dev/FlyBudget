@@ -22,3 +22,6 @@ export const useSpendingTrends = (categoryIds: string[], from: string, to: strin
     queryFn: () => reportsApi.getSpendingTrends(categoryIds, from, to),
     enabled: categoryIds.length > 0,
   });
+
+export const useSpendingComparison = (mode: string) =>
+  useQuery({ queryKey: ['reports', 'spending-comparison', mode], queryFn: () => reportsApi.getSpendingComparison(mode) });

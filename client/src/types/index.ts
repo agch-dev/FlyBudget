@@ -132,6 +132,17 @@ export interface SpendingByCategory { categoryId: string | null; categoryName: s
 export interface IncomeByCategoryItem { categoryId: string | null; categoryName: string | null; categoryIcon: string | null; groupName: string | null; totalReceived: number; }
 export interface SpendingTrendPoint { categoryId: string; categoryName: string | null; categoryIcon: string | null; month: string; total: number; }
 
+export interface SpendingComparisonData {
+  currentTotal: number;
+  periodLabel: string;
+  currentLabel: string;
+  comparisonLabel: string;
+  maxDays: number;
+  todayDay: number;
+  current: { day: number; cumulative: number }[];
+  comparison: { day: number; cumulative: number }[];
+}
+
 // Custom Reports
 export type ChartType = 'bar' | 'stacked-bar' | 'line' | 'area' | 'donut' | 'table';
 export type ReportMode = 'total' | 'time';

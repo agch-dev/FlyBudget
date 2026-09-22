@@ -4,6 +4,7 @@ import AccountsOverview from '../components/dashboard/AccountsOverview';
 import BudgetProgress from '../components/dashboard/BudgetProgress';
 import NetWorthMini from '../components/dashboard/NetWorthMini';
 import IncomeExpensesMini from '../components/dashboard/IncomeExpensesMini';
+import SpendingComparison from '../components/dashboard/SpendingComparison';
 import SpendingBreakdown from '../components/dashboard/SpendingBreakdown';
 import RecentTransactions from '../components/dashboard/RecentTransactions';
 import UpcomingBills from '../components/dashboard/UpcomingBills';
@@ -21,8 +22,9 @@ export default function Dashboard() {
         <SummaryStats currentMonth={currentMonth} sixMonthsAgo={sixMonthsAgo} />
       </div>
 
-      <div className="mt-5">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mt-5">
         <IncomeExpensesMini sixMonthsAgo={sixMonthsAgo} currentMonth={currentMonth} />
+        <SpendingComparison />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-5 mt-5">

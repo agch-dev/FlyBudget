@@ -235,6 +235,224 @@ reportsRouter.get('/spending-trends', (req, res) => {
   );
 });
 
+// --------------- Spending comparison endpoint ---------------
+
+reportsRouter.get('/spending-comparison', (req, res) => {
+  const { mode = 'month_vs_last_month' } = req.query as Record<string, string>;
+  const today = new Date();
+
+  function fmtDate(d: Date): string {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+
+  function getDailyExpenses(from: string, to: string): Map<string, number> {
+    const rows = db
+      .select({
+        date: transactions.date,
+        total: sql<number>`coalesce(sum(${transactions.amount}), 0)`,
+      })
+      .from(transactions)
+      .where(and(lt(transactions.amount, 0), gte(transactions.date, from), lte(transactions.date, to)))
+      .groupBy(transactions.date)
+      .all();
+    const map = new Map<string, number>();
+    for (const row of rows) map.set(row.date, Math.abs(row.total));
+    return map;
+  }
+
+  function buildCumulative(
+    dailyMap: Map<string, number>,
+    dayMapper: (dateStr: string) => number,
+    totalDays: number,
+  ): { day: number; cumulative: number }[] {
+    const dayTotals = new Map<number, number>();
+    for (const [dateStr, amount] of dailyMap) {
+      const day = dayMapper(dateStr);
+      if (day >= 1 && day <= totalDays) dayTotals.set(day, (dayTotals.get(day) || 0) + amount);
+    }
+    const result: { day: number; cumulative: number }[] = [];
+    let cum = 0;
+    for (let day = 1; day <= totalDays; day++) {
+      cum += dayTotals.get(day) || 0;
+      result.push({ day, cumulative: cum });
+    }
+    return result;
+  }
+
+  const todayStr = fmtDate(today);
+  const dayOfMonth = (s: string) => parseInt(s.slice(8, 10), 10);
+  const dayOfYear = (s: string) => {
+    const d = new Date(s + 'T00:00:00');
+    const jan1 = new Date(d.getFullYear(), 0, 1);
+    return Math.floor((d.getTime() - jan1.getTime()) / 86400000) + 1;
+  };
+
+  let currentLabel: string, comparisonLabel: string, periodLabel: string;
+  let currentSeries: { day: number; cumulative: number }[];
+  let comparisonSeries: { day: number; cumulative: number }[];
+  let maxDays: number, todayDay: number, currentTotal: number;
+
+  switch (mode) {
+    case 'week_vs_last_week': {
+      const dow = today.getDay();
+      const mondayOffset = dow === 0 ? 6 : dow - 1;
+      const monday = new Date(today);
+      monday.setDate(today.getDate() - mondayOffset);
+      const lastMonday = new Date(monday);
+      lastMonday.setDate(monday.getDate() - 7);
+      const lastSunday = new Date(lastMonday);
+      lastSunday.setDate(lastMonday.getDate() + 6);
+
+      const dayOfWeek = (s: string) => {
+        const w = new Date(s + 'T00:00:00').getDay();
+        return w === 0 ? 7 : w;
+      };
+
+      maxDays = 7;
+      todayDay = mondayOffset + 1;
+      periodLabel = 'this week';
+      currentLabel = 'This week';
+      comparisonLabel = 'Last week';
+
+      const curDaily = getDailyExpenses(fmtDate(monday), todayStr);
+      const compDaily = getDailyExpenses(fmtDate(lastMonday), fmtDate(lastSunday));
+      currentSeries = buildCumulative(curDaily, dayOfWeek, todayDay);
+      comparisonSeries = buildCumulative(compDaily, dayOfWeek, maxDays);
+      currentTotal = currentSeries.length > 0 ? currentSeries[currentSeries.length - 1].cumulative : 0;
+      break;
+    }
+
+    case 'month_vs_last_year': {
+      const year = today.getFullYear();
+      const month = today.getMonth();
+      const mm = String(month + 1).padStart(2, '0');
+      const daysInCur = new Date(year, month + 1, 0).getDate();
+      const lastYear = year - 1;
+      const daysInComp = new Date(lastYear, month + 1, 0).getDate();
+
+      maxDays = Math.max(daysInCur, daysInComp);
+      todayDay = today.getDate();
+      periodLabel = 'this month';
+      currentLabel = 'This month';
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      comparisonLabel = `${monthNames[month]} ${lastYear}`;
+
+      const curDaily = getDailyExpenses(`${year}-${mm}-01`, todayStr);
+      const compDaily = getDailyExpenses(`${lastYear}-${mm}-01`, `${lastYear}-${mm}-${String(daysInComp).padStart(2, '0')}`);
+      currentSeries = buildCumulative(curDaily, dayOfMonth, todayDay);
+      comparisonSeries = buildCumulative(compDaily, dayOfMonth, maxDays);
+      currentTotal = currentSeries.length > 0 ? currentSeries[currentSeries.length - 1].cumulative : 0;
+      break;
+    }
+
+    case 'month_vs_average': {
+      const year = today.getFullYear();
+      const month = today.getMonth();
+      const mm = String(month + 1).padStart(2, '0');
+      const daysInCur = new Date(year, month + 1, 0).getDate();
+
+      const monthsInfo: { days: number }[] = [];
+      let rangeFrom = '', rangeTo = '';
+      for (let i = 1; i <= 12; i++) {
+        const d = new Date(year, month - i, 1);
+        const y = d.getFullYear();
+        const m = d.getMonth();
+        const days = new Date(y, m + 1, 0).getDate();
+        const mStr = String(m + 1).padStart(2, '0');
+        const f = `${y}-${mStr}-01`;
+        const t = `${y}-${mStr}-${String(days).padStart(2, '0')}`;
+        if (i === 12) rangeFrom = f;
+        if (i === 1) rangeTo = t;
+        monthsInfo.push({ days });
+      }
+
+      const allDaily = getDailyExpenses(rangeFrom, rangeTo);
+      const dayTotals = new Map<number, number>();
+      for (const [dateStr, amount] of allDaily) {
+        const day = dayOfMonth(dateStr);
+        dayTotals.set(day, (dayTotals.get(day) || 0) + amount);
+      }
+      const monthsWithDay = (day: number) => monthsInfo.filter(m => m.days >= day).length;
+
+      maxDays = Math.max(daysInCur, 31);
+      todayDay = today.getDate();
+      periodLabel = 'this month';
+      currentLabel = 'This month';
+      comparisonLabel = 'Average month (last 12 months)';
+
+      comparisonSeries = [];
+      let cum = 0;
+      for (let day = 1; day <= maxDays; day++) {
+        const count = monthsWithDay(day);
+        cum += count > 0 ? Math.round((dayTotals.get(day) || 0) / count) : 0;
+        comparisonSeries.push({ day, cumulative: cum });
+      }
+
+      const curDaily = getDailyExpenses(`${year}-${mm}-01`, todayStr);
+      currentSeries = buildCumulative(curDaily, dayOfMonth, todayDay);
+      currentTotal = currentSeries.length > 0 ? currentSeries[currentSeries.length - 1].cumulative : 0;
+      break;
+    }
+
+    case 'year_vs_last_year': {
+      const year = today.getFullYear();
+      const isLeap = (y: number) => (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
+      const daysThisYear = isLeap(year) ? 366 : 365;
+      const daysLastYear = isLeap(year - 1) ? 366 : 365;
+      maxDays = Math.max(daysThisYear, daysLastYear);
+
+      const jan1 = new Date(year, 0, 1);
+      todayDay = Math.floor((today.getTime() - jan1.getTime()) / 86400000) + 1;
+      periodLabel = 'this year';
+      currentLabel = 'This year';
+      comparisonLabel = 'Last year';
+
+      const curDaily = getDailyExpenses(`${year}-01-01`, todayStr);
+      const compDaily = getDailyExpenses(`${year - 1}-01-01`, `${year - 1}-12-31`);
+      currentSeries = buildCumulative(curDaily, dayOfYear, todayDay);
+      comparisonSeries = buildCumulative(compDaily, dayOfYear, maxDays);
+      currentTotal = currentSeries.length > 0 ? currentSeries[currentSeries.length - 1].cumulative : 0;
+      break;
+    }
+
+    default: {
+      const year = today.getFullYear();
+      const month = today.getMonth();
+      const mm = String(month + 1).padStart(2, '0');
+      const daysInCur = new Date(year, month + 1, 0).getDate();
+      const prevDate = new Date(year, month - 1, 1);
+      const pY = prevDate.getFullYear();
+      const pM = prevDate.getMonth();
+      const daysInPrev = new Date(pY, pM + 1, 0).getDate();
+      const pmm = String(pM + 1).padStart(2, '0');
+
+      maxDays = Math.max(daysInCur, daysInPrev);
+      todayDay = today.getDate();
+      periodLabel = 'this month';
+      currentLabel = 'This month';
+      comparisonLabel = 'Last month';
+
+      const curDaily = getDailyExpenses(`${year}-${mm}-01`, todayStr);
+      const compDaily = getDailyExpenses(`${pY}-${pmm}-01`, `${pY}-${pmm}-${String(daysInPrev).padStart(2, '0')}`);
+      currentSeries = buildCumulative(curDaily, dayOfMonth, todayDay);
+      comparisonSeries = buildCumulative(compDaily, dayOfMonth, maxDays);
+      currentTotal = currentSeries.length > 0 ? currentSeries[currentSeries.length - 1].cumulative : 0;
+      break;
+    }
+  }
+
+  res.json({
+    currentTotal,
+    periodLabel,
+    currentLabel,
+    comparisonLabel,
+    maxDays,
+    todayDay,
+    current: currentSeries,
+    comparison: comparisonSeries,
+  });
+});
+
 // --------------- Custom report aggregation endpoint ---------------
 
 reportsRouter.get('/custom', (req, res) => {
