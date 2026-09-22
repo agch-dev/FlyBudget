@@ -1,53 +1,57 @@
 import { useState } from 'react';
-import { ChevronRight, ChevronDown, ArrowLeftRight, Lock } from 'lucide-react';
-import type { Transaction } from '../../types';
+import { ChevronRight, ChevronDown, ArrowLeftRight, ArrowRight, Lock } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useUpdateTransaction } from '../../hooks/useTransactions';
+import { CategoryPicker } from './CategoryPicker';
+import { payeeColor, ACCOUNT_TYPE_COLORS } from '../../utils/transactionColors';
 import { formatCurrency } from '../../utils/currency';
-
-const PAYEE_COLORS = [
-  '#6366F1', '#EC4899', '#F59E0B', '#10B981', '#3B82F6',
-  '#8B5CF6', '#EF4444', '#14B8A6', '#F97316', '#06B6D4',
-];
-
-function payeeColor(name: string): string {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  return PAYEE_COLORS[Math.abs(hash) % PAYEE_COLORS.length];
-}
-
-const ACCOUNT_TYPE_COLORS: Record<string, string> = {
-  checking: '#3B82F6',
-  savings: '#10B981',
-  credit: '#F59E0B',
-  cash: '#6B7280',
-  investment: '#8B5CF6',
-};
+import type { Transaction, CategoryGroup } from '../../types';
 
 interface Props {
   tx: Transaction;
   categoryEntry: { name: string; icon: string | null } | null;
   categoryMap: Map<string, { name: string; icon: string | null }>;
+  groups: CategoryGroup[];
   accountName?: string;
   accountType?: string;
   showAccountCol?: boolean;
-  onEdit: (id: string) => void;
+  isSelected?: boolean;
+  onOpenDetail: (id: string) => void;
+  onFilterCategory?: (catId: string) => void;
+  onFilterSearch?: (search: string) => void;
 }
 
-export function TransactionRow({ tx, categoryEntry, categoryMap, accountName, accountType, showAccountCol, onEdit }: Props) {
+export function TransactionRow({ tx, categoryEntry, categoryMap, groups, accountName, accountType, showAccountCol, isSelected, onOpenDetail, onFilterCategory, onFilterSearch }: Props) {
   const [expanded, setExpanded] = useState(false);
+  const [showCategoryPicker, setShowCategoryPicker] = useState(false);
+  const updateTx = useUpdateTransaction();
+  const navigate = useNavigate();
+
   const isTransfer = !!tx.transferTransactionId;
   const isSplitParent = tx.isParent === 1 && tx.children && tx.children.length > 0;
+  const canEditCategory = !tx.reconciled && !isTransfer && !isSplitParent;
 
   const payeeName = tx.payeeName || (isTransfer ? 'Transfer' : '—');
   const initial = payeeName.charAt(0).toUpperCase();
   const bgColor = payeeColor(payeeName);
   const acctColor = ACCOUNT_TYPE_COLORS[accountType || ''] || '#6B7280';
 
+  function handleCategoryChange(catId: string | null) {
+    updateTx.mutate({ id: tx.id, data: { categoryId: catId } });
+    setShowCategoryPicker(false);
+  }
+
+  const arrowBtnCls = 'opacity-0 group-hover:opacity-100 p-1 border border-border rounded-md hover:bg-hover text-text-tertiary hover:text-text-secondary transition-opacity shrink-0';
+
   return (
     <div>
       <div
-        className="flex items-center px-4 py-2.5 bg-surface hover:bg-hover cursor-pointer border-b border-border-light"
-        onClick={() => !tx.reconciled && onEdit(tx.id)}
+        className={`group flex items-center px-4 py-2.5 cursor-pointer border-b border-border-light transition-colors ${
+          isSelected ? 'bg-brand-50 border-l-2 border-l-brand-600' : 'bg-surface hover:bg-hover'
+        }`}
+        onClick={() => onOpenDetail(tx.id)}
       >
+        {/* Payee */}
         <div className="flex items-center gap-3 flex-[2] min-w-0">
           <div
             className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-semibold shrink-0"
@@ -56,9 +60,19 @@ export function TransactionRow({ tx, categoryEntry, categoryMap, accountName, ac
             {isTransfer ? <ArrowLeftRight size={14} /> : initial}
           </div>
           <span className="text-sm font-medium text-text truncate">{payeeName}</span>
+          {tx.payeeName && onFilterSearch && (
+            <button
+              className={arrowBtnCls}
+              onClick={(e) => { e.stopPropagation(); onFilterSearch(tx.payeeName!); }}
+              title={`Show all "${tx.payeeName}" transactions`}
+            >
+              <ArrowRight size={12} />
+            </button>
+          )}
         </div>
 
-        <div className="flex items-center gap-2 flex-[1.5] min-w-0">
+        {/* Category */}
+        <div className="flex items-center gap-1.5 flex-[1.5] min-w-0 relative">
           {isSplitParent ? (
             <button
               onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }}
@@ -69,28 +83,70 @@ export function TransactionRow({ tx, categoryEntry, categoryMap, accountName, ac
             </button>
           ) : isTransfer ? (
             <span className="text-sm text-brand-500">Transfer</span>
-          ) : categoryEntry ? (
-            <>
-              {categoryEntry.icon && <span className="text-base shrink-0">{categoryEntry.icon}</span>}
-              <span className="text-sm text-text-secondary truncate">{categoryEntry.name}</span>
-            </>
           ) : (
-            <span className="text-sm text-text-disabled">&mdash;</span>
+            <>
+              <button
+                className={`flex items-center gap-2 px-2.5 py-1 rounded-full transition-all ${
+                  canEditCategory
+                    ? 'group-hover:border group-hover:border-border group-hover:bg-surface cursor-pointer'
+                    : ''
+                } border border-transparent`}
+                onClick={canEditCategory ? (e) => { e.stopPropagation(); setShowCategoryPicker(!showCategoryPicker); } : (e) => e.stopPropagation()}
+                disabled={!canEditCategory}
+              >
+                {categoryEntry?.icon && <span className="text-base shrink-0">{categoryEntry.icon}</span>}
+                <span className={`text-sm truncate ${categoryEntry ? 'text-text-secondary' : 'text-text-disabled'}`}>
+                  {categoryEntry?.name ?? '—'}
+                </span>
+                {canEditCategory && (
+                  <ChevronDown size={12} className="opacity-0 group-hover:opacity-100 text-text-tertiary shrink-0 transition-opacity" />
+                )}
+              </button>
+              {tx.categoryId && onFilterCategory && (
+                <button
+                  className={arrowBtnCls}
+                  onClick={(e) => { e.stopPropagation(); onFilterCategory(tx.categoryId!); }}
+                  title={`Show all "${categoryEntry?.name}" transactions`}
+                >
+                  <ArrowRight size={12} />
+                </button>
+              )}
+            </>
+          )}
+
+          {showCategoryPicker && (
+            <CategoryPicker
+              value={tx.categoryId}
+              onChange={handleCategoryChange}
+              groups={groups}
+              onClose={() => setShowCategoryPicker(false)}
+            />
           )}
         </div>
 
+        {/* Account */}
         {showAccountCol && (
-          <div className="flex items-center gap-2 flex-[1.5] min-w-0">
-            <div
-              className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0"
-              style={{ backgroundColor: acctColor }}
-            >
-              {accountName ? accountName.charAt(0).toUpperCase() : '?'}
+          <div className="flex items-center gap-1.5 flex-[1.5] min-w-0">
+            <div className="flex items-center gap-2 px-2.5 py-1 rounded-full border border-transparent group-hover:border-border group-hover:bg-surface transition-all">
+              <div
+                className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[9px] font-bold shrink-0"
+                style={{ backgroundColor: acctColor }}
+              >
+                {accountName ? accountName.charAt(0).toUpperCase() : '?'}
+              </div>
+              <span className="text-sm text-text-secondary truncate">{accountName || '—'}</span>
             </div>
-            <span className="text-sm text-text-secondary truncate">{accountName || '—'}</span>
+            <button
+              className={arrowBtnCls}
+              onClick={(e) => { e.stopPropagation(); navigate(`/accounts/${tx.accountId}`); }}
+              title={`Go to ${accountName}`}
+            >
+              <ArrowRight size={12} />
+            </button>
           </div>
         )}
 
+        {/* Reconciled */}
         {tx.reconciled ? (
           <div className="w-8 flex justify-center shrink-0">
             <Lock size={12} className="text-text-disabled" />
@@ -99,15 +155,20 @@ export function TransactionRow({ tx, categoryEntry, categoryMap, accountName, ac
           <div className="w-8 shrink-0" />
         )}
 
+        {/* Amount */}
         <div className="w-24 text-right shrink-0 mx-2">
           <span className={`text-sm font-medium tabular-nums ${tx.amount > 0 ? 'text-positive' : 'text-text'}`}>
             {formatCurrency(Math.abs(tx.amount))}
           </span>
         </div>
 
-        <ChevronRight size={16} className="text-text-tertiary shrink-0" />
+        {/* Detail panel arrow */}
+        <div className="opacity-0 group-hover:opacity-100 p-1 border border-transparent group-hover:border-border rounded-md transition-opacity shrink-0">
+          <ArrowRight size={14} className="text-text-tertiary" />
+        </div>
       </div>
 
+      {/* Split children */}
       {isSplitParent && expanded && tx.children!.map((child) => {
         const childCat = child.categoryId ? categoryMap.get(child.categoryId) : null;
         return (

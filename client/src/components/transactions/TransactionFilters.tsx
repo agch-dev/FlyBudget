@@ -8,11 +8,13 @@ export type DatePreset = 'this-month' | 'last-3' | 'this-year' | 'all';
 export interface FilterState {
   search: string;
   datePreset: DatePreset;
+  categoryId: string | null;
 }
 
 export const DEFAULT_FILTERS: FilterState = {
   search: '',
   datePreset: 'this-month',
+  categoryId: null,
 };
 
 function dateRangeFor(preset: DatePreset): { from?: string; to?: string } {
@@ -45,6 +47,7 @@ export function filtersToParams(f: FilterState, accountId?: string): Transaction
     ...(range.from ? { from: range.from } : {}),
     ...(range.to ? { to: range.to } : {}),
     ...(f.search ? { search: f.search } : {}),
+    ...(f.categoryId ? { categoryId: f.categoryId } : {}),
   };
 }
 
@@ -58,9 +61,10 @@ const DATE_PRESETS: { value: DatePreset; label: string }[] = [
 interface Props {
   state: FilterState;
   onChange: (s: FilterState) => void;
+  categoryName?: string;
 }
 
-export function TransactionFilters({ state, onChange }: Props) {
+export function TransactionFilters({ state, onChange, categoryName }: Props) {
   const [rawSearch, setRawSearch] = useState(state.search);
 
   useEffect(() => { setRawSearch(state.search); }, [state.search]);
@@ -68,6 +72,7 @@ export function TransactionFilters({ state, onChange }: Props) {
   const activeCount = [
     state.datePreset !== 'this-month',
     !!state.search,
+    !!state.categoryId,
   ].filter(Boolean).length;
 
   function handleSearchChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -96,6 +101,18 @@ export function TransactionFilters({ state, onChange }: Props) {
           </button>
         )}
       </div>
+
+      {state.categoryId && (
+        <div className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium bg-brand-50 text-brand-700 rounded-full border border-brand-200">
+          <span>{categoryName || 'Category'}</span>
+          <button
+            onClick={() => onChange({ ...state, categoryId: null })}
+            className="hover:text-brand-900"
+          >
+            <X size={12} />
+          </button>
+        </div>
+      )}
 
       <div className="flex gap-0 border-b border-transparent">
         {DATE_PRESETS.map((p) => (
