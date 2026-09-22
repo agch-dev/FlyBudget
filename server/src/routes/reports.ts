@@ -31,8 +31,14 @@ function dayRange(from: string, to: string): string[] {
 }
 
 reportsRouter.get('/net-worth', (req, res) => {
-  const { from = '2024-01', to = '2026-12', granularity = 'monthly' } = req.query as Record<string, string>;
+  let { from = '2024-01', to = '2026-12', granularity = 'monthly' } = req.query as Record<string, string>;
   const isDaily = granularity === 'daily';
+
+  const earliest = db.select({ d: sql<string>`min(${transactions.date})` }).from(transactions).get();
+  if (earliest?.d) {
+    const minPeriod = isDaily ? earliest.d : earliest.d.slice(0, 7);
+    if (from < minPeriod) from = minPeriod;
+  }
 
   const periods = isDaily ? dayRange(from, to) : monthRange(from, to);
 
