@@ -45,7 +45,6 @@ export const transactions = sqliteTable('transactions', {
   payeeName: text('payee_name'),
   categoryId: text('category_id').references(() => categories.id, { onDelete: 'set null' }),
   notes: text('notes'),
-  cleared: integer('cleared').notNull().default(0),
   reconciled: integer('reconciled').notNull().default(0),
   transferTransactionId: text('transfer_transaction_id'),
   isParent: integer('is_parent').notNull().default(0),

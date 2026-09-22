@@ -17,7 +17,6 @@ export interface Transaction {
   payeeName: string | null;
   categoryId: string | null;
   notes: string | null;
-  cleared: number;
   reconciled: number;
   transferTransactionId: string | null;
   isParent: number;
@@ -69,7 +68,6 @@ export interface TransactionQueryParams {
   to?: string;
   categoryId?: string;
   search?: string;
-  cleared?: 0 | 1;
   reconciled?: 0 | 1;
   limit?: number;
   offset?: number;

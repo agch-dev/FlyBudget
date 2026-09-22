@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
+import { format, parseISO } from 'date-fns';
 import { Plus, Upload } from 'lucide-react';
-import { useTransactions, useCreateTransaction, useCreateTransfer, useUpdateTransaction, useDeleteTransaction, useToggleCleared } from '../../hooks/useTransactions';
+import { useTransactions, useCreateTransaction, useCreateTransfer, useUpdateTransaction, useDeleteTransaction } from '../../hooks/useTransactions';
 import { useCategories } from '../../hooks/useCategories';
 import { usePayees } from '../../hooks/usePayees';
 import { useAccounts } from '../../hooks/useAccounts';
@@ -9,6 +10,7 @@ import { TransactionFormRow } from './TransactionFormRow';
 import { TransactionRow } from './TransactionRow';
 import { ImportModal } from './ImportModal';
 import { Button } from '../ui/Button';
+import { formatCurrency } from '../../utils/currency';
 import type { FilterState } from './TransactionFilters';
 import type { CategoryGroup } from '../../types';
 import type { CreateTransactionData } from '../../api/transactions';
@@ -24,7 +26,6 @@ export function TransactionTable({ accountId }: Props) {
   const [showImport, setShowImport] = useState(false);
 
   const showAccountCol = !accountId;
-  const colCount = showAccountCol ? 9 : 8;
 
   const params = useMemo(() => filtersToParams(filters, accountId), [filters, accountId]);
   const { data: transactions = [], isLoading } = useTransactions(params);
@@ -36,7 +37,6 @@ export function TransactionTable({ accountId }: Props) {
   const createTransfer = useCreateTransfer();
   const updateTx = useUpdateTransaction();
   const deleteTx = useDeleteTransaction();
-  const toggleCleared = useToggleCleared();
 
   const categoryMap = useMemo(() => {
     const map = new Map<string, { name: string; icon: string | null }>();
@@ -46,7 +46,42 @@ export function TransactionTable({ accountId }: Props) {
     return map;
   }, [groups]);
 
-  const accountMap = useMemo(() => new Map(accounts.map((a) => [a.id, a.name])), [accounts]);
+  const accountInfoMap = useMemo(
+    () => new Map(accounts.map((a) => [a.id, { name: a.name, type: a.type }])),
+    [accounts],
+  );
+
+  const groupedByDate = useMemo(() => {
+    const result: Array<{ date: string; txs: typeof transactions; total: number }> = [];
+    let currentDate = '';
+    let currentTxs: typeof transactions = [];
+
+    for (const tx of transactions) {
+      if (tx.date !== currentDate) {
+        if (currentTxs.length > 0) {
+          result.push({
+            date: currentDate,
+            txs: currentTxs,
+            total: currentTxs.reduce((sum, t) => sum + Math.abs(t.amount), 0),
+          });
+        }
+        currentDate = tx.date;
+        currentTxs = [tx];
+      } else {
+        currentTxs.push(tx);
+      }
+    }
+
+    if (currentTxs.length > 0) {
+      result.push({
+        date: currentDate,
+        txs: currentTxs,
+        total: currentTxs.reduce((sum, t) => sum + Math.abs(t.amount), 0),
+      });
+    }
+
+    return result;
+  }, [transactions]);
 
   function handleCreate(data: CreateTransactionData) {
     if (data.categoryId?.startsWith('transfer:') && accountId) {
@@ -57,7 +92,6 @@ export function TransactionTable({ accountId }: Props) {
         date: data.date,
         amount: Math.abs(data.amount),
         notes: data.notes,
-        cleared: data.cleared,
       }, { onSuccess: () => setShowAdd(false) });
       return;
     }
@@ -66,10 +100,6 @@ export function TransactionTable({ accountId }: Props) {
 
   function handleUpdate(id: string, data: CreateTransactionData) {
     updateTx.mutate({ id, data }, { onSuccess: () => setEditingId(null) });
-  }
-
-  function handleToggleCleared(id: string, cleared: number) {
-    toggleCleared.mutate({ id, cleared: cleared ? 0 : 1 });
   }
 
   return (
@@ -88,66 +118,66 @@ export function TransactionTable({ accountId }: Props) {
           </div>
         )}
       </div>
+
       <div className="flex-1 overflow-y-auto">
-        <table className="w-full border-collapse">
-          <thead className="sticky top-0 bg-surface-alt z-10">
-            <tr className="border-b border-border">
-              {showAccountCol && <th className="px-3 py-2 text-left text-xs font-medium text-text-tertiary">Account</th>}
-              <th className="px-3 py-2 text-left text-xs font-medium text-text-tertiary w-24">Date</th>
-              <th className="px-3 py-2 text-left text-xs font-medium text-text-tertiary">Payee</th>
-              <th className="px-3 py-2 text-left text-xs font-medium text-text-tertiary">Category</th>
-              <th className="px-3 py-2 text-left text-xs font-medium text-text-tertiary">Notes</th>
-              <th className="px-3 py-2 text-right text-xs font-medium text-text-tertiary w-28">Outflow</th>
-              <th className="px-3 py-2 text-right text-xs font-medium text-text-tertiary w-28">Inflow</th>
-              <th className="px-3 py-2 text-center text-xs font-medium text-text-tertiary w-10">C</th>
-              <th className="px-3 py-2 w-16" />
-            </tr>
-          </thead>
-          <tbody>
-            {showAdd && accountId && (
-              <TransactionFormRow
-                accountId={accountId}
-                groups={groups as CategoryGroup[]}
-                payees={payees}
-                accounts={accounts}
-                onSave={handleCreate}
-                onCancel={() => setShowAdd(false)}
-              />
-            )}
-            {isLoading ? (
-              <tr><td colSpan={colCount} className="px-4 py-10 text-center text-sm text-text-tertiary">Loading...</td></tr>
-            ) : transactions.length === 0 && !showAdd ? (
-              <tr><td colSpan={colCount} className="px-4 py-10 text-center text-sm text-text-tertiary">No transactions found.</td></tr>
-            ) : transactions.map((tx) =>
-              editingId === tx.id ? (
-                <TransactionFormRow
-                  key={tx.id}
-                  initial={tx}
-                  accountId={tx.accountId}
-                  groups={groups as CategoryGroup[]}
-                  payees={payees}
-                  accounts={accounts}
-                  onSave={(data) => handleUpdate(tx.id, data)}
-                  onCancel={() => setEditingId(null)}
-                  showAccountCol={showAccountCol}
-                />
-              ) : (
-                <TransactionRow
-                  key={tx.id}
-                  tx={tx}
-                  categoryEntry={tx.categoryId ? (categoryMap.get(tx.categoryId) ?? null) : null}
-                  categoryMap={categoryMap}
-                  accountName={showAccountCol ? accountMap.get(tx.accountId) : undefined}
-                  showAccountCol={showAccountCol}
-                  onEdit={setEditingId}
-                  onDelete={(id) => deleteTx.mutate(id)}
-                  onToggleCleared={handleToggleCleared}
-                />
-              )
-            )}
-          </tbody>
-        </table>
+        {showAdd && accountId && (
+          <TransactionFormRow
+            accountId={accountId}
+            groups={groups as CategoryGroup[]}
+            payees={payees}
+            accounts={accounts}
+            onSave={handleCreate}
+            onCancel={() => setShowAdd(false)}
+          />
+        )}
+
+        {isLoading ? (
+          <div className="px-4 py-10 text-center text-sm text-text-tertiary">Loading...</div>
+        ) : transactions.length === 0 && !showAdd ? (
+          <div className="px-4 py-10 text-center text-sm text-text-tertiary">No transactions found.</div>
+        ) : (
+          groupedByDate.map((group) => (
+            <div key={group.date}>
+              <div className="flex items-center justify-between px-4 py-2 bg-surface-alt border-b border-border-light">
+                <span className="text-sm font-medium text-text-secondary">
+                  {format(parseISO(group.date), 'MMMM d, yyyy')}
+                </span>
+                <span className="text-sm font-medium text-text-secondary tabular-nums">
+                  {formatCurrency(group.total)}
+                </span>
+              </div>
+
+              {group.txs.map((tx) =>
+                editingId === tx.id ? (
+                  <TransactionFormRow
+                    key={tx.id}
+                    initial={tx}
+                    accountId={tx.accountId}
+                    groups={groups as CategoryGroup[]}
+                    payees={payees}
+                    accounts={accounts}
+                    onSave={(data) => handleUpdate(tx.id, data)}
+                    onCancel={() => setEditingId(null)}
+                    onDelete={() => { deleteTx.mutate(tx.id); setEditingId(null); }}
+                  />
+                ) : (
+                  <TransactionRow
+                    key={tx.id}
+                    tx={tx}
+                    categoryEntry={tx.categoryId ? (categoryMap.get(tx.categoryId) ?? null) : null}
+                    categoryMap={categoryMap}
+                    accountName={showAccountCol ? accountInfoMap.get(tx.accountId)?.name : undefined}
+                    accountType={showAccountCol ? accountInfoMap.get(tx.accountId)?.type : undefined}
+                    showAccountCol={showAccountCol}
+                    onEdit={setEditingId}
+                  />
+                ),
+              )}
+            </div>
+          ))
+        )}
       </div>
+
       {accountId && (
         <ImportModal isOpen={showImport} onClose={() => setShowImport(false)} accountId={accountId} />
       )}

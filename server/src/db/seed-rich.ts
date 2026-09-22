@@ -38,11 +38,9 @@ function getYM(mi: number): { year: number; month: number } {
   return { year: 2024 + Math.floor(total / 12), month: (total % 12) + 1 };
 }
 
-function getCR(mi: number, day: number): { cleared: number; reconciled: number } {
-  if (mi <= 14) return { cleared: 1, reconciled: 1 };
-  if (mi <= 21) return { cleared: 1, reconciled: 0 };
-  if (mi === 22) return { cleared: day <= 15 ? 1 : 0, reconciled: 0 };
-  return { cleared: 0, reconciled: 0 };
+function getCR(mi: number): { reconciled: number } {
+  if (mi <= 14) return { reconciled: 1 };
+  return { reconciled: 0 };
 }
 
 const NOTES = [
@@ -241,7 +239,7 @@ function insertTx(vals: {
   accountId: string; date: string; amount: number;
   payeeId?: string | null; payeeName?: string | null;
   categoryId?: string | null; notes?: string | null;
-  cleared?: number; reconciled?: number;
+  reconciled?: number;
   recurringTransactionId?: string | null;
   isParent?: number; parentTransactionId?: string | null;
   transferTransactionId?: string | null;
@@ -256,7 +254,6 @@ function insertTx(vals: {
     payeeName: vals.payeeName ?? null,
     categoryId: vals.categoryId ?? null,
     notes: vals.notes ?? null,
-    cleared: vals.cleared ?? 0,
     reconciled: vals.reconciled ?? 0,
     transferTransactionId: vals.transferTransactionId ?? null,
     isParent: vals.isParent ?? 0,
@@ -271,21 +268,21 @@ function insertTx(vals: {
 
 function insertTransfer(
   fromAcctName: string, toAcctName: string,
-  date: string, amount: number, cleared: number, reconciled: number,
+  date: string, amount: number, reconciled: number,
 ) {
   const fromId = nanoid();
   const toId = nanoid();
   db.insert(transactions).values({
     id: fromId, accountId: acct[fromAcctName], date, amount: -amount,
     payeeId: null, payeeName: `Transfer: ${toAcctName}`,
-    categoryId: null, notes: null, cleared, reconciled,
+    categoryId: null, notes: null, reconciled,
     isParent: 0, parentTransactionId: null, transferTransactionId: toId,
     importedId: null, recurringTransactionId: null, createdAt: now,
   }).run();
   db.insert(transactions).values({
     id: toId, accountId: acct[toAcctName], date, amount,
     payeeId: null, payeeName: `Transfer: ${fromAcctName}`,
-    categoryId: null, notes: null, cleared, reconciled,
+    categoryId: null, notes: null, reconciled,
     isParent: 0, parentTransactionId: null, transferTransactionId: fromId,
     importedId: null, recurringTransactionId: null, createdAt: now,
   }).run();
@@ -296,13 +293,13 @@ function insertSplit(
   accountId: string, date: string, totalAmount: number,
   payeeId: string | null, payeeName: string | null,
   children: { categoryId: string | null; amount: number; notes: string | null }[],
-  cleared: number, reconciled: number,
+  reconciled: number,
 ) {
   const parentId = nanoid();
   db.insert(transactions).values({
     id: parentId, accountId, date, amount: totalAmount,
     payeeId, payeeName, categoryId: null, notes: null,
-    cleared, reconciled, isParent: 1, parentTransactionId: null,
+    reconciled, isParent: 1, parentTransactionId: null,
     transferTransactionId: null, importedId: null,
     recurringTransactionId: null, createdAt: now,
   }).run();
@@ -311,7 +308,7 @@ function insertSplit(
     db.insert(transactions).values({
       id: nanoid(), accountId, date, amount: ch.amount,
       payeeId, payeeName, categoryId: ch.categoryId,
-      notes: ch.notes, cleared, reconciled, isParent: 0,
+      notes: ch.notes, reconciled, isParent: 0,
       parentTransactionId: parentId, transferTransactionId: null,
       importedId: null, recurringTransactionId: null, createdAt: now,
     }).run();
@@ -358,7 +355,7 @@ for (let mi = 0; mi < 24; mi++) {
   const { year: y, month: m } = getYM(mi);
   const ld = lastDay(y, m);
   const d = (day: number) => fmtDate(y, m, Math.min(day, ld));
-  const cr = (day: number) => getCR(mi, day);
+  const cr = () => getCR(mi);
 
   // For Sep 2026 (mi=23), only generate up to day 15 for some items
   // to leave upcoming bills for the dashboard widget
@@ -369,13 +366,13 @@ for (let mi = 0; mi < 24; mi++) {
     accountId: acct['Primary Checking'], date: d(1), amount: randCents(4400, 4600),
     payeeId: pay['Acme Corp'], payeeName: 'Acme Corp',
     categoryId: catId('Paychecks'), recurringTransactionId: rec['Salary'],
-    ...cr(1),
+    ...cr(),
   });
   insertTx({
     accountId: acct['Primary Checking'], date: d(15), amount: randCents(4400, 4600),
     payeeId: pay['Acme Corp'], payeeName: 'Acme Corp',
     categoryId: catId('Paychecks'), recurringTransactionId: rec['Salary'],
-    ...cr(15),
+    ...cr(),
   });
 
   // ── RENT (monthly, linked) ──
@@ -383,7 +380,7 @@ for (let mi = 0; mi < 24; mi++) {
     accountId: acct['Primary Checking'], date: d(1), amount: -180000,
     payeeId: pay['Greenfield Properties'], payeeName: 'Greenfield Properties',
     categoryId: catId('Rent / Mortgage'), recurringTransactionId: rec['Rent'],
-    ...cr(1),
+    ...cr(),
   });
 
   // ── UTILITIES (monthly, linked) ──
@@ -395,7 +392,7 @@ for (let mi = 0; mi < 24; mi++) {
     accountId: acct['Primary Checking'], date: d(5), amount: -electricAmt,
     payeeId: pay['Duke Energy'], payeeName: 'Duke Energy',
     categoryId: catId('Electric'), recurringTransactionId: rec['Electric Bill'],
-    ...cr(5),
+    ...cr(),
   });
 
   // Water
@@ -403,7 +400,7 @@ for (let mi = 0; mi < 24; mi++) {
     accountId: acct['Primary Checking'], date: d(10), amount: -randCents(40, 62),
     payeeId: pay['City Water Dept'], payeeName: 'City Water Dept',
     categoryId: catId('Water'), recurringTransactionId: rec['Water Bill'],
-    ...cr(10),
+    ...cr(),
   });
 
   // Internet
@@ -411,7 +408,7 @@ for (let mi = 0; mi < 24; mi++) {
     accountId: acct['Primary Checking'], date: d(12), amount: -7000,
     payeeId: pay['Spectrum Internet'], payeeName: 'Spectrum Internet',
     categoryId: catId('Internet'), recurringTransactionId: rec['Internet'],
-    ...cr(12),
+    ...cr(),
   });
 
   // Phone
@@ -419,7 +416,7 @@ for (let mi = 0; mi < 24; mi++) {
     accountId: acct['Primary Checking'], date: d(15), amount: -8500,
     payeeId: pay['AT&T Wireless'], payeeName: 'AT&T Wireless',
     categoryId: catId('Phone'), recurringTransactionId: rec['Phone Bill'],
-    ...cr(15),
+    ...cr(),
   });
 
   // Natural Gas - seasonal variation, skip in current month for "upcoming" test
@@ -430,7 +427,7 @@ for (let mi = 0; mi < 24; mi++) {
       accountId: acct['Primary Checking'], date: d(18), amount: -gasNatAmt,
       payeeId: pay['Piedmont Natural Gas'], payeeName: 'Piedmont Natural Gas',
       categoryId: catId('Gas (Natural)'), recurringTransactionId: rec['Natural Gas'],
-      ...cr(18),
+      ...cr(),
     });
   }
 
@@ -439,7 +436,7 @@ for (let mi = 0; mi < 24; mi++) {
     accountId: acct['Primary Checking'], date: d(20), amount: -randCents(25, 35),
     payeeId: pay['Republic Services'], payeeName: 'Republic Services',
     categoryId: catId('Trash / Recycling'),
-    ...cr(20),
+    ...cr(),
   });
 
   // ── SUBSCRIPTIONS (monthly on credit card, linked) ──
@@ -447,19 +444,19 @@ for (let mi = 0; mi < 24; mi++) {
     accountId: acct['Chase Credit Card'], date: d(3), amount: -1599,
     payeeId: pay['Netflix'], payeeName: 'Netflix',
     categoryId: catId('Streaming Services'), recurringTransactionId: rec['Netflix'],
-    ...cr(3),
+    ...cr(),
   });
   insertTx({
     accountId: acct['Chase Credit Card'], date: d(5), amount: -1099,
     payeeId: pay['Spotify'], payeeName: 'Spotify',
     categoryId: catId('Streaming Services'), recurringTransactionId: rec['Spotify'],
-    ...cr(5),
+    ...cr(),
   });
   insertTx({
     accountId: acct['Chase Credit Card'], date: d(8), amount: -1799,
     payeeId: pay['Hulu'], payeeName: 'Hulu',
     categoryId: catId('Streaming Services'), recurringTransactionId: rec['Hulu'],
-    ...cr(8),
+    ...cr(),
   });
 
   // Gym
@@ -467,7 +464,7 @@ for (let mi = 0; mi < 24; mi++) {
     accountId: acct['Chase Credit Card'], date: d(1), amount: -4500,
     payeeId: pay['Planet Fitness'], payeeName: 'Planet Fitness',
     categoryId: catId('Gym / Fitness'), recurringTransactionId: rec['Planet Fitness'],
-    ...cr(1),
+    ...cr(),
   });
 
   // ── HOUSE CLEANER (biweekly, linked) ──
@@ -475,14 +472,14 @@ for (let mi = 0; mi < 24; mi++) {
     accountId: acct['Primary Checking'], date: d(10), amount: -15000,
     payeeId: pay['Merry Maids'], payeeName: 'Merry Maids',
     categoryId: catId('Home Maintenance'), recurringTransactionId: rec['House Cleaner'],
-    ...cr(10),
+    ...cr(),
   });
   if (!isCurrentMonth || true) {
     insertTx({
       accountId: acct['Primary Checking'], date: d(24), amount: -15000,
       payeeId: pay['Merry Maids'], payeeName: 'Merry Maids',
       categoryId: catId('Home Maintenance'), recurringTransactionId: rec['House Cleaner'],
-      ...cr(24),
+      ...cr(),
     });
   }
 
@@ -493,7 +490,7 @@ for (let mi = 0; mi < 24; mi++) {
       accountId: acct['Chase Credit Card'], date: d(coffeeDay), amount: -randCents(4, 8),
       payeeId: pay['Starbucks'], payeeName: 'Starbucks',
       categoryId: catId('Coffee Shops'), recurringTransactionId: rec['Weekly Coffee'],
-      ...cr(coffeeDay),
+      ...cr(),
     });
   }
 
@@ -503,7 +500,7 @@ for (let mi = 0; mi < 24; mi++) {
       accountId: acct['Primary Checking'], date: d(15), amount: -42000,
       payeeId: pay['State Farm'], payeeName: 'State Farm',
       categoryId: catId('Car Insurance'), recurringTransactionId: rec['Car Insurance'],
-      ...cr(15),
+      ...cr(),
     });
   }
 
@@ -513,7 +510,7 @@ for (let mi = 0; mi < 24; mi++) {
       accountId: acct['Chase Credit Card'], date: d(20), amount: -13900,
       payeeId: pay['Amazon'], payeeName: 'Amazon',
       categoryId: catId('Electronics'), recurringTransactionId: rec['Amazon Prime'],
-      ...cr(20),
+      ...cr(),
     });
   }
 
@@ -523,7 +520,7 @@ for (let mi = 0; mi < 24; mi++) {
       accountId: acct['Primary Checking'], date: d(20), amount: -6500,
       payeeId: pay['T-Mobile'], payeeName: 'T-Mobile',
       categoryId: catId('Phone'), recurringTransactionId: rec['Old Phone Plan'],
-      ...cr(20),
+      ...cr(),
     });
   }
 
@@ -533,7 +530,7 @@ for (let mi = 0; mi < 24; mi++) {
       accountId: acct['Primary Checking'], date: d(15), amount: randCents(1800, 2200),
       payeeId: null, payeeName: 'Freelance Client',
       categoryId: catId('Business Income'), recurringTransactionId: rec['Freelance Income'],
-      ...cr(15),
+      ...cr(),
     });
   }
 
@@ -548,7 +545,7 @@ for (let mi = 0; mi < 24; mi++) {
       date: d(day), amount: -randCents(35, 155),
       payeeId: pay[payeeName], payeeName,
       categoryId: uncategorizedMonths.includes(mi) && i === 0 ? null : catId('Groceries'),
-      notes: maybeNote(), ...cr(day),
+      notes: maybeNote(), ...cr(),
     });
   }
 
@@ -561,7 +558,7 @@ for (let mi = 0; mi < 24; mi++) {
       accountId: Math.random() < 0.8 ? acct['Chase Credit Card'] : acct['Primary Checking'],
       date: d(day), amount: -randCents(15, 82),
       payeeId: pay[payeeName], payeeName,
-      categoryId: catId('Restaurants'), notes: maybeNote(), ...cr(day),
+      categoryId: catId('Restaurants'), notes: maybeNote(), ...cr(),
     });
   }
 
@@ -573,7 +570,7 @@ for (let mi = 0; mi < 24; mi++) {
     insertTx({
       accountId: acct['Chase Credit Card'], date: d(day), amount: -randCents(8, 26),
       payeeId: pay[payeeName], payeeName,
-      categoryId: catId('Fast Food'), notes: maybeNote(), ...cr(day),
+      categoryId: catId('Fast Food'), notes: maybeNote(), ...cr(),
     });
   }
 
@@ -585,7 +582,7 @@ for (let mi = 0; mi < 24; mi++) {
     insertTx({
       accountId: acct['Chase Credit Card'], date: d(day), amount: -randCents(4, 8),
       payeeId: pay[payeeName], payeeName,
-      categoryId: catId('Coffee Shops'), notes: maybeNote(), ...cr(day),
+      categoryId: catId('Coffee Shops'), notes: maybeNote(), ...cr(),
     });
   }
 
@@ -597,7 +594,7 @@ for (let mi = 0; mi < 24; mi++) {
     insertTx({
       accountId: acct['Primary Checking'], date: d(day), amount: -randCents(35, 58),
       payeeId: pay[payeeName], payeeName,
-      categoryId: catId('Gas / Fuel'), notes: maybeNote(), ...cr(day),
+      categoryId: catId('Gas / Fuel'), notes: maybeNote(), ...cr(),
     });
   }
 
@@ -612,7 +609,7 @@ for (let mi = 0; mi < 24; mi++) {
       accountId: Math.random() < 0.5 ? acct['Chase Credit Card'] : acct['Primary Checking'],
       date: d(day), amount: -randCents(18, 195),
       payeeId: pay[payeeName], payeeName,
-      categoryId: catId(catName), notes: maybeNote(), ...cr(day),
+      categoryId: catId(catName), notes: maybeNote(), ...cr(),
     });
   }
 
@@ -625,7 +622,7 @@ for (let mi = 0; mi < 24; mi++) {
       accountId: acct['Cash Wallet'], date: d(day), amount: -randCents(5, 40),
       payeeId: null, payeeName: hasPayee ? 'Cash Purchase' : null,
       categoryId: pick([catId('Cash / ATM'), catId('Coffee Shops'), catId('Fast Food')]),
-      ...cr(day),
+      ...cr(),
     });
   }
 
@@ -636,7 +633,7 @@ for (let mi = 0; mi < 24; mi++) {
       accountId: acct['Primary Checking'], date: d(day), amount: -randCents(30, 80),
       payeeId: pay['Target'], payeeName: 'Target',
       categoryId: null, notes: 'Birthday gift for mom',
-      ...cr(day),
+      ...cr(),
     });
   }
 
@@ -647,7 +644,7 @@ for (let mi = 0; mi < 24; mi++) {
     insertTx({
       accountId: acct['Primary Checking'], date: d(day), amount: le.amount,
       payeeId: pay[le.payee], payeeName: le.payee,
-      categoryId: catId(le.cat), notes: le.notes, ...cr(day),
+      categoryId: catId(le.cat), notes: le.notes, ...cr(),
     });
   }
 
@@ -657,7 +654,7 @@ for (let mi = 0; mi < 24; mi++) {
     insertTx({
       accountId: acct['Chase Credit Card'], date: d(day), amount: -randCents(12, 45),
       payeeId: pay['AMC Theaters'], payeeName: 'AMC Theaters',
-      categoryId: catId('Entertainment'), notes: maybeNote(), ...cr(day),
+      categoryId: catId('Entertainment'), notes: maybeNote(), ...cr(),
     });
   }
 
@@ -667,7 +664,7 @@ for (let mi = 0; mi < 24; mi++) {
     insertTx({
       accountId: acct['Chase Credit Card'], date: d(day), amount: -randCents(10, 50),
       payeeId: pay['Udemy'], payeeName: 'Udemy',
-      categoryId: catId('Online Courses'), notes: 'Course purchase', ...cr(day),
+      categoryId: catId('Online Courses'), notes: 'Course purchase', ...cr(),
     });
   }
 
@@ -677,7 +674,7 @@ for (let mi = 0; mi < 24; mi++) {
     insertTx({
       accountId: acct['Primary Checking'], date: d(day), amount: -randCents(10, 55),
       payeeId: pay['CVS Pharmacy'], payeeName: 'CVS Pharmacy',
-      categoryId: catId('Pharmacy'), ...cr(day),
+      categoryId: catId('Pharmacy'), ...cr(),
     });
   }
 
@@ -688,24 +685,24 @@ for (let mi = 0; mi < 24; mi++) {
       accountId: Math.random() < 0.5 ? acct['Chase Credit Card'] : acct['Primary Checking'],
       date: d(day), amount: -randCents(8, 35),
       payeeId: pay['Target'], payeeName: 'Target',
-      categoryId: catId('Personal Care'), ...cr(day),
+      categoryId: catId('Personal Care'), ...cr(),
     });
   }
 
   // ── TRANSFERS ──
 
   // Checking → Savings ($500)
-  insertTransfer('Primary Checking', 'Savings Account', d(25), 50000, ...Object.values(cr(25)) as [number, number]);
+  insertTransfer('Primary Checking', 'Savings Account', d(25), 50000, cr().reconciled);
 
   // Checking → Credit Card payment
-  insertTransfer('Primary Checking', 'Chase Credit Card', d(22), randCents(700, 1100), ...Object.values(cr(22)) as [number, number]);
+  insertTransfer('Primary Checking', 'Chase Credit Card', d(22), randCents(700, 1100), cr().reconciled);
 
   // Checking → 401k ($500, off-budget)
-  insertTransfer('Primary Checking', 'Vanguard 401k', d(1), 50000, ...Object.values(cr(1)) as [number, number]);
+  insertTransfer('Primary Checking', 'Vanguard 401k', d(1), 50000, cr().reconciled);
 
   // Checking → Emergency Fund ($250, every other month)
   if (mi % 2 === 0) {
-    insertTransfer('Primary Checking', 'Emergency Fund', d(28), 25000, ...Object.values(cr(28)) as [number, number]);
+    insertTransfer('Primary Checking', 'Emergency Fund', d(28), 25000, cr().reconciled);
   }
 
   // ── OLD CHECKING (first 3 months only) ──
@@ -717,7 +714,7 @@ for (let mi = 0; mi < 24; mi++) {
         accountId: acct['Old Checking'], date: d(day), amount: -randCents(10, 50),
         payeeId: null, payeeName: pick(['Corner Store', 'ATM Withdrawal', 'Misc Purchase']),
         categoryId: pick([catId('Cash / ATM'), catId('Miscellaneous')]),
-        ...cr(day),
+        ...cr(),
       });
     }
   }
@@ -729,7 +726,7 @@ for (let mi = 0; mi < 24; mi++) {
 
 // Month 4 (Feb 2025): Costco bulk buy
 {
-  const { cleared, reconciled } = getCR(4, 14);
+  const { reconciled } = getCR(4);
   insertSplit(
     acct['Primary Checking'], fmtDate(2025, 2, 14), -32000,
     pay['Costco'], 'Costco',
@@ -738,13 +735,13 @@ for (let mi = 0; mi < 24; mi++) {
       { categoryId: catId('Home Goods'), amount: -9000, notes: 'Paper towels & cleaning' },
       { categoryId: catId('Electronics'), amount: -5000, notes: 'USB cables' },
     ],
-    cleared, reconciled,
+    reconciled,
   );
 }
 
 // Month 10 (Aug 2025): Target run
 {
-  const { cleared, reconciled } = getCR(10, 8);
+  const { reconciled } = getCR(10);
   insertSplit(
     acct['Primary Checking'], fmtDate(2025, 8, 8), -21500,
     pay['Target'], 'Target',
@@ -752,13 +749,13 @@ for (let mi = 0; mi < 24; mi++) {
       { categoryId: catId('Clothing'), amount: -12000, notes: 'Back to school clothes' },
       { categoryId: catId('Home Goods'), amount: -9500, notes: 'Bedding set' },
     ],
-    cleared, reconciled,
+    reconciled,
   );
 }
 
 // Month 16 (Feb 2026): Amazon order
 {
-  const { cleared, reconciled } = getCR(16, 20);
+  const { reconciled } = getCR(16);
   insertSplit(
     acct['Chase Credit Card'], fmtDate(2026, 2, 20), -17500,
     pay['Amazon'], 'Amazon',
@@ -766,13 +763,13 @@ for (let mi = 0; mi < 24; mi++) {
       { categoryId: catId('Electronics'), amount: -12500, notes: 'Wireless mouse + stand' },
       { categoryId: catId('Home Goods'), amount: -5000, notes: 'Desk organizer' },
     ],
-    cleared, reconciled,
+    reconciled,
   );
 }
 
 // Month 21 (Jul 2026): Vacation trip
 {
-  const { cleared, reconciled } = getCR(21, 10);
+  const { reconciled } = getCR(21);
   insertSplit(
     acct['Primary Checking'], fmtDate(2026, 7, 10), -180000,
     pay['United Airlines'], 'United Airlines',
@@ -781,7 +778,7 @@ for (let mi = 0; mi < 24; mi++) {
       { categoryId: catId('Hotels'), amount: -65000, notes: '4 nights hotel' },
       { categoryId: catId('Restaurants'), amount: -25000, notes: 'Dining while traveling' },
     ],
-    cleared, reconciled,
+    reconciled,
   );
 }
 

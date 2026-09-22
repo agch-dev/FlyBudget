@@ -15,12 +15,12 @@ interface Props {
   accounts?: Account[];
   onSave: (data: CreateTransactionData) => void;
   onCancel: () => void;
-  showAccountCol?: boolean;
+  onDelete?: () => void;
 }
 
 interface SplitRow { categoryId: string | null; amount: string; notes: string; }
 
-export function TransactionFormRow({ initial, accountId, groups, payees, accounts, onSave, onCancel, showAccountCol }: Props) {
+export function TransactionFormRow({ initial, accountId, groups, payees, accounts, onSave, onCancel, onDelete }: Props) {
   const today = format(new Date(), 'yyyy-MM-dd');
   const [date, setDate] = useState(initial?.date ?? today);
   const [payee, setPayee] = useState({ id: initial?.payeeId ?? null, name: initial?.payeeName ?? '' });
@@ -28,8 +28,6 @@ export function TransactionFormRow({ initial, accountId, groups, payees, account
   const [notes, setNotes] = useState(initial?.notes ?? '');
   const [outflow, setOutflow] = useState(initial?.amount !== undefined && initial.amount < 0 ? centsToInput(initial.amount) : '');
   const [inflow, setInflow] = useState(initial?.amount !== undefined && initial.amount > 0 ? centsToInput(initial.amount) : '');
-  const [cleared, setCleared] = useState(Boolean(initial?.cleared));
-
   const [splitMode, setSplitMode] = useState(false);
   const [splits, setSplits] = useState<SplitRow[]>([
     { categoryId: null, amount: '', notes: '' },
@@ -65,7 +63,6 @@ export function TransactionFormRow({ initial, accountId, groups, payees, account
         categoryId: null,
         notes: notes || null,
         amount,
-        cleared: cleared ? 1 : 0,
         splits: splitItems,
       });
       return;
@@ -75,10 +72,9 @@ export function TransactionFormRow({ initial, accountId, groups, payees, account
       accountId, date,
       payeeId: payee.id,
       payeeName: payee.name || null,
-      categoryId: isTransfer ? categoryId : categoryId,
+      categoryId,
       notes: notes || null,
       amount,
-      cleared: cleared ? 1 : 0,
     });
   }
 
@@ -102,110 +98,105 @@ export function TransactionFormRow({ initial, accountId, groups, payees, account
   const totalCents = Math.abs(getTotalCents());
   const splitRemaining = totalCents - splitTotal;
 
-  const inputCls = 'block w-full bg-transparent text-sm text-text placeholder-text-disabled focus:outline-none';
-  const colCount = showAccountCol ? 9 : 8;
+  const inputCls = 'w-full bg-surface text-sm text-text placeholder-text-disabled border border-border rounded px-2 py-1.5 focus:outline-none focus:border-brand-600 focus:ring-1 focus:ring-brand-600';
 
   return (
-    <>
-      <tr className="bg-brand-50 border-b border-brand-100">
-        {showAccountCol && <td className="px-3 py-2 text-xs text-text-tertiary italic">—</td>}
-        <td className="px-3 py-2">
-          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={`${inputCls} text-xs`} />
-        </td>
-        <td className="px-3 py-2">
+    <div className="bg-brand-50 border-b border-brand-100 px-4 py-3">
+      <div className="grid grid-cols-4 gap-3 mb-3">
+        <div>
+          <label className="text-xs text-text-tertiary mb-1 block">Date</label>
+          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={inputCls} />
+        </div>
+        <div>
+          <label className="text-xs text-text-tertiary mb-1 block">Payee</label>
           <PayeeCombobox value={payee} onChange={setPayee} payees={payees} />
-        </td>
-        <td className="px-3 py-2">
+        </div>
+        <div>
+          <label className="text-xs text-text-tertiary mb-1 block">Category</label>
           {splitMode ? (
-            <span className="text-xs text-brand-600 font-medium">Split</span>
+            <span className="text-sm text-brand-600 font-medium leading-8">Split</span>
           ) : (
             <CategorySelect value={categoryId} onChange={setCategoryId} groups={groups} accounts={accounts} currentAccountId={accountId} />
           )}
-        </td>
-        <td className="px-3 py-2">
+        </div>
+        <div>
+          <label className="text-xs text-text-tertiary mb-1 block">Notes</label>
           <input type="text" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notes" className={inputCls} />
-        </td>
-        <td className="px-3 py-2">
+        </div>
+      </div>
+
+      <div className="flex items-end gap-3">
+        <div className="w-28">
+          <label className="text-xs text-text-tertiary mb-1 block">Outflow</label>
           <input
             type="number" value={outflow} onChange={(e) => setOutflow(e.target.value)}
             onFocus={() => setInflow('')} placeholder="0.00" min="0" step="0.01"
             className={`${inputCls} text-right tabular-nums`}
           />
-        </td>
-        <td className="px-3 py-2">
+        </div>
+        <div className="w-28">
+          <label className="text-xs text-text-tertiary mb-1 block">Inflow</label>
           <input
             type="number" value={inflow} onChange={(e) => setInflow(e.target.value)}
             onFocus={() => setOutflow('')} placeholder="0.00" min="0" step="0.01"
             className={`${inputCls} text-right tabular-nums`}
           />
-        </td>
-        <td className="px-3 py-2 text-center">
-          <input type="checkbox" checked={cleared} onChange={(e) => setCleared(e.target.checked)} className="w-4 h-4 accent-brand-600" />
-        </td>
-        <td className="px-3 py-2">
-          <div className="flex gap-1">
-            <button onClick={handleSave} className="p-1 rounded text-brand-600 hover:text-brand-700"><Check size={14} /></button>
-            {!isEditingParent && !isTransfer && (
-              <button
-                onClick={() => setSplitMode(!splitMode)}
-                className={`p-1 rounded ${splitMode ? 'text-brand-600' : 'text-text-tertiary hover:text-text-secondary'}`}
-                title="Split transaction"
-              >
-                <Split size={14} />
-              </button>
-            )}
-            <button onClick={onCancel} className="p-1 rounded text-text-tertiary hover:text-text-secondary"><X size={14} /></button>
-          </div>
-        </td>
-      </tr>
-      {splitMode && splits.map((s, i) => (
-        <tr key={i} className="bg-brand-50/60 border-b border-brand-50">
-          {showAccountCol && <td />}
-          <td />
-          <td />
-          <td className="px-3 py-1.5">
-            <CategorySelect value={s.categoryId} onChange={(v) => updateSplit(i, 'categoryId', v)} groups={groups} className="text-xs" />
-          </td>
-          <td className="px-3 py-1.5">
-            <input type="text" value={s.notes} onChange={(e) => updateSplit(i, 'notes', e.target.value)} placeholder="Notes" className={`${inputCls} text-xs`} />
-          </td>
-          <td className="px-3 py-1.5" colSpan={2}>
-            <input
-              type="number" value={s.amount} onChange={(e) => updateSplit(i, 'amount', e.target.value)}
-              placeholder="0.00" min="0" step="0.01"
-              className={`${inputCls} text-right tabular-nums text-xs`}
-            />
-          </td>
-          <td />
-          <td className="px-3 py-1.5">
-            {splits.length > 2 && (
-              <button onClick={() => removeSplitRow(i)} className="p-0.5 rounded text-text-tertiary hover:text-negative">
-                <Trash2 size={12} />
-              </button>
-            )}
-          </td>
-        </tr>
-      ))}
+        </div>
+        <div className="flex-1" />
+        <div className="flex items-center gap-1 pb-0.5">
+          <button onClick={handleSave} className="p-1.5 rounded text-brand-600 hover:text-brand-700 hover:bg-brand-100" title="Save">
+            <Check size={16} />
+          </button>
+          {!isEditingParent && !isTransfer && (
+            <button
+              onClick={() => setSplitMode(!splitMode)}
+              className={`p-1.5 rounded ${splitMode ? 'text-brand-600 bg-brand-100' : 'text-text-tertiary hover:text-text-secondary hover:bg-surface-alt'}`}
+              title="Split transaction"
+            >
+              <Split size={16} />
+            </button>
+          )}
+          <button onClick={onCancel} className="p-1.5 rounded text-text-tertiary hover:text-text-secondary hover:bg-surface-alt" title="Cancel">
+            <X size={16} />
+          </button>
+          {onDelete && (
+            <button onClick={onDelete} className="p-1.5 rounded text-text-tertiary hover:text-negative hover:bg-red-50 ml-1" title="Delete">
+              <Trash2 size={16} />
+            </button>
+          )}
+        </div>
+      </div>
+
       {splitMode && (
-        <tr className="bg-brand-50/40 border-b border-brand-100">
-          {showAccountCol && <td />}
-          <td />
-          <td />
-          <td className="px-3 py-1.5">
+        <div className="mt-3 pt-3 border-t border-brand-100">
+          {splits.map((s, i) => (
+            <div key={i} className="grid grid-cols-[1fr_1fr_120px_auto] gap-2 mb-2 items-center">
+              <CategorySelect value={s.categoryId} onChange={(v) => updateSplit(i, 'categoryId', v)} groups={groups} className="text-xs" />
+              <input type="text" value={s.notes} onChange={(e) => updateSplit(i, 'notes', e.target.value)} placeholder="Notes" className={`${inputCls} text-xs`} />
+              <input
+                type="number" value={s.amount} onChange={(e) => updateSplit(i, 'amount', e.target.value)}
+                placeholder="0.00" min="0" step="0.01"
+                className={`${inputCls} text-right tabular-nums text-xs`}
+              />
+              <div className="w-6">
+                {splits.length > 2 && (
+                  <button onClick={() => removeSplitRow(i)} className="p-0.5 rounded text-text-tertiary hover:text-negative">
+                    <Trash2 size={14} />
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+          <div className="flex items-center justify-between mt-2">
             <button onClick={addSplitRow} className="flex items-center gap-1 text-xs text-brand-600 hover:text-brand-700">
               <Plus size={12} /> Add split
             </button>
-          </td>
-          <td />
-          <td colSpan={2} className="px-3 py-1.5 text-right">
             <span className={`text-xs tabular-nums ${splitRemaining === 0 ? 'text-positive' : 'text-negative'}`}>
               {splitRemaining === 0 ? 'Balanced' : `${formatCurrency(splitRemaining)} remaining`}
             </span>
-          </td>
-          <td />
-          <td />
-        </tr>
+          </div>
+        </div>
       )}
-    </>
+    </div>
   );
 }

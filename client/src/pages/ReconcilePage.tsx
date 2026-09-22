@@ -29,8 +29,7 @@ export default function ReconcilePage() {
   const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set());
 
   function startStep2() {
-    const preChecked = new Set(unreconciledTxns.filter(t => t.cleared === 1).map(t => t.id));
-    setCheckedIds(preChecked);
+    setCheckedIds(new Set());
     setStep(2);
   }
 
@@ -46,8 +45,8 @@ export default function ReconcilePage() {
       .reduce((s, t) => s + t.amount, 0);
   }, [unreconciledTxns, checkedIds]);
 
-  const clearedBalance = reconciledBase + checkedSum;
-  const difference = clearedBalance - statementBalance;
+  const selectedBalance = reconciledBase + checkedSum;
+  const difference = selectedBalance - statementBalance;
   const isBalanced = difference === 0;
 
   function toggleRow(tx: Transaction) {
@@ -66,13 +65,12 @@ export default function ReconcilePage() {
 
   async function handleCreateAdjustment() {
     if (!id || !account) return;
-    const adjustmentAmount = statementBalance - clearedBalance;
+    const adjustmentAmount = statementBalance - selectedBalance;
     const created = await createTransaction.mutateAsync({
       accountId: id,
       date: format(new Date(), 'yyyy-MM-dd'),
       amount: adjustmentAmount,
       notes: 'Reconciliation adjustment',
-      cleared: 1,
     });
     const idsToReconcile = [...checkedIds, created.id];
     await reconcileAccount.mutateAsync({ accountId: id, transactionIds: idsToReconcile });
@@ -115,8 +113,8 @@ export default function ReconcilePage() {
             </div>
 
             <div className="rounded-lg border border-border-light bg-surface-alt px-4 py-3">
-              <p className="text-xs text-text-tertiary">Current cleared balance in app</p>
-              <p className="text-lg font-semibold text-text mt-0.5 tabular-nums">{formatCurrency(clearedBalance)}</p>
+              <p className="text-xs text-text-tertiary">Current selected balance in app</p>
+              <p className="text-lg font-semibold text-text mt-0.5 tabular-nums">{formatCurrency(selectedBalance)}</p>
             </div>
 
             <Button
@@ -200,8 +198,8 @@ export default function ReconcilePage() {
         <div className="w-64 shrink-0 border-l border-border flex flex-col">
           <div className="flex-1 px-5 py-6 space-y-5">
             <div>
-              <p className="text-xs text-text-tertiary mb-0.5">Cleared Balance</p>
-              <p className="text-xl font-semibold text-text tabular-nums">{formatCurrency(clearedBalance)}</p>
+              <p className="text-xs text-text-tertiary mb-0.5">Selected Balance</p>
+              <p className="text-xl font-semibold text-text tabular-nums">{formatCurrency(selectedBalance)}</p>
             </div>
             <div>
               <p className="text-xs text-text-tertiary mb-0.5">Statement Balance</p>

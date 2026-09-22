@@ -8,13 +8,11 @@ export type DatePreset = 'this-month' | 'last-3' | 'this-year' | 'all';
 export interface FilterState {
   search: string;
   datePreset: DatePreset;
-  cleared: 'all' | '0' | '1';
 }
 
 export const DEFAULT_FILTERS: FilterState = {
   search: '',
   datePreset: 'this-month',
-  cleared: 'all',
 };
 
 function dateRangeFor(preset: DatePreset): { from?: string; to?: string } {
@@ -47,7 +45,6 @@ export function filtersToParams(f: FilterState, accountId?: string): Transaction
     ...(range.from ? { from: range.from } : {}),
     ...(range.to ? { to: range.to } : {}),
     ...(f.search ? { search: f.search } : {}),
-    ...(f.cleared !== 'all' ? { cleared: Number(f.cleared) as 0 | 1 } : {}),
   };
 }
 
@@ -71,7 +68,6 @@ export function TransactionFilters({ state, onChange }: Props) {
   const activeCount = [
     state.datePreset !== 'this-month',
     !!state.search,
-    state.cleared !== 'all',
   ].filter(Boolean).length;
 
   function handleSearchChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -113,22 +109,6 @@ export function TransactionFilters({ state, onChange }: Props) {
             }`}
           >
             {p.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="flex gap-0 border-b border-transparent">
-        {(['all', '1', '0'] as const).map((v) => (
-          <button
-            key={v}
-            onClick={() => onChange({ ...state, cleared: v })}
-            className={`px-2.5 py-1 text-xs font-medium transition-colors border-b-2 -mb-px ${
-              state.cleared === v
-                ? 'border-brand-600 text-brand-600'
-                : 'border-transparent text-text-tertiary hover:text-text-secondary'
-            }`}
-          >
-            {v === 'all' ? 'All' : v === '1' ? 'Cleared' : 'Uncleared'}
           </button>
         ))}
       </div>

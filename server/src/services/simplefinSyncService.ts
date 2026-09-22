@@ -71,7 +71,6 @@ export async function syncSimplefinConnection(connectionId: string): Promise<Sim
           payeeName: payee.payeeName,
           categoryId: auto.categoryId,
           notes: null,
-          cleared: 1,
           reconciled: 0,
           isParent: 0,
           transferTransactionId: null,

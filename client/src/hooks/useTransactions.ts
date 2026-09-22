@@ -32,17 +32,6 @@ export function useUpdateTransaction() {
   });
 }
 
-export function useToggleCleared() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, cleared }: { id: string; cleared: 0 | 1 }) =>
-      txApi.updateTransaction(id, { cleared }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['transactions'] });
-    },
-  });
-}
-
 export function useDeleteTransaction() {
   const qc = useQueryClient();
   return useMutation({

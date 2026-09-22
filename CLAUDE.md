@@ -158,7 +158,7 @@ The app integrates with **Plaid** for automatic bank transaction import. Plaid c
 **Sync behavior:**
 - Runs on app startup (fire-and-forget) + manual "Sync Now" in settings
 - Transactions get `importedId = 'plaid:' + plaidTransactionId` for dedup (same `importedId` column used by CSV import)
-- Synced transactions arrive with `cleared=1`; reconciled transactions are never modified/deleted by sync
+- Reconciled transactions are never modified/deleted by sync
 - Account `startingBalance` is adjusted so `startingBalance + SUM(transactions) = Plaid reported balance`
 
 **Client components:** `client/src/components/plaid/` — PlaidLinkButton, ConnectBankModal (multi-step: link → account mapping → sync → done), ConnectedInstitutionCard, SyncStatusBadge, PlaidConfigForm.

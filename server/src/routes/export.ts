@@ -27,7 +27,6 @@ exportRouter.get('/transactions/csv', (req, res) => {
       amount: transactions.amount,
       payeeName: transactions.payeeName,
       notes: transactions.notes,
-      cleared: transactions.cleared,
       reconciled: transactions.reconciled,
       categoryId: transactions.categoryId,
       accountId: transactions.accountId,
@@ -44,7 +43,7 @@ exportRouter.get('/transactions/csv', (req, res) => {
     db.select().from(categories).all().map((c) => [c.id, c.name])
   );
 
-  const header = 'Date,Account,Payee,Category,Notes,Amount,Cleared,Reconciled\n';
+  const header = 'Date,Account,Payee,Category,Notes,Amount,Reconciled\n';
   const body = rows
     .map((r) =>
       [
@@ -54,7 +53,6 @@ exportRouter.get('/transactions/csv', (req, res) => {
         escapeCsv(r.categoryId ? cats[r.categoryId] ?? '' : ''),
         escapeCsv(r.notes),
         (r.amount / 100).toFixed(2),
-        r.cleared ? 'Yes' : 'No',
         r.reconciled ? 'Yes' : 'No',
       ].join(',')
     )

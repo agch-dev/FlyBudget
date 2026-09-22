@@ -64,6 +64,13 @@
       "when": 1789947844875,
       "tag": "0008_flaky_invaders",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1790045308964,
+      "tag": "0009_glorious_talos",
+      "breakpoints": true
     }
   ]
 }

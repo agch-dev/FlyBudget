@@ -66,7 +66,7 @@ accountsRouter.put('/:id/reconcile', (req, res) => {
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
 
   db.update(transactions)
-    .set({ reconciled: 1, cleared: 1 })
+    .set({ reconciled: 1 })
     .where(inArray(transactions.id, parsed.data.transactionIds))
     .run();
 

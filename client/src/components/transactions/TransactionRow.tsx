@@ -1,116 +1,136 @@
 import { useState } from 'react';
-import { format, parseISO } from 'date-fns';
-import { Check, Pencil, Trash2, Lock, ChevronRight, ChevronDown, ArrowLeftRight } from 'lucide-react';
+import { ChevronRight, ChevronDown, ArrowLeftRight, Lock } from 'lucide-react';
 import type { Transaction } from '../../types';
 import { formatCurrency } from '../../utils/currency';
+
+const PAYEE_COLORS = [
+  '#6366F1', '#EC4899', '#F59E0B', '#10B981', '#3B82F6',
+  '#8B5CF6', '#EF4444', '#14B8A6', '#F97316', '#06B6D4',
+];
+
+function payeeColor(name: string): string {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return PAYEE_COLORS[Math.abs(hash) % PAYEE_COLORS.length];
+}
+
+const ACCOUNT_TYPE_COLORS: Record<string, string> = {
+  checking: '#3B82F6',
+  savings: '#10B981',
+  credit: '#F59E0B',
+  cash: '#6B7280',
+  investment: '#8B5CF6',
+};
 
 interface Props {
   tx: Transaction;
   categoryEntry: { name: string; icon: string | null } | null;
   categoryMap: Map<string, { name: string; icon: string | null }>;
   accountName?: string;
+  accountType?: string;
   showAccountCol?: boolean;
   onEdit: (id: string) => void;
-  onDelete: (id: string) => void;
-  onToggleCleared: (id: string, cleared: number) => void;
 }
 
-export function TransactionRow({ tx, categoryEntry, categoryMap, accountName, showAccountCol, onEdit, onDelete, onToggleCleared }: Props) {
+export function TransactionRow({ tx, categoryEntry, categoryMap, accountName, accountType, showAccountCol, onEdit }: Props) {
   const [expanded, setExpanded] = useState(false);
   const isTransfer = !!tx.transferTransactionId;
   const isSplitParent = tx.isParent === 1 && tx.children && tx.children.length > 0;
 
+  const payeeName = tx.payeeName || (isTransfer ? 'Transfer' : '—');
+  const initial = payeeName.charAt(0).toUpperCase();
+  const bgColor = payeeColor(payeeName);
+  const acctColor = ACCOUNT_TYPE_COLORS[accountType || ''] || '#6B7280';
+
   return (
-    <>
-      <tr
-        className="border-b border-border-light hover:bg-hover group cursor-pointer"
+    <div>
+      <div
+        className="flex items-center px-4 py-2.5 bg-surface hover:bg-hover cursor-pointer border-b border-border-light"
         onClick={() => !tx.reconciled && onEdit(tx.id)}
       >
-        {showAccountCol && (
-          <td className="px-3 py-1.5 text-xs text-text-tertiary">{accountName ?? '—'}</td>
-        )}
-        <td className="px-3 py-1.5 text-xs text-text-tertiary whitespace-nowrap">
-          {format(parseISO(tx.date), 'MMM d')}
-        </td>
-        <td className="px-3 py-1.5 text-sm font-medium text-text">
-          <span className="flex items-center gap-1">
-            {isTransfer && <ArrowLeftRight size={12} className="text-brand-500 shrink-0" />}
-            {tx.payeeName ?? <span className="text-text-disabled italic">—</span>}
-          </span>
-        </td>
-        <td className="px-3 py-1.5 text-sm text-text-tertiary">
+        <div className="flex items-center gap-3 flex-[2] min-w-0">
+          <div
+            className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-semibold shrink-0"
+            style={{ backgroundColor: bgColor }}
+          >
+            {isTransfer ? <ArrowLeftRight size={14} /> : initial}
+          </div>
+          <span className="text-sm font-medium text-text truncate">{payeeName}</span>
+        </div>
+
+        <div className="flex items-center gap-2 flex-[1.5] min-w-0">
           {isSplitParent ? (
             <button
               onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }}
               className="flex items-center gap-1 text-brand-600 hover:text-brand-700"
             >
-              {expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
-              <span className="text-xs">Split ({tx.children!.length})</span>
+              {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+              <span className="text-sm">Split ({tx.children!.length})</span>
             </button>
           ) : isTransfer ? (
-            <span className="text-brand-500 text-xs">Transfer</span>
+            <span className="text-sm text-brand-500">Transfer</span>
           ) : categoryEntry ? (
-            <span>{categoryEntry.icon ? `${categoryEntry.icon} ` : ''}{categoryEntry.name}</span>
+            <>
+              {categoryEntry.icon && <span className="text-base shrink-0">{categoryEntry.icon}</span>}
+              <span className="text-sm text-text-secondary truncate">{categoryEntry.name}</span>
+            </>
           ) : (
-            <span className="text-text-disabled">—</span>
+            <span className="text-sm text-text-disabled">&mdash;</span>
           )}
-        </td>
-        <td className="px-3 py-1.5 text-sm text-text-tertiary">{tx.notes ?? ''}</td>
-        <td className="px-3 py-1.5 text-sm text-right tabular-nums text-text">
-          {tx.amount < 0 ? formatCurrency(-tx.amount) : ''}
-        </td>
-        <td className="px-3 py-1.5 text-sm text-right tabular-nums text-positive">
-          {tx.amount > 0 ? formatCurrency(tx.amount) : ''}
-        </td>
-        <td className="px-3 py-1.5 text-center" onClick={(e) => e.stopPropagation()}>
-          <button
-            onClick={() => !tx.reconciled && onToggleCleared(tx.id, tx.cleared)}
-            disabled={!!tx.reconciled}
-            className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mx-auto transition-colors ${
-              tx.cleared
-                ? 'bg-positive border-positive text-white'
-                : 'border-border text-transparent hover:border-text-tertiary'
-            } ${tx.reconciled ? 'opacity-50 cursor-not-allowed' : ''}`}
-          >
-            <Check size={10} />
-          </button>
-        </td>
-        <td className="px-3 py-1.5" onClick={(e) => e.stopPropagation()}>
-          {tx.reconciled ? (
-            <div className="flex items-center justify-center w-full">
-              <Lock size={12} className="text-text-disabled" />
+        </div>
+
+        {showAccountCol && (
+          <div className="flex items-center gap-2 flex-[1.5] min-w-0">
+            <div
+              className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold shrink-0"
+              style={{ backgroundColor: acctColor }}
+            >
+              {accountName ? accountName.charAt(0).toUpperCase() : '?'}
             </div>
-          ) : (
-            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-              <button onClick={() => onEdit(tx.id)} className="p-1 rounded text-text-tertiary hover:text-brand-600">
-                <Pencil size={13} />
-              </button>
-              <button onClick={() => onDelete(tx.id)} className="p-1 rounded text-text-tertiary hover:text-negative">
-                <Trash2 size={13} />
-              </button>
+            <span className="text-sm text-text-secondary truncate">{accountName || '—'}</span>
+          </div>
+        )}
+
+        {tx.reconciled ? (
+          <div className="w-8 flex justify-center shrink-0">
+            <Lock size={12} className="text-text-disabled" />
+          </div>
+        ) : (
+          <div className="w-8 shrink-0" />
+        )}
+
+        <div className="w-24 text-right shrink-0 mx-2">
+          <span className={`text-sm font-medium tabular-nums ${tx.amount > 0 ? 'text-positive' : 'text-text'}`}>
+            {formatCurrency(Math.abs(tx.amount))}
+          </span>
+        </div>
+
+        <ChevronRight size={16} className="text-text-tertiary shrink-0" />
+      </div>
+
+      {isSplitParent && expanded && tx.children!.map((child) => {
+        const childCat = child.categoryId ? categoryMap.get(child.categoryId) : null;
+        return (
+          <div key={child.id} className="flex items-center pl-16 pr-4 py-2 bg-surface-alt border-b border-border-light">
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              {childCat ? (
+                <>
+                  {childCat.icon && <span className="text-sm shrink-0">{childCat.icon}</span>}
+                  <span className="text-xs text-text-tertiary truncate">{childCat.name}</span>
+                </>
+              ) : (
+                <span className="text-xs text-text-disabled">&mdash;</span>
+              )}
+              {child.notes && (
+                <span className="text-xs text-text-disabled truncate ml-2">{child.notes}</span>
+              )}
             </div>
-          )}
-        </td>
-      </tr>
-      {isSplitParent && expanded && tx.children!.map((child) => (
-        <tr key={child.id} className="bg-surface-alt border-b border-border-light">
-          {showAccountCol && <td />}
-          <td />
-          <td />
-          <td className="px-3 py-1.5 text-xs text-text-tertiary pl-8">
-            {child.categoryId ? (() => { const e = categoryMap.get(child.categoryId!); return e ? `${e.icon ? e.icon + ' ' : ''}${e.name}` : '—'; })() : '—'}
-          </td>
-          <td className="px-3 py-1.5 text-xs text-text-tertiary">{child.notes ?? ''}</td>
-          <td className="px-3 py-1.5 text-xs text-right tabular-nums text-text-secondary">
-            {child.amount < 0 ? formatCurrency(-child.amount) : ''}
-          </td>
-          <td className="px-3 py-1.5 text-xs text-right tabular-nums text-positive">
-            {child.amount > 0 ? formatCurrency(child.amount) : ''}
-          </td>
-          <td />
-          <td />
-        </tr>
-      ))}
-    </>
+            <span className={`text-xs tabular-nums shrink-0 ${child.amount > 0 ? 'text-positive' : 'text-text-secondary'}`}>
+              {formatCurrency(Math.abs(child.amount))}
+            </span>
+          </div>
+        );
+      })}
+    </div>
   );
 }

@@ -69,7 +69,6 @@ export async function syncPlaidItem(plaidItemId: string): Promise<SyncResult> {
         payeeName: payee.payeeName,
         categoryId: auto.categoryId,
         notes: null,
-        cleared: 1,
         reconciled: 0,
         isParent: 0,
         transferTransactionId: null,

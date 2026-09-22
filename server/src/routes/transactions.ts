@@ -16,7 +16,6 @@ const createSchema = z.object({
   payeeName: z.string().nullable().optional(),
   categoryId: z.string().nullable().optional(),
   notes: z.string().nullable().optional(),
-  cleared: z.number().int().min(0).max(1).default(0),
   splits: z.array(z.object({
     categoryId: z.string().nullable(),
     amount: z.number().int(),
@@ -32,7 +31,6 @@ const transferSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   amount: z.number().int().positive(),
   notes: z.string().nullable().optional(),
-  cleared: z.number().int().min(0).max(1).default(0),
 });
 
 const importRowSchema = z.object({
@@ -45,7 +43,7 @@ const importRowSchema = z.object({
 
 // GET /transactions — excludes split children; attaches children array to parents
 transactionsRouter.get('/', (req, res) => {
-  const { account_id, month, from, to, category_id, search, cleared, reconciled } = req.query as Record<string, string>;
+  const { account_id, month, from, to, category_id, search, reconciled } = req.query as Record<string, string>;
 
   let query = db.select().from(transactions).$dynamic();
 
@@ -59,7 +57,6 @@ transactionsRouter.get('/', (req, res) => {
   if (to) conditions.push(lte(transactions.date, to));
   if (category_id) conditions.push(eq(transactions.categoryId, category_id));
   if (search) conditions.push(like(transactions.payeeName, `%${search}%`));
-  if (cleared === '0' || cleared === '1') conditions.push(eq(transactions.cleared, Number(cleared)));
   if (reconciled === '0' || reconciled === '1') conditions.push(eq(transactions.reconciled, Number(reconciled)));
 
   query = query.where(and(...conditions));
@@ -122,7 +119,7 @@ transactionsRouter.post('/', (req, res) => {
       amount: s.amount,
       payeeId: finalPayeeId, payeeName: payee.payeeName,
       categoryId: s.categoryId, notes: s.notes ?? null,
-      cleared: rest.cleared, reconciled: 0, isParent: 0,
+      reconciled: 0, isParent: 0,
       transferTransactionId: null, parentTransactionId: parentId, importedId: null,
       createdAt: new Date().toISOString(),
     }));
@@ -152,7 +149,7 @@ transactionsRouter.post('/transfer', (req, res) => {
   const parsed = transferSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
 
-  const { fromAccountId, toAccountId, date, amount, notes, cleared } = parsed.data;
+  const { fromAccountId, toAccountId, date, amount, notes } = parsed.data;
   const fromAcct = db.select().from(accounts).where(eq(accounts.id, fromAccountId)).get();
   const toAcct = db.select().from(accounts).where(eq(accounts.id, toAccountId)).get();
   if (!fromAcct || !toAcct) return res.status(404).json({ error: 'Account not found' });
@@ -165,13 +162,13 @@ transactionsRouter.post('/transfer', (req, res) => {
   const fromTx = {
     id: fromId, accountId: fromAccountId, date, amount: -amount,
     payeeId: null, payeeName: `Transfer: ${toAcct.name}`,
-    categoryId: null, notes: notes ?? null, cleared,
+    categoryId: null, notes: notes ?? null,
     transferTransactionId: toId, ...base,
   };
   const toTx = {
     id: toId, accountId: toAccountId, date, amount,
     payeeId: null, payeeName: `Transfer: ${fromAcct.name}`,
-    categoryId: null, notes: notes ?? null, cleared,
+    categoryId: null, notes: notes ?? null,
     transferTransactionId: fromId, ...base,
   };
 
@@ -220,7 +217,7 @@ transactionsRouter.post('/import/confirm', (req, res) => {
       id: nanoid(), accountId, date: row.date, amount: row.amount,
       payeeId: auto.payeeId, payeeName: payee.payeeName,
       categoryId: auto.categoryId, notes: row.notes ?? null,
-      cleared: 0, reconciled: 0, isParent: 0,
+      reconciled: 0, isParent: 0,
       transferTransactionId: null, parentTransactionId: null,
       importedId: row.importedId, createdAt: new Date().toISOString(),
     }).run();
