@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { format, parseISO, subMonths, startOfYear } from 'date-fns';
+import { format, parseISO, subMonths, subDays, startOfYear } from 'date-fns';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { useNetWorth } from '../../hooks/useReports';
 import { formatCurrency } from '../../utils/currency';
@@ -30,29 +30,45 @@ const PRESETS: { value: Preset; label: string }[] = [
   { value: 'all', label: 'All time' },
 ];
 
-function computeRange(preset: Preset): { from: string; to: string } {
+function computeRange(preset: Preset): { from: string; to: string; granularity: 'daily' | 'monthly' } {
   const now = new Date();
-  const to = format(now, 'yyyy-MM');
   switch (preset) {
-    case '1m': return { from: format(subMonths(now, 1), 'yyyy-MM'), to };
-    case '3m': return { from: format(subMonths(now, 2), 'yyyy-MM'), to };
-    case '6m': return { from: format(subMonths(now, 5), 'yyyy-MM'), to };
-    case 'ytd': return { from: format(startOfYear(now), 'yyyy-MM'), to };
-    case '1y': return { from: format(subMonths(now, 11), 'yyyy-MM'), to };
-    case 'all': return { from: '2000-01', to };
+    case '1m': return { from: format(subDays(now, 30), 'yyyy-MM-dd'), to: format(now, 'yyyy-MM-dd'), granularity: 'daily' };
+    case '3m': return { from: format(subMonths(now, 3), 'yyyy-MM-dd'), to: format(now, 'yyyy-MM-dd'), granularity: 'daily' };
+    case '6m': return { from: format(subMonths(now, 5), 'yyyy-MM'), to: format(now, 'yyyy-MM'), granularity: 'monthly' };
+    case 'ytd': return { from: format(startOfYear(now), 'yyyy-MM'), to: format(now, 'yyyy-MM'), granularity: 'monthly' };
+    case '1y': return { from: format(subMonths(now, 11), 'yyyy-MM'), to: format(now, 'yyyy-MM'), granularity: 'monthly' };
+    case 'all': return { from: '2000-01', to: format(now, 'yyyy-MM'), granularity: 'monthly' };
   }
 }
 
 export default function NetWorthMini() {
   const [preset, setPreset] = useState<Preset>('1m');
 
-  const { from, to } = useMemo(() => computeRange(preset), [preset]);
-  const { data = [], isLoading } = useNetWorth(from, to);
+  const { from, to, granularity } = useMemo(() => computeRange(preset), [preset]);
+  const { data = [], isLoading } = useNetWorth(from, to, granularity);
+
+  const isDaily = granularity === 'daily';
 
   const chartData = useMemo(
-    () => data.map(d => ({ ...d, month: format(parseISO(`${d.month}-01`), 'MMM yy') })),
-    [data],
+    () => data.map(d => ({
+      ...d,
+      label: isDaily
+        ? format(parseISO(d.month), 'MMM d')
+        : format(parseISO(`${d.month}-01`), 'MMM yy'),
+    })),
+    [data, isDaily],
   );
+
+  const yDomain = useMemo(() => {
+    if (data.length === 0) return [0, 100];
+    const values = data.map(d => d.netWorth);
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const range = max - min;
+    const pad = range > 0 ? range * 0.05 : Math.abs(max) * 0.01 || 100;
+    return [min - pad, max + pad];
+  }, [data]);
 
   const latest = data.length > 0 ? data[data.length - 1].netWorth : 0;
   const first = data.length > 0 ? data[0].netWorth : latest;
@@ -108,13 +124,13 @@ export default function NetWorthMini() {
                 </linearGradient>
               </defs>
               <XAxis
-                dataKey="month"
+                dataKey="label"
                 tick={{ fontSize: 10, fill: chartColors.axis }}
                 axisLine={false}
                 tickLine={false}
                 padding={{ left: 8, right: 8 }}
               />
-              <YAxis hide domain={['auto', 'auto']} />
+              <YAxis hide domain={yDomain} />
               <Tooltip content={<MiniTooltip />} />
               <Area
                 type="monotone"

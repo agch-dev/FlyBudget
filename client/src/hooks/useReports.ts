@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import * as reportsApi from '../api/reports';
 
-export const useNetWorth = (from: string, to: string) =>
-  useQuery({ queryKey: ['reports', 'net-worth', from, to], queryFn: () => reportsApi.getNetWorth(from, to) });
+export const useNetWorth = (from: string, to: string, granularity?: 'daily' | 'monthly') =>
+  useQuery({ queryKey: ['reports', 'net-worth', from, to, granularity], queryFn: () => reportsApi.getNetWorth(from, to, granularity) });
 
 export const useIncomeVsExpenses = (from: string, to: string) =>
   useQuery({ queryKey: ['reports', 'income-expenses', from, to], queryFn: () => reportsApi.getIncomeVsExpenses(from, to) });

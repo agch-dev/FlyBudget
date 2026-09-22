@@ -3,8 +3,8 @@ import type { NetWorthPoint, IncomeExpensesPoint, CashFlowPoint, SpendingByCateg
 
 const toQueryString = (from: string, to: string) => `?from=${from}&to=${to}`;
 
-export const getNetWorth = (from: string, to: string) =>
-  apiFetch<NetWorthPoint[]>(`/reports/net-worth${toQueryString(from, to)}`);
+export const getNetWorth = (from: string, to: string, granularity?: 'daily' | 'monthly') =>
+  apiFetch<NetWorthPoint[]>(`/reports/net-worth${toQueryString(from, to)}${granularity ? `&granularity=${granularity}` : ''}`);
 
 export const getIncomeVsExpenses = (from: string, to: string) =>
   apiFetch<IncomeExpensesPoint[]>(`/reports/income-vs-expenses${toQueryString(from, to)}`);

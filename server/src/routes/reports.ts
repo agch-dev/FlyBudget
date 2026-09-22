@@ -19,60 +19,76 @@ function monthRange(from: string, to: string): string[] {
   return months;
 }
 
+function dayRange(from: string, to: string): string[] {
+  const days: string[] = [];
+  const d = new Date(from + 'T00:00:00');
+  const end = new Date(to + 'T00:00:00');
+  while (d <= end) {
+    days.push(d.toISOString().slice(0, 10));
+    d.setDate(d.getDate() + 1);
+  }
+  return days;
+}
+
 reportsRouter.get('/net-worth', (req, res) => {
-  const { from = '2024-01', to = '2026-12' } = req.query as Record<string, string>;
-  const months = monthRange(from, to);
+  const { from = '2024-01', to = '2026-12', granularity = 'monthly' } = req.query as Record<string, string>;
+  const isDaily = granularity === 'daily';
+
+  const periods = isDaily ? dayRange(from, to) : monthRange(from, to);
 
   const allAccounts = db.select().from(accounts).all();
 
-  // Single query: per-account per-month totals up to end of range
+  const upperBound = isDaily ? to : monthBounds(to).to;
+  const groupExpr = isDaily
+    ? sql<string>`${transactions.date}`
+    : sql<string>`strftime('%Y-%m', ${transactions.date})`;
+
   const txRows = db
     .select({
       accountId: transactions.accountId,
-      month: sql<string>`strftime('%Y-%m', ${transactions.date})`,
+      period: groupExpr,
       total: sql<number>`coalesce(sum(${transactions.amount}), 0)`,
     })
     .from(transactions)
-    .where(lte(transactions.date, monthBounds(to).to))
-    .groupBy(transactions.accountId, sql`strftime('%Y-%m', ${transactions.date})`)
+    .where(lte(transactions.date, upperBound))
+    .groupBy(transactions.accountId, groupExpr)
     .all();
 
-  // Build running cumulative balance per account per month
-  const byAccount: Record<string, Array<{ month: string; total: number }>> = {};
+  const byAccount: Record<string, Array<{ period: string; total: number }>> = {};
   for (const row of txRows) {
-    (byAccount[row.accountId] ??= []).push({ month: row.month, total: row.total });
+    (byAccount[row.accountId] ??= []).push({ period: row.period, total: row.total });
   }
 
   const cumulativeByAccount: Record<string, Record<string, number>> = {};
   for (const acct of allAccounts) {
-    const entries = (byAccount[acct.id] ?? []).sort((a, b) => a.month.localeCompare(b.month));
+    const entries = (byAccount[acct.id] ?? []).sort((a, b) => a.period.localeCompare(b.period));
     let running = acct.startingBalance;
     const cumMap: Record<string, number> = {};
-    for (const { month, total } of entries) {
+    for (const { period, total } of entries) {
       running += total;
-      cumMap[month] = running;
+      cumMap[period] = running;
     }
     cumulativeByAccount[acct.id] = cumMap;
   }
 
-  function balanceAt(acctId: string, targetMonth: string, startingBalance: number): number {
+  function balanceAt(acctId: string, target: string, startingBalance: number): number {
     const cumMap = cumulativeByAccount[acctId] ?? {};
     let balance = startingBalance;
-    for (const m of Object.keys(cumMap).sort()) {
-      if (m > targetMonth) break;
-      balance = cumMap[m];
+    for (const k of Object.keys(cumMap).sort()) {
+      if (k > target) break;
+      balance = cumMap[k];
     }
     return balance;
   }
 
-  const result = months.map((month) => {
+  const result = periods.map((period) => {
     let assets = 0, liabilities = 0;
     for (const acct of allAccounts) {
-      const balance = balanceAt(acct.id, month, acct.startingBalance);
+      const balance = balanceAt(acct.id, period, acct.startingBalance);
       if (acct.type === 'credit') liabilities += Math.abs(Math.min(balance, 0));
       else assets += Math.max(balance, 0);
     }
-    return { month, assets, liabilities, netWorth: assets - liabilities };
+    return { month: period, assets, liabilities, netWorth: assets - liabilities };
   });
 
   res.json(result);
