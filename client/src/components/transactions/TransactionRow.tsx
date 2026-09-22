@@ -50,7 +50,7 @@ export function TransactionRow({ tx, categoryEntry, categoryMap, groups, payees,
     setShowPayeePicker(false);
   }
 
-  const arrowBtnCls = 'opacity-0 group-hover:opacity-100 p-1 border border-border rounded-md hover:bg-hover text-text-tertiary hover:text-text-secondary transition-opacity shrink-0';
+  const arrowBtnCls = 'opacity-0 group-hover:opacity-100 w-9 h-9 flex items-center justify-center border border-border rounded-lg hover:bg-hover text-text-tertiary hover:text-text-secondary transition-opacity shrink-0';
 
   return (
     <div>
@@ -61,7 +61,7 @@ export function TransactionRow({ tx, categoryEntry, categoryMap, groups, payees,
         onClick={() => onOpenDetail(tx.id)}
       >
         {/* Payee */}
-        <div className="flex items-center gap-3 flex-[2] min-w-0 relative">
+        <div className="flex items-center gap-1 flex-[1.8] min-w-0 relative mr-3">
           <div
             className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-semibold shrink-0"
             style={{ backgroundColor: bgColor }}
@@ -70,11 +70,11 @@ export function TransactionRow({ tx, categoryEntry, categoryMap, groups, payees,
           </div>
           {canEditPayee ? (
             <button
-              className="flex items-center gap-2 px-2.5 py-1 rounded-full transition-all group-hover:border group-hover:border-border group-hover:bg-surface cursor-pointer border border-transparent min-w-0"
+              className="flex-1 flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-all group-hover:border group-hover:border-border group-hover:bg-surface cursor-pointer border border-transparent min-w-0"
               onClick={(e) => { e.stopPropagation(); setShowPayeePicker(!showPayeePicker); }}
             >
               <span className="text-sm font-medium text-text truncate">{payeeName}</span>
-              <ChevronDown size={12} className="opacity-0 group-hover:opacity-100 text-text-tertiary shrink-0 transition-opacity" />
+              <ChevronDown size={12} className="opacity-0 group-hover:opacity-100 text-text-tertiary shrink-0 transition-opacity ml-auto" />
             </button>
           ) : (
             <span className="text-sm font-medium text-text truncate">{payeeName}</span>
@@ -101,7 +101,7 @@ export function TransactionRow({ tx, categoryEntry, categoryMap, groups, payees,
         </div>
 
         {/* Category */}
-        <div className="flex items-center gap-1.5 flex-[1.5] min-w-0 relative">
+        <div className="flex items-center gap-1 flex-[1.5] min-w-0 relative mr-3">
           {isSplitParent ? (
             <button
               onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }}
@@ -115,7 +115,7 @@ export function TransactionRow({ tx, categoryEntry, categoryMap, groups, payees,
           ) : (
             <>
               <button
-                className={`flex items-center gap-2 px-2.5 py-1 rounded-full transition-all ${
+                className={`flex-1 flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-all min-w-0 ${
                   canEditCategory
                     ? 'group-hover:border group-hover:border-border group-hover:bg-surface cursor-pointer'
                     : ''
@@ -128,7 +128,7 @@ export function TransactionRow({ tx, categoryEntry, categoryMap, groups, payees,
                   {categoryEntry?.name ?? '—'}
                 </span>
                 {canEditCategory && (
-                  <ChevronDown size={12} className="opacity-0 group-hover:opacity-100 text-text-tertiary shrink-0 transition-opacity" />
+                  <ChevronDown size={12} className="opacity-0 group-hover:opacity-100 text-text-tertiary shrink-0 transition-opacity ml-auto" />
                 )}
               </button>
               {tx.categoryId && onFilterCategory && (
@@ -155,8 +155,8 @@ export function TransactionRow({ tx, categoryEntry, categoryMap, groups, payees,
 
         {/* Account */}
         {showAccountCol && (
-          <div className="flex items-center gap-1.5 flex-[1.5] min-w-0">
-            <div className="flex items-center gap-2 px-2.5 py-1 rounded-full border border-transparent group-hover:border-border group-hover:bg-surface transition-all">
+          <div className="flex items-center gap-1 flex-[1.5] min-w-0">
+            <div className="flex-1 flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-transparent group-hover:border-border group-hover:bg-surface transition-all min-w-0">
               <div
                 className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[9px] font-bold shrink-0"
                 style={{ backgroundColor: acctColor }}
@@ -192,7 +192,7 @@ export function TransactionRow({ tx, categoryEntry, categoryMap, groups, payees,
         </div>
 
         {/* Detail panel arrow */}
-        <div className="opacity-0 group-hover:opacity-100 p-1 border border-transparent group-hover:border-border rounded-md transition-opacity shrink-0">
+        <div className="opacity-0 group-hover:opacity-100 w-9 h-9 flex items-center justify-center border border-transparent group-hover:border-border rounded-lg transition-opacity shrink-0">
           <ArrowRight size={14} className="text-text-tertiary" />
         </div>
       </div>
