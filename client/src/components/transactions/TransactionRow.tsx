@@ -50,18 +50,18 @@ export function TransactionRow({ tx, categoryEntry, categoryMap, groups, payees,
     setShowPayeePicker(false);
   }
 
-  const arrowBtnCls = 'opacity-0 group-hover:opacity-100 w-9 h-9 flex items-center justify-center border border-border rounded-lg hover:bg-hover text-text-tertiary hover:text-text-secondary transition-opacity shrink-0';
+  const arrowBase = 'opacity-0 w-9 h-9 flex items-center justify-center border border-border rounded-lg hover:bg-hover text-text-tertiary hover:text-text-secondary transition-opacity shrink-0';
 
   return (
     <div>
       <div
-        className={`group flex items-center px-4 py-2.5 cursor-pointer border-b border-border-light transition-colors ${
+        className={`group/row flex items-center px-4 py-2.5 cursor-pointer border-b border-border-light transition-colors ${
           isSelected ? 'bg-brand-50 border-l-2 border-l-brand-600' : 'bg-surface hover:bg-hover'
         }`}
         onClick={() => onOpenDetail(tx.id)}
       >
         {/* Payee */}
-        <div className="flex items-center gap-1 flex-[1.8] min-w-0 relative mr-3">
+        <div className="group/payee flex items-center gap-1 flex-[1.8] min-w-0 relative mr-3">
           <div
             className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-semibold shrink-0"
             style={{ backgroundColor: bgColor }}
@@ -70,18 +70,18 @@ export function TransactionRow({ tx, categoryEntry, categoryMap, groups, payees,
           </div>
           {canEditPayee ? (
             <button
-              className="flex-1 flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-all group-hover:border group-hover:border-border group-hover:bg-surface cursor-pointer border border-transparent min-w-0"
+              className="flex-1 flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-all group-hover/payee:border group-hover/payee:border-border group-hover/payee:bg-surface cursor-pointer border border-transparent min-w-0"
               onClick={(e) => { e.stopPropagation(); setShowPayeePicker(!showPayeePicker); }}
             >
               <span className="text-sm font-medium text-text truncate">{payeeName}</span>
-              <ChevronDown size={12} className="opacity-0 group-hover:opacity-100 text-text-tertiary shrink-0 transition-opacity ml-auto" />
+              <ChevronDown size={12} className="opacity-0 group-hover/payee:opacity-100 text-text-tertiary shrink-0 transition-opacity ml-auto" />
             </button>
           ) : (
             <span className="text-sm font-medium text-text truncate">{payeeName}</span>
           )}
           {tx.payeeName && onFilterSearch && (
             <button
-              className={arrowBtnCls}
+              className={`${arrowBase} group-hover/payee:opacity-100`}
               onClick={(e) => { e.stopPropagation(); onFilterSearch(tx.payeeName!); }}
               title={`Show all "${tx.payeeName}" transactions`}
             >
@@ -101,7 +101,7 @@ export function TransactionRow({ tx, categoryEntry, categoryMap, groups, payees,
         </div>
 
         {/* Category */}
-        <div className="flex items-center gap-1 flex-[1.5] min-w-0 relative mr-3">
+        <div className="group/cat flex items-center gap-1 flex-[1.5] min-w-0 relative mr-3">
           {isSplitParent ? (
             <button
               onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }}
@@ -117,7 +117,7 @@ export function TransactionRow({ tx, categoryEntry, categoryMap, groups, payees,
               <button
                 className={`flex-1 flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-all min-w-0 ${
                   canEditCategory
-                    ? 'group-hover:border group-hover:border-border group-hover:bg-surface cursor-pointer'
+                    ? 'group-hover/cat:border group-hover/cat:border-border group-hover/cat:bg-surface cursor-pointer'
                     : ''
                 } border border-transparent`}
                 onClick={canEditCategory ? (e) => { e.stopPropagation(); setShowCategoryPicker(!showCategoryPicker); } : (e) => e.stopPropagation()}
@@ -128,12 +128,12 @@ export function TransactionRow({ tx, categoryEntry, categoryMap, groups, payees,
                   {categoryEntry?.name ?? '—'}
                 </span>
                 {canEditCategory && (
-                  <ChevronDown size={12} className="opacity-0 group-hover:opacity-100 text-text-tertiary shrink-0 transition-opacity ml-auto" />
+                  <ChevronDown size={12} className="opacity-0 group-hover/cat:opacity-100 text-text-tertiary shrink-0 transition-opacity ml-auto" />
                 )}
               </button>
               {tx.categoryId && onFilterCategory && (
                 <button
-                  className={arrowBtnCls}
+                  className={`${arrowBase} group-hover/cat:opacity-100`}
                   onClick={(e) => { e.stopPropagation(); onFilterCategory(tx.categoryId!); }}
                   title={`Show all "${categoryEntry?.name}" transactions`}
                 >
@@ -155,8 +155,8 @@ export function TransactionRow({ tx, categoryEntry, categoryMap, groups, payees,
 
         {/* Account */}
         {showAccountCol && (
-          <div className="flex items-center gap-1 flex-[1.5] min-w-0">
-            <div className="flex-1 flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-transparent group-hover:border-border group-hover:bg-surface transition-all min-w-0">
+          <div className="group/acct flex items-center gap-1 flex-[1.5] min-w-0">
+            <div className="flex-1 flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-transparent group-hover/acct:border-border group-hover/acct:bg-surface transition-all min-w-0">
               <div
                 className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[9px] font-bold shrink-0"
                 style={{ backgroundColor: acctColor }}
@@ -166,7 +166,7 @@ export function TransactionRow({ tx, categoryEntry, categoryMap, groups, payees,
               <span className="text-sm text-text-secondary truncate">{accountName || '—'}</span>
             </div>
             <button
-              className={arrowBtnCls}
+              className={`${arrowBase} group-hover/acct:opacity-100`}
               onClick={(e) => { e.stopPropagation(); navigate(`/accounts/${tx.accountId}`); }}
               title={`Go to ${accountName}`}
             >
@@ -192,7 +192,7 @@ export function TransactionRow({ tx, categoryEntry, categoryMap, groups, payees,
         </div>
 
         {/* Detail panel arrow */}
-        <div className="opacity-0 group-hover:opacity-100 w-9 h-9 flex items-center justify-center border border-transparent group-hover:border-border rounded-lg transition-opacity shrink-0">
+        <div className="w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-200 transition-colors shrink-0">
           <ArrowRight size={14} className="text-text-tertiary" />
         </div>
       </div>
