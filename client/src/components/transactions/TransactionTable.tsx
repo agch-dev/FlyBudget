@@ -159,6 +159,7 @@ export function TransactionTable({ accountId }: Props) {
                     categoryEntry={tx.categoryId ? (categoryMap.get(tx.categoryId) ?? null) : null}
                     categoryMap={categoryMap}
                     groups={groups as CategoryGroup[]}
+                    payees={payees}
                     accountName={showAccountCol ? accountInfoMap.get(tx.accountId)?.name : undefined}
                     accountType={showAccountCol ? accountInfoMap.get(tx.accountId)?.type : undefined}
                     showAccountCol={showAccountCol}

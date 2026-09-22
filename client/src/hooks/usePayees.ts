@@ -7,6 +7,15 @@ export function usePayees() {
   return useQuery({ queryKey: QK, queryFn: payeesApi.getPayees });
 }
 
+export function useCreatePayee() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ name, defaultCategoryId }: { name: string; defaultCategoryId?: string | null }) =>
+      payeesApi.createPayee(name, defaultCategoryId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: QK }),
+  });
+}
+
 export function useUpdatePayee() {
   const qc = useQueryClient();
   return useMutation({

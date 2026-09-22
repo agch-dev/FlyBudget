@@ -3,15 +3,17 @@ import { ChevronRight, ChevronDown, ArrowLeftRight, ArrowRight, Lock } from 'luc
 import { useNavigate } from 'react-router-dom';
 import { useUpdateTransaction } from '../../hooks/useTransactions';
 import { CategoryPicker } from './CategoryPicker';
+import { PayeePicker } from './PayeePicker';
 import { payeeColor, ACCOUNT_TYPE_COLORS } from '../../utils/transactionColors';
 import { formatCurrency } from '../../utils/currency';
-import type { Transaction, CategoryGroup } from '../../types';
+import type { Transaction, CategoryGroup, PayeeWithCount } from '../../types';
 
 interface Props {
   tx: Transaction;
   categoryEntry: { name: string; icon: string | null } | null;
   categoryMap: Map<string, { name: string; icon: string | null }>;
   groups: CategoryGroup[];
+  payees: PayeeWithCount[];
   accountName?: string;
   accountType?: string;
   showAccountCol?: boolean;
@@ -21,15 +23,17 @@ interface Props {
   onFilterSearch?: (search: string) => void;
 }
 
-export function TransactionRow({ tx, categoryEntry, categoryMap, groups, accountName, accountType, showAccountCol, isSelected, onOpenDetail, onFilterCategory, onFilterSearch }: Props) {
+export function TransactionRow({ tx, categoryEntry, categoryMap, groups, payees, accountName, accountType, showAccountCol, isSelected, onOpenDetail, onFilterCategory, onFilterSearch }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
+  const [showPayeePicker, setShowPayeePicker] = useState(false);
   const updateTx = useUpdateTransaction();
   const navigate = useNavigate();
 
   const isTransfer = !!tx.transferTransactionId;
   const isSplitParent = tx.isParent === 1 && tx.children && tx.children.length > 0;
   const canEditCategory = !tx.reconciled && !isTransfer && !isSplitParent;
+  const canEditPayee = !tx.reconciled && !isTransfer;
 
   const payeeName = tx.payeeName || (isTransfer ? 'Transfer' : '—');
   const initial = payeeName.charAt(0).toUpperCase();
@@ -39,6 +43,11 @@ export function TransactionRow({ tx, categoryEntry, categoryMap, groups, account
   function handleCategoryChange(catId: string | null) {
     updateTx.mutate({ id: tx.id, data: { categoryId: catId } });
     setShowCategoryPicker(false);
+  }
+
+  function handlePayeeChange(payeeId: string, name: string) {
+    updateTx.mutate({ id: tx.id, data: { payeeId, payeeName: name } });
+    setShowPayeePicker(false);
   }
 
   const arrowBtnCls = 'opacity-0 group-hover:opacity-100 p-1 border border-border rounded-md hover:bg-hover text-text-tertiary hover:text-text-secondary transition-opacity shrink-0';
@@ -52,14 +61,24 @@ export function TransactionRow({ tx, categoryEntry, categoryMap, groups, account
         onClick={() => onOpenDetail(tx.id)}
       >
         {/* Payee */}
-        <div className="flex items-center gap-3 flex-[2] min-w-0">
+        <div className="flex items-center gap-3 flex-[2] min-w-0 relative">
           <div
             className="w-8 h-8 rounded-full flex items-center justify-center text-white text-sm font-semibold shrink-0"
             style={{ backgroundColor: bgColor }}
           >
             {isTransfer ? <ArrowLeftRight size={14} /> : initial}
           </div>
-          <span className="text-sm font-medium text-text truncate">{payeeName}</span>
+          {canEditPayee ? (
+            <button
+              className="flex items-center gap-2 px-2.5 py-1 rounded-full transition-all group-hover:border group-hover:border-border group-hover:bg-surface cursor-pointer border border-transparent min-w-0"
+              onClick={(e) => { e.stopPropagation(); setShowPayeePicker(!showPayeePicker); }}
+            >
+              <span className="text-sm font-medium text-text truncate">{payeeName}</span>
+              <ChevronDown size={12} className="opacity-0 group-hover:opacity-100 text-text-tertiary shrink-0 transition-opacity" />
+            </button>
+          ) : (
+            <span className="text-sm font-medium text-text truncate">{payeeName}</span>
+          )}
           {tx.payeeName && onFilterSearch && (
             <button
               className={arrowBtnCls}
@@ -68,6 +87,16 @@ export function TransactionRow({ tx, categoryEntry, categoryMap, groups, account
             >
               <ArrowRight size={12} />
             </button>
+          )}
+
+          {showPayeePicker && (
+            <PayeePicker
+              value={tx.payeeId ?? null}
+              payeeName={tx.payeeName ?? null}
+              onChange={handlePayeeChange}
+              payees={payees}
+              onClose={() => setShowPayeePicker(false)}
+            />
           )}
         </div>
 
