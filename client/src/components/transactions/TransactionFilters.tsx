@@ -69,12 +69,6 @@ export function TransactionFilters({ state, onChange, categoryName }: Props) {
 
   useEffect(() => { setRawSearch(state.search); }, [state.search]);
 
-  const activeCount = [
-    state.datePreset !== 'this-month',
-    !!state.search,
-    !!state.categoryId,
-  ].filter(Boolean).length;
-
   function handleSearchChange(e: React.ChangeEvent<HTMLInputElement>) {
     const search = e.target.value;
     setRawSearch(search);
@@ -130,14 +124,6 @@ export function TransactionFilters({ state, onChange, categoryName }: Props) {
         ))}
       </div>
 
-      {activeCount > 0 && (
-        <button
-          onClick={() => { setRawSearch(''); onChange(DEFAULT_FILTERS); }}
-          className="text-xs text-brand-600 hover:text-brand-700 font-medium"
-        >
-          Reset
-        </button>
-      )}
     </div>
   );
 }
