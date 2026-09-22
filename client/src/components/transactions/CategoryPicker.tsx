@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Search, Check, Plus, X } from 'lucide-react';
 import { useCreateCategory } from '../../hooks/useCategories';
-import type { CategoryGroup } from '../../types';
+import type { BudgetType, CategoryGroup } from '../../types';
 
 interface Props {
   value: string | null;
@@ -15,6 +15,7 @@ export function CategoryPicker({ value, onChange, groups, onClose }: Props) {
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState('');
   const [newGroupId, setNewGroupId] = useState(groups[0]?.id ?? '');
+  const [newBudgetType, setNewBudgetType] = useState<BudgetType>('flexible');
   const containerRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const createCategory = useCreateCategory();
@@ -49,10 +50,13 @@ export function CategoryPicker({ value, onChange, groups, onClose }: Props) {
     }))
     .filter(g => g.categories.length > 0);
 
+  const selectedGroup = groups.find(g => g.id === newGroupId);
+  const isIncomeGroup = selectedGroup?.isIncome === 1;
+
   function handleCreate() {
     if (!newName.trim() || !newGroupId) return;
     createCategory.mutate(
-      { groupId: newGroupId, name: newName.trim() },
+      { groupId: newGroupId, name: newName.trim(), budgetType: isIncomeGroup ? null : newBudgetType },
       {
         onSuccess: (created: { id: string }) => {
           onChange(created.id);
@@ -126,6 +130,24 @@ export function CategoryPicker({ value, onChange, groups, onClose }: Props) {
                 <option key={g.id} value={g.id}>{g.name}</option>
               ))}
             </select>
+            {!isIncomeGroup && (
+              <div className="flex gap-1">
+                {([['fixed', 'Fixed'], ['flexible', 'Flexible'], ['non_monthly', 'Non-Monthly']] as [BudgetType, string][]).map(([key, label]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setNewBudgetType(key)}
+                    className={`flex-1 text-xs py-1 rounded border transition-colors ${
+                      newBudgetType === key
+                        ? 'bg-brand-600 text-white border-brand-600'
+                        : 'bg-surface text-text-secondary border-border hover:border-brand-400'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
             <input
               type="text"
               value={newName}

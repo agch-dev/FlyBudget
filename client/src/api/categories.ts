@@ -15,10 +15,10 @@ export const deleteGroup = (id: string) =>
 export const reorderGroups = (ids: string[]) =>
   apiFetch<{ ok: boolean }>('/categories/groups/reorder', { method: 'PUT', body: JSON.stringify({ ids }) });
 
-export const createCategory = (data: { groupId: string; name: string; icon?: string }) =>
+export const createCategory = (data: { groupId: string; name: string; icon?: string; budgetType?: string | null }) =>
   apiFetch<Category>('/categories', { method: 'POST', body: JSON.stringify(data) });
 
-export const updateCategory = (id: string, data: { name?: string; groupId?: string; icon?: string }) =>
+export const updateCategory = (id: string, data: { name?: string; groupId?: string; icon?: string; budgetType?: string | null }) =>
   apiFetch<Category>(`/categories/${id}`, { method: 'PUT', body: JSON.stringify(data) });
 
 export const deleteCategory = (id: string, reassignTo?: string) =>

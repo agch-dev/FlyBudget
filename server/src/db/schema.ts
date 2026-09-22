@@ -25,6 +25,7 @@ export const categories = sqliteTable('categories', {
   groupId: text('group_id').notNull().references(() => categoryGroups.id, { onDelete: 'cascade' }),
   name: text('name').notNull(),
   icon: text('icon'),
+  budgetType: text('budget_type'),
   sortOrder: integer('sort_order').notNull().default(0),
   createdAt: text('created_at').notNull().default(sql`(datetime('now'))`),
 });

@@ -1,41 +1,54 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import { format, parse } from 'date-fns';
 import { useBudget } from '../../hooks/useBudget';
 import { formatCurrency } from '../../utils/currency';
 import { Card } from '../ui/Card';
+import type { BudgetType } from '../../types';
 
 interface Props {
   currentMonth: string;
 }
 
+function getStatus(spent: number, planned: number): 'over' | 'warning' | 'healthy' {
+  if (spent > planned) return 'over';
+  if (spent >= planned * 0.8) return 'warning';
+  return 'healthy';
+}
+
 export default function BudgetProgress({ currentMonth }: Props) {
   const { data: groups = [], isLoading } = useBudget(currentMonth);
 
-  const topCategories = useMemo(() => {
-    const cats = groups
-      .filter(g => !g.isIncome)
-      .flatMap(g => g.categories)
-      .filter(c => c.budgeted > 0);
+  const monthLabel = useMemo(
+    () => format(parse(currentMonth, 'yyyy-MM', new Date()), 'MMMM yyyy'),
+    [currentMonth],
+  );
 
-    return cats
-      .sort((a, b) => {
-        const aOver = a.balance < 0 ? 1 : 0;
-        const bOver = b.balance < 0 ? 1 : 0;
-        if (aOver !== bOver) return bOver - aOver;
-        return (b.spent / b.budgeted) - (a.spent / a.budgeted);
-      })
-      .slice(0, 6);
+  const groupStats = useMemo(() => {
+    const types: { key: BudgetType; name: string }[] = [
+      { key: 'fixed', name: 'Fixed' },
+      { key: 'flexible', name: 'Flexible' },
+      { key: 'non_monthly', name: 'Non-Monthly' },
+    ];
+    const allCats = groups.filter(g => !g.isIncome).flatMap(g => g.categories);
+    return types.map(t => ({
+      id: t.key,
+      name: t.name,
+      planned: allCats.filter(c => c.budgetType === t.key).reduce((s, c) => s + c.budgeted, 0),
+      spent: allCats.filter(c => c.budgetType === t.key).reduce((s, c) => s + c.spent, 0),
+    })).filter(g => g.planned > 0);
   }, [groups]);
 
   if (isLoading) {
     return (
       <Card>
-        <div className="h-5 w-40 bg-surface-alt rounded animate-pulse mb-4" />
-        <div className="space-y-4">
-          {Array.from({ length: 6 }).map((_, i) => (
+        <div className="h-5 w-40 bg-surface-alt rounded animate-pulse mb-6" />
+        <div className="space-y-6">
+          {Array.from({ length: 3 }).map((_, i) => (
             <div key={i}>
-              <div className="h-4 bg-surface-alt rounded animate-pulse mb-1" style={{ width: `${60 + i * 5}%` }} />
-              <div className="h-1.5 bg-surface-alt rounded-full animate-pulse" />
+              <div className="h-4 bg-surface-alt rounded animate-pulse mb-2" style={{ width: `${50 + i * 15}%` }} />
+              <div className="h-2 bg-surface-alt rounded-full animate-pulse mb-1" />
+              <div className="h-3 bg-surface-alt rounded animate-pulse w-24" />
             </div>
           ))}
         </div>
@@ -45,32 +58,66 @@ export default function BudgetProgress({ currentMonth }: Props) {
 
   return (
     <Card>
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-semibold text-text">Budget Progress</h3>
-        <Link to="/budget" className="text-xs text-brand-600 hover:text-brand-700 font-medium">View all</Link>
+      <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center gap-2">
+          <h3 className="text-base font-bold text-text">Budget</h3>
+          <Link to="/budget" className="text-sm text-text-tertiary hover:text-text-secondary">{monthLabel}</Link>
+        </div>
       </div>
 
-      {topCategories.length === 0 ? (
+      {groupStats.length === 0 ? (
         <p className="text-sm text-text-disabled py-4 text-center">No budgeted categories this month.</p>
       ) : (
-        <div className="space-y-3">
-          {topCategories.map(cat => {
-            const ratio = Math.min(cat.spent / cat.budgeted, 1);
-            const color = ratio >= 1 ? 'bg-negative' : ratio >= 0.8 ? 'bg-caution' : 'bg-positive';
+        <div className="divide-y divide-border-light">
+          {groupStats.map(g => {
+            const remaining = g.planned - g.spent;
+            const status = getStatus(g.spent, g.planned);
+            const ratio = Math.min(g.spent / g.planned, 1);
 
             return (
-              <div key={cat.id}>
-                <div className="flex items-center justify-between mb-0.5">
-                  <span className="text-sm text-text-secondary truncate mr-2">{cat.icon ? `${cat.icon} ` : ''}{cat.name}</span>
-                  <span className="text-xs text-text-tertiary tabular-nums whitespace-nowrap">
-                    {formatCurrency(cat.spent)} / {formatCurrency(cat.budgeted)}
+              <div key={g.id} className="py-4 first:pt-0 last:pb-0">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-text">{g.name}</span>
+                  <span className="text-sm text-text-tertiary tabular-nums">
+                    {formatCurrency(g.planned)} planned
                   </span>
                 </div>
-                <div className="h-1.5 w-full bg-surface-alt rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all ${color}`}
-                    style={{ width: `${(ratio * 100).toFixed(1)}%` }}
-                  />
+
+                <div className="h-2.5 w-full bg-gray-200 rounded-full overflow-hidden flex">
+                  {status === 'over' ? (
+                    <div className="h-full w-full bg-red-500 rounded-full" />
+                  ) : status === 'warning' ? (
+                    <>
+                      <div
+                        className="h-full bg-green-500 rounded-l-full"
+                        style={{ width: `${(ratio * 100).toFixed(1)}%` }}
+                      />
+                      <div
+                        className="h-full bg-yellow-400 rounded-r-full"
+                        style={{ width: `${((1 - ratio) * 100).toFixed(1)}%` }}
+                      />
+                    </>
+                  ) : (
+                    <div
+                      className="h-full bg-green-500 rounded-full"
+                      style={{ width: `${(ratio * 100).toFixed(1)}%` }}
+                    />
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between mt-2">
+                  <span className="text-sm text-text-tertiary tabular-nums">
+                    {formatCurrency(g.spent)} spent
+                  </span>
+                  <span className={`text-sm font-medium tabular-nums ${
+                    status === 'over'
+                      ? 'text-red-500'
+                      : status === 'warning'
+                        ? 'text-yellow-600'
+                        : 'text-green-600'
+                  }`}>
+                    {status === 'over' ? '-' : ''}{formatCurrency(Math.abs(remaining))} remaining
+                  </span>
                 </div>
               </div>
             );

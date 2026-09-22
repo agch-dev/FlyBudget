@@ -16,6 +16,7 @@ const categorySchema = z.object({
   groupId: z.string(),
   name: z.string().min(1),
   icon: z.string().optional(),
+  budgetType: z.enum(['fixed', 'flexible', 'non_monthly']).nullable().optional(),
 });
 
 categoriesRouter.get('/', (_req, res) => {

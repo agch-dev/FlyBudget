@@ -1,0 +1,1 @@
+ALTER TABLE `categories` ADD `budget_type` text;
