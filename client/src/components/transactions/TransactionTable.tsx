@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { format, parseISO } from 'date-fns';
 import { Plus, Upload } from 'lucide-react';
 import { useTransactions, useCreateTransaction, useCreateTransfer } from '../../hooks/useTransactions';
@@ -21,9 +22,10 @@ interface Props {
   categoryId?: string;
   month?: string;
   onClearMonth?: () => void;
+  overlayDetail?: boolean;
 }
 
-export function TransactionTable({ accountId, categoryId, month, onClearMonth }: Props) {
+export function TransactionTable({ accountId, categoryId, month, onClearMonth, overlayDetail }: Props) {
   const [filters, setFilters] = useState<FilterState>(() => ({
     ...DEFAULT_FILTERS,
     datePreset: categoryId ? 'all' : DEFAULT_FILTERS.datePreset,
@@ -190,7 +192,7 @@ export function TransactionTable({ accountId, categoryId, month, onClearMonth }:
           )}
         </div>
 
-        {selectedTx && (
+        {selectedTx && !overlayDetail && (
           <TransactionDetailPanel
             transaction={selectedTx}
             categoryMap={categoryMap}
@@ -206,6 +208,25 @@ export function TransactionTable({ accountId, categoryId, month, onClearMonth }:
 
       {accountId && (
         <ImportModal isOpen={showImport} onClose={() => setShowImport(false)} accountId={accountId} />
+      )}
+
+      {selectedTx && overlayDetail && createPortal(
+        <div className="fixed inset-0 z-50 flex justify-end" onClick={() => setDetailId(null)}>
+          <div className="absolute inset-0 bg-black/20" />
+          <div className="relative h-full" onClick={(e) => e.stopPropagation()}>
+            <TransactionDetailPanel
+              transaction={selectedTx}
+              categoryMap={categoryMap}
+              groups={groups as CategoryGroup[]}
+              payees={payees}
+              accounts={accounts}
+              accountName={accountInfoMap.get(selectedTx.accountId)?.name}
+              accountType={accountInfoMap.get(selectedTx.accountId)?.type}
+              onClose={() => setDetailId(null)}
+            />
+          </div>
+        </div>,
+        document.body,
       )}
     </div>
   );

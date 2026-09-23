@@ -243,7 +243,7 @@ export default function CategoryDetailPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <div className="lg:col-span-2 bg-surface rounded-lg shadow-card border border-border-light overflow-hidden">
-            {id && <TransactionTable categoryId={id} month={txMonth} onClearMonth={() => setSelectedBarMonth(null)} />}
+            {id && <TransactionTable categoryId={id} month={txMonth} onClearMonth={() => setSelectedBarMonth(null)} overlayDetail />}
           </div>
           <div>
             <SummaryWidget transactions={transactions} isIncome={isIncome} />
