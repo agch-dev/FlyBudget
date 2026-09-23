@@ -124,7 +124,8 @@ function CategoryRow({ cat, isIncome, editingId, onStartEdit, onSave, onCancel, 
       </tr>
       {!isIncome && (cat.budgeted > 0 || cat.spent > 0) && (
         <tr>
-          <td colSpan={4} className="px-4 pt-0 pb-2">
+          <td />
+          <td colSpan={3} className="pr-6 pt-0 pb-2">
             <SpentBar spent={cat.spent} budgeted={cat.budgeted} groupBalance={groupBalance} />
           </td>
         </tr>
