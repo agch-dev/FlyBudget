@@ -177,14 +177,11 @@ export default function CategoryDetailPage() {
   return (
     <div className="flex flex-col h-full">
       <div className="px-6 py-3 border-b border-border bg-surface shrink-0">
-        <div className="flex items-center gap-1.5 text-xs text-text-tertiary mb-1">
-          <Link to="/budget" className="hover:text-brand-600 transition-colors">Budget</Link>
-          <ChevronRight size={11} />
-          <span className="text-text-secondary">{categoryName}</span>
+        <div className="flex items-center gap-1.5 text-base">
+          <Link to="/budget" className="font-semibold text-text hover:text-brand-600 transition-colors">Budget</Link>
+          <ChevronRight size={14} className="text-text-tertiary" />
+          <span className="font-semibold text-text">{cat?.icon ? `${cat.icon} ` : ''}{categoryName}</span>
         </div>
-        <h1 className="text-lg font-semibold text-text">
-          {cat?.icon ? `${cat.icon} ` : ''}{categoryName}
-        </h1>
       </div>
 
       <div className="flex-1 overflow-y-auto p-6 space-y-4">
