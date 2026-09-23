@@ -31,13 +31,25 @@ function AmountInput({ cents, onSave, onCancel }: { cents: number; onSave: (c: n
   );
 }
 
-function SpentBar({ spent, budgeted }: { spent: number; budgeted: number }) {
-  if (budgeted <= 0) return null;
-  const ratio = Math.min(spent / budgeted, 1);
-  const color = ratio >= 1 ? 'bg-negative' : 'bg-positive';
+function SpentBar({ spent, budgeted, groupBalance }: { spent: number; budgeted: number; groupBalance?: number }) {
+  if (budgeted <= 0 && spent <= 0) return null;
+  const effectiveBudget = Math.max(budgeted, 1);
+  const ratio = Math.min(spent / effectiveBudget, 1);
+
+  let color: string;
+  if (spent <= budgeted) {
+    color = 'bg-positive';
+  } else if (groupBalance !== undefined && groupBalance >= 0) {
+    color = 'bg-caution';
+  } else {
+    color = 'bg-negative';
+  }
+
+  const fillWidth = spent > budgeted ? 100 : ratio * 100;
+
   return (
-    <div className="mt-0.5 h-1 w-full bg-surface-alt rounded-full overflow-hidden">
-      <div className={`h-full rounded-full transition-all ${color}`} style={{ width: `${(ratio * 100).toFixed(1)}%` }} />
+    <div className="h-0.5 w-full bg-surface-alt overflow-hidden">
+      <div className={`h-full transition-all ${color}`} style={{ width: `${fillWidth.toFixed(1)}%` }} />
     </div>
   );
 }
@@ -54,61 +66,70 @@ interface CategoryRowProps {
   onStartEdit: (id: string) => void;
   onSave: (cents: number) => void;
   onCancel: () => void;
+  groupBalance?: number;
 }
 
-function CategoryRow({ cat, isIncome, editingId, onStartEdit, onSave, onCancel }: CategoryRowProps) {
+function CategoryRow({ cat, isIncome, editingId, onStartEdit, onSave, onCancel, groupBalance }: CategoryRowProps) {
   const isEditing = editingId === cat.id;
   const balColor = cat.balance > 0 ? 'text-positive' : cat.balance < 0 ? 'text-negative' : 'text-text-disabled';
 
   return (
-    <tr className="hover:bg-brand-50 border-b border-border-light group">
-      <td className="py-2 pl-10 pr-3 text-sm text-text-secondary">
-        {cat.icon ? `${cat.icon} ` : ''}{cat.name}
-        {!isIncome && cat.carryOver !== 0 && (
-          <span className={`ml-2 text-xs ${cat.carryOver > 0 ? 'text-positive' : 'text-negative'}`} title="Carried from prior months">
-            ({cat.carryOver > 0 ? '+' : ''}{formatCurrency(cat.carryOver)})
-          </span>
-        )}
-      </td>
-      <td className="py-2 px-3 text-right">
-        {isIncome ? (
-          <span className="text-text-disabled text-sm tabular-nums">—</span>
-        ) : isEditing ? (
-          <AmountInput cents={cat.budgeted} onSave={onSave} onCancel={onCancel} />
-        ) : (
-          <button
-            onClick={() => onStartEdit(cat.id)}
-            className="tabular-nums text-sm rounded-md px-2 py-0.5 min-w-[7rem] text-right transition-colors hover:bg-brand-50 hover:text-brand-600"
-          >
-            {cat.budgeted === 0
-              ? <span className="text-text-disabled group-hover:text-brand-300">{formatCurrency(0)}</span>
-              : <span className="text-text">{formatCurrency(cat.budgeted)}</span>
-            }
-          </button>
-        )}
-      </td>
-      <td className="py-2 px-3">
-        {isIncome ? (
-          <div className="text-right tabular-nums text-sm text-positive font-medium">
-            {cat.balance > 0 ? formatCurrency(cat.balance) : <span className="text-text-disabled">—</span>}
-          </div>
-        ) : (
-          <div className="text-right">
-            <span className="tabular-nums text-sm text-text-tertiary">
-              {cat.spent > 0 ? formatCurrency(cat.spent) : <span className="text-text-disabled">—</span>}
+    <>
+      <tr className="hover:bg-brand-50 border-b border-border-light group">
+        <td className="py-2 pl-10 pr-3 text-sm text-text-secondary">
+          {cat.icon ? `${cat.icon} ` : ''}{cat.name}
+          {!isIncome && cat.carryOver !== 0 && (
+            <span className={`ml-2 text-xs ${cat.carryOver > 0 ? 'text-positive' : 'text-negative'}`} title="Carried from prior months">
+              ({cat.carryOver > 0 ? '+' : ''}{formatCurrency(cat.carryOver)})
             </span>
-            <SpentBar spent={cat.spent} budgeted={cat.budgeted} />
-          </div>
-        )}
-      </td>
-      <td className="py-2 pl-3 pr-6 text-right">
-        {isIncome ? (
-          <span className="text-text-disabled text-sm tabular-nums">—</span>
-        ) : (
-          <span className={`tabular-nums text-sm font-medium ${balColor}`}>{formatCurrency(cat.balance)}</span>
-        )}
-      </td>
-    </tr>
+          )}
+        </td>
+        <td className="py-2 px-3 text-right">
+          {isIncome ? (
+            <span className="text-text-disabled text-sm tabular-nums">—</span>
+          ) : isEditing ? (
+            <AmountInput cents={cat.budgeted} onSave={onSave} onCancel={onCancel} />
+          ) : (
+            <button
+              onClick={() => onStartEdit(cat.id)}
+              className="tabular-nums text-sm rounded-md px-2 py-0.5 min-w-[7rem] text-right transition-colors hover:bg-brand-50 hover:text-brand-600"
+            >
+              {cat.budgeted === 0
+                ? <span className="text-text-disabled group-hover:text-brand-300">{formatCurrency(0)}</span>
+                : <span className="text-text">{formatCurrency(cat.budgeted)}</span>
+              }
+            </button>
+          )}
+        </td>
+        <td className="py-2 px-3">
+          {isIncome ? (
+            <div className="text-right tabular-nums text-sm text-positive font-medium">
+              {cat.balance > 0 ? formatCurrency(cat.balance) : <span className="text-text-disabled">—</span>}
+            </div>
+          ) : (
+            <div className="text-right">
+              <span className="tabular-nums text-sm text-text-tertiary">
+                {cat.spent > 0 ? formatCurrency(cat.spent) : <span className="text-text-disabled">—</span>}
+              </span>
+            </div>
+          )}
+        </td>
+        <td className="py-2 pl-3 pr-6 text-right">
+          {isIncome ? (
+            <span className="text-text-disabled text-sm tabular-nums">—</span>
+          ) : (
+            <span className={`tabular-nums text-sm font-medium ${balColor}`}>{formatCurrency(cat.balance)}</span>
+          )}
+        </td>
+      </tr>
+      {!isIncome && (cat.budgeted > 0 || cat.spent > 0) && (
+        <tr>
+          <td colSpan={4} className="px-4 pt-0 pb-2">
+            <SpentBar spent={cat.spent} budgeted={cat.budgeted} groupBalance={groupBalance} />
+          </td>
+        </tr>
+      )}
+    </>
   );
 }
 
@@ -217,7 +238,7 @@ function BudgetTypeSection({ label, categories, editingId, onStartEdit, onSave, 
   const status = getStatus(totals.spent, totals.budgeted);
   const ratio = totals.budgeted > 0 ? Math.min(totals.spent / totals.budgeted, 1) : 0;
   const remaining = totals.budgeted - totals.spent;
-  const remainingColor = status === 'over' ? 'text-red-500' : 'text-green-600';
+  const remainingColor = status === 'over' ? 'text-negative' : 'text-positive';
 
   return (
     <>
@@ -249,11 +270,11 @@ function BudgetTypeSection({ label, categories, editingId, onStartEdit, onSave, 
           {totals.budgeted > 0 && (
             <tr className="border-b border-border-light">
               <td colSpan={4} className="px-4 py-1">
-                <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden flex">
+                <div className="h-1.5 w-full bg-surface-alt overflow-hidden">
                   {status === 'over' ? (
-                    <div className="h-full w-full bg-red-500 rounded-full" />
+                    <div className="h-full w-full bg-negative" />
                   ) : (
-                    <div className="h-full bg-green-500 rounded-full" style={{ width: `${(ratio * 100).toFixed(1)}%` }} />
+                    <div className="h-full bg-positive" style={{ width: `${(ratio * 100).toFixed(1)}%` }} />
                   )}
                 </div>
               </td>
@@ -269,6 +290,7 @@ function BudgetTypeSection({ label, categories, editingId, onStartEdit, onSave, 
               onStartEdit={onStartEdit}
               onSave={(cents) => onSave(cat.id, cents)}
               onCancel={onCancel}
+              groupBalance={totals.balance}
             />
           ))}
 

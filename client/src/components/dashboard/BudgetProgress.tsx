@@ -83,23 +83,23 @@ export default function BudgetProgress({ currentMonth }: Props) {
                   </span>
                 </div>
 
-                <div className="h-2.5 w-full bg-gray-200 rounded-full overflow-hidden flex">
+                <div className="h-2.5 w-full bg-surface-alt rounded-full overflow-hidden flex">
                   {status === 'over' ? (
-                    <div className="h-full w-full bg-red-500 rounded-full" />
+                    <div className="h-full w-full bg-negative rounded-full" />
                   ) : status === 'warning' ? (
                     <>
                       <div
-                        className="h-full bg-green-500 rounded-l-full"
+                        className="h-full bg-positive rounded-l-full"
                         style={{ width: `${(ratio * 100).toFixed(1)}%` }}
                       />
                       <div
-                        className="h-full bg-yellow-400 rounded-r-full"
+                        className="h-full bg-caution rounded-r-full"
                         style={{ width: `${((1 - ratio) * 100).toFixed(1)}%` }}
                       />
                     </>
                   ) : (
                     <div
-                      className="h-full bg-green-500 rounded-full"
+                      className="h-full bg-positive rounded-full"
                       style={{ width: `${(ratio * 100).toFixed(1)}%` }}
                     />
                   )}
@@ -111,10 +111,10 @@ export default function BudgetProgress({ currentMonth }: Props) {
                   </span>
                   <span className={`text-sm font-medium tabular-nums ${
                     status === 'over'
-                      ? 'text-red-500'
+                      ? 'text-negative'
                       : status === 'warning'
-                        ? 'text-yellow-600'
-                        : 'text-green-600'
+                        ? 'text-caution'
+                        : 'text-positive'
                   }`}>
                     {status === 'over' ? '-' : ''}{formatCurrency(Math.abs(remaining))} remaining
                   </span>
