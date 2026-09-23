@@ -20,7 +20,7 @@ function AmountInput({ cents, onSave, onCancel }: { cents: number; onSave: (c: n
       step="0.01"
       value={raw}
       onChange={(e) => setRaw(e.target.value)}
-      onFocus={(e) => e.target.select()}
+      onFocus={(e) => { const el = e.target; const len = el.value.length; el.setSelectionRange(len, len); }}
       onKeyDown={(e) => {
         if (e.key === 'Enter') { (e.target as HTMLInputElement).blur(); }
         if (e.key === 'Escape') { cancelled.current = true; onCancel(); }
@@ -71,58 +71,47 @@ interface CategoryRowProps {
 
 function CategoryRow({ cat, isIncome, editingId, onStartEdit, onSave, onCancel, groupBalance }: CategoryRowProps) {
   const isEditing = editingId === cat.id;
-  const remaining = cat.budgeted - cat.spent;
+  const actual = isIncome ? cat.balance : cat.spent;
+  const remaining = cat.budgeted - actual;
   const balColor = remaining > 0 ? 'text-positive' : remaining < 0 ? 'text-negative' : 'text-text-disabled';
 
   return (
     <>
-      <tr className="hover:bg-brand-50 border-b border-border-light group">
+      <tr className="border-b border-border-light">
         <td className="py-2 pl-10 pr-3 text-sm text-text-secondary">
           {cat.icon ? `${cat.icon} ` : ''}{cat.name}
         </td>
         <td className="py-2 px-3 text-right">
-          {isIncome ? (
-            <span className="text-text-disabled text-sm tabular-nums">—</span>
-          ) : isEditing ? (
+          {isEditing ? (
             <AmountInput cents={cat.budgeted} onSave={onSave} onCancel={onCancel} />
           ) : (
             <button
               onClick={() => onStartEdit(cat.id)}
-              className="tabular-nums text-sm rounded-md px-2 py-0.5 min-w-[7rem] text-right transition-colors hover:bg-brand-50 hover:text-brand-600"
+              className="tabular-nums text-sm rounded-md px-2 py-1 min-w-[7rem] text-right border border-border bg-surface transition-colors hover:border-brand-400 hover:text-brand-600 cursor-text"
             >
-              {cat.budgeted === 0
-                ? <span className="text-text-disabled group-hover:text-brand-300">{formatCurrency(0)}</span>
-                : <span className="text-text">{formatCurrency(cat.budgeted)}</span>
-              }
+              <span className="text-text">{formatCurrency(cat.budgeted)}</span>
             </button>
           )}
         </td>
         <td className="py-2 px-3">
-          {isIncome ? (
-            <div className="text-right tabular-nums text-sm text-positive font-medium">
-              {cat.balance > 0 ? formatCurrency(cat.balance) : <span className="text-text-disabled">—</span>}
-            </div>
-          ) : (
-            <div className="text-right">
-              <span className="tabular-nums text-sm text-text-tertiary">
-                {cat.spent > 0 ? formatCurrency(cat.spent) : <span className="text-text-disabled">—</span>}
-              </span>
-            </div>
-          )}
+          <div className="text-right">
+            <span className={`tabular-nums text-sm ${isIncome ? 'text-positive font-medium' : 'text-text-tertiary'}`}>
+              {actual > 0
+                ? formatCurrency(actual)
+                : <span className="text-text-disabled">—</span>
+              }
+            </span>
+          </div>
         </td>
         <td className="py-2 pl-3 pr-6 text-right">
-          {isIncome ? (
-            <span className="text-text-disabled text-sm tabular-nums">—</span>
-          ) : (
-            <span className={`tabular-nums text-sm font-medium ${balColor}`}>{formatCurrency(remaining)}</span>
-          )}
+          <span className={`tabular-nums text-sm font-medium ${balColor}`}>{formatCurrency(remaining)}</span>
         </td>
       </tr>
-      {!isIncome && (cat.budgeted > 0 || cat.spent > 0) && (
+      {(cat.budgeted > 0 || actual > 0) && (
         <tr>
           <td />
           <td colSpan={3} className="pr-6 pt-0 pb-2">
-            <SpentBar spent={cat.spent} budgeted={cat.budgeted} groupBalance={groupBalance} />
+            <SpentBar spent={actual} budgeted={cat.budgeted} groupBalance={groupBalance} />
           </td>
         </tr>
       )}
@@ -168,11 +157,15 @@ function IncomeGroupSection({ group, editingId, onStartEdit, onSave, onCancel }:
             <span className="text-sm font-bold text-text">{group.name}</span>
           </div>
         </td>
-        <td className="py-3 px-3 text-right tabular-nums text-sm font-semibold text-text-secondary" />
+        <td className="py-3 px-3 text-right tabular-nums text-sm font-semibold text-text-secondary">
+          {totals.budgeted > 0 ? formatCurrency(totals.budgeted) : ''}
+        </td>
         <td className="py-3 px-3 text-right tabular-nums text-sm font-semibold text-positive">
           {totals.balance > 0 ? formatCurrency(totals.balance) : ''}
         </td>
-        <td className="py-3 pl-3 pr-6 text-right tabular-nums text-sm font-semibold text-text-disabled">—</td>
+        <td className={`py-3 pl-3 pr-6 text-right tabular-nums text-sm font-semibold ${totals.budgeted - totals.balance > 0 ? 'text-positive' : totals.budgeted - totals.balance < 0 ? 'text-negative' : 'text-text-disabled'}`}>
+          {formatCurrency(totals.budgeted - totals.balance)}
+        </td>
       </tr>
       {!collapsed && (
         <>
