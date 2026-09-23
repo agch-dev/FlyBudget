@@ -8,9 +8,11 @@ interface PreferencesState {
   theme: Theme;
   currencySymbol: string;
   dateFormat: DateFormatOption;
+  savingsGoal: number;
   setTheme: (theme: Theme) => void;
   setCurrencySymbol: (symbol: string) => void;
   setDateFormat: (format: DateFormatOption) => void;
+  setSavingsGoal: (goal: number) => void;
 }
 
 export const usePreferencesStore = create<PreferencesState>()(
@@ -19,9 +21,11 @@ export const usePreferencesStore = create<PreferencesState>()(
       theme: 'light',
       currencySymbol: '$',
       dateFormat: 'MMM d, yyyy',
+      savingsGoal: 20,
       setTheme: (theme) => set({ theme }),
       setCurrencySymbol: (currencySymbol) => set({ currencySymbol }),
       setDateFormat: (dateFormat) => set({ dateFormat }),
+      setSavingsGoal: (savingsGoal) => set({ savingsGoal }),
     }),
     { name: 'budget-preferences' },
   ),
