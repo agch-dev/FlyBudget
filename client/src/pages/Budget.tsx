@@ -170,11 +170,11 @@ function IncomeGroupSection({ group, editingId, month, onStartEdit, onSave, onCa
             <span className="text-sm font-bold text-text">{group.name}</span>
           </div>
         </td>
-        <td className="py-3 px-3 text-right tabular-nums text-sm font-semibold text-text-secondary">
-          {totals.budgeted > 0 ? formatCurrency(totals.budgeted) : ''}
+        <td className="py-3 px-3 text-right tabular-nums text-sm font-semibold text-text">
+          {formatCurrency(totals.budgeted)}
         </td>
-        <td className="py-3 px-3 text-right tabular-nums text-sm font-semibold text-positive">
-          {totals.balance > 0 ? formatCurrency(totals.balance) : ''}
+        <td className="py-3 px-3 text-right tabular-nums text-sm font-semibold text-text">
+          {formatCurrency(totals.balance)}
         </td>
         <td className={`py-3 pl-3 pr-6 text-right tabular-nums text-sm font-semibold ${totals.budgeted - totals.balance > 0 ? 'text-positive' : totals.budgeted - totals.balance < 0 ? 'text-negative' : 'text-text-disabled'}`}>
           {formatCurrency(totals.budgeted - totals.balance)}
@@ -261,11 +261,11 @@ function BudgetTypeSection({ label, categories, editingId, month, onStartEdit, o
             <span className="text-sm font-bold text-text">{label}</span>
           </div>
         </td>
-        <td className="py-3 px-3 text-right tabular-nums text-sm font-semibold text-text-secondary">
-          {totals.budgeted > 0 ? formatCurrency(totals.budgeted) : ''}
+        <td className="py-3 px-3 text-right tabular-nums text-sm font-semibold text-text">
+          {formatCurrency(totals.budgeted)}
         </td>
-        <td className="py-3 px-3 text-right tabular-nums text-sm text-text-tertiary">
-          {totals.spent > 0 ? formatCurrency(totals.spent) : ''}
+        <td className="py-3 px-3 text-right tabular-nums text-sm font-semibold text-text">
+          {formatCurrency(totals.spent)}
         </td>
         <td className={`py-3 pl-3 pr-6 text-right tabular-nums text-sm font-semibold ${remainingColor}`}>
           {formatCurrency(remaining)}
@@ -440,9 +440,9 @@ export default function BudgetPage() {
                   <span className="text-xs font-semibold text-text-tertiary uppercase tracking-wide">Income</span>
                 </div>
               </td>
-              <td className="py-2 px-3 text-right text-xs font-medium text-text-tertiary">Planned</td>
-              <td className="py-2 px-3 text-right text-xs font-medium text-text-tertiary">Actual</td>
-              <td className="py-2 pl-3 pr-6 text-right text-xs font-medium text-text-tertiary">Remaining</td>
+              <td className="py-2 px-3 text-right text-xs font-semibold text-text-tertiary">Planned</td>
+              <td className="py-2 px-3 text-right text-xs font-semibold text-text-tertiary">Actual</td>
+              <td className="py-2 pl-3 pr-6 text-right text-xs font-semibold text-text-tertiary">Remaining</td>
             </tr>
 
             {!incomeCollapsed && (
@@ -487,9 +487,9 @@ export default function BudgetPage() {
                   <span className="text-xs font-semibold text-text-tertiary uppercase tracking-wide">Expenses</span>
                 </div>
               </td>
-              <td className="py-2 px-3 text-right text-xs font-medium text-text-tertiary">Planned</td>
-              <td className="py-2 px-3 text-right text-xs font-medium text-text-tertiary">Actual</td>
-              <td className="py-2 pl-3 pr-6 text-right text-xs font-medium text-text-tertiary">Remaining</td>
+              <td className="py-2 px-3 text-right text-xs font-semibold text-text-tertiary">Planned</td>
+              <td className="py-2 px-3 text-right text-xs font-semibold text-text-tertiary">Actual</td>
+              <td className="py-2 pl-3 pr-6 text-right text-xs font-semibold text-text-tertiary">Remaining</td>
             </tr>
 
             {!expensesCollapsed && (
