@@ -34,7 +34,7 @@ function AmountInput({ cents, onSave, onCancel }: { cents: number; onSave: (c: n
 function SpentBar({ spent, budgeted }: { spent: number; budgeted: number }) {
   if (budgeted <= 0) return null;
   const ratio = Math.min(spent / budgeted, 1);
-  const color = ratio >= 1 ? 'bg-negative' : ratio >= 0.8 ? 'bg-caution' : 'bg-positive';
+  const color = ratio >= 1 ? 'bg-negative' : 'bg-positive';
   return (
     <div className="mt-0.5 h-1 w-full bg-surface-alt rounded-full overflow-hidden">
       <div className={`h-full rounded-full transition-all ${color}`} style={{ width: `${(ratio * 100).toFixed(1)}%` }} />
@@ -42,9 +42,8 @@ function SpentBar({ spent, budgeted }: { spent: number; budgeted: number }) {
   );
 }
 
-function getStatus(spent: number, planned: number): 'over' | 'warning' | 'healthy' {
+function getStatus(spent: number, planned: number): 'over' | 'healthy' {
   if (spent > planned) return 'over';
-  if (spent >= planned * 0.8) return 'warning';
   return 'healthy';
 }
 
@@ -218,7 +217,7 @@ function BudgetTypeSection({ label, categories, editingId, onStartEdit, onSave, 
   const status = getStatus(totals.spent, totals.budgeted);
   const ratio = totals.budgeted > 0 ? Math.min(totals.spent / totals.budgeted, 1) : 0;
   const remaining = totals.budgeted - totals.spent;
-  const remainingColor = status === 'over' ? 'text-red-500' : status === 'warning' ? 'text-yellow-600' : 'text-green-600';
+  const remainingColor = status === 'over' ? 'text-red-500' : 'text-green-600';
 
   return (
     <>
@@ -253,11 +252,6 @@ function BudgetTypeSection({ label, categories, editingId, onStartEdit, onSave, 
                 <div className="h-2 w-full bg-gray-200 rounded-full overflow-hidden flex">
                   {status === 'over' ? (
                     <div className="h-full w-full bg-red-500 rounded-full" />
-                  ) : status === 'warning' ? (
-                    <>
-                      <div className="h-full bg-green-500 rounded-l-full" style={{ width: `${(ratio * 100).toFixed(1)}%` }} />
-                      <div className="h-full bg-yellow-400 rounded-r-full" style={{ width: `${((1 - ratio) * 100).toFixed(1)}%` }} />
-                    </>
                   ) : (
                     <div className="h-full bg-green-500 rounded-full" style={{ width: `${(ratio * 100).toFixed(1)}%` }} />
                   )}
