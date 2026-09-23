@@ -4,9 +4,12 @@ import { Plus, ChevronRight, ChevronDown } from 'lucide-react';
 import { useAccounts } from '../hooks/useAccounts';
 import { AddAccountModal } from '../components/accounts/AddAccountModal';
 import { EditAccountModal } from '../components/accounts/EditAccountModal';
+import { AssetLiabilitySummary } from '../components/accounts/AssetLiabilitySummary';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
+import { Card } from '../components/ui/Card';
 import { formatCurrency } from '../utils/currency';
+import NetWorthMini from '../components/dashboard/NetWorthMini';
 import type { Account } from '../types';
 
 const TYPE_ORDER = ['checking', 'savings', 'cash', 'credit', 'investment'] as const;
@@ -101,14 +104,6 @@ export default function AccountsPage() {
   const onBudgetGroups = useMemo(() => groupAccountsByType(onBudget), [onBudget]);
   const offBudgetGroups = useMemo(() => groupAccountsByType(offBudget), [offBudget]);
 
-  const totalAssets = accounts
-    .filter((a) => a.type !== 'credit')
-    .reduce((sum, a) => sum + a.balance, 0);
-  const totalLiabilities = accounts
-    .filter((a) => a.type === 'credit')
-    .reduce((sum, a) => sum + a.balance, 0);
-  const netWorth = totalAssets + totalLiabilities;
-
   if (isLoading) {
     return (
       <div className="flex flex-col h-full bg-surface">
@@ -144,11 +139,15 @@ export default function AccountsPage() {
         </div>
       ) : (
         <div className="flex-1 overflow-y-auto">
-          <div className="px-6 py-5">
-            <p className="text-xs text-text-tertiary uppercase tracking-wide mb-1">Net Worth</p>
-            <p className={`text-2xl font-semibold tabular-nums ${netWorth < 0 ? 'text-negative' : 'text-text'}`}>
-              {formatCurrency(netWorth)}
-            </p>
+          <div className="px-6 pt-5 pb-3">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+              <Card>
+                <NetWorthMini />
+              </Card>
+              <Card>
+                <AssetLiabilitySummary accounts={accounts} />
+              </Card>
+            </div>
           </div>
 
           {onBudgetGroups.length > 0 && (
@@ -173,16 +172,6 @@ export default function AccountsPage() {
             </div>
           )}
 
-          <div className="px-4 py-3 border-t border-border bg-surface-alt">
-            <div className="flex justify-between text-xs text-text-secondary">
-              <span>Assets</span>
-              <span className="tabular-nums font-medium">{formatCurrency(totalAssets)}</span>
-            </div>
-            <div className="flex justify-between text-xs text-text-secondary mt-1">
-              <span>Liabilities</span>
-              <span className="tabular-nums font-medium text-negative">{formatCurrency(totalLiabilities)}</span>
-            </div>
-          </div>
         </div>
       )}
 
