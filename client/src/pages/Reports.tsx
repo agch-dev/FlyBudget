@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { format, subMonths, parseISO, startOfYear, endOfYear, subYears } from 'date-fns';
 import {
@@ -14,6 +14,7 @@ import { useCategories } from '../hooks/useCategories';
 import { formatCurrency, formatCentsAxis } from '../utils/currency';
 import { downloadCsv } from '../utils/exportCsv';
 import { chartColors, CATEGORY_COLORS } from '../utils/chartColors';
+import { computeChartTicks, parseDates, formatDateLabel, useChartWidth } from '../utils/chartTicks';
 import { Button } from '../components/ui/Button';
 import { Download, Plus } from 'lucide-react';
 import { CurrencyTooltip, ChartSkeleton, EmptyState, StatCardRow, EXPENSE_COLORS, monthLabel } from '../components/reports/ChartHelpers';
@@ -49,38 +50,56 @@ const CHART_HEIGHT: Record<Tab, string> = {
 
 function NetWorthChart({ from, to }: { from: string; to: string }) {
   const { data = [], isLoading } = useNetWorth(from, to);
-  const chartData = useMemo(() => data.map(d => ({ ...d, month: monthLabel(d.month) })), [data]);
+  const chartRef = useRef<HTMLDivElement>(null);
+  const chartWidth = useChartWidth(chartRef);
+
+  const rawMonths = useMemo(() => data.map(d => d.month), [data]);
+  const dates = useMemo(() => parseDates(rawMonths), [rawMonths]);
+  const tickResult = useMemo(
+    () => computeChartTicks({ dates, rawStrings: rawMonths, chartWidth, labelSpacingPx: 140, minTicks: 4, maxTicks: 12 }),
+    [dates, rawMonths, chartWidth],
+  );
 
   if (isLoading) return <ChartSkeleton />;
-  const hasData = chartData.length > 0 && data.some(d => d.assets !== 0 || d.liabilities !== 0 || d.netWorth !== 0);
+  const hasData = data.length > 0 && data.some(d => d.assets !== 0 || d.liabilities !== 0 || d.netWorth !== 0);
   if (!hasData) return <EmptyState />;
 
   return (
-    <ResponsiveContainer width="100%" height="100%">
-      <AreaChart data={chartData} margin={{ top: 4, right: 24, left: 16, bottom: 4 }}>
-        <defs>
-          <linearGradient id="gAssets" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor={chartColors.positive} stopOpacity={0.15} />
-            <stop offset="95%" stopColor={chartColors.positive} stopOpacity={0} />
-          </linearGradient>
-          <linearGradient id="gLiab" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor={chartColors.negative} stopOpacity={0.15} />
-            <stop offset="95%" stopColor={chartColors.negative} stopOpacity={0} />
-          </linearGradient>
-          <linearGradient id="gNet" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor={chartColors.brand} stopOpacity={0.2} />
-            <stop offset="95%" stopColor={chartColors.brand} stopOpacity={0} />
-          </linearGradient>
-        </defs>
-        <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />
-        <XAxis dataKey="month" tick={{ fontSize: 11, fill: chartColors.axis }} axisLine={false} tickLine={false} padding={{ left: 8, right: 8 }} />
-        <YAxis tickFormatter={formatCentsAxis} tick={{ fontSize: 11, fill: chartColors.axis }} axisLine={false} tickLine={false} width={60} domain={['auto', 'auto']} />
-        <Tooltip content={<CurrencyTooltip />} />
-        <Area type="monotone" dataKey="assets" name="Assets" stroke={chartColors.positiveLight} strokeWidth={2} fill="url(#gAssets)" dot={false} />
-        <Area type="monotone" dataKey="liabilities" name="Liabilities" stroke={chartColors.negativeLight} strokeWidth={2} fill="url(#gLiab)" dot={false} />
-        <Area type="monotone" dataKey="netWorth" name="Net Worth" stroke={chartColors.brand} strokeWidth={2} fill="url(#gNet)" dot={false} />
-      </AreaChart>
-    </ResponsiveContainer>
+    <div ref={chartRef} className="w-full h-full">
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={data} margin={{ top: 4, right: 24, left: 16, bottom: 4 }}>
+          <defs>
+            <linearGradient id="gAssets" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor={chartColors.positive} stopOpacity={0.15} />
+              <stop offset="95%" stopColor={chartColors.positive} stopOpacity={0} />
+            </linearGradient>
+            <linearGradient id="gLiab" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor={chartColors.negative} stopOpacity={0.15} />
+              <stop offset="95%" stopColor={chartColors.negative} stopOpacity={0} />
+            </linearGradient>
+            <linearGradient id="gNet" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor={chartColors.brand} stopOpacity={0.2} />
+              <stop offset="95%" stopColor={chartColors.brand} stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />
+          <XAxis
+            dataKey="month"
+            ticks={tickResult.ticks}
+            tickFormatter={tickResult.formatTick}
+            tick={{ fontSize: 11, fill: chartColors.axis }}
+            axisLine={false}
+            tickLine={false}
+            padding={{ left: 8, right: 8 }}
+          />
+          <YAxis tickFormatter={formatCentsAxis} tick={{ fontSize: 11, fill: chartColors.axis }} axisLine={false} tickLine={false} width={60} domain={['auto', 'auto']} />
+          <Tooltip content={<CurrencyTooltip />} labelFormatter={formatDateLabel} />
+          <Area type="monotone" dataKey="assets" name="Assets" stroke={chartColors.positiveLight} strokeWidth={2} fill="url(#gAssets)" dot={false} />
+          <Area type="monotone" dataKey="liabilities" name="Liabilities" stroke={chartColors.negativeLight} strokeWidth={2} fill="url(#gLiab)" dot={false} />
+          <Area type="monotone" dataKey="netWorth" name="Net Worth" stroke={chartColors.brand} strokeWidth={2} fill="url(#gNet)" dot={false} />
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
   );
 }
 

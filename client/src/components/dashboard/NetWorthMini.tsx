@@ -1,9 +1,10 @@
-import { useState, useMemo } from 'react';
-import { format, parseISO, subMonths, subDays, startOfYear } from 'date-fns';
+import { useState, useRef, useMemo } from 'react';
+import { format, subMonths, subDays, startOfYear } from 'date-fns';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { useNetWorth } from '../../hooks/useReports';
 import { formatCurrency } from '../../utils/currency';
 import { chartColors } from '../../utils/chartColors';
+import { computeChartTicks, parseDates, formatDateLabel, useChartWidth } from '../../utils/chartTicks';
 
 function MiniTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null;
@@ -44,20 +45,18 @@ function computeRange(preset: Preset): { from: string; to: string; granularity: 
 
 export default function NetWorthMini() {
   const [preset, setPreset] = useState<Preset>('1m');
+  const chartRef = useRef<HTMLDivElement>(null);
+  const chartWidth = useChartWidth(chartRef);
 
   const { from, to, granularity } = useMemo(() => computeRange(preset), [preset]);
   const { data = [], isLoading } = useNetWorth(from, to, granularity);
 
-  const isDaily = granularity === 'daily';
+  const rawMonths = useMemo(() => data.map(d => d.month), [data]);
+  const dates = useMemo(() => parseDates(rawMonths), [rawMonths]);
 
-  const chartData = useMemo(
-    () => data.map(d => ({
-      ...d,
-      label: isDaily
-        ? format(parseISO(d.month), 'MMM d')
-        : format(parseISO(`${d.month}-01`), 'MMM yy'),
-    })),
-    [data, isDaily],
+  const tickResult = useMemo(
+    () => computeChartTicks({ dates, rawStrings: rawMonths, chartWidth, labelSpacingPx: 70, minTicks: 3, maxTicks: 7 }),
+    [dates, rawMonths, chartWidth],
   );
 
   const yDomain = useMemo(() => {
@@ -113,10 +112,10 @@ export default function NetWorthMini() {
         </select>
       </div>
 
-      {chartData.length > 1 && (
-        <div className="h-28 mt-4">
+      {data.length > 1 && (
+        <div className="h-28 mt-4" ref={chartRef}>
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData} margin={{ top: 4, right: 8, left: 8, bottom: 0 }}>
+            <AreaChart data={data} margin={{ top: 4, right: 8, left: 8, bottom: 4 }}>
               <defs>
                 <linearGradient id="gNetMini" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor={chartColors.brand} stopOpacity={0.15} />
@@ -124,14 +123,16 @@ export default function NetWorthMini() {
                 </linearGradient>
               </defs>
               <XAxis
-                dataKey="label"
+                dataKey="month"
+                ticks={tickResult.ticks}
+                tickFormatter={tickResult.formatTick}
                 tick={{ fontSize: 10, fill: chartColors.axis }}
                 axisLine={false}
                 tickLine={false}
-                padding={{ left: 8, right: 8 }}
+                padding={{ left: 10, right: 10 }}
               />
               <YAxis hide domain={yDomain} />
-              <Tooltip content={<MiniTooltip />} />
+              <Tooltip content={<MiniTooltip />} labelFormatter={formatDateLabel} />
               <Area
                 type="monotone"
                 dataKey="netWorth"
