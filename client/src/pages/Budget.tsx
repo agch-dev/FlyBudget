@@ -1,4 +1,5 @@
 import { useState, useRef, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { format, parseISO, addMonths, subMonths } from 'date-fns';
 import { ChevronLeft, ChevronRight, ChevronDown, Eye } from 'lucide-react';
 import { useAppStore } from '../store/appStore';
@@ -110,9 +111,12 @@ function CategoryRow({ cat, isIncome, editingId, month, onStartEdit, onSave, onC
         </td>
         <td className="py-2 px-3">
           <div className="text-right">
-            <span className="tabular-nums text-sm text-text">
+            <Link
+              to={`/budget/category/${cat.id}`}
+              className="tabular-nums text-sm text-text hover:text-brand-600 cursor-pointer transition-colors"
+            >
               {formatCurrency(actual)}
-            </span>
+            </Link>
           </div>
         </td>
         <td className="py-2 pl-3 pr-6 text-right">

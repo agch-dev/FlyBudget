@@ -18,9 +18,11 @@ import type { CreateTransactionData } from '../../api/transactions';
 
 interface Props {
   accountId?: string;
+  categoryId?: string;
+  month?: string;
 }
 
-export function TransactionTable({ accountId }: Props) {
+export function TransactionTable({ accountId, categoryId, month }: Props) {
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
   const [showAdd, setShowAdd] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
@@ -28,7 +30,12 @@ export function TransactionTable({ accountId }: Props) {
 
   const showAccountCol = !accountId;
 
-  const params = useMemo(() => filtersToParams(filters, accountId), [filters, accountId]);
+  const params = useMemo(() => {
+    const base = filtersToParams(filters, accountId);
+    if (categoryId && !base.categoryId) base.categoryId = categoryId;
+    if (month && !base.from && !base.to) base.month = month;
+    return base;
+  }, [filters, accountId, categoryId, month]);
   const { data: transactions = [], isLoading } = useTransactions(params);
   const { data: groups = [] } = useCategories();
   const { data: payees = [] } = usePayees();
