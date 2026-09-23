@@ -32,7 +32,8 @@ import {
 import { getCategoryTransactionCount } from '../../api/categories';
 import { ConfirmModal } from '../ui/ConfirmModal';
 import { DeleteCategoryModal } from './DeleteCategoryModal';
-import type { BudgetType, Category, CategoryGroup } from '../../types';
+import { EditCategoryModal } from './EditCategoryModal';
+import type { Category, CategoryGroup } from '../../types';
 
 function InlineEdit({ value, onSave, onCancel }: { value: string; onSave: (v: string) => void; onCancel: () => void }) {
   const [text, setText] = useState(value);
@@ -89,12 +90,6 @@ function EmojiPickerPopover({
   );
 }
 
-const BUDGET_TYPE_OPTIONS: { value: BudgetType; label: string; color: string }[] = [
-  { value: 'fixed', label: 'Fixed', color: 'bg-blue-100 text-blue-700' },
-  { value: 'flexible', label: 'Flexible', color: 'bg-amber-100 text-amber-700' },
-  { value: 'non_monthly', label: 'Non-Mo.', color: 'bg-purple-100 text-purple-700' },
-];
-
 function SortableCategoryRow({
   cat,
   onEdit,
@@ -103,8 +98,7 @@ function SortableCategoryRow({
   onSaveEdit,
   onCancelEdit,
   onUpdateIcon,
-  isIncome,
-  onUpdateBudgetType,
+  onOpenEditModal,
 }: {
   cat: Category;
   onEdit: (id: string) => void;
@@ -113,8 +107,7 @@ function SortableCategoryRow({
   onSaveEdit: (id: string, name: string) => void;
   onCancelEdit: () => void;
   onUpdateIcon: (id: string, icon: string) => void;
-  isIncome: boolean;
-  onUpdateBudgetType: (id: string, budgetType: BudgetType) => void;
+  onOpenEditModal: (id: string) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: cat.id });
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
@@ -160,22 +153,8 @@ function SortableCategoryRow({
           <span className="text-sm text-text truncate block">{cat.name}</span>
         )}
       </div>
-      {!isIncome && (
-        <select
-          value={cat.budgetType ?? 'flexible'}
-          onChange={(e) => onUpdateBudgetType(cat.id, e.target.value as BudgetType)}
-          onClick={(e) => e.stopPropagation()}
-          className={`text-xs rounded px-1.5 py-0.5 border-none cursor-pointer focus:outline-none focus:ring-1 focus:ring-brand-600 shrink-0 ${
-            BUDGET_TYPE_OPTIONS.find(o => o.value === (cat.budgetType ?? 'flexible'))?.color ?? 'bg-gray-100 text-gray-600'
-          }`}
-        >
-          {BUDGET_TYPE_OPTIONS.map(o => (
-            <option key={o.value} value={o.value}>{o.label}</option>
-          ))}
-        </select>
-      )}
       <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-        <button onClick={() => onEdit(cat.id)} className="p-1 text-text-tertiary hover:text-brand-600 rounded hover:bg-brand-50 transition-colors">
+        <button onClick={() => onOpenEditModal(cat.id)} className="p-1 text-text-tertiary hover:text-brand-600 rounded hover:bg-brand-50 transition-colors">
           <Pencil size={13} />
         </button>
         <button onClick={() => onDelete(cat.id)} className="p-1 text-text-tertiary hover:text-negative rounded hover:bg-negative-subtle transition-colors">
@@ -204,7 +183,7 @@ function GroupCard({
   onEditCategory,
   onDeleteCategory,
   onUpdateIcon,
-  onUpdateBudgetType,
+  onOpenEditModal,
   onReorderCategories,
   dragAttributes,
   dragListeners,
@@ -226,7 +205,7 @@ function GroupCard({
   onEditCategory: (id: string) => void;
   onDeleteCategory: (id: string) => void;
   onUpdateIcon: (id: string, icon: string) => void;
-  onUpdateBudgetType: (id: string, budgetType: BudgetType) => void;
+  onOpenEditModal: (id: string) => void;
   onReorderCategories: (groupId: string, ids: string[]) => void;
   dragAttributes?: Record<string, any>;
   dragListeners?: Record<string, any>;
@@ -308,8 +287,7 @@ function GroupCard({
                 onSaveEdit={onSaveEdit}
                 onCancelEdit={onCancelEdit}
                 onUpdateIcon={onUpdateIcon}
-                isIncome={group.isIncome === 1}
-                onUpdateBudgetType={onUpdateBudgetType}
+                onOpenEditModal={onOpenEditModal}
               />
             ))}
             {localCats.length === 0 && !isAddingCategory && (
@@ -410,7 +388,7 @@ function Section({
   onEditCategory,
   onDeleteCategory,
   onUpdateIcon,
-  onUpdateBudgetType,
+  onOpenEditModal,
   onReorderCategories,
   onReorderGroups,
   onAddGroupStart,
@@ -439,7 +417,7 @@ function Section({
   onEditCategory: (id: string) => void;
   onDeleteCategory: (id: string) => void;
   onUpdateIcon: (id: string, icon: string) => void;
-  onUpdateBudgetType: (id: string, budgetType: BudgetType) => void;
+  onOpenEditModal: (id: string) => void;
   onReorderCategories: (groupId: string, ids: string[]) => void;
   onReorderGroups: (ids: string[]) => void;
   onAddGroupStart: () => void;
@@ -522,7 +500,7 @@ function Section({
                 onEditCategory={onEditCategory}
                 onDeleteCategory={onDeleteCategory}
                 onUpdateIcon={onUpdateIcon}
-                onUpdateBudgetType={onUpdateBudgetType}
+                onOpenEditModal={onOpenEditModal}
                 onReorderCategories={onReorderCategories}
               />
             ))}
@@ -557,6 +535,7 @@ export function CategoryManager() {
   const [newCategoryIcon, setNewCategoryIcon] = useState('');
   const [deleteGroupId, setDeleteGroupId] = useState<string | null>(null);
   const [deleteCatState, setDeleteCatState] = useState<{ id: string; name: string; count: number } | null>(null);
+  const [editModalCategory, setEditModalCategory] = useState<Category | null>(null);
 
   useEffect(() => { setLocalGroups(groups); }, [groups]);
 
@@ -596,8 +575,9 @@ export function CategoryManager() {
     updateCategory.mutate({ id, data: { icon } });
   }
 
-  function handleUpdateBudgetType(id: string, budgetType: BudgetType) {
-    updateCategory.mutate({ id, data: { budgetType } });
+  function handleOpenEditModal(id: string) {
+    const cat = localGroups.flatMap(g => g.categories).find(c => c.id === id);
+    if (cat) setEditModalCategory(cat);
   }
 
   async function handleDeleteCategoryClick(id: string) {
@@ -644,7 +624,7 @@ export function CategoryManager() {
     onEditCategory: setEditingId,
     onDeleteCategory: handleDeleteCategoryClick,
     onUpdateIcon: handleUpdateIcon,
-    onUpdateBudgetType: handleUpdateBudgetType,
+    onOpenEditModal: handleOpenEditModal,
     onReorderCategories: (_groupId: string, ids: string[]) => reorderCategories.mutate(ids),
     onAddGroupNameChange: setAddingGroupName,
     onAddGroupSubmit: handleAddGroup,
@@ -701,6 +681,13 @@ export function CategoryManager() {
         message={`Delete "${deleteCatState?.name ?? ''}"? This cannot be undone.`}
         confirmLabel="Delete"
         danger
+      />
+
+      <EditCategoryModal
+        category={editModalCategory}
+        groups={localGroups}
+        isIncome={editModalCategory ? localGroups.some(g => g.isIncome === 1 && g.categories.some(c => c.id === editModalCategory.id)) : false}
+        onClose={() => setEditModalCategory(null)}
       />
     </div>
   );
