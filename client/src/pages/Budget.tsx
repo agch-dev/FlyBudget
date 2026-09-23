@@ -32,13 +32,13 @@ function AmountInput({ cents, onSave, onCancel }: { cents: number; onSave: (c: n
   );
 }
 
-function SpentBar({ spent, budgeted, groupBalance }: { spent: number; budgeted: number; groupBalance?: number }) {
+function SpentBar({ spent, budgeted, groupBalance, isIncome }: { spent: number; budgeted: number; groupBalance?: number; isIncome?: boolean }) {
   if (budgeted <= 0 && spent <= 0) return null;
   const effectiveBudget = Math.max(budgeted, 1);
   const ratio = Math.min(spent / effectiveBudget, 1);
 
   let color: string;
-  if (spent <= budgeted) {
+  if (isIncome || spent <= budgeted) {
     color = 'bg-positive';
   } else if (groupBalance !== undefined && groupBalance >= 0) {
     color = 'bg-caution';
@@ -75,7 +75,8 @@ interface CategoryRowProps {
 function CategoryRow({ cat, isIncome, editingId, month, onStartEdit, onSave, onCancel, onApplyBulk, groupBalance }: CategoryRowProps) {
   const isEditing = editingId === cat.id;
   const actual = isIncome ? cat.balance : cat.spent;
-  const remaining = cat.budgeted - actual;
+  const rawRemaining = cat.budgeted - actual;
+  const remaining = isIncome ? Math.max(rawRemaining, 0) : rawRemaining;
   const balColor = remaining > 0 ? 'text-positive' : remaining < 0 ? 'text-negative' : 'text-text-disabled';
 
   return (
@@ -122,7 +123,7 @@ function CategoryRow({ cat, isIncome, editingId, month, onStartEdit, onSave, onC
         <tr>
           <td />
           <td colSpan={3} className="pr-6 pt-0 pb-2">
-            <SpentBar spent={actual} budgeted={cat.budgeted} groupBalance={groupBalance} />
+            <SpentBar spent={actual} budgeted={cat.budgeted} groupBalance={groupBalance} isIncome={isIncome} />
           </td>
         </tr>
       )}
@@ -176,8 +177,8 @@ function IncomeGroupSection({ group, editingId, month, onStartEdit, onSave, onCa
         <td className="py-3 px-3 text-right tabular-nums text-sm font-semibold text-text">
           {formatCurrency(totals.balance)}
         </td>
-        <td className={`py-3 pl-3 pr-6 text-right tabular-nums text-sm font-semibold ${totals.budgeted - totals.balance > 0 ? 'text-positive' : totals.budgeted - totals.balance < 0 ? 'text-negative' : 'text-text-disabled'}`}>
-          {formatCurrency(totals.budgeted - totals.balance)}
+        <td className={`py-3 pl-3 pr-6 text-right tabular-nums text-sm font-semibold ${Math.max(totals.budgeted - totals.balance, 0) > 0 ? 'text-positive' : 'text-text-disabled'}`}>
+          {formatCurrency(Math.max(totals.budgeted - totals.balance, 0))}
         </td>
       </tr>
       {!collapsed && (
