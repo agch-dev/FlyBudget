@@ -394,14 +394,6 @@ export default function BudgetPage() {
 
       <div className="flex-1 overflow-y-auto">
         <table className="w-full border-collapse">
-          <thead className="sticky top-0 bg-surface z-10 border-b border-border">
-            <tr>
-              <th className="py-2.5 px-4 text-left text-xs font-medium text-text-tertiary">Category</th>
-              <th className="py-2.5 px-3 text-right text-xs font-medium text-text-tertiary w-40">Planned</th>
-              <th className="py-2.5 px-3 text-right text-xs font-medium text-text-tertiary w-40">Actual</th>
-              <th className="py-2.5 pl-3 pr-6 text-right text-xs font-medium text-text-tertiary w-40">Remaining</th>
-            </tr>
-          </thead>
           <tbody>
             {/* Income section header */}
             <tr
