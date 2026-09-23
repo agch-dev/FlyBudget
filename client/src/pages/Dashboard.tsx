@@ -1,6 +1,6 @@
 import { format, subMonths } from 'date-fns';
 import SummaryStats from '../components/dashboard/SummaryStats';
-import AccountsOverview from '../components/dashboard/AccountsOverview';
+
 import BudgetProgress from '../components/dashboard/BudgetProgress';
 import NetWorthMini from '../components/dashboard/NetWorthMini';
 import IncomeExpensesMini from '../components/dashboard/IncomeExpensesMini';
@@ -39,10 +39,6 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mt-5">
         <SpendingBreakdown currentMonth={currentMonth} />
         <RecentTransactions />
-      </div>
-
-      <div className="mt-5">
-        <AccountsOverview />
       </div>
     </div>
   );
