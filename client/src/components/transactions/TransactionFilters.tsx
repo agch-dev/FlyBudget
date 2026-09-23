@@ -62,9 +62,10 @@ interface Props {
   state: FilterState;
   onChange: (s: FilterState) => void;
   categoryName?: string;
+  externalMonth?: string;
 }
 
-export function TransactionFilters({ state, onChange, categoryName }: Props) {
+export function TransactionFilters({ state, onChange, categoryName, externalMonth }: Props) {
   const [rawSearch, setRawSearch] = useState(state.search);
 
   useEffect(() => { setRawSearch(state.search); }, [state.search]);
@@ -114,7 +115,7 @@ export function TransactionFilters({ state, onChange, categoryName }: Props) {
             key={p.value}
             onClick={() => onChange({ ...state, datePreset: p.value })}
             className={`px-2.5 py-1 text-xs font-medium transition-colors border-b-2 -mb-px ${
-              state.datePreset === p.value
+              !externalMonth && state.datePreset === p.value
                 ? 'border-brand-600 text-brand-600'
                 : 'border-transparent text-text-tertiary hover:text-text-secondary'
             }`}

@@ -20,10 +20,14 @@ interface Props {
   accountId?: string;
   categoryId?: string;
   month?: string;
+  onClearMonth?: () => void;
 }
 
-export function TransactionTable({ accountId, categoryId, month }: Props) {
-  const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
+export function TransactionTable({ accountId, categoryId, month, onClearMonth }: Props) {
+  const [filters, setFilters] = useState<FilterState>(() => ({
+    ...DEFAULT_FILTERS,
+    datePreset: categoryId ? 'all' : DEFAULT_FILTERS.datePreset,
+  }));
   const [showAdd, setShowAdd] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
   const [showImport, setShowImport] = useState(false);
@@ -33,7 +37,11 @@ export function TransactionTable({ accountId, categoryId, month }: Props) {
   const params = useMemo(() => {
     const base = filtersToParams(filters, accountId);
     if (categoryId && !base.categoryId) base.categoryId = categoryId;
-    if (month && !base.from && !base.to) base.month = month;
+    if (month) {
+      delete base.from;
+      delete base.to;
+      base.month = month;
+    }
     return base;
   }, [filters, accountId, categoryId, month]);
   const { data: transactions = [], isLoading } = useTransactions(params);
@@ -113,8 +121,9 @@ export function TransactionTable({ accountId, categoryId, month }: Props) {
     <div className="flex flex-col flex-1 min-h-0">
       <TransactionFilters
         state={filters}
-        onChange={setFilters}
+        onChange={(f) => { if (month && onClearMonth) onClearMonth(); setFilters(f); }}
         categoryName={filters.categoryId ? categoryMap.get(filters.categoryId)?.name : undefined}
+        externalMonth={month}
       />
       <div className="px-4 py-2 border-b border-border-light bg-surface flex justify-between items-center">
         <span className="text-xs text-text-tertiary">{transactions.length} transactions</span>
