@@ -122,9 +122,14 @@ budgetRouter.get('/category/:categoryId/history', (req, res) => {
   const group = db.select().from(categoryGroups).where(eq(categoryGroups.id, cat.groupId)).get();
   const isIncome = group?.isIncome === 1;
 
-  const endDate = `${currentMonth}-01`;
+  const endYear = parseInt(currentMonth.slice(0, 4));
+  const endMon = parseInt(currentMonth.slice(5, 7)) + 1;
+  const adjEndYear = endYear + Math.floor((endMon - 1) / 12);
+  const adjEndMonth = ((endMon - 1) % 12 + 12) % 12 + 1;
+  const endDate = `${adjEndYear}-${String(adjEndMonth).padStart(2, '0')}-01`;
+
   const startYear = parseInt(currentMonth.slice(0, 4));
-  const startMon = parseInt(currentMonth.slice(5, 7)) - months;
+  const startMon = parseInt(currentMonth.slice(5, 7)) - months + 1;
   const adjustedYear = startYear + Math.floor((startMon - 1) / 12);
   const adjustedMonth = ((startMon - 1) % 12 + 12) % 12 + 1;
   const startDate = `${adjustedYear}-${String(adjustedMonth).padStart(2, '0')}-01`;
@@ -164,7 +169,7 @@ budgetRouter.get('/category/:categoryId/history', (req, res) => {
   const total = history.reduce((s, h) => s + h.amount, 0);
   const nonZeroCount = history.filter(h => h.amount > 0).length;
   const average = nonZeroCount > 0 ? Math.round(total / nonZeroCount) : 0;
-  const lastMonthKey = history[history.length - 1]?.month;
+  const lastMonthKey = history.length >= 2 ? history[history.length - 2]?.month : undefined;
   const lastMonth = lastMonthKey ? (rowMap[lastMonthKey] ?? 0) : 0;
 
   res.json({ categoryId, isIncome, lastMonth, average, history });

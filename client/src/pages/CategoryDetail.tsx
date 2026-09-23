@@ -1,8 +1,8 @@
-import { useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
 import { ChevronRight } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, LabelList, ResponsiveContainer, Tooltip } from 'recharts';
+import { BarChart, Bar, Cell, XAxis, YAxis, LabelList, ResponsiveContainer, Tooltip } from 'recharts';
 import { useBudget, useCategoryHistory } from '../hooks/useBudget';
 import { useTransactions } from '../hooks/useTransactions';
 import { useAppStore } from '../store/appStore';
@@ -21,12 +21,21 @@ function ChartTooltip({ active, payload, label }: any) {
   );
 }
 
-function HistoryChart({ categoryId, month, isIncome }: { categoryId: string; month: string; isIncome: boolean }) {
+interface HistoryChartProps {
+  categoryId: string;
+  month: string;
+  isIncome: boolean;
+  selectedBarMonth: string | null;
+  onBarClick: (month: string | null) => void;
+}
+
+function HistoryChart({ categoryId, month, isIncome, selectedBarMonth, onBarClick }: HistoryChartProps) {
   const { data } = useCategoryHistory(categoryId, month);
 
   const chartData = useMemo(
     () => (data?.history ?? []).map(h => ({
-      month: format(parseISO(`${h.month}-01`), 'MMM'),
+      label: format(parseISO(`${h.month}-01`), 'MMM'),
+      rawMonth: h.month,
       amount: h.amount / 100,
     })),
     [data],
@@ -36,12 +45,15 @@ function HistoryChart({ categoryId, month, isIncome }: { categoryId: string; mon
   const barColor = isIncome ? chartColors.positive : chartColors.negative;
 
   return (
-    <div className="bg-surface rounded-lg shadow-card border border-border-light p-4">
+    <div
+      className="bg-surface rounded-lg shadow-card border border-border-light p-4"
+      onClick={() => onBarClick(null)}
+    >
       <h2 className="text-sm font-semibold text-text mb-3">Spending History</h2>
       {hasData ? (
         <ResponsiveContainer width="100%" height={200}>
           <BarChart data={chartData} margin={{ top: 16, right: 8, left: 0, bottom: 0 }}>
-            <XAxis dataKey="month" tick={{ fontSize: 11, fill: chartColors.axis }} axisLine={false} tickLine={false} />
+            <XAxis dataKey="label" tick={{ fontSize: 11, fill: chartColors.axis }} axisLine={false} tickLine={false} />
             <YAxis
               tick={{ fontSize: 10, fill: chartColors.axis }}
               axisLine={false}
@@ -51,7 +63,24 @@ function HistoryChart({ categoryId, month, isIncome }: { categoryId: string; mon
               tickFormatter={(v: number) => v >= 1000 ? `$${(v / 1000).toFixed(1)}k` : `$${v}`}
             />
             <Tooltip content={<ChartTooltip />} cursor={false} />
-            <Bar dataKey="amount" fill={barColor} radius={[3, 3, 0, 0]}>
+            <Bar
+              dataKey="amount"
+              fill={barColor}
+              radius={[3, 3, 0, 0]}
+              className="cursor-pointer"
+              onClick={(entry: any, _index: number, e: React.MouseEvent) => {
+                e.stopPropagation();
+                const clickedMonth = entry.rawMonth as string;
+                onBarClick(clickedMonth === selectedBarMonth ? null : clickedMonth);
+              }}
+            >
+              {chartData.map((entry) => (
+                <Cell
+                  key={entry.rawMonth}
+                  fill={barColor}
+                  fillOpacity={selectedBarMonth == null || entry.rawMonth === selectedBarMonth ? 1 : 0.35}
+                />
+              ))}
               <LabelList
                 dataKey="amount"
                 position="top"
@@ -152,10 +181,14 @@ function SummaryWidget({ transactions, isIncome }: { transactions: Transaction[]
 export default function CategoryDetailPage() {
   const { id } = useParams<{ id: string }>();
   const selectedMonth = useAppStore(s => s.selectedMonth);
+  const [selectedBarMonth, setSelectedBarMonth] = useState<string | null>(selectedMonth);
+
   const { data: budgetData } = useBudget(selectedMonth);
   const { data: historyData } = useCategoryHistory(id ?? null, selectedMonth);
+
+  const txMonth = selectedBarMonth ?? undefined;
   const { data: transactions = [] } = useTransactions(
-    id ? { categoryId: id, month: selectedMonth } : {},
+    id ? { categoryId: id, ...(txMonth ? { month: txMonth } : {}) } : {},
   );
 
   const cat = useMemo(() => {
@@ -187,7 +220,15 @@ export default function CategoryDetailPage() {
       <div className="flex-1 overflow-y-auto p-6 space-y-4">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <div className="lg:col-span-2">
-            {id && <HistoryChart categoryId={id} month={selectedMonth} isIncome={isIncome} />}
+            {id && (
+              <HistoryChart
+                categoryId={id}
+                month={selectedMonth}
+                isIncome={isIncome}
+                selectedBarMonth={selectedBarMonth}
+                onBarClick={setSelectedBarMonth}
+              />
+            )}
           </div>
           <div>
             <BudgetWidget
@@ -202,7 +243,7 @@ export default function CategoryDetailPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <div className="lg:col-span-2 bg-surface rounded-lg shadow-card border border-border-light overflow-hidden">
-            {id && <TransactionTable categoryId={id} month={selectedMonth} />}
+            {id && <TransactionTable categoryId={id} month={txMonth} />}
           </div>
           <div>
             <SummaryWidget transactions={transactions} isIncome={isIncome} />
