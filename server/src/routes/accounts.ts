@@ -42,6 +42,30 @@ accountsRouter.get('/', (_req, res) => {
   res.json(rows.map((a) => ({ ...a, balance: a.startingBalance + (sumMap[a.id] ?? 0) })));
 });
 
+accountsRouter.get('/balances-ago', (_req, res) => {
+  const oneMonthAgo = new Date();
+  oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+  const cutoff = oneMonthAgo.toISOString().slice(0, 10);
+
+  const rows = db.select().from(accounts).where(isNull(accounts.closedAt)).all();
+  const sums = db
+    .select({
+      accountId: transactions.accountId,
+      sum: sql<number>`coalesce(sum(${transactions.amount}), 0)`,
+    })
+    .from(transactions)
+    .where(sql`${transactions.date} < ${cutoff}`)
+    .groupBy(transactions.accountId)
+    .all();
+
+  const sumMap = Object.fromEntries(sums.map((s) => [s.accountId, s.sum]));
+  const result: Record<string, number> = {};
+  for (const a of rows) {
+    result[a.id] = a.startingBalance + (sumMap[a.id] ?? 0);
+  }
+  res.json(result);
+});
+
 accountsRouter.post('/', (req, res) => {
   const parsed = createSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });

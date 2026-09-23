@@ -1,18 +1,17 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, ChevronRight, ChevronDown } from 'lucide-react';
-import { useAccounts } from '../hooks/useAccounts';
+import { Plus, ChevronRight, ChevronDown, TrendingUp, TrendingDown } from 'lucide-react';
+import { useAccounts, useBalancesAgo } from '../hooks/useAccounts';
 import { AddAccountModal } from '../components/accounts/AddAccountModal';
 import { EditAccountModal } from '../components/accounts/EditAccountModal';
 import { AssetLiabilitySummary } from '../components/accounts/AssetLiabilitySummary';
-import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { formatCurrency } from '../utils/currency';
 import NetWorthMini from '../components/dashboard/NetWorthMini';
 import type { Account } from '../types';
+import { ACCOUNT_TYPES } from '../types';
 
-const TYPE_ORDER = ['checking', 'savings', 'cash', 'credit', 'investment'] as const;
 const TYPE_LABELS: Record<string, string> = {
   checking: 'Cash',
   savings: 'Cash',
@@ -20,6 +19,10 @@ const TYPE_LABELS: Record<string, string> = {
   credit: 'Credit Cards',
   investment: 'Investments',
 };
+
+const ACCOUNT_TYPE_LABEL: Record<string, string> = Object.fromEntries(
+  ACCOUNT_TYPES.map((t) => [t.value, t.label]),
+);
 
 function groupAccountsByType(accounts: Account[]) {
   const groups = new Map<string, Account[]>();
@@ -38,29 +41,38 @@ function groupAccountsByType(accounts: Account[]) {
 interface AccountGroupProps {
   label: string;
   accounts: Account[];
+  balancesAgo: Record<string, number>;
   onEdit: (account: Account) => void;
 }
 
-function AccountGroup({ label, accounts, onEdit }: AccountGroupProps) {
+function AccountGroup({ label, accounts, balancesAgo, onEdit }: AccountGroupProps) {
   const [collapsed, setCollapsed] = useState(false);
   const navigate = useNavigate();
   const groupTotal = accounts.reduce((sum, a) => sum + a.balance, 0);
-  const isNegativeGroup = groupTotal < 0;
+  const groupTotalAgo = accounts.reduce((sum, a) => sum + (balancesAgo[a.id] ?? a.balance), 0);
+  const change = groupTotal - groupTotalAgo;
+  const changePct = groupTotalAgo !== 0 ? (change / Math.abs(groupTotalAgo)) * 100 : 0;
 
   return (
-    <div>
+    <Card padding="none">
       <button
         onClick={() => setCollapsed(!collapsed)}
-        className="w-full flex items-center justify-between px-4 py-2.5 bg-surface-alt border-y border-border-light hover:bg-hover transition-colors"
+        className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-hover transition-colors rounded-t-lg"
       >
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5">
           <span className="text-text-tertiary">
-            {collapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
+            {collapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
           </span>
-          <span className="text-xs font-semibold text-text-secondary uppercase tracking-wide">{label}</span>
-          <span className="text-xs text-text-tertiary">{accounts.length}</span>
+          <span className="text-base font-semibold text-text">{label}</span>
+          {change !== 0 && (
+            <span className={`flex items-center gap-1 text-xs tabular-nums ${change >= 0 ? 'text-positive' : 'text-negative'}`}>
+              {change >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+              {change >= 0 ? '+' : ''}{formatCurrency(change)} ({Math.abs(changePct).toFixed(1)}%)
+            </span>
+          )}
+          <span className="text-xs text-text-tertiary">past month</span>
         </div>
-        <span className={`text-sm font-semibold tabular-nums ${isNegativeGroup ? 'text-negative' : 'text-text'}`}>
+        <span className={`text-base font-semibold tabular-nums ${label === 'Credit Cards' ? 'text-negative' : 'text-text'}`}>
           {formatCurrency(groupTotal)}
         </span>
       </button>
@@ -70,39 +82,40 @@ function AccountGroup({ label, accounts, onEdit }: AccountGroupProps) {
             <div
               key={account.id}
               onClick={() => navigate(`/accounts/${account.id}`)}
-              className="flex items-center justify-between px-4 py-2.5 hover:bg-hover cursor-pointer group transition-colors"
+              className="flex items-center justify-between px-5 py-4 hover:bg-hover cursor-pointer group transition-colors last:rounded-b-lg"
             >
-              <div className="flex items-center gap-3 min-w-0">
-                <span className="text-sm font-medium text-text truncate">{account.name}</span>
-                <Badge variant={account.type} />
-                <button
-                  onClick={(e) => { e.stopPropagation(); onEdit(account); }}
-                  className="opacity-0 group-hover:opacity-100 text-xs text-text-tertiary hover:text-brand-600 transition-opacity"
-                >
-                  Edit
-                </button>
+              <div className="min-w-0">
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-medium text-text truncate">{account.name}</span>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onEdit(account); }}
+                    className="opacity-0 group-hover:opacity-100 text-xs text-text-tertiary hover:text-brand-600 transition-opacity"
+                  >
+                    Edit
+                  </button>
+                </div>
+                <span className="text-xs text-text-tertiary mt-0.5 block">
+                  {ACCOUNT_TYPE_LABEL[account.type] ?? account.type}
+                </span>
               </div>
-              <span className={`text-sm font-medium tabular-nums ${account.balance < 0 ? 'text-negative' : 'text-text'}`}>
+              <span className="text-sm font-medium tabular-nums text-text">
                 {formatCurrency(account.balance)}
               </span>
             </div>
           ))}
         </div>
       )}
-    </div>
+    </Card>
   );
 }
 
 export default function AccountsPage() {
   const { data: accounts = [], isLoading } = useAccounts();
+  const { data: balancesAgo = {} } = useBalancesAgo();
   const [addOpen, setAddOpen] = useState(false);
   const [editing, setEditing] = useState<Account | null>(null);
 
-  const onBudget = accounts.filter((a) => a.isOffBudget === 0);
-  const offBudget = accounts.filter((a) => a.isOffBudget === 1);
-
-  const onBudgetGroups = useMemo(() => groupAccountsByType(onBudget), [onBudget]);
-  const offBudgetGroups = useMemo(() => groupAccountsByType(offBudget), [offBudget]);
+  const allGroups = useMemo(() => groupAccountsByType(accounts), [accounts]);
 
   if (isLoading) {
     return (
@@ -150,28 +163,17 @@ export default function AccountsPage() {
             </div>
           </div>
 
-          {onBudgetGroups.length > 0 && (
-            <div className="mb-4">
-              <div className="px-4 py-1.5">
-                <span className="text-[11px] font-medium text-text-tertiary uppercase tracking-wider">On Budget</span>
-              </div>
-              {onBudgetGroups.map((g) => (
-                <AccountGroup key={g.label} label={g.label} accounts={g.accounts} onEdit={setEditing} />
-              ))}
-            </div>
-          )}
-
-          {offBudgetGroups.length > 0 && (
-            <div className="mb-4">
-              <div className="px-4 py-1.5">
-                <span className="text-[11px] font-medium text-text-tertiary uppercase tracking-wider">Off Budget</span>
-              </div>
-              {offBudgetGroups.map((g) => (
-                <AccountGroup key={g.label} label={g.label} accounts={g.accounts} onEdit={setEditing} />
-              ))}
-            </div>
-          )}
-
+          <div className="px-6 pb-6 space-y-4">
+            {allGroups.map((g) => (
+              <AccountGroup
+                key={g.label}
+                label={g.label}
+                accounts={g.accounts}
+                balancesAgo={balancesAgo}
+                onEdit={setEditing}
+              />
+            ))}
+          </div>
         </div>
       )}
 

@@ -33,6 +33,13 @@ export function useCloseAccount() {
   });
 }
 
+export function useBalancesAgo() {
+  return useQuery({
+    queryKey: ['accounts', 'balances-ago'],
+    queryFn: accountsApi.getBalancesAgo,
+  });
+}
+
 export function useReorderAccounts() {
   const qc = useQueryClient();
   return useMutation({

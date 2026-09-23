@@ -14,3 +14,5 @@ export const closeAccount = (id: string) =>
 
 export const reorderAccounts = (ids: string[]) =>
   apiFetch<{ ok: boolean }>('/accounts/reorder', { method: 'PUT', body: JSON.stringify({ ids }) });
+
+export const getBalancesAgo = () => apiFetch<Record<string, number>>('/accounts/balances-ago');
