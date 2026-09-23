@@ -140,22 +140,22 @@ function IncomeGroupSection({ group, editingId, onStartEdit, onSave, onCancel }:
   return (
     <>
       <tr
-        className="bg-surface-alt border-y border-border-light cursor-pointer select-none hover:bg-hover transition-colors"
+        className="bg-surface border-y border-border-light cursor-pointer select-none hover:bg-hover transition-colors"
         onClick={() => setCollapsed(c => !c)}
       >
-        <td className="py-2 px-4">
+        <td className="py-3 px-4">
           <div className="flex items-center gap-2">
             <span className="text-text-tertiary shrink-0">
-              {collapsed ? <ChevronRight size={13} /> : <ChevronDown size={13} />}
+              {collapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
             </span>
-            <span className="text-xs font-semibold text-text-secondary">{group.name}</span>
+            <span className="text-sm font-bold text-text">{group.name}</span>
           </div>
         </td>
-        <td className="py-2 px-3 text-right tabular-nums text-xs font-semibold text-text-secondary" />
-        <td className="py-2 px-3 text-right tabular-nums text-xs text-text-tertiary">
-          {totals.balance > 0 ? <span className="text-positive font-semibold">{formatCurrency(totals.balance)}</span> : ''}
+        <td className="py-3 px-3 text-right tabular-nums text-sm font-semibold text-text-secondary" />
+        <td className="py-3 px-3 text-right tabular-nums text-sm font-semibold text-positive">
+          {totals.balance > 0 ? formatCurrency(totals.balance) : ''}
         </td>
-        <td className="py-2 pl-3 pr-6 text-right tabular-nums text-xs font-semibold text-text-disabled">—</td>
+        <td className="py-3 pl-3 pr-6 text-right tabular-nums text-sm font-semibold text-text-disabled">—</td>
       </tr>
       {!collapsed && (
         <>
