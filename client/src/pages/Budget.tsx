@@ -110,10 +110,7 @@ function CategoryRow({ cat, isIncome, editingId, month, onStartEdit, onSave, onC
         <td className="py-2 px-3">
           <div className="text-right">
             <span className="tabular-nums text-sm text-text">
-              {actual > 0
-                ? formatCurrency(actual)
-                : <span className="text-text-disabled">—</span>
-              }
+              {formatCurrency(actual)}
             </span>
           </div>
         </td>
