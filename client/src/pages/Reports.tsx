@@ -111,8 +111,11 @@ function SpendingChart({ from, to }: { from: string; to: string }) {
   const chartData = useMemo(
     () => [...data]
       .sort((a, b) => b.totalSpent - a.totalSpent)
-      .slice(0, 15)
-      .map(d => ({ name: `${d.categoryIcon ? d.categoryIcon + ' ' : ''}${d.categoryName ?? 'Uncategorized'}`, value: d.totalSpent })),
+      .slice(0, 10)
+      .map(d => {
+        const full = `${d.categoryIcon ? d.categoryIcon + ' ' : ''}${d.categoryName ?? 'Uncategorized'}`;
+        return { name: full.length > 22 ? full.slice(0, 21) + '…' : full, value: d.totalSpent };
+      }),
     [data],
   );
 
@@ -124,7 +127,7 @@ function SpendingChart({ from, to }: { from: string; to: string }) {
       <BarChart data={chartData} layout="vertical" margin={{ top: 4, right: 24, left: 8, bottom: 0 }}>
         <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} horizontal={false} />
         <XAxis type="number" tickFormatter={formatCentsAxis} tick={{ fontSize: 11, fill: chartColors.axis }} axisLine={false} tickLine={false} />
-        <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: chartColors.axis }} axisLine={false} tickLine={false} width={110} />
+        <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: chartColors.axis }} axisLine={false} tickLine={false} width={160} interval={0} />
         <Tooltip
           content={({ active, payload, label }) =>
             active && payload?.length ? (
