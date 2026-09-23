@@ -85,7 +85,7 @@ export function AssetLiabilitySummary({ accounts }: Props) {
       <div>
         <div className="flex items-baseline justify-between">
           <span className="text-sm font-semibold text-text">Liabilities</span>
-          <span className="text-sm font-semibold tabular-nums text-negative">
+          <span className="text-sm font-semibold tabular-nums text-text">
             {formatCurrency(creditTotal)}
           </span>
         </div>
@@ -105,7 +105,7 @@ export function AssetLiabilitySummary({ accounts }: Props) {
               <span className="inline-block w-2.5 h-2.5 rounded-full" style={{ backgroundColor: COLORS.credit }} />
               <span className="text-sm text-text-secondary">Credit Cards</span>
             </div>
-            <span className="text-sm tabular-nums text-negative">{formatCurrency(creditTotal)}</span>
+            <span className="text-sm tabular-nums text-text">{formatCurrency(creditTotal)}</span>
           </div>
         </div>
       </div>
