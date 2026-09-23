@@ -2,9 +2,10 @@ import { useState, useRef, useMemo } from 'react';
 import { format, parseISO, addMonths, subMonths } from 'date-fns';
 import { ChevronLeft, ChevronRight, ChevronDown, Eye } from 'lucide-react';
 import { useAppStore } from '../store/appStore';
-import { useBudget, useBudgetSummary, useSetBudget } from '../hooks/useBudget';
+import { useBudget, useBudgetSummary, useSetBudget, useSetBudgetBulk } from '../hooks/useBudget';
 import { formatCurrency, parseCents, centsToInput } from '../utils/currency';
 import { BudgetSummaryWidget } from '../components/budget/BudgetSummaryWidget';
+import { BudgetEditPopover } from '../components/budget/BudgetEditPopover';
 import { Button } from '../components/ui/Button';
 import type { BudgetCategory, BudgetGroup, BudgetType } from '../types';
 
@@ -63,13 +64,15 @@ interface CategoryRowProps {
   cat: BudgetCategory;
   isIncome: boolean;
   editingId: string | null;
+  month: string;
   onStartEdit: (id: string) => void;
   onSave: (cents: number) => void;
   onCancel: () => void;
+  onApplyBulk: (categoryId: string, cents: number) => void;
   groupBalance?: number;
 }
 
-function CategoryRow({ cat, isIncome, editingId, onStartEdit, onSave, onCancel, groupBalance }: CategoryRowProps) {
+function CategoryRow({ cat, isIncome, editingId, month, onStartEdit, onSave, onCancel, onApplyBulk, groupBalance }: CategoryRowProps) {
   const isEditing = editingId === cat.id;
   const actual = isIncome ? cat.balance : cat.spent;
   const remaining = cat.budgeted - actual;
@@ -82,16 +85,27 @@ function CategoryRow({ cat, isIncome, editingId, onStartEdit, onSave, onCancel, 
           {cat.icon ? `${cat.icon} ` : ''}{cat.name}
         </td>
         <td className="py-2 px-3 text-right">
-          {isEditing ? (
-            <AmountInput cents={cat.budgeted} onSave={onSave} onCancel={onCancel} />
-          ) : (
-            <button
-              onClick={() => onStartEdit(cat.id)}
-              className="tabular-nums text-sm rounded-md px-2 py-1 min-w-[7rem] text-right border border-border bg-surface transition-colors hover:border-brand-400 hover:text-brand-600 cursor-text"
-            >
-              <span className="text-text">{formatCurrency(cat.budgeted)}</span>
-            </button>
-          )}
+          <div className="relative inline-block">
+            {isEditing ? (
+              <>
+                <AmountInput cents={cat.budgeted} onSave={onSave} onCancel={onCancel} />
+                <BudgetEditPopover
+                  categoryId={cat.id}
+                  isIncome={isIncome}
+                  currentAmount={cat.budgeted}
+                  month={month}
+                  onApplyBulk={(cents) => onApplyBulk(cat.id, cents)}
+                />
+              </>
+            ) : (
+              <button
+                onClick={() => onStartEdit(cat.id)}
+                className="tabular-nums text-sm rounded-md px-2 py-1 min-w-[7rem] text-right border border-border bg-surface transition-colors hover:border-brand-400 hover:text-brand-600 cursor-text"
+              >
+                <span className="text-text">{formatCurrency(cat.budgeted)}</span>
+              </button>
+            )}
+          </div>
         </td>
         <td className="py-2 px-3">
           <div className="text-right">
@@ -122,12 +136,14 @@ function CategoryRow({ cat, isIncome, editingId, onStartEdit, onSave, onCancel, 
 interface IncomeGroupProps {
   group: BudgetGroup;
   editingId: string | null;
+  month: string;
   onStartEdit: (id: string) => void;
   onSave: (categoryId: string, cents: number) => void;
   onCancel: () => void;
+  onApplyBulk: (categoryId: string, cents: number) => void;
 }
 
-function IncomeGroupSection({ group, editingId, onStartEdit, onSave, onCancel }: IncomeGroupProps) {
+function IncomeGroupSection({ group, editingId, month, onStartEdit, onSave, onCancel, onApplyBulk }: IncomeGroupProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [showUnbudgeted, setShowUnbudgeted] = useState(false);
 
@@ -175,9 +191,11 @@ function IncomeGroupSection({ group, editingId, onStartEdit, onSave, onCancel }:
               cat={cat}
               isIncome
               editingId={editingId}
+              month={month}
               onStartEdit={onStartEdit}
               onSave={(cents) => onSave(cat.id, cents)}
               onCancel={onCancel}
+              onApplyBulk={onApplyBulk}
             />
           ))}
           {unbudgeted.length > 0 && (
@@ -204,12 +222,14 @@ interface BudgetTypeSectionProps {
   label: string;
   categories: BudgetCategory[];
   editingId: string | null;
+  month: string;
   onStartEdit: (id: string) => void;
   onSave: (categoryId: string, cents: number) => void;
   onCancel: () => void;
+  onApplyBulk: (categoryId: string, cents: number) => void;
 }
 
-function BudgetTypeSection({ label, categories, editingId, onStartEdit, onSave, onCancel }: BudgetTypeSectionProps) {
+function BudgetTypeSection({ label, categories, editingId, month, onStartEdit, onSave, onCancel, onApplyBulk }: BudgetTypeSectionProps) {
   const [collapsed, setCollapsed] = useState(false);
   const [showUnbudgeted, setShowUnbudgeted] = useState(false);
 
@@ -277,9 +297,11 @@ function BudgetTypeSection({ label, categories, editingId, onStartEdit, onSave, 
               cat={cat}
               isIncome={false}
               editingId={editingId}
+              month={month}
               onStartEdit={onStartEdit}
               onSave={(cents) => onSave(cat.id, cents)}
               onCancel={onCancel}
+              onApplyBulk={onApplyBulk}
               groupBalance={remaining}
             />
           ))}
@@ -319,6 +341,7 @@ export default function BudgetPage() {
   const { data: groups = [] } = useBudget(selectedMonth);
   const { data: summary } = useBudgetSummary(selectedMonth);
   const setBudgetMutation = useSetBudget();
+  const setBulkMutation = useSetBudgetBulk();
 
   const monthDate = useMemo(() => parseISO(`${selectedMonth}-01`), [selectedMonth]);
 
@@ -361,6 +384,10 @@ export default function BudgetPage() {
   function handleSave(categoryId: string, budgeted: number) {
     setBudgetMutation.mutate({ month: selectedMonth, categoryId, budgeted });
     setEditingId(null);
+  }
+
+  function handleApplyBulk(categoryId: string, budgeted: number) {
+    setBulkMutation.mutate({ categoryId, budgeted, fromMonth: selectedMonth });
   }
 
   function goToToday() {
@@ -428,9 +455,11 @@ export default function BudgetPage() {
                     key={group.id}
                     group={group}
                     editingId={editingId}
+                    month={selectedMonth}
                     onStartEdit={setEditingId}
                     onSave={handleSave}
                     onCancel={() => setEditingId(null)}
+                    onApplyBulk={handleApplyBulk}
                   />
                 ))}
 
@@ -475,9 +504,11 @@ export default function BudgetPage() {
                     label={bt.label}
                     categories={bt.categories}
                     editingId={editingId}
+                    month={selectedMonth}
                     onStartEdit={setEditingId}
                     onSave={handleSave}
                     onCancel={() => setEditingId(null)}
+                    onApplyBulk={handleApplyBulk}
                   />
                 ))}
 

@@ -20,3 +20,23 @@ export function useSetBudget() {
     },
   });
 }
+
+export function useCategoryHistory(categoryId: string | null, currentMonth?: string) {
+  return useQuery({
+    queryKey: ['category-history', categoryId, currentMonth],
+    queryFn: () => budgetApi.getCategoryHistory(categoryId!, currentMonth),
+    enabled: !!categoryId,
+  });
+}
+
+export function useSetBudgetBulk() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ categoryId, budgeted, fromMonth }: { categoryId: string; budgeted: number; fromMonth: string }) =>
+      budgetApi.setBudgetBulk(categoryId, budgeted, fromMonth),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['budget'] });
+      qc.invalidateQueries({ queryKey: ['budget-summary'] });
+    },
+  });
+}

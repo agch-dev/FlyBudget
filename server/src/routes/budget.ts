@@ -101,6 +101,119 @@ budgetRouter.put('/:month/:categoryId', (req, res) => {
   res.json({ month, categoryId, budgeted: parsed.data.budgeted });
 });
 
+const historyQuerySchema = z.object({
+  months: z.coerce.number().int().min(1).max(24).optional().default(6),
+  currentMonth: z.string().regex(/^\d{4}-\d{2}$/).optional(),
+});
+
+budgetRouter.get('/category/:categoryId/history', (req, res) => {
+  const parsed = historyQuerySchema.safeParse(req.query);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+
+  const { categoryId } = req.params;
+  const { months } = parsed.data;
+
+  const now = new Date();
+  const currentMonth = parsed.data.currentMonth ?? `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+  const cat = db.select().from(categories).where(eq(categories.id, categoryId)).get();
+  if (!cat) return res.status(404).json({ error: 'Category not found' });
+
+  const group = db.select().from(categoryGroups).where(eq(categoryGroups.id, cat.groupId)).get();
+  const isIncome = group?.isIncome === 1;
+
+  const endDate = `${currentMonth}-01`;
+  const startYear = parseInt(currentMonth.slice(0, 4));
+  const startMon = parseInt(currentMonth.slice(5, 7)) - months;
+  const adjustedYear = startYear + Math.floor((startMon - 1) / 12);
+  const adjustedMonth = ((startMon - 1) % 12 + 12) % 12 + 1;
+  const startDate = `${adjustedYear}-${String(adjustedMonth).padStart(2, '0')}-01`;
+
+  const amountExpr = isIncome
+    ? sql<number>`coalesce(sum(max(${transactions.amount}, 0)), 0)`
+    : sql<number>`coalesce(sum(abs(min(${transactions.amount}, 0))), 0)`;
+
+  const rows = db
+    .select({
+      month: sql<string>`strftime('%Y-%m', ${transactions.date})`,
+      amount: amountExpr,
+    })
+    .from(transactions)
+    .where(
+      and(
+        eq(transactions.categoryId, categoryId),
+        gte(transactions.date, startDate),
+        lt(transactions.date, endDate),
+      )
+    )
+    .groupBy(sql`strftime('%Y-%m', ${transactions.date})`)
+    .orderBy(sql`strftime('%Y-%m', ${transactions.date})`)
+    .all();
+
+  const rowMap = Object.fromEntries(rows.map(r => [r.month, r.amount]));
+  const history: { month: string; amount: number }[] = [];
+  let y = adjustedYear;
+  let m = adjustedMonth;
+  for (let i = 0; i < months; i++) {
+    const key = `${y}-${String(m).padStart(2, '0')}`;
+    history.push({ month: key, amount: rowMap[key] ?? 0 });
+    m++;
+    if (m > 12) { m = 1; y++; }
+  }
+
+  const total = history.reduce((s, h) => s + h.amount, 0);
+  const nonZeroCount = history.filter(h => h.amount > 0).length;
+  const average = nonZeroCount > 0 ? Math.round(total / nonZeroCount) : 0;
+  const lastMonthKey = history[history.length - 1]?.month;
+  const lastMonth = lastMonthKey ? (rowMap[lastMonthKey] ?? 0) : 0;
+
+  res.json({ categoryId, isIncome, lastMonth, average, history });
+});
+
+const bulkSchema = z.object({
+  budgeted: z.number().int(),
+  fromMonth: z.string().regex(/^\d{4}-\d{2}$/),
+});
+
+budgetRouter.put('/category/:categoryId/bulk', (req, res) => {
+  const parsed = bulkSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+
+  const { categoryId } = req.params;
+  const { budgeted, fromMonth } = parsed.data;
+
+  let y = parseInt(fromMonth.slice(0, 4));
+  let m = parseInt(fromMonth.slice(5, 7));
+  const months: string[] = [];
+  for (let i = 0; i < 12; i++) {
+    months.push(`${y}-${String(m).padStart(2, '0')}`);
+    m++;
+    if (m > 12) { m = 1; y++; }
+  }
+
+  for (const month of months) {
+    const existing = db
+      .select()
+      .from(budgetMonths)
+      .where(and(eq(budgetMonths.month, month), eq(budgetMonths.categoryId, categoryId)))
+      .get();
+
+    if (existing) {
+      db.update(budgetMonths).set({ budgeted }).where(eq(budgetMonths.id, existing.id)).run();
+    } else {
+      db.insert(budgetMonths).values({
+        id: nanoid(),
+        month,
+        categoryId,
+        budgeted,
+        notes: null,
+      }).run();
+    }
+  }
+
+  res.json({ categoryId, budgeted, months });
+});
+
 budgetRouter.get('/:month/summary', (req, res) => {
   const { month } = req.params;
   const { from, to } = monthBounds(month);
