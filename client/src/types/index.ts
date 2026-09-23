@@ -36,12 +36,13 @@ export interface ImportPreviewRow {
   isDuplicate: boolean;
 }
 
-export type BudgetType = 'fixed' | 'flexible' | 'non_monthly';
+export type BudgetType = 'fixed' | 'flexible' | 'non_monthly' | 'savings';
 
 export const BUDGET_TYPE_LABELS: Record<BudgetType, string> = {
   fixed: 'Fixed',
   flexible: 'Flexible',
   non_monthly: 'Non-Monthly',
+  savings: 'Savings/Investments',
 };
 
 export interface Category {

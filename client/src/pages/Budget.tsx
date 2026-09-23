@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight, ChevronDown, Eye } from 'lucide-react';
 import { useAppStore } from '../store/appStore';
 import { useBudget, useBudgetSummary, useSetBudget } from '../hooks/useBudget';
 import { formatCurrency, parseCents, centsToInput } from '../utils/currency';
-import { StatCard } from '../components/ui/StatCard';
+import { BudgetSummaryWidget } from '../components/budget/BudgetSummaryWidget';
 import { Button } from '../components/ui/Button';
 import type { BudgetCategory, BudgetGroup, BudgetType } from '../types';
 
@@ -71,7 +71,8 @@ interface CategoryRowProps {
 
 function CategoryRow({ cat, isIncome, editingId, onStartEdit, onSave, onCancel, groupBalance }: CategoryRowProps) {
   const isEditing = editingId === cat.id;
-  const balColor = cat.balance > 0 ? 'text-positive' : cat.balance < 0 ? 'text-negative' : 'text-text-disabled';
+  const remaining = cat.budgeted - cat.spent;
+  const balColor = remaining > 0 ? 'text-positive' : remaining < 0 ? 'text-negative' : 'text-text-disabled';
 
   return (
     <>
@@ -113,7 +114,7 @@ function CategoryRow({ cat, isIncome, editingId, onStartEdit, onSave, onCancel, 
           {isIncome ? (
             <span className="text-text-disabled text-sm tabular-nums">—</span>
           ) : (
-            <span className={`tabular-nums text-sm font-medium ${balColor}`}>{formatCurrency(cat.balance)}</span>
+            <span className={`tabular-nums text-sm font-medium ${balColor}`}>{formatCurrency(remaining)}</span>
           )}
         </td>
       </tr>
@@ -286,7 +287,7 @@ function BudgetTypeSection({ label, categories, editingId, onStartEdit, onSave, 
               onStartEdit={onStartEdit}
               onSave={(cents) => onSave(cat.id, cents)}
               onCancel={onCancel}
-              groupBalance={totals.balance}
+              groupBalance={remaining}
             />
           ))}
 
@@ -313,6 +314,7 @@ const BUDGET_TYPES: { key: BudgetType; label: string }[] = [
   { key: 'fixed', label: 'Fixed' },
   { key: 'flexible', label: 'Flexible' },
   { key: 'non_monthly', label: 'Non-Monthly' },
+  { key: 'savings', label: 'Savings/Investments' },
 ];
 
 export default function BudgetPage() {
@@ -355,6 +357,14 @@ export default function BudgetPage() {
     balance: allExpenseCats.reduce((s, c) => s + c.balance, 0),
   }), [allExpenseCats]);
 
+  const savingsTotals = useMemo(() => {
+    const cats = allExpenseCats.filter(c => c.budgetType === 'savings');
+    return {
+      budgeted: cats.reduce((s, c) => s + c.budgeted, 0),
+      spent: cats.reduce((s, c) => s + c.spent, 0),
+    };
+  }, [allExpenseCats]);
+
   function handleSave(categoryId: string, budgeted: number) {
     setBudgetMutation.mutate({ month: selectedMonth, categoryId, budgeted });
     setEditingId(null);
@@ -366,14 +376,13 @@ export default function BudgetPage() {
 
   const tbb = summary?.toBeBudgeted ?? 0;
   const carryOver = summary?.carryOver ?? 0;
-  const tbbColor = tbb > 0 ? 'text-positive' : tbb < 0 ? 'text-negative' : 'text-text-disabled';
-  const tbbLabel = tbb >= 0 ? 'Left to Plan' : 'Over Budget';
-  const expBalColor = expenseTotals.balance > 0 ? 'text-positive' : expenseTotals.balance < 0 ? 'text-negative' : 'text-text-disabled';
+  const expRemaining = expenseTotals.budgeted - expenseTotals.spent;
+  const expBalColor = expRemaining > 0 ? 'text-positive' : expRemaining < 0 ? 'text-negative' : 'text-text-disabled';
 
   return (
     <div className="flex flex-col h-full bg-surface">
       <div className="px-6 py-4 border-b border-border shrink-0">
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-1">
             <span className="text-lg font-semibold text-text">
               {format(monthDate, 'MMMM yyyy')}
@@ -395,22 +404,10 @@ export default function BudgetPage() {
             <Button variant="secondary" size="sm" onClick={goToToday}>Today</Button>
           </div>
         </div>
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-xs font-medium text-text-tertiary mb-0.5">{tbbLabel}</p>
-            <p className={`text-2xl font-semibold tabular-nums ${tbbColor}`}>{formatCurrency(tbb)}</p>
-          </div>
-          <div className={`grid gap-3 ${carryOver !== 0 ? 'grid-cols-3' : 'grid-cols-2'}`}>
-            {carryOver !== 0 && (
-              <StatCard label="Carry Over" value={formatCurrency(carryOver)} valueColor={carryOver >= 0 ? 'text-positive' : 'text-negative'} />
-            )}
-            <StatCard label="Income" value={formatCurrency(summary?.income ?? 0)} valueColor="text-positive" />
-            <StatCard label="Planned" value={formatCurrency(summary?.totalBudgeted ?? 0)} valueColor="text-brand-600" />
-          </div>
-        </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex flex-1 overflow-y-auto">
+      <div className="flex-1">
         <table className="w-full border-collapse">
           <tbody>
             {/* Income section header */}
@@ -501,7 +498,7 @@ export default function BudgetPage() {
                     {formatCurrency(expenseTotals.spent)}
                   </td>
                   <td className={`py-2.5 pl-3 pr-6 text-right tabular-nums text-sm font-semibold ${expBalColor}`}>
-                    {formatCurrency(expenseTotals.balance)}
+                    {formatCurrency(expRemaining)}
                   </td>
                 </tr>
               </>
@@ -516,6 +513,22 @@ export default function BudgetPage() {
             )}
           </tbody>
         </table>
+      </div>
+
+      <div className="w-80 shrink-0 border-l border-border p-4 self-start sticky top-0">
+        <div>
+          <BudgetSummaryWidget
+            toBeBudgeted={tbb}
+            carryOver={carryOver}
+            incomePlanned={incomeTotals.budgeted}
+            incomeEarned={incomeTotals.received}
+            expensesPlanned={expenseTotals.budgeted}
+            expensesSpent={expenseTotals.spent}
+            savingsPlanned={savingsTotals.budgeted}
+            savingsContributed={savingsTotals.spent}
+          />
+        </div>
+      </div>
       </div>
     </div>
   );

@@ -9,6 +9,7 @@ const BUDGET_TYPE_OPTIONS: { value: BudgetType; label: string; description: stri
   { value: 'fixed', label: 'Fixed', description: 'Consistent, predictable monthly amount' },
   { value: 'flexible', label: 'Flexible', description: 'Variable spending that changes each month' },
   { value: 'non_monthly', label: 'Non-Monthly', description: 'Periodic or irregular expenses' },
+  { value: 'savings', label: 'Savings/Investments', description: 'Savings goals and investment contributions' },
 ];
 
 function EmojiPickerPopover({
