@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Pencil, Trash2, Plus, Check, X } from 'lucide-react';
+import { Plus, Check, X } from 'lucide-react';
 import EmojiPicker, { type EmojiClickData } from 'emoji-picker-react';
 import {
   DndContext,
@@ -92,26 +92,12 @@ function EmojiPickerPopover({
 
 function SortableCategoryRow({
   cat,
-  onEdit,
-  onDelete,
-  editingId,
-  onSaveEdit,
-  onCancelEdit,
-  onUpdateIcon,
   onOpenEditModal,
 }: {
   cat: Category;
-  onEdit: (id: string) => void;
-  onDelete: (id: string) => void;
-  editingId: string | null;
-  onSaveEdit: (id: string, name: string) => void;
-  onCancelEdit: () => void;
-  onUpdateIcon: (id: string, icon: string) => void;
   onOpenEditModal: (id: string) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: cat.id });
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const isEditing = editingId === cat.id;
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -124,42 +110,14 @@ function SortableCategoryRow({
     <div
       ref={setNodeRef}
       style={style}
-      className="flex items-center gap-3 px-3 py-2.5 bg-surface rounded-lg group hover:shadow-sm transition-all mx-2"
+      onClick={() => onOpenEditModal(cat.id)}
+      className="flex items-center gap-3 px-3 py-2.5 bg-surface rounded-lg hover:bg-hover cursor-pointer hover:shadow-sm transition-all mx-2"
     >
-      <div className="relative shrink-0">
-        <button
-          onClick={() => setShowEmojiPicker(true)}
-          className="text-base w-7 h-7 flex items-center justify-center rounded hover:bg-hover transition-colors"
-          title="Change icon"
-        >
-          {cat.icon || '📦'}
-        </button>
-        {showEmojiPicker && (
-          <EmojiPickerPopover
-            currentEmoji={cat.icon}
-            onSelect={(emoji) => onUpdateIcon(cat.id, emoji)}
-            onClose={() => setShowEmojiPicker(false)}
-          />
-        )}
+      <div className="shrink-0 text-base w-7 h-7 flex items-center justify-center">
+        {cat.icon || '📦'}
       </div>
       <div className="flex-1 min-w-0">
-        {isEditing ? (
-          <InlineEdit
-            value={cat.name}
-            onSave={(name) => onSaveEdit(cat.id, name)}
-            onCancel={onCancelEdit}
-          />
-        ) : (
-          <span className="text-sm text-text truncate block">{cat.name}</span>
-        )}
-      </div>
-      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-        <button onClick={() => onOpenEditModal(cat.id)} className="p-1 text-text-tertiary hover:text-brand-600 rounded hover:bg-brand-50 transition-colors">
-          <Pencil size={13} />
-        </button>
-        <button onClick={() => onDelete(cat.id)} className="p-1 text-text-tertiary hover:text-negative rounded hover:bg-negative-subtle transition-colors">
-          <Trash2 size={13} />
-        </button>
+        <span className="text-sm text-text truncate block">{cat.name}</span>
       </div>
     </div>
   );
@@ -180,9 +138,6 @@ function GroupCard({
   onNewCategoryNameChange,
   newCategoryIcon,
   onNewCategoryIconChange,
-  onEditCategory,
-  onDeleteCategory,
-  onUpdateIcon,
   onOpenEditModal,
   onReorderCategories,
   dragAttributes,
@@ -202,9 +157,6 @@ function GroupCard({
   onNewCategoryNameChange: (v: string) => void;
   newCategoryIcon: string;
   onNewCategoryIconChange: (v: string) => void;
-  onEditCategory: (id: string) => void;
-  onDeleteCategory: (id: string) => void;
-  onUpdateIcon: (id: string, icon: string) => void;
   onOpenEditModal: (id: string) => void;
   onReorderCategories: (groupId: string, ids: string[]) => void;
   dragAttributes?: Record<string, any>;
@@ -281,12 +233,6 @@ function GroupCard({
               <SortableCategoryRow
                 key={cat.id}
                 cat={cat}
-                editingId={editingId}
-                onEdit={onEditCategory}
-                onDelete={onDeleteCategory}
-                onSaveEdit={onSaveEdit}
-                onCancelEdit={onCancelEdit}
-                onUpdateIcon={onUpdateIcon}
                 onOpenEditModal={onOpenEditModal}
               />
             ))}
@@ -385,9 +331,6 @@ function Section({
   onNewCategoryNameChange,
   newCategoryIcon,
   onNewCategoryIconChange,
-  onEditCategory,
-  onDeleteCategory,
-  onUpdateIcon,
   onOpenEditModal,
   onReorderCategories,
   onReorderGroups,
@@ -414,9 +357,6 @@ function Section({
   onNewCategoryNameChange: (v: string) => void;
   newCategoryIcon: string;
   onNewCategoryIconChange: (v: string) => void;
-  onEditCategory: (id: string) => void;
-  onDeleteCategory: (id: string) => void;
-  onUpdateIcon: (id: string, icon: string) => void;
   onOpenEditModal: (id: string) => void;
   onReorderCategories: (groupId: string, ids: string[]) => void;
   onReorderGroups: (ids: string[]) => void;
@@ -497,9 +437,6 @@ function Section({
                 onNewCategoryNameChange={onNewCategoryNameChange}
                 newCategoryIcon={newCategoryIcon}
                 onNewCategoryIconChange={onNewCategoryIconChange}
-                onEditCategory={onEditCategory}
-                onDeleteCategory={onDeleteCategory}
-                onUpdateIcon={onUpdateIcon}
                 onOpenEditModal={onOpenEditModal}
                 onReorderCategories={onReorderCategories}
               />
@@ -571,10 +508,6 @@ export function CategoryManager() {
     setAddingCategoryGroupId(null);
   }
 
-  function handleUpdateIcon(id: string, icon: string) {
-    updateCategory.mutate({ id, data: { icon } });
-  }
-
   function handleOpenEditModal(id: string) {
     const cat = localGroups.flatMap(g => g.categories).find(c => c.id === id);
     if (cat) setEditModalCategory(cat);
@@ -621,9 +554,6 @@ export function CategoryManager() {
     onNewCategoryNameChange: setNewCategoryName,
     newCategoryIcon,
     onNewCategoryIconChange: setNewCategoryIcon,
-    onEditCategory: setEditingId,
-    onDeleteCategory: handleDeleteCategoryClick,
-    onUpdateIcon: handleUpdateIcon,
     onOpenEditModal: handleOpenEditModal,
     onReorderCategories: (_groupId: string, ids: string[]) => reorderCategories.mutate(ids),
     onAddGroupNameChange: setAddingGroupName,
@@ -688,6 +618,7 @@ export function CategoryManager() {
         groups={localGroups}
         isIncome={editModalCategory ? localGroups.some(g => g.isIncome === 1 && g.categories.some(c => c.id === editModalCategory.id)) : false}
         onClose={() => setEditModalCategory(null)}
+        onDelete={(id) => { setEditModalCategory(null); handleDeleteCategoryClick(id); }}
       />
     </div>
   );

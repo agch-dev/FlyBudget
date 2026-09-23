@@ -46,9 +46,10 @@ interface Props {
   groups: CategoryGroup[];
   isIncome: boolean;
   onClose: () => void;
+  onDelete: (id: string) => void;
 }
 
-export function EditCategoryModal({ category, groups, isIncome, onClose }: Props) {
+export function EditCategoryModal({ category, groups, isIncome, onClose, onDelete }: Props) {
   const updateCategory = useUpdateCategory();
   const [name, setName] = useState('');
   const [icon, setIcon] = useState('');
@@ -164,11 +165,16 @@ export function EditCategoryModal({ category, groups, isIncome, onClose }: Props
           </div>
         )}
 
-        <div className="flex justify-end gap-3 pt-2">
-          <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
-          <Button type="submit" disabled={!name.trim() || updateCategory.isPending}>
-            {updateCategory.isPending ? 'Saving...' : 'Save'}
+        <div className="flex items-center justify-between pt-2">
+          <Button type="button" variant="danger" onClick={() => { onClose(); onDelete(category!.id); }}>
+            Delete
           </Button>
+          <div className="flex gap-3">
+            <Button type="button" variant="secondary" onClick={onClose}>Cancel</Button>
+            <Button type="submit" disabled={!name.trim() || updateCategory.isPending}>
+              {updateCategory.isPending ? 'Saving...' : 'Save'}
+            </Button>
+          </div>
         </div>
       </form>
     </Modal>
