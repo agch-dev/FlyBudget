@@ -22,11 +22,8 @@ function getHeroStyle(tbb: number, incomePlanned: number) {
 
 function getBarColor(actual: number, planned: number, type: 'income' | 'expenses' | 'savings') {
   if (type === 'income' || type === 'savings') return 'bg-positive';
-  if (planned <= 0) return 'bg-positive';
-  const ratio = actual / planned;
-  if (ratio > 1) return 'bg-negative';
-  if (ratio >= 0.8) return 'bg-caution';
-  return 'bg-positive';
+  if (planned <= 0) return actual > 0 ? 'bg-negative' : 'bg-positive';
+  return actual > planned ? 'bg-negative' : 'bg-positive';
 }
 
 interface SummarySectionProps {
@@ -39,9 +36,13 @@ interface SummarySectionProps {
 
 function SummarySection({ label, planned, actual, actualLabel, type }: SummarySectionProps) {
   const remaining = planned - actual;
-  const ratio = planned > 0 ? Math.min(actual / planned, 1) : 0;
+  const ratio = type === 'income'
+    ? (actual > 0 ? 1 : 0)
+    : (planned > 0 ? Math.min(actual / planned, 1) : 0);
   const barColor = getBarColor(actual, planned, type);
-  const remainingColor = remaining >= 0 ? 'text-positive' : 'text-negative';
+  const remainingColor = type === 'income'
+    ? 'text-positive'
+    : remaining >= 0 ? 'text-positive' : 'text-negative';
 
   return (
     <div className="py-3">

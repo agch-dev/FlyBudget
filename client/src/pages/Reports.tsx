@@ -60,6 +60,16 @@ function NetWorthChart({ from, to }: { from: string; to: string }) {
     [dates, rawMonths, chartWidth],
   );
 
+  const yDomain = useMemo(() => {
+    if (data.length === 0) return [0, 'auto'] as [number, string];
+    const allValues = data.flatMap(d => [d.assets, d.liabilities, d.netWorth]);
+    const min = Math.min(...allValues);
+    const max = Math.max(...allValues);
+    const range = max - min || Math.abs(max) || 10000;
+    const pad = range * 0.05;
+    return [Math.floor((min - pad) / 100) * 100, Math.ceil((max + pad) / 100) * 100] as [number, number];
+  }, [data]);
+
   if (isLoading) return <ChartSkeleton />;
   const hasData = data.length > 0 && data.some(d => d.assets !== 0 || d.liabilities !== 0 || d.netWorth !== 0);
   if (!hasData) return <EmptyState />;
@@ -92,7 +102,7 @@ function NetWorthChart({ from, to }: { from: string; to: string }) {
             tickLine={false}
             padding={{ left: 8, right: 8 }}
           />
-          <YAxis tickFormatter={formatCentsAxis} tick={{ fontSize: 11, fill: chartColors.axis }} axisLine={false} tickLine={false} width={60} domain={['auto', 'auto']} />
+          <YAxis tickFormatter={formatCentsAxis} tick={{ fontSize: 11, fill: chartColors.axis }} axisLine={false} tickLine={false} width={60} domain={yDomain} />
           <Tooltip content={<CurrencyTooltip />} labelFormatter={formatDateLabel} />
           <Area type="monotone" dataKey="assets" name="Assets" stroke={chartColors.positiveLight} strokeWidth={2} fill="url(#gAssets)" dot={false} />
           <Area type="monotone" dataKey="liabilities" name="Liabilities" stroke={chartColors.negativeLight} strokeWidth={2} fill="url(#gLiab)" dot={false} />
