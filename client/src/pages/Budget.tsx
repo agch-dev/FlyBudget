@@ -40,9 +40,9 @@ function SpentBar({ spent, budgeted, isIncome }: { spent: number; budgeted: numb
   const fillWidth = Math.min(ratio * 100, 100);
 
   let color: string;
-  if (isIncome || ratio < 0.8) {
+  if (isIncome || ratio < 0.8 || ratio === 1) {
     color = 'bg-positive';
-  } else if (ratio <= 1) {
+  } else if (ratio < 1) {
     color = 'bg-caution';
   } else {
     color = 'bg-negative';
