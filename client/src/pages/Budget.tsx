@@ -78,7 +78,11 @@ function CategoryRow({ cat, isIncome, editingId, month, onStartEdit, onSave, onC
   const actual = isIncome ? cat.balance : cat.spent;
   const rawRemaining = cat.budgeted - actual;
   const remaining = isIncome ? Math.max(rawRemaining, 0) : rawRemaining;
-  const balColor = remaining > 0 ? 'text-positive' : remaining < 0 ? 'text-negative' : 'text-text-disabled';
+  const balPill = remaining > 0
+    ? 'bg-positive/15 text-positive'
+    : remaining < 0
+    ? 'bg-negative/15 text-negative'
+    : 'text-text-disabled';
 
   return (
     <>
@@ -120,7 +124,7 @@ function CategoryRow({ cat, isIncome, editingId, month, onStartEdit, onSave, onC
           </div>
         </td>
         <td className="py-2 pl-3 pr-6 text-right">
-          <span className={`tabular-nums text-sm font-medium ${balColor}`}>{formatCurrency(remaining)}</span>
+          <span className={`tabular-nums text-sm font-medium inline-block rounded-full px-2.5 py-0.5 ${balPill}`}>{formatCurrency(remaining)}</span>
         </td>
       </tr>
       {(cat.budgeted > 0 || actual > 0) && (
