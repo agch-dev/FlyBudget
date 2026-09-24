@@ -111,7 +111,7 @@ function CategoryRow({ cat, isIncome, editingId, month, onStartEdit, onSave, onC
           ) : (
             <button
               onClick={() => onStartEdit(cat.id)}
-              className="tabular-nums text-sm rounded px-2 py-0.5 min-w-[5.5rem] text-right border border-transparent bg-transparent transition-colors hover:border-border-light hover:bg-surface-alt cursor-text"
+              className="tabular-nums text-sm rounded px-2 py-0.5 min-w-[5.5rem] text-right border border-border bg-surface transition-colors hover:border-text-tertiary cursor-text"
             >
               <span className="text-text-secondary">{formatCurrency(cat.budgeted)}</span>
             </button>
