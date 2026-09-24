@@ -33,25 +33,24 @@ function AmountInput({ cents, onSave, onCancel }: { cents: number; onSave: (c: n
   );
 }
 
-function SpentBar({ spent, budgeted, groupBalance, isIncome }: { spent: number; budgeted: number; groupBalance?: number; isIncome?: boolean }) {
+function SpentBar({ spent, budgeted, isIncome }: { spent: number; budgeted: number; isIncome?: boolean }) {
   if (budgeted <= 0 && spent <= 0) return null;
   const effectiveBudget = Math.max(budgeted, 1);
-  const ratio = Math.min(spent / effectiveBudget, 1);
+  const ratio = spent / effectiveBudget;
+  const fillWidth = Math.min(ratio * 100, 100);
 
   let color: string;
-  if (isIncome || spent <= budgeted) {
+  if (isIncome || ratio < 0.8) {
     color = 'bg-positive';
-  } else if (groupBalance !== undefined && groupBalance >= 0) {
+  } else if (ratio < 1) {
     color = 'bg-caution';
   } else {
     color = 'bg-negative';
   }
 
-  const fillWidth = spent > budgeted ? 100 : ratio * 100;
-
   return (
-    <div className="h-0.5 w-full bg-surface-alt overflow-hidden">
-      <div className={`h-full transition-all ${color}`} style={{ width: `${fillWidth.toFixed(1)}%` }} />
+    <div className="h-[3px] w-full bg-surface-alt rounded-full overflow-hidden mt-1">
+      <div className={`h-full rounded-full transition-all ${color}`} style={{ width: `${fillWidth.toFixed(1)}%` }} />
     </div>
   );
 }
@@ -70,72 +69,68 @@ interface CategoryRowProps {
   onSave: (cents: number) => void;
   onCancel: () => void;
   onApplyBulk: (categoryId: string, cents: number) => void;
-  groupBalance?: number;
 }
 
-function CategoryRow({ cat, isIncome, editingId, month, onStartEdit, onSave, onCancel, onApplyBulk, groupBalance }: CategoryRowProps) {
+function CategoryRow({ cat, isIncome, editingId, month, onStartEdit, onSave, onCancel, onApplyBulk }: CategoryRowProps) {
   const isEditing = editingId === cat.id;
   const actual = isIncome ? cat.balance : cat.spent;
   const rawRemaining = cat.budgeted - actual;
   const remaining = isIncome ? Math.max(rawRemaining, 0) : rawRemaining;
-  const balPill = remaining > 0
-    ? 'bg-positive/15 text-positive'
-    : remaining < 0
-    ? 'bg-negative/15 text-negative'
-    : 'text-text-disabled';
+
+  let remainingClass: string;
+  if (remaining > 0) {
+    remainingClass = 'text-positive font-medium';
+  } else if (remaining < 0) {
+    remainingClass = 'bg-negative/15 text-negative font-medium rounded-full px-2.5 py-0.5';
+  } else {
+    remainingClass = 'text-text-tertiary';
+  }
 
   return (
-    <>
-      <tr className="border-b border-border-light">
-        <td className="py-2 pl-10 pr-3 text-sm text-text-secondary">
-          {cat.icon ? `${cat.icon} ` : ''}{cat.name}
-        </td>
-        <td className="py-2 px-3 text-right">
-          <div className="relative inline-block">
-            {isEditing ? (
-              <>
-                <AmountInput cents={cat.budgeted} onSave={onSave} onCancel={onCancel} />
-                <BudgetEditPopover
-                  categoryId={cat.id}
-                  isIncome={isIncome}
-                  currentAmount={cat.budgeted}
-                  month={month}
-                  onApplyBulk={(cents) => onApplyBulk(cat.id, cents)}
-                />
-              </>
-            ) : (
-              <button
-                onClick={() => onStartEdit(cat.id)}
-                className="tabular-nums text-sm rounded-md px-2 py-1 min-w-[7rem] text-right border border-border bg-surface transition-colors hover:border-brand-400 hover:text-brand-600 cursor-text"
-              >
-                <span className="text-text">{formatCurrency(cat.budgeted)}</span>
-              </button>
-            )}
-          </div>
-        </td>
-        <td className="py-2 px-3">
-          <div className="text-right">
-            <Link
-              to={`/budget/category/${cat.id}`}
-              className="tabular-nums text-sm text-text hover:text-brand-600 cursor-pointer transition-colors"
+    <tr className="border-b border-border-light">
+      <td className="py-1.5 pb-2 pl-10 pr-3">
+        <div className="text-sm text-text">
+          {cat.icon && <span className="text-xs mr-1">{cat.icon}</span>}{cat.name}
+        </div>
+        <SpentBar spent={actual} budgeted={cat.budgeted} isIncome={isIncome} />
+      </td>
+      <td className="py-1.5 px-3 text-right align-top">
+        <div className="relative inline-block">
+          {isEditing ? (
+            <>
+              <AmountInput cents={cat.budgeted} onSave={onSave} onCancel={onCancel} />
+              <BudgetEditPopover
+                categoryId={cat.id}
+                isIncome={isIncome}
+                currentAmount={cat.budgeted}
+                month={month}
+                onApplyBulk={(cents) => onApplyBulk(cat.id, cents)}
+              />
+            </>
+          ) : (
+            <button
+              onClick={() => onStartEdit(cat.id)}
+              className="tabular-nums text-sm rounded px-2 py-0.5 min-w-[5.5rem] text-right border border-transparent bg-transparent transition-colors hover:border-border hover:bg-surface cursor-text"
             >
-              {formatCurrency(actual)}
-            </Link>
-          </div>
-        </td>
-        <td className="py-2 pl-3 pr-6 text-right">
-          <span className={`tabular-nums text-sm font-medium inline-block rounded-full px-2.5 py-0.5 ${balPill}`}>{formatCurrency(remaining)}</span>
-        </td>
-      </tr>
-      {(cat.budgeted > 0 || actual > 0) && (
-        <tr>
-          <td />
-          <td colSpan={3} className="pr-6 pt-0 pb-2">
-            <SpentBar spent={actual} budgeted={cat.budgeted} groupBalance={groupBalance} isIncome={isIncome} />
-          </td>
-        </tr>
-      )}
-    </>
+              <span className="text-text-secondary">{formatCurrency(cat.budgeted)}</span>
+            </button>
+          )}
+        </div>
+      </td>
+      <td className="py-1.5 px-3 align-top">
+        <div className="text-right">
+          <Link
+            to={`/budget/category/${cat.id}`}
+            className="tabular-nums text-sm text-text-secondary hover:text-brand-600 cursor-pointer transition-colors"
+          >
+            {formatCurrency(actual)}
+          </Link>
+        </div>
+      </td>
+      <td className="py-1.5 pl-3 pr-6 text-right align-top">
+        <span className={`tabular-nums text-sm inline-block ${remainingClass}`}>{formatCurrency(remaining)}</span>
+      </td>
+    </tr>
   );
 }
 
@@ -167,11 +162,12 @@ function IncomeGroupSection({ group, editingId, month, onStartEdit, onSave, onCa
 
   return (
     <>
+      <tr className="h-2" aria-hidden><td colSpan={4} /></tr>
       <tr
         className="bg-surface border-y border-border-light cursor-pointer select-none hover:bg-hover transition-colors"
         onClick={() => setCollapsed(c => !c)}
       >
-        <td className="py-3 px-4">
+        <td className="py-2 px-4">
           <div className="flex items-center gap-2">
             <span className="text-text-tertiary shrink-0">
               {collapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
@@ -179,13 +175,13 @@ function IncomeGroupSection({ group, editingId, month, onStartEdit, onSave, onCa
             <span className="text-sm font-bold text-text">{group.name}</span>
           </div>
         </td>
-        <td className="py-3 px-3 text-right tabular-nums text-sm font-semibold text-text">
+        <td className="py-2 px-3 text-right tabular-nums text-sm font-semibold text-text">
           {formatCurrency(totals.budgeted)}
         </td>
-        <td className="py-3 px-3 text-right tabular-nums text-sm font-semibold text-text">
+        <td className="py-2 px-3 text-right tabular-nums text-sm font-semibold text-text">
           {formatCurrency(totals.balance)}
         </td>
-        <td className={`py-3 pl-3 pr-6 text-right tabular-nums text-sm font-semibold ${Math.max(totals.budgeted - totals.balance, 0) > 0 ? 'text-positive' : 'text-text-disabled'}`}>
+        <td className={`py-2 pl-3 pr-6 text-right tabular-nums text-sm font-semibold ${Math.max(totals.budgeted - totals.balance, 0) > 0 ? 'text-positive' : 'text-text-tertiary'}`}>
           {formatCurrency(Math.max(totals.budgeted - totals.balance, 0))}
         </td>
       </tr>
@@ -252,17 +248,17 @@ function BudgetTypeSection({ label, categories, editingId, month, onStartEdit, o
   const visibleCats = showUnbudgeted ? categories : budgeted;
 
   const status = getStatus(totals.spent, totals.budgeted);
-  const ratio = totals.budgeted > 0 ? Math.min(totals.spent / totals.budgeted, 1) : 0;
   const remaining = totals.budgeted - totals.spent;
   const remainingColor = status === 'over' ? 'text-negative' : 'text-positive';
 
   return (
     <>
+      <tr className="h-2" aria-hidden><td colSpan={4} /></tr>
       <tr
         className="bg-surface border-y border-border-light cursor-pointer select-none hover:bg-hover transition-colors"
         onClick={() => setCollapsed(c => !c)}
       >
-        <td className="py-3 px-4">
+        <td className="py-2 px-4">
           <div className="flex items-center gap-2">
             <span className="text-text-tertiary shrink-0">
               {collapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
@@ -270,33 +266,19 @@ function BudgetTypeSection({ label, categories, editingId, month, onStartEdit, o
             <span className="text-sm font-bold text-text">{label}</span>
           </div>
         </td>
-        <td className="py-3 px-3 text-right tabular-nums text-sm font-semibold text-text">
+        <td className="py-2 px-3 text-right tabular-nums text-sm font-semibold text-text">
           {formatCurrency(totals.budgeted)}
         </td>
-        <td className="py-3 px-3 text-right tabular-nums text-sm font-semibold text-text">
+        <td className="py-2 px-3 text-right tabular-nums text-sm font-semibold text-text">
           {formatCurrency(totals.spent)}
         </td>
-        <td className={`py-3 pl-3 pr-6 text-right tabular-nums text-sm font-semibold ${remainingColor}`}>
+        <td className={`py-2 pl-3 pr-6 text-right tabular-nums text-sm font-semibold ${remainingColor}`}>
           {formatCurrency(remaining)}
         </td>
       </tr>
 
       {!collapsed && (
         <>
-          {totals.budgeted > 0 && (
-            <tr className="border-b border-border-light">
-              <td colSpan={4} className="px-4 py-1">
-                <div className="h-1.5 w-full bg-surface-alt overflow-hidden">
-                  {status === 'over' ? (
-                    <div className="h-full w-full bg-negative" />
-                  ) : (
-                    <div className="h-full bg-positive" style={{ width: `${(ratio * 100).toFixed(1)}%` }} />
-                  )}
-                </div>
-              </td>
-            </tr>
-          )}
-
           {visibleCats.map(cat => (
             <CategoryRow
               key={cat.id}
@@ -308,7 +290,6 @@ function BudgetTypeSection({ label, categories, editingId, month, onStartEdit, o
               onSave={(cents) => onSave(cat.id, cents)}
               onCancel={onCancel}
               onApplyBulk={onApplyBulk}
-              groupBalance={remaining}
             />
           ))}
 
@@ -411,7 +392,7 @@ export default function BudgetPage() {
   const tbb = summary?.toBeBudgeted ?? 0;
   const carryOver = summary?.carryOver ?? 0;
   const expRemaining = expenseTotals.budgeted - expenseTotals.spent;
-  const expBalColor = expRemaining > 0 ? 'text-positive' : expRemaining < 0 ? 'text-negative' : 'text-text-disabled';
+  const expBalColor = expRemaining > 0 ? 'text-positive' : expRemaining < 0 ? 'text-negative' : 'text-text-tertiary';
 
   return (
     <div className="flex flex-col h-full bg-surface">
@@ -443,10 +424,16 @@ export default function BudgetPage() {
       <div className="flex flex-1 overflow-y-auto">
       <div className="flex-1">
         <table className="w-full border-collapse">
+          <colgroup>
+            <col style={{ width: '55%' }} />
+            <col style={{ width: '15%' }} />
+            <col style={{ width: '15%' }} />
+            <col style={{ width: '15%' }} />
+          </colgroup>
           <tbody>
             {/* Income section header */}
             <tr
-              className="bg-gray-100 border-y border-border cursor-pointer select-none hover:bg-gray-200 transition-colors"
+              className="bg-surface-alt border-y border-border cursor-pointer select-none hover:bg-hover transition-colors"
               onClick={() => setIncomeCollapsed(c => !c)}
             >
               <td className="py-2 px-4">
@@ -479,21 +466,21 @@ export default function BudgetPage() {
 
                 {/* Total Income row */}
                 <tr className="bg-surface border-y border-border">
-                  <td className="py-2.5 px-4 text-sm font-bold text-text">Total Income</td>
-                  <td className="py-2.5 px-3 text-right tabular-nums text-sm font-semibold text-text-secondary">
+                  <td className="py-2 px-4 text-sm font-bold text-text">Total Income</td>
+                  <td className="py-2 px-3 text-right tabular-nums text-sm font-semibold text-text-secondary">
                     {formatCurrency(incomeTotals.budgeted)}
                   </td>
-                  <td className="py-2.5 px-3 text-right tabular-nums text-sm font-semibold text-positive">
+                  <td className="py-2 px-3 text-right tabular-nums text-sm font-semibold text-text">
                     {formatCurrency(incomeTotals.received)}
                   </td>
-                  <td className="py-2.5 pl-3 pr-6" />
+                  <td className="py-2 pl-3 pr-6" />
                 </tr>
               </>
             )}
 
             {/* Expenses section header */}
             <tr
-              className="bg-gray-100 border-y border-border cursor-pointer select-none hover:bg-gray-200 transition-colors"
+              className="bg-surface-alt border-y border-border cursor-pointer select-none hover:bg-hover transition-colors"
               onClick={() => setExpensesCollapsed(c => !c)}
             >
               <td className="py-2 px-4">
@@ -528,14 +515,14 @@ export default function BudgetPage() {
 
                 {/* Total Expenses row */}
                 <tr className="bg-surface border-y border-border">
-                  <td className="py-2.5 px-4 text-sm font-bold text-text">Total Expenses</td>
-                  <td className="py-2.5 px-3 text-right tabular-nums text-sm font-semibold text-text-secondary">
+                  <td className="py-2 px-4 text-sm font-bold text-text">Total Expenses</td>
+                  <td className="py-2 px-3 text-right tabular-nums text-sm font-semibold text-text-secondary">
                     {formatCurrency(expenseTotals.budgeted)}
                   </td>
-                  <td className="py-2.5 px-3 text-right tabular-nums text-sm font-semibold text-text-secondary">
+                  <td className="py-2 px-3 text-right tabular-nums text-sm font-semibold text-text-secondary">
                     {formatCurrency(expenseTotals.spent)}
                   </td>
-                  <td className={`py-2.5 pl-3 pr-6 text-right tabular-nums text-sm font-semibold ${expBalColor}`}>
+                  <td className={`py-2 pl-3 pr-6 text-right tabular-nums text-sm font-semibold ${expBalColor}`}>
                     {formatCurrency(expRemaining)}
                   </td>
                 </tr>

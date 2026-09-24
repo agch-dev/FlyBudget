@@ -52,16 +52,26 @@ export function Sidebar() {
     if (sidebarMode === 'auto-hide') setHovered(false);
   }, [sidebarMode]);
 
-  const isExpanded = sidebarMode === 'auto-hide' ? hovered : !collapsed;
+  const isAutoHide = sidebarMode === 'auto-hide';
+  const isExpanded = isAutoHide ? hovered : !collapsed;
 
   return (
     <aside
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      className={`shrink-0 h-screen overflow-hidden border-r border-sidebar-border transition-[width] duration-200 ${
-        isExpanded ? 'w-[208px]' : 'w-16'
-      }`}
+      className={isAutoHide
+        ? 'w-16 shrink-0 h-screen relative z-30'
+        : `shrink-0 h-screen overflow-hidden border-r border-sidebar-border transition-[width] duration-200 ${
+            isExpanded ? 'w-[208px]' : 'w-16'
+          }`
+      }
     >
+      <div className={isAutoHide
+        ? `absolute left-0 top-0 h-full overflow-hidden border-r border-sidebar-border transition-[width,box-shadow] duration-200 ${
+            isExpanded ? 'w-[208px] shadow-xl' : 'w-16'
+          }`
+        : 'w-full h-full'
+      }>
       <div className="w-[208px] h-full flex flex-col bg-sidebar-bg">
         {/* Logo */}
         <div className="flex items-center gap-2.5 px-4 py-3 border-b border-sidebar-border">
@@ -112,6 +122,7 @@ export function Sidebar() {
             </button>
           </div>
         )}
+      </div>
       </div>
     </aside>
   );
