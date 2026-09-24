@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
-import { Plus, ChevronDown, ChevronRight, Building2, Link2 } from 'lucide-react';
+import { Plus, Building2, Link2, ChevronDown, ChevronRight } from 'lucide-react';
 import { useAccounts } from '../../hooks/useAccounts';
 import { usePlaidStatus } from '../../hooks/usePlaid';
 import { formatCurrency } from '../../utils/currency';
@@ -16,15 +16,15 @@ function AccountRow({ account }: { account: Account }) {
     <NavLink
       to={`/accounts/${account.id}`}
       className={({ isActive }) =>
-        `flex items-center justify-between px-3 py-1 rounded-md text-[13px] transition-all duration-150 ${
+        `flex items-center justify-between pl-5 pr-3 py-0.5 rounded-md text-[12px] transition-all duration-150 ${
           isActive
             ? 'bg-sidebar-active text-sidebar-text-hi font-medium'
-            : 'text-sidebar-text hover:bg-sidebar-hover hover:text-sidebar-text-hi'
+            : 'text-sidebar-text/70 hover:bg-sidebar-hover hover:text-sidebar-text-hi'
         }`
       }
     >
       <span className="truncate">{account.name}</span>
-      <span className={`ml-2 tabular-nums text-xs shrink-0 ${isNegative ? 'text-negative' : 'text-sidebar-text'}`}>
+      <span className={`ml-2 tabular-nums text-[11px] shrink-0 ${isNegative ? 'text-negative/80' : 'text-sidebar-text/50'}`}>
         {formatCurrency(account.balance)}
       </span>
     </NavLink>
@@ -36,6 +36,7 @@ export function SidebarAccountList() {
   const { data: plaidStatus } = usePlaidStatus();
   const plaidConfigured = plaidStatus?.configured ?? false;
 
+  const [forBudgetOpen, setForBudgetOpen] = useState(false);
   const [offBudgetOpen, setOffBudgetOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -64,80 +65,103 @@ export function SidebarAccountList() {
 
   const onBudget = accounts.filter((a) => a.isOffBudget === 0);
   const offBudget = accounts.filter((a) => a.isOffBudget === 1);
+  const allTotal = accounts.reduce((sum, a) => sum + a.balance, 0);
+  const onBudgetTotal = onBudget.reduce((sum, a) => sum + a.balance, 0);
+  const offBudgetTotal = offBudget.reduce((sum, a) => sum + a.balance, 0);
 
   return (
     <>
-      {/* Header — outside scroll container so dropdown isn't clipped */}
-      <div className="shrink-0 px-3 mt-3">
-        <div className="flex items-center justify-between mb-1">
-          <span className="text-[11px] font-semibold tracking-wider text-sidebar-text uppercase">Accounts</span>
-          <div className="relative" ref={menuRef}>
-            <button
-              onClick={() => setMenuOpen((o) => !o)}
-              className="p-0.5 rounded text-sidebar-text hover:text-sidebar-text-hi hover:bg-sidebar-hover transition-colors"
-              title="Add account"
-            >
-              <Plus size={13} />
-            </button>
-
-            {menuOpen && (
-              <div className="absolute right-0 top-full mt-1 w-48 bg-surface rounded-md border border-border shadow-hover z-30 py-1">
-                <button
-                  onClick={() => { setMenuOpen(false); setAddOpen(true); }}
-                  className="flex items-center gap-2 w-full px-3 py-2 text-left text-sm text-text-secondary hover:bg-hover hover:text-text transition-colors"
-                >
-                  <Plus size={14} className="shrink-0" />
-                  Add Manual Account
-                </button>
-                <button
-                  onClick={() => {
-                    setMenuOpen(false);
-                    if (plaidConfigured) setConnectOpen(true);
-                    else setPlaidSetupOpen(true);
-                  }}
-                  className="flex items-center gap-2 w-full px-3 py-2 text-left text-sm text-text-secondary hover:bg-hover hover:text-text transition-colors"
-                >
-                  <Building2 size={14} className="shrink-0" />
-                  Connect via Plaid
-                </button>
-                <button
-                  onClick={() => { setMenuOpen(false); setSimplefinOpen(true); }}
-                  className="flex items-center gap-2 w-full px-3 py-2 text-left text-sm text-text-secondary hover:bg-hover hover:text-text transition-colors"
-                >
-                  <Link2 size={14} className="shrink-0" />
-                  Connect via SimpleFIN
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
       {/* Scrollable account list */}
-      <div className="flex-1 overflow-y-auto px-3">
-        <div className="space-y-px">
-          {onBudget.map((a) => <AccountRow key={a.id} account={a} />)}
-          {onBudget.length === 0 && (
-            <p className="px-3 py-2 text-xs text-sidebar-text">No accounts yet</p>
+      <div className="flex-1 overflow-y-auto px-3 mt-3">
+        {/* All accounts */}
+        <NavLink to="/accounts" className="flex items-center justify-between py-1.5 text-[13px] font-bold text-sidebar-text-hi border-b border-sidebar-text/30 hover:text-sidebar-text-hi transition-colors">
+          <span>All accounts</span>
+          <span className="tabular-nums ml-2">{formatCurrency(allTotal)}</span>
+        </NavLink>
+
+        {/* For Budget section */}
+        <div className="mt-2">
+          <button
+            onClick={() => setForBudgetOpen((o) => !o)}
+            className="flex items-center justify-between w-full py-1.5 text-[13px] font-semibold text-sidebar-text-hi border-b border-sidebar-text/20 hover:text-sidebar-text-hi transition-colors"
+          >
+            <span>For budget</span>
+            <span className="flex items-center gap-1">
+              <span className="tabular-nums text-[12px]">{formatCurrency(onBudgetTotal)}</span>
+              {forBudgetOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+            </span>
+          </button>
+          {forBudgetOpen && (
+            <div className="mt-0.5 space-y-0">
+              {onBudget.map((a) => <AccountRow key={a.id} account={a} />)}
+              {onBudget.length === 0 && (
+                <p className="pl-5 py-1 text-xs text-sidebar-text/50">No accounts yet</p>
+              )}
+            </div>
           )}
         </div>
 
+        {/* Off Budget section */}
         {offBudget.length > 0 && (
           <div className="mt-2">
             <button
               onClick={() => setOffBudgetOpen((o) => !o)}
-              className="flex items-center gap-1 w-full text-[11px] font-semibold tracking-wider text-sidebar-text uppercase hover:text-sidebar-text-hi transition-colors mb-1"
+              className="flex items-center justify-between w-full py-1.5 text-[13px] font-semibold text-sidebar-text-hi border-b border-sidebar-text/20 hover:text-sidebar-text-hi transition-colors"
             >
-              {offBudgetOpen ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
-              Off Budget
+              <span>Off budget</span>
+              <span className="flex items-center gap-1">
+                <span className="tabular-nums text-[12px]">{formatCurrency(offBudgetTotal)}</span>
+                {offBudgetOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+              </span>
             </button>
             {offBudgetOpen && (
-              <div className="space-y-px">
+              <div className="mt-0.5 space-y-0">
                 {offBudget.map((a) => <AccountRow key={a.id} account={a} />)}
               </div>
             )}
           </div>
         )}
+
+        {/* Add account */}
+        <div className="mt-3 relative" ref={menuRef}>
+          <button
+            onClick={() => setMenuOpen((o) => !o)}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-[13px] text-sidebar-text hover:text-sidebar-text-hi transition-colors"
+          >
+            <Plus size={14} />
+            <span>Add account</span>
+          </button>
+
+          {menuOpen && (
+            <div className="absolute left-0 bottom-full mb-1 w-48 bg-surface rounded-md border border-border shadow-hover z-30 py-1">
+              <button
+                onClick={() => { setMenuOpen(false); setAddOpen(true); }}
+                className="flex items-center gap-2 w-full px-3 py-2 text-left text-sm text-text-secondary hover:bg-hover hover:text-text transition-colors"
+              >
+                <Plus size={14} className="shrink-0" />
+                Add Manual Account
+              </button>
+              <button
+                onClick={() => {
+                  setMenuOpen(false);
+                  if (plaidConfigured) setConnectOpen(true);
+                  else setPlaidSetupOpen(true);
+                }}
+                className="flex items-center gap-2 w-full px-3 py-2 text-left text-sm text-text-secondary hover:bg-hover hover:text-text transition-colors"
+              >
+                <Building2 size={14} className="shrink-0" />
+                Connect via Plaid
+              </button>
+              <button
+                onClick={() => { setMenuOpen(false); setSimplefinOpen(true); }}
+                className="flex items-center gap-2 w-full px-3 py-2 text-left text-sm text-text-secondary hover:bg-hover hover:text-text transition-colors"
+              >
+                <Link2 size={14} className="shrink-0" />
+                Connect via SimpleFIN
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       <AddAccountModal isOpen={addOpen} onClose={() => setAddOpen(false)} />
