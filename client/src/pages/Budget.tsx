@@ -387,6 +387,14 @@ export default function BudgetPage() {
     };
   }, [allExpenseCats]);
 
+  const expensesByBudgetType = useMemo(() => {
+    const calc = (type: string) => {
+      const cats = allExpenseCats.filter(c => c.budgetType === type);
+      return { planned: cats.reduce((s, c) => s + c.budgeted, 0), spent: cats.reduce((s, c) => s + c.spent, 0) };
+    };
+    return { fixed: calc('fixed'), flexible: calc('flexible'), nonMonthly: calc('non_monthly') };
+  }, [allExpenseCats]);
+
   function handleSave(categoryId: string, budgeted: number) {
     setBudgetMutation.mutate({ month: selectedMonth, categoryId, budgeted });
     setEditingId(null);
@@ -556,6 +564,9 @@ export default function BudgetPage() {
             expensesSpent={expenseTotals.spent}
             savingsPlanned={savingsTotals.budgeted}
             savingsContributed={savingsTotals.spent}
+            fixedExpenses={expensesByBudgetType.fixed}
+            flexibleExpenses={expensesByBudgetType.flexible}
+            nonMonthlyExpenses={expensesByBudgetType.nonMonthly}
           />
         </div>
       </div>

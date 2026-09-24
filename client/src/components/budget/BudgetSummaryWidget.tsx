@@ -1,6 +1,11 @@
 import { useState } from 'react';
 import { formatCurrency } from '../../utils/currency';
 
+interface ExpenseBreakdown {
+  planned: number;
+  spent: number;
+}
+
 interface BudgetSummaryWidgetProps {
   toBeBudgeted: number;
   carryOver: number;
@@ -10,6 +15,9 @@ interface BudgetSummaryWidgetProps {
   expensesSpent: number;
   savingsPlanned: number;
   savingsContributed: number;
+  fixedExpenses?: ExpenseBreakdown;
+  flexibleExpenses?: ExpenseBreakdown;
+  nonMonthlyExpenses?: ExpenseBreakdown;
 }
 
 function getHeroStyle(tbb: number, incomePlanned: number) {
@@ -96,6 +104,9 @@ export function BudgetSummaryWidget({
   expensesSpent,
   savingsPlanned,
   savingsContributed,
+  fixedExpenses,
+  flexibleExpenses,
+  nonMonthlyExpenses,
 }: BudgetSummaryWidgetProps) {
   const [activeTab, setActiveTab] = useState<Tab>('summary');
   const hero = getHeroStyle(toBeBudgeted, incomePlanned);
@@ -171,13 +182,43 @@ export function BudgetSummaryWidget({
           />
         )}
         {activeTab === 'expenses' && (
-          <SummarySection
-            label="Expenses"
-            planned={expensesPlanned}
-            actual={expensesSpent}
-            actualLabel="spent"
-            type="expenses"
-          />
+          <div>
+            {fixedExpenses && (fixedExpenses.planned > 0 || fixedExpenses.spent > 0) && (
+              <SummarySection
+                label="Fixed"
+                planned={fixedExpenses.planned}
+                actual={fixedExpenses.spent}
+                actualLabel="spent"
+                type="expenses"
+              />
+            )}
+            {flexibleExpenses && (flexibleExpenses.planned > 0 || flexibleExpenses.spent > 0) && (
+              <>
+                {fixedExpenses && (fixedExpenses.planned > 0 || fixedExpenses.spent > 0) && (
+                  <div className="border-t border-border-light" />
+                )}
+                <SummarySection
+                  label="Flexible"
+                  planned={flexibleExpenses.planned}
+                  actual={flexibleExpenses.spent}
+                  actualLabel="spent"
+                  type="expenses"
+                />
+              </>
+            )}
+            {nonMonthlyExpenses && (nonMonthlyExpenses.planned > 0 || nonMonthlyExpenses.spent > 0) && (
+              <>
+                <div className="border-t border-border-light" />
+                <SummarySection
+                  label="Non-Monthly"
+                  planned={nonMonthlyExpenses.planned}
+                  actual={nonMonthlyExpenses.spent}
+                  actualLabel="spent"
+                  type="expenses"
+                />
+              </>
+            )}
+          </div>
         )}
       </div>
     </div>
