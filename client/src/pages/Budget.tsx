@@ -73,7 +73,7 @@ interface CategoryRowProps {
 
 function CategoryRow({ cat, isIncome, editingId, month, onStartEdit, onSave, onCancel, onApplyBulk }: CategoryRowProps) {
   const isEditing = editingId === cat.id;
-  const actual = isIncome ? cat.balance : cat.spent;
+  const actual = isIncome ? (cat.balance - cat.carryOver - cat.budgeted) : cat.spent;
   const rawRemaining = cat.budgeted - actual;
   const remaining = isIncome ? Math.max(rawRemaining, 0) : rawRemaining;
 
@@ -150,10 +150,13 @@ function IncomeGroupSection({ group, editingId, month, onStartEdit, onSave, onCa
   const [showUnbudgeted, setShowUnbudgeted] = useState(false);
 
   const totals = useMemo(
-    () => group.categories.reduce(
-      (acc, c) => ({ budgeted: acc.budgeted + c.budgeted, spent: acc.spent + c.spent, balance: acc.balance + c.balance }),
-      { budgeted: 0, spent: 0, balance: 0 }
-    ),
+    () => {
+      const raw = group.categories.reduce(
+        (acc, c) => ({ budgeted: acc.budgeted + c.budgeted, spent: acc.spent + c.spent, balance: acc.balance + c.balance, carryOver: acc.carryOver + c.carryOver }),
+        { budgeted: 0, spent: 0, balance: 0, carryOver: 0 }
+      );
+      return { ...raw, received: raw.balance - raw.carryOver - raw.budgeted };
+    },
     [group.categories]
   );
 
@@ -180,10 +183,10 @@ function IncomeGroupSection({ group, editingId, month, onStartEdit, onSave, onCa
           {formatCurrency(totals.budgeted)}
         </td>
         <td className="py-2 px-3 text-right tabular-nums text-sm font-semibold text-text">
-          {formatCurrency(totals.balance)}
+          {formatCurrency(totals.received)}
         </td>
-        <td className={`py-2 pl-3 pr-6 text-right tabular-nums text-sm font-semibold ${Math.max(totals.budgeted - totals.balance, 0) > 0 ? 'text-positive' : 'text-text-tertiary'}`}>
-          {formatCurrency(Math.max(totals.budgeted - totals.balance, 0))}
+        <td className={`py-2 pl-3 pr-6 text-right tabular-nums text-sm font-semibold ${Math.max(totals.budgeted - totals.received, 0) > 0 ? 'text-positive' : 'text-text-tertiary'}`}>
+          {formatCurrency(Math.max(totals.budgeted - totals.received, 0))}
         </td>
       </tr>
       {!collapsed && (
@@ -351,7 +354,7 @@ export default function BudgetPage() {
     const cats = incomeGroups.flatMap(g => g.categories);
     return {
       budgeted: cats.reduce((s, c) => s + c.budgeted, 0),
-      received: cats.reduce((s, c) => s + c.balance, 0),
+      received: cats.reduce((s, c) => s + (c.balance - c.carryOver - c.budgeted), 0),
     };
   }, [incomeGroups]);
 
