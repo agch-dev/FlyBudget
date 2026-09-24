@@ -1,9 +1,11 @@
+import { useState, useCallback } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, Landmark, ArrowLeftRight, Wallet, Repeat, BarChart3, Workflow,
   Target, Users, Zap, Settings, PanelLeftClose, PanelLeftOpen,
 } from 'lucide-react';
 import { useAppStore } from '../../store/appStore';
+import { usePreferencesStore } from '../../store/preferencesStore';
 import { SidebarAccountList } from './SidebarAccountList';
 import logoUrl from '/logo.png';
 
@@ -38,59 +40,76 @@ function NavItem({ to, icon, label, collapsed }: NavItemProps) {
 export function Sidebar() {
   const collapsed = useAppStore((s) => s.sidebarCollapsed);
   const toggle = useAppStore((s) => s.setSidebarCollapsed);
+  const sidebarMode = usePreferencesStore((s) => s.sidebarMode);
+
+  const [hovered, setHovered] = useState(false);
+
+  const handleMouseEnter = useCallback(() => {
+    if (sidebarMode === 'auto-hide') setHovered(true);
+  }, [sidebarMode]);
+
+  const handleMouseLeave = useCallback(() => {
+    if (sidebarMode === 'auto-hide') setHovered(false);
+  }, [sidebarMode]);
+
+  const isExpanded = sidebarMode === 'auto-hide' ? hovered : !collapsed;
 
   return (
     <aside
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
       className={`flex flex-col shrink-0 h-screen bg-sidebar-bg border-r border-sidebar-border transition-[width] duration-200 ${
-        collapsed ? 'w-16' : 'w-[208px]'
+        isExpanded ? 'w-[208px]' : 'w-16'
       }`}
     >
       {/* Logo */}
-      <div className={`flex items-center gap-2.5 border-b border-sidebar-border ${collapsed ? 'justify-center px-2 py-3' : 'px-4 py-3'}`}>
+      <div className={`flex items-center gap-2.5 border-b border-sidebar-border ${isExpanded ? 'px-4 py-3' : 'justify-center px-2 py-3'}`}>
         <img src={logoUrl} alt="Budget" className="w-7 h-7 shrink-0" />
-        {!collapsed && <span className="text-sm font-semibold text-sidebar-text-hi tracking-tight">Budget</span>}
+        {isExpanded && <span className="text-sm font-semibold text-sidebar-text-hi tracking-tight">Budget</span>}
       </div>
 
       {/* Primary nav */}
-      <nav className={`pt-3 space-y-0.5 ${collapsed ? 'px-2' : 'px-3'}`}>
-        <NavItem to="/dashboard" icon={<LayoutDashboard size={18} />} label="Dashboard" collapsed={collapsed} />
-        <NavItem to="/accounts" icon={<Landmark size={18} />} label="Accounts" collapsed={collapsed} />
-        <NavItem to="/transactions" icon={<ArrowLeftRight size={18} />} label="Transactions" collapsed={collapsed} />
-        <NavItem to="/budget" icon={<Wallet size={18} />} label="Budget" collapsed={collapsed} />
-        <NavItem to="/recurring" icon={<Repeat size={18} />} label="Recurring" collapsed={collapsed} />
-        <NavItem to="/reports" icon={<BarChart3 size={18} />} label="Reports" collapsed={collapsed} />
-        <NavItem to="/cash-flow" icon={<Workflow size={18} />} label="Cash Flow" collapsed={collapsed} />
-        <NavItem to="/goals" icon={<Target size={18} />} label="Goals" collapsed={collapsed} />
+      <nav className={`pt-3 space-y-0.5 ${isExpanded ? 'px-3' : 'px-2'}`}>
+        <NavItem to="/dashboard" icon={<LayoutDashboard size={18} />} label="Dashboard" collapsed={!isExpanded} />
+        <NavItem to="/accounts" icon={<Landmark size={18} />} label="Accounts" collapsed={!isExpanded} />
+        <NavItem to="/transactions" icon={<ArrowLeftRight size={18} />} label="Transactions" collapsed={!isExpanded} />
+        <NavItem to="/budget" icon={<Wallet size={18} />} label="Budget" collapsed={!isExpanded} />
+        <NavItem to="/recurring" icon={<Repeat size={18} />} label="Recurring" collapsed={!isExpanded} />
+        <NavItem to="/reports" icon={<BarChart3 size={18} />} label="Reports" collapsed={!isExpanded} />
+        <NavItem to="/cash-flow" icon={<Workflow size={18} />} label="Cash Flow" collapsed={!isExpanded} />
+        <NavItem to="/goals" icon={<Target size={18} />} label="Goals" collapsed={!isExpanded} />
       </nav>
 
       {/* Account list — expanded only */}
-      {!collapsed && (
+      {isExpanded && (
         <div className="flex-1 flex flex-col min-h-0">
           <SidebarAccountList />
         </div>
       )}
-      {collapsed && <div className="flex-1" />}
+      {!isExpanded && <div className="flex-1" />}
 
       {/* Footer nav */}
-      <nav className={`py-2 border-t border-sidebar-border space-y-0.5 ${collapsed ? 'px-2' : 'px-3'}`}>
-        <NavItem to="/payees" icon={<Users size={18} />} label="Payees" collapsed={collapsed} />
-        <NavItem to="/rules" icon={<Zap size={18} />} label="Rules" collapsed={collapsed} />
-        <NavItem to="/settings" icon={<Settings size={18} />} label="Settings" collapsed={collapsed} />
+      <nav className={`py-2 border-t border-sidebar-border space-y-0.5 ${isExpanded ? 'px-3' : 'px-2'}`}>
+        <NavItem to="/payees" icon={<Users size={18} />} label="Payees" collapsed={!isExpanded} />
+        <NavItem to="/rules" icon={<Zap size={18} />} label="Rules" collapsed={!isExpanded} />
+        <NavItem to="/settings" icon={<Settings size={18} />} label="Settings" collapsed={!isExpanded} />
       </nav>
 
-      {/* Collapse toggle */}
-      <div className={`py-2 border-t border-sidebar-border ${collapsed ? 'px-2' : 'px-3'}`}>
-        <button
-          onClick={() => toggle(!collapsed)}
-          className={`flex items-center gap-2 w-full py-1.5 rounded-md text-[13px] text-sidebar-text hover:bg-sidebar-hover hover:text-sidebar-text-hi transition-colors ${
-            collapsed ? 'justify-center px-2' : 'px-3'
-          }`}
-          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-        >
-          {collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
-          {!collapsed && <span>Collapse</span>}
-        </button>
-      </div>
+      {/* Collapse toggle — persistent mode only */}
+      {sidebarMode === 'persistent' && (
+        <div className={`py-2 border-t border-sidebar-border ${isExpanded ? 'px-3' : 'px-2'}`}>
+          <button
+            onClick={() => toggle(!collapsed)}
+            className={`flex items-center gap-2 w-full py-1.5 rounded-md text-[13px] text-sidebar-text hover:bg-sidebar-hover hover:text-sidebar-text-hi transition-colors ${
+              isExpanded ? 'px-3' : 'justify-center px-2'
+            }`}
+            title={isExpanded ? 'Collapse sidebar' : 'Expand sidebar'}
+          >
+            {isExpanded ? <PanelLeftClose size={18} /> : <PanelLeftOpen size={18} />}
+            {isExpanded && <span>Collapse</span>}
+          </button>
+        </div>
+      )}
     </aside>
   );
 }

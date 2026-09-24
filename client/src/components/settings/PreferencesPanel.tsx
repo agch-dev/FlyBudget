@@ -1,9 +1,14 @@
-import { usePreferencesStore, type Theme, type DateFormatOption } from '../../store/preferencesStore';
+import { usePreferencesStore, type Theme, type DateFormatOption, type SidebarMode } from '../../store/preferencesStore';
 
 const themeOptions: { value: Theme; label: string }[] = [
   { value: 'light', label: 'Light' },
   { value: 'dark', label: 'Dark' },
   { value: 'system', label: 'System' },
+];
+
+const sidebarModes: { value: SidebarMode; label: string; description: string }[] = [
+  { value: 'persistent', label: 'Persistent', description: 'Stays open, manual collapse toggle' },
+  { value: 'auto-hide', label: 'Auto-hide', description: 'Collapsed by default, expands on hover' },
 ];
 
 const dateFormats: { value: DateFormatOption; label: string; example: string }[] = [
@@ -14,7 +19,7 @@ const dateFormats: { value: DateFormatOption; label: string; example: string }[]
 ];
 
 export function PreferencesPanel() {
-  const { theme, currencySymbol, dateFormat, setTheme, setCurrencySymbol, setDateFormat } = usePreferencesStore();
+  const { theme, currencySymbol, dateFormat, sidebarMode, setTheme, setCurrencySymbol, setDateFormat, setSidebarMode } = usePreferencesStore();
 
   return (
     <div className="space-y-6">
@@ -37,6 +42,26 @@ export function PreferencesPanel() {
               }`}
             >
               {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="bg-surface-alt rounded-lg p-5 space-y-4">
+        <h3 className="text-sm font-medium text-text">Sidebar</h3>
+        <div className="flex gap-3">
+          {sidebarModes.map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => setSidebarMode(opt.value)}
+              className={`flex flex-col px-4 py-2 text-sm rounded-md border transition-colors ${
+                sidebarMode === opt.value
+                  ? 'border-brand-500 bg-brand-50 text-brand-700 font-medium'
+                  : 'border-border bg-surface text-text-secondary hover:border-border'
+              }`}
+            >
+              <span>{opt.label}</span>
+              <span className="text-xs text-text-tertiary font-normal mt-0.5">{opt.description}</span>
             </button>
           ))}
         </div>
