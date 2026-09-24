@@ -42,14 +42,14 @@ function SpentBar({ spent, budgeted, isIncome }: { spent: number; budgeted: numb
   let color: string;
   if (isIncome || ratio < 0.8) {
     color = 'bg-positive';
-  } else if (ratio < 1) {
+  } else if (ratio <= 1) {
     color = 'bg-caution';
   } else {
     color = 'bg-negative';
   }
 
   return (
-    <div className="h-[3px] w-full bg-surface-alt rounded-full overflow-hidden mt-1">
+    <div className="h-[3px] w-[90%] bg-surface-alt rounded-full overflow-hidden mt-1">
       <div className={`h-full rounded-full transition-all ${color}`} style={{ width: `${fillWidth.toFixed(1)}%` }} />
     </div>
   );
@@ -78,12 +78,13 @@ function CategoryRow({ cat, isIncome, editingId, month, onStartEdit, onSave, onC
   const remaining = isIncome ? Math.max(rawRemaining, 0) : rawRemaining;
 
   let remainingClass: string;
+  const pillBase = 'font-medium rounded-full px-2.5 py-0.5 text-text';
   if (remaining > 0) {
-    remainingClass = 'text-positive font-medium';
+    remainingClass = `${pillBase} bg-positive/20`;
   } else if (remaining < 0) {
-    remainingClass = 'bg-negative/15 text-negative font-medium rounded-full px-2.5 py-0.5';
+    remainingClass = `${pillBase} bg-negative/20`;
   } else {
-    remainingClass = 'text-text-tertiary';
+    remainingClass = `${pillBase} bg-surface-alt`;
   }
 
   return (
@@ -110,7 +111,7 @@ function CategoryRow({ cat, isIncome, editingId, month, onStartEdit, onSave, onC
           ) : (
             <button
               onClick={() => onStartEdit(cat.id)}
-              className="tabular-nums text-sm rounded px-2 py-0.5 min-w-[5.5rem] text-right border border-transparent bg-transparent transition-colors hover:border-border hover:bg-surface cursor-text"
+              className="tabular-nums text-sm rounded px-2 py-0.5 min-w-[5.5rem] text-right border border-transparent bg-transparent transition-colors hover:border-border-light hover:bg-surface-alt cursor-text"
             >
               <span className="text-text-secondary">{formatCurrency(cat.budgeted)}</span>
             </button>
@@ -156,8 +157,8 @@ function IncomeGroupSection({ group, editingId, month, onStartEdit, onSave, onCa
     [group.categories]
   );
 
-  const budgeted = group.categories.filter(c => c.budgeted > 0 || c.spent > 0);
-  const unbudgeted = group.categories.filter(c => c.budgeted === 0 && c.spent === 0);
+  const budgeted = group.categories.filter(c => c.budgeted > 0 || c.spent > 0 || c.balance !== 0);
+  const unbudgeted = group.categories.filter(c => c.budgeted === 0 && c.spent === 0 && c.balance === 0);
   const visibleCats = showUnbudgeted ? group.categories : budgeted;
 
   return (
@@ -243,8 +244,8 @@ function BudgetTypeSection({ label, categories, editingId, month, onStartEdit, o
     [categories]
   );
 
-  const budgeted = categories.filter(c => c.budgeted > 0 || c.spent > 0);
-  const unbudgeted = categories.filter(c => c.budgeted === 0 && c.spent === 0);
+  const budgeted = categories.filter(c => c.budgeted > 0 || c.spent > 0 || c.balance !== 0);
+  const unbudgeted = categories.filter(c => c.budgeted === 0 && c.spent === 0 && c.balance === 0);
   const visibleCats = showUnbudgeted ? categories : budgeted;
 
   const status = getStatus(totals.spent, totals.budgeted);
@@ -446,7 +447,7 @@ export default function BudgetPage() {
               </td>
               <td className="py-2 px-3 text-right text-xs font-semibold text-text-tertiary">Planned</td>
               <td className="py-2 px-3 text-right text-xs font-semibold text-text-tertiary">Actual</td>
-              <td className="py-2 pl-3 pr-6 text-right text-xs font-semibold text-text-tertiary">Remaining</td>
+              <td className="py-2 pl-3 pr-6 text-right text-xs font-bold text-text">Remaining</td>
             </tr>
 
             {!incomeCollapsed && (
@@ -493,7 +494,7 @@ export default function BudgetPage() {
               </td>
               <td className="py-2 px-3 text-right text-xs font-semibold text-text-tertiary">Planned</td>
               <td className="py-2 px-3 text-right text-xs font-semibold text-text-tertiary">Actual</td>
-              <td className="py-2 pl-3 pr-6 text-right text-xs font-semibold text-text-tertiary">Remaining</td>
+              <td className="py-2 pl-3 pr-6 text-right text-xs font-bold text-text">Remaining</td>
             </tr>
 
             {!expensesCollapsed && (
