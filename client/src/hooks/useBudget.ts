@@ -1,5 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as budgetApi from '../api/budget';
+import { useUndoStore } from '../store/undoStore';
+import type { BudgetGroup } from '../types';
 
 export function useBudget(month: string) {
   return useQuery({ queryKey: ['budget', month], queryFn: () => budgetApi.getBudget(month) });
@@ -14,9 +16,34 @@ export function useSetBudget() {
   return useMutation({
     mutationFn: ({ month, categoryId, budgeted }: { month: string; categoryId: string; budgeted: number }) =>
       budgetApi.setBudget(month, categoryId, budgeted),
-    onSuccess: (_, { month }) => {
+    onMutate: async ({ month, categoryId }) => {
+      const groups = qc.getQueryData<BudgetGroup[]>(['budget', month]);
+      let oldBudgeted = 0;
+      if (groups) {
+        for (const g of groups) {
+          const cat = g.categories.find((c) => c.id === categoryId);
+          if (cat) { oldBudgeted = cat.budgeted; break; }
+        }
+      }
+      return { oldBudgeted };
+    },
+    onSuccess: (_, { month, categoryId, budgeted }, ctx) => {
       qc.invalidateQueries({ queryKey: ['budget', month] });
       qc.invalidateQueries({ queryKey: ['budget-summary', month] });
+      const oldBudgeted = ctx?.oldBudgeted ?? 0;
+      useUndoStore.getState().push({
+        description: `Set budget`,
+        undo: async () => {
+          await budgetApi.setBudget(month, categoryId, oldBudgeted);
+          qc.invalidateQueries({ queryKey: ['budget', month] });
+          qc.invalidateQueries({ queryKey: ['budget-summary', month] });
+        },
+        redo: async () => {
+          await budgetApi.setBudget(month, categoryId, budgeted);
+          qc.invalidateQueries({ queryKey: ['budget', month] });
+          qc.invalidateQueries({ queryKey: ['budget-summary', month] });
+        },
+      });
     },
   });
 }

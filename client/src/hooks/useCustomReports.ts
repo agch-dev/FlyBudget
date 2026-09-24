@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as api from '../api/customReports';
-import type { CustomReportConfig } from '../types';
+import { useUndoStore } from '../store/undoStore';
+import type { CustomReportConfig, SavedCustomReport } from '../types';
 
 export function useCustomReportData(config: CustomReportConfig) {
   return useQuery({
@@ -25,7 +26,20 @@ export function useCreateSavedReport() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: api.createSavedReport,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['custom-reports'] }),
+    onSuccess: (created) => {
+      qc.invalidateQueries({ queryKey: ['custom-reports'] });
+      useUndoStore.getState().push({
+        description: `Create report "${created.name}"`,
+        undo: async () => {
+          await api.deleteSavedReport(created.id);
+          qc.invalidateQueries({ queryKey: ['custom-reports'] });
+        },
+        redo: async () => {
+          await api.createSavedReport({ name: created.name, config: created.config });
+          qc.invalidateQueries({ queryKey: ['custom-reports'] });
+        },
+      });
+    },
   });
 }
 
@@ -34,14 +48,50 @@ export function useUpdateSavedReport() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: { name?: string; config?: CustomReportConfig } }) =>
       api.updateSavedReport(id, data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['custom-reports'] }),
+    onMutate: async ({ id }) => {
+      const reports = qc.getQueryData<SavedCustomReport[]>(['custom-reports']);
+      return { old: reports?.find((r) => r.id === id) };
+    },
+    onSuccess: (_, { id, data }, ctx) => {
+      qc.invalidateQueries({ queryKey: ['custom-reports'] });
+      if (!ctx?.old) return;
+      const snapshot = ctx.old;
+      useUndoStore.getState().push({
+        description: `Edit report`,
+        undo: async () => {
+          await api.updateSavedReport(id, { name: snapshot.name, config: snapshot.config });
+          qc.invalidateQueries({ queryKey: ['custom-reports'] });
+        },
+        redo: async () => {
+          await api.updateSavedReport(id, data);
+          qc.invalidateQueries({ queryKey: ['custom-reports'] });
+        },
+      });
+    },
   });
 }
 
 export function useDeleteSavedReport() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: api.deleteSavedReport,
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['custom-reports'] }),
+    mutationFn: (id: string) => {
+      const reports = qc.getQueryData<SavedCustomReport[]>(['custom-reports']);
+      const snapshot = reports?.find((r) => r.id === id);
+      return api.deleteSavedReport(id).then(() => snapshot);
+    },
+    onSuccess: (snapshot) => {
+      qc.invalidateQueries({ queryKey: ['custom-reports'] });
+      if (!snapshot) return;
+      useUndoStore.getState().push({
+        description: `Delete report "${snapshot.name}"`,
+        undo: async () => {
+          await api.createSavedReport({ name: snapshot.name, config: snapshot.config });
+          qc.invalidateQueries({ queryKey: ['custom-reports'] });
+        },
+        redo: async () => {
+          qc.invalidateQueries({ queryKey: ['custom-reports'] });
+        },
+      });
+    },
   });
 }

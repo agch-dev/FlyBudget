@@ -2,9 +2,12 @@ import { Navigate, Outlet } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { useAccounts } from '../../hooks/useAccounts';
 import { useAppStore } from '../../store/appStore';
+import { useUndoKeyboard } from '../../hooks/useUndoKeyboard';
+import { UndoToast } from '../ui/UndoToast';
 import { Sidebar } from './Sidebar';
 
 export function AppShell() {
+  useUndoKeyboard();
   const { data: accounts = [], isLoading } = useAccounts();
   const setupSkipped = useAppStore(s => s.setupSkipped);
 
@@ -26,6 +29,7 @@ export function AppShell() {
       <main className="flex-1 overflow-y-auto">
         <Outlet />
       </main>
+      <UndoToast />
     </div>
   );
 }
