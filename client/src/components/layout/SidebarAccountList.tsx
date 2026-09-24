@@ -74,7 +74,7 @@ export function SidebarAccountList() {
       {/* Scrollable account list */}
       <div className="flex-1 overflow-y-auto px-3 mt-3">
         {/* All accounts */}
-        <NavLink to="/accounts" className="flex items-center justify-between py-1.5 text-[13px] font-bold text-sidebar-text-hi border-b border-sidebar-text/30 hover:text-sidebar-text-hi transition-colors">
+        <NavLink to="/accounts" className="flex items-center justify-between py-1.5 text-[13px] font-bold text-sidebar-text-hi hover:text-sidebar-text-hi transition-colors">
           <span>All accounts</span>
           <span className="tabular-nums ml-2">{formatCurrency(allTotal)}</span>
         </NavLink>

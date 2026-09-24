@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import { usePreferencesStore, type Theme, type DateFormatOption, type SidebarMode } from '../../store/preferencesStore';
+import { ConfirmModal } from '../ui/ConfirmModal';
 
 const themeOptions: { value: Theme; label: string }[] = [
   { value: 'light', label: 'Light' },
@@ -20,13 +22,40 @@ const dateFormats: { value: DateFormatOption; label: string; example: string }[]
 
 export function PreferencesPanel() {
   const { theme, currencySymbol, dateFormat, sidebarMode, setTheme, setCurrencySymbol, setDateFormat, setSidebarMode } = usePreferencesStore();
+  const [resetOpen, setResetOpen] = useState(false);
+
+  function handleReset() {
+    setTheme('light');
+    setSidebarMode('persistent');
+    setCurrencySymbol('$');
+    setDateFormat('MMM d, yyyy');
+    setResetOpen(false);
+  }
 
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-sm font-semibold text-text">Preferences</h2>
-        <p className="text-xs text-text-tertiary mt-0.5">Settings are saved automatically to your browser.</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-sm font-semibold text-text">Preferences</h2>
+          <p className="text-xs text-text-tertiary mt-0.5">Settings are saved automatically to your browser.</p>
+        </div>
+        <button
+          onClick={() => setResetOpen(true)}
+          className="text-xs text-text-tertiary hover:text-text-secondary transition-colors"
+        >
+          Reset to defaults
+        </button>
       </div>
+
+      <ConfirmModal
+        isOpen={resetOpen}
+        onClose={() => setResetOpen(false)}
+        onConfirm={handleReset}
+        title="Reset preferences"
+        message="Are you sure you want to reset all preferences to their default values?"
+        confirmLabel="Reset"
+        danger
+      />
 
       <div className="bg-surface-alt rounded-lg p-5 space-y-4">
         <h3 className="text-sm font-medium text-text">Theme</h3>
