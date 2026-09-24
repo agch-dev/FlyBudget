@@ -35,14 +35,15 @@ interface SummarySectionProps {
 }
 
 function SummarySection({ label, planned, actual, actualLabel, type }: SummarySectionProps) {
-  const remaining = planned - actual;
+  const rawRemaining = planned - actual;
+  const displayRemaining = type === 'income' ? Math.max(rawRemaining, 0) : rawRemaining;
   const ratio = type === 'income'
     ? (actual > 0 ? 1 : 0)
     : (planned > 0 ? Math.min(actual / planned, 1) : 0);
   const barColor = getBarColor(actual, planned, type);
   const remainingColor = type === 'income'
-    ? 'text-positive'
-    : remaining >= 0 ? 'text-positive' : 'text-negative';
+    ? (displayRemaining === 0 ? 'text-text-tertiary' : 'text-positive')
+    : displayRemaining >= 0 ? 'text-positive' : 'text-negative';
 
   return (
     <div className="py-3">
@@ -60,13 +61,19 @@ function SummarySection({ label, planned, actual, actualLabel, type }: SummarySe
         />
       </div>
 
-      <div className="flex items-baseline justify-between mt-2">
-        <span className="text-sm font-semibold tabular-nums text-text">
-          {formatCurrency(actual)} <span className="font-normal text-text-secondary">{actualLabel}</span>
-        </span>
-        <span className={`text-sm font-medium tabular-nums ${remainingColor}`}>
-          {formatCurrency(remaining)} <span className="font-normal">remaining</span>
-        </span>
+      <div className="flex justify-between mt-2">
+        <div className="flex flex-col">
+          <span className="text-sm font-semibold tabular-nums text-text">
+            {formatCurrency(actual)}
+          </span>
+          <span className="text-xs text-text-tertiary">{actualLabel}</span>
+        </div>
+        <div className="flex flex-col items-end">
+          <span className={`text-sm font-medium tabular-nums ${remainingColor}`}>
+            {displayRemaining === 0 ? '$0' : formatCurrency(displayRemaining)}
+          </span>
+          <span className="text-xs text-text-tertiary">remaining</span>
+        </div>
       </div>
     </div>
   );
@@ -103,11 +110,6 @@ export function BudgetSummaryWidget({
           <p className={`text-xs ${hero.text} mt-0.5 opacity-75`}>
             {hero.label}
           </p>
-          {carryOver !== 0 && (
-            <p className="text-[11px] text-text-tertiary mt-0.5">
-              Includes {formatCurrency(carryOver)} carry over
-            </p>
-          )}
         </div>
       </div>
 
