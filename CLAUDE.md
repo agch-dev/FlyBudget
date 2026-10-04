@@ -378,3 +378,17 @@ Use conventional commit prefixes:
 
 - **Asset Tracking**: Automatic valuations for property and vehicle accounts (values are updated by hand today).
 - **Goal Tracking**: Save targets per category (e.g., "save $X by date Y").
+
+## Agent skills
+
+### Issue tracker
+
+Issues and specs live as markdown files under `.scratch/<feature>/` in this repo (the fork has GitHub Issues disabled). See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+The five default triage roles, recorded as a `Status:` line in each issue file: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: one `GLOSSARY.md` and `docs/adr/` at the repo root, created lazily. See `docs/agents/domain.md`.
