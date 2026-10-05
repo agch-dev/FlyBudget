@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { test, expect, open, isoDay, type Api } from './fixtures';
+import { test, expect, open, isoDay, typeAmount, type Api } from './fixtures';
 
 // Rules: build one in the editor, preview and apply it to existing transactions, and
 // check it runs on new ones.
@@ -131,5 +131,77 @@ test.describe('rules', () => {
       .click();
     await expect(page.getByRole('button', { name: 'Add your first rule' })).toBeVisible();
     expect(await api.call('GET', '/rules')).toEqual([]);
+  });
+
+  test('a rule can be limited to dollars: "over 100 in dollars"', async ({ page, api }) => {
+    const pesos = await api.createAccount('Caja pesos', 0);
+    const dollars = await api.createAccount('Caja dolares', 0, 'checking', { currency: 'USD' });
+    await api.createTransaction({
+      accountId: pesos.id,
+      date: isoDay(-1),
+      amount: -15_000,
+      payeeName: 'Supermercado',
+    });
+    await api.createTransaction({
+      accountId: dollars.id,
+      date: isoDay(-1),
+      amount: -15_000,
+      payeeName: 'Amazon',
+    });
+    await api.createTransaction({
+      accountId: dollars.id,
+      date: isoDay(-2),
+      amount: -5_000,
+      payeeName: 'Spotify',
+    });
+
+    await open(page, '/rules');
+    await page.getByRole('main').getByRole('button', { name: 'Add rule' }).click();
+    const dialog = page.getByRole('dialog', { name: 'New rule' });
+    await dialog.getByRole('combobox', { name: 'Field' }).selectOption({ label: 'Amount' });
+    await dialog
+      .getByRole('combobox', { name: 'Operator' })
+      .selectOption({ label: 'is more than' });
+    await typeAmount(dialog.getByRole('textbox', { name: 'Amount' }), '100');
+    // The native amount is compared, whatever the currency: the pesos one matches too
+    await expect(dialog).toContainText('Matches 2 transactions');
+
+    await dialog.getByRole('button', { name: 'Add condition' }).click();
+    await dialog
+      .getByRole('combobox', { name: 'Field' })
+      .nth(1)
+      .selectOption({ label: 'Currency' });
+    await dialog
+      .getByRole('combobox', { name: 'Currency' })
+      .selectOption({ label: 'Is in dollars' });
+    await expect(dialog).toContainText('Matches 1 transaction');
+    await expect(dialog).toContainText('Amazon');
+    await expect(dialog).toContainText('-US$150');
+    await expect(dialog).not.toContainText('Supermercado');
+    // The rule is about dollars now, so its amount reads in dollars
+    await expect(dialog.getByRole('textbox', { name: 'Amount' })).toHaveValue('US$100');
+
+    await dialog.getByRole('button', { name: 'Choose a category…' }).click();
+    await page.getByPlaceholder('Search categories...').fill('coffee');
+    await page.getByRole('button', { name: /Coffee Shops/ }).click();
+    await dialog
+      .getByRole('checkbox', { name: 'Apply to existing transactions after saving' })
+      .check();
+    await dialog.getByRole('button', { name: 'Save rule' }).click();
+
+    const apply = page.getByRole('dialog', { name: 'Apply rule to existing transactions' });
+    await expect(apply.getByRole('checkbox', { name: 'Include this transaction' })).toHaveCount(1);
+    await expect(apply).toContainText('-US$150');
+    await apply.getByRole('button', { name: 'Apply to 1 transaction' }).click();
+    await expect(apply).toContainText('Updated 1 transaction');
+    await apply.getByRole('button', { name: 'Done' }).click();
+
+    const main = page.getByRole('main');
+    await expect(main).toContainText('Amount is more than US$100');
+    await expect(main).toContainText('Is in dollars');
+
+    const coffee = (await api.category('Coffee Shops')).id;
+    const txs = await api.transactions();
+    expect(txs.filter((t) => t.categoryId === coffee).map((t) => t.payeeName)).toEqual(['Amazon']);
   });
 });

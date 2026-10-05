@@ -474,7 +474,8 @@ export type WidgetType = DashboardWidget['type'];
 // --- Rules (mirrors server/src/services/rulesEngine.ts) ---
 export type RuleTextField = 'payee_name' | 'imported_payee' | 'notes';
 export type RuleIdField = 'payee' | 'account' | 'category';
-export type RuleConditionField = RuleTextField | RuleIdField | 'amount' | 'direction' | 'date';
+export type RuleConditionField =
+  RuleTextField | RuleIdField | 'amount' | 'direction' | 'currency' | 'date';
 
 export type RuleCondition =
   | {
@@ -485,10 +486,12 @@ export type RuleCondition =
   | { field: RuleTextField | RuleIdField; op: 'one_of' | 'not_one_of'; value: string[] }
   | { field: RuleTextField | RuleIdField; op: 'is_empty' | 'is_not_empty' }
   | { field: RuleIdField; op: 'is' | 'is_not'; value: string }
-  /** Absolute value in cents; `direction` tells inflow from outflow */
+  /** Absolute native amount in cents; `direction` tells inflow from outflow, `currency` pesos from dollars */
   | { field: 'amount'; op: 'is' | 'is_not' | 'gt' | 'gte' | 'lt' | 'lte' | 'approx'; value: number }
   | { field: 'amount'; op: 'between'; value: [number, number] }
   | { field: 'direction'; op: 'is'; value: 'inflow' | 'outflow' }
+  /** The currency of the transaction's account */
+  | { field: 'currency'; op: 'is'; value: Currency }
   | { field: 'date'; op: 'is' | 'before' | 'after'; value: string }
   | { field: 'date'; op: 'between'; value: [string, string] };
 
@@ -585,6 +588,8 @@ export interface Schedule {
   occurrenceHorizon: string | null;
   createdAt: string;
   updatedAt: string;
+  /** Its account's currency (pesos while it has no account); amounts are native amounts in it */
+  currency?: Currency;
 }
 
 export interface ScheduleWithOccurrences extends Schedule {
@@ -613,6 +618,8 @@ export interface ScheduleOccurrence {
   schedulePayeeId: string | null;
   matchedAmount: number | null;
   matchedDate: string | null;
+  /** The recurring item's currency: its account's, closed accounts included */
+  currency?: Currency;
 }
 
 export interface ScheduleSummary {
@@ -625,6 +632,7 @@ export interface DiscoveredSchedule {
   id: string;
   accountId: string;
   accountName: string;
+  currency?: Currency;
   payeeId: string | null;
   payeeName: string;
   amount: number;
@@ -644,6 +652,8 @@ export interface MatchSuggestion {
   scheduledDate: string;
   expectedDate: string;
   expectedAmount: number;
+  /** The recurring item's currency; every candidate is in it too */
+  currency?: Currency;
   candidates: {
     transactionId: string;
     date: string;
@@ -660,6 +670,7 @@ export interface RulePreviewItem {
   transactionId: string;
   date: string;
   accountId: string;
+  currency?: Currency;
   amount: number;
   payeeName: string | null;
   changes: {
@@ -678,6 +689,7 @@ export interface RuleTestResult {
     payeeName: string | null;
     amount: number;
     accountId: string;
+    currency?: Currency;
     categoryId: string | null;
   }>;
 }

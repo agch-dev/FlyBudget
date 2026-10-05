@@ -29,7 +29,13 @@ import { useOpenFromLink } from '../hooks/useOpenFromLink';
 import { docsUrl } from '../utils/project';
 import RowMenu from '../components/ui/RowMenu';
 import { useIsPhone } from '../hooks/useIsPhone';
-import { actionText, conditionText, ruleSearchText, type RuleLookups } from '../utils/ruleFormat';
+import {
+  actionText,
+  conditionText,
+  ruleCurrency,
+  ruleSearchText,
+  type RuleLookups,
+} from '../utils/ruleFormat';
 import type { Rule, RuleInput } from '../types';
 
 type Editing = { key: string; rule?: Rule; initial?: RuleInput; title?: string };
@@ -65,6 +71,7 @@ function RuleRow({
     disabled: !sortable,
   });
   const joiner = rule.conditionsOp === 'or' ? 'or' : 'and';
+  const currency = ruleCurrency(rule);
 
   return (
     <div
@@ -131,7 +138,7 @@ function RuleRow({
                 <span key={i} className="contents">
                   {i > 0 && <span className="text-[11px] text-text-tertiary">{joiner}</span>}
                   <span className="px-2 py-0.5 rounded-md bg-surface-alt text-xs text-text break-words">
-                    {conditionText(c, lookups)}
+                    {conditionText(c, lookups, currency)}
                   </span>
                 </span>
               ))}
@@ -150,7 +157,7 @@ function RuleRow({
                 key={i}
                 className="px-2 py-0.5 rounded-md bg-brand-50 text-xs text-brand-700 break-all"
               >
-                {actionText(a, lookups)}
+                {actionText(a, lookups, currency)}
               </span>
             ))}
           </div>

@@ -7,16 +7,28 @@ import {
   parseISO,
   startOfMonth,
 } from 'date-fns';
-import { RECURRENCE_TYPE_LABELS, type AmountType, type ScheduleOccurrence } from '../../types';
+import {
+  RECURRENCE_TYPE_LABELS,
+  type AmountType,
+  type Currency,
+  type ScheduleOccurrence,
+} from '../../types';
 import type { RecurringBadgeStatus } from './StatusBadge';
 
 export const FREQ_LABEL = new Map(RECURRENCE_TYPE_LABELS.map((f) => [f.value, f.label]));
 
-/** Actual-style amount: `~` prefix when not exact, `+` prefix for income. */
-export function formatScheduleAmount(amount: number, amountType: AmountType): string {
+/**
+ * Actual-style amount: `~` prefix when not exact, `+` prefix for income. Pass the recurring
+ * item's currency (its account's): the amount is a native amount in it.
+ */
+export function formatScheduleAmount(
+  amount: number,
+  amountType: AmountType,
+  currency?: Currency,
+): string {
   const approx = amountType !== 'exact' ? '~' : '';
   const sign = amount > 0 ? '+' : '';
-  return `${approx}${sign}${formatCurrency(Math.abs(amount))}`;
+  return `${approx}${sign}${formatCurrency(Math.abs(amount), currency)}`;
 }
 
 // ─── Upcoming length (port of Actual Budget's getUpcomingDays) ───────────────
