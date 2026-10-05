@@ -1,4 +1,4 @@
-import { formatCurrency } from '../../utils/currency';
+import { useViewingMoney } from '../../hooks/useViewingCurrency';
 import { monthLabel } from './ChartHelpers';
 import type { CustomReportData } from '../../types';
 
@@ -7,6 +7,7 @@ interface Props {
 }
 
 export default function ReportTable({ data }: Props) {
+  const money = useViewingMoney();
   if (data.mode === 'total') {
     return (
       <div className="overflow-auto">
@@ -24,7 +25,7 @@ export default function ReportTable({ data }: Props) {
                 <td
                   className={`py-2 px-3 text-right tabular-nums font-medium ${row.value < 0 ? 'text-negative' : 'text-text'}`}
                 >
-                  {formatCurrency(row.value)}
+                  {money.format(row.value)}
                 </td>
               </tr>
             ))}
@@ -33,7 +34,7 @@ export default function ReportTable({ data }: Props) {
             <tr className="border-t border-border">
               <td className="py-2 px-3 font-semibold text-text">Total</td>
               <td className="py-2 px-3 text-right tabular-nums font-semibold text-text">
-                {formatCurrency(data.data.reduce((s, r) => s + r.value, 0))}
+                {money.format(data.data.reduce((s, r) => s + r.value, 0))}
               </td>
             </tr>
           </tfoot>
@@ -73,7 +74,7 @@ export default function ReportTable({ data }: Props) {
                     key={g}
                     className={`py-2 px-3 text-right tabular-nums ${val < 0 ? 'text-negative' : 'text-text-secondary'}`}
                   >
-                    {val !== 0 ? formatCurrency(val) : '—'}
+                    {val !== 0 ? money.format(val) : '—'}
                   </td>
                 );
               })}

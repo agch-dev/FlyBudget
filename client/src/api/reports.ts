@@ -10,41 +10,52 @@ import type {
   DailyFlowPoint,
 } from '../types';
 
-const toQueryString = (from: string, to: string) => `?from=${from}&to=${to}`;
+// Every report is in one currency, the `currency` argument (the viewing currency): the server
+// converts each transaction at its own date's rate, and each balance at the rate of its day.
+const toQueryString = (from: string, to: string, currency: Currency) =>
+  `?from=${from}&to=${to}&currency=${currency}`;
 
-/** Net worth in `currency` (pesos when left out), each point at the rate of its own day */
 export const getNetWorth = (
   from: string,
   to: string,
+  currency: Currency,
   granularity?: 'daily' | 'monthly',
-  currency?: Currency,
 ) =>
   apiFetch<NetWorthPoint[]>(
-    `/reports/net-worth${toQueryString(from, to)}${granularity ? `&granularity=${granularity}` : ''}${currency ? `&currency=${currency}` : ''}`,
+    `/reports/net-worth${toQueryString(from, to, currency)}${granularity ? `&granularity=${granularity}` : ''}`,
   );
 
-export const getIncomeVsExpenses = (from: string, to: string) =>
-  apiFetch<IncomeExpensesPoint[]>(`/reports/income-vs-expenses${toQueryString(from, to)}`);
+export const getIncomeVsExpenses = (from: string, to: string, currency: Currency) =>
+  apiFetch<IncomeExpensesPoint[]>(
+    `/reports/income-vs-expenses${toQueryString(from, to, currency)}`,
+  );
 
-export const getSpendingByCategory = (from: string, to: string) =>
-  apiFetch<SpendingByCategory[]>(`/reports/spending-by-category${toQueryString(from, to)}`);
+export const getSpendingByCategory = (from: string, to: string, currency: Currency) =>
+  apiFetch<SpendingByCategory[]>(
+    `/reports/spending-by-category${toQueryString(from, to, currency)}`,
+  );
 
-export const getIncomeByCategory = (from: string, to: string) =>
-  apiFetch<IncomeByCategoryItem[]>(`/reports/income-by-category${toQueryString(from, to)}`);
+export const getIncomeByCategory = (from: string, to: string, currency: Currency) =>
+  apiFetch<IncomeByCategoryItem[]>(
+    `/reports/income-by-category${toQueryString(from, to, currency)}`,
+  );
 
 /** `daily` puts the date (yyyy-MM-dd) in each point's `month`. */
 export const getSpendingTrends = (
   categoryIds: string[],
   from: string,
   to: string,
+  currency: Currency,
   granularity?: 'daily' | 'monthly',
 ) =>
   apiFetch<SpendingTrendPoint[]>(
-    `/reports/spending-trends?category_ids=${categoryIds.join(',')}&from=${from}&to=${to}${granularity ? `&granularity=${granularity}` : ''}`,
+    `/reports/spending-trends${toQueryString(from, to, currency)}&category_ids=${categoryIds.join(',')}${granularity ? `&granularity=${granularity}` : ''}`,
   );
 
-export const getSpendingComparison = (mode: string) =>
-  apiFetch<SpendingComparisonData>(`/reports/spending-comparison?mode=${mode}`);
+export const getSpendingComparison = (mode: string, currency: Currency) =>
+  apiFetch<SpendingComparisonData>(
+    `/reports/spending-comparison?mode=${mode}&currency=${currency}`,
+  );
 
-export const getDailyFlow = (from: string, to: string) =>
-  apiFetch<DailyFlowPoint[]>(`/reports/daily-flow${toQueryString(from, to)}`);
+export const getDailyFlow = (from: string, to: string, currency: Currency) =>
+  apiFetch<DailyFlowPoint[]>(`/reports/daily-flow${toQueryString(from, to, currency)}`);

@@ -24,7 +24,8 @@ import {
 } from '../../hooks/useReports';
 import { useCategories } from '../../hooks/useCategories';
 import { usePreferencesStore } from '../../store/preferencesStore';
-import { formatCentsAxis, formatCurrency } from '../../utils/currency';
+import type { Money } from '../../utils/currency';
+import { useViewingMoney } from '../../hooks/useViewingCurrency';
 import { niceStep, valueAxis } from '../../utils/valueAxis';
 import { dayBounds, monthCount, monthsBetween } from '../../utils/dateRange';
 import { eachDayOfInterval, format, parseISO } from 'date-fns';
@@ -58,30 +59,31 @@ export function netWorthChange(data: NetWorthPoint[]) {
   return { latest, change, percent: first > 0 ? (change / first) * 100 : null };
 }
 
-export function formatChange(change: number, percent: number | null): string {
+export function formatChange(change: number, percent: number | null, money: Money): string {
   const sign = change > 0 ? '+' : '';
   const pct =
     percent === null ? '' : ` (${sign}${percent.toFixed(Math.abs(percent) < 10 ? 1 : 0)}%)`;
-  return `${sign}${formatCurrency(change)}${pct}`;
+  return `${sign}${money.format(change)}${pct}`;
 }
 
 function NetWorthTooltip({ active, payload, label }: any) {
+  const money = useViewingMoney();
   if (!active || !payload?.length) return null;
   const d: NetWorthPoint = payload[0].payload;
   return (
     <div className={TOOLTIP_CLASS}>
       <p className="text-xs text-text-tertiary mb-1">{formatDateLabel(label)}</p>
       <p className="text-xs font-semibold" style={{ color: chartColors.brand }}>
-        Net worth: {formatCurrency(d.netWorth)}
+        Net worth: {money.format(d.netWorth)}
       </p>
       <p className="text-xs font-medium mt-1" style={{ color: chartColors.positive }}>
-        Assets: {formatCurrency(d.assets)}
+        Assets: {money.format(d.assets)}
       </p>
       <p className="text-xs font-medium" style={{ color: chartColors.negative }}>
-        Liabilities: {formatCurrency(d.liabilities)}
+        Liabilities: {money.format(d.liabilities)}
       </p>
-      {breakdownLine(d.native) && (
-        <p className="text-xs text-text-tertiary mt-1">{breakdownLine(d.native)}</p>
+      {breakdownLine(d.native, money.currency) && (
+        <p className="text-xs text-text-tertiary mt-1">{breakdownLine(d.native, money.currency)}</p>
       )}
     </div>
   );
@@ -114,6 +116,7 @@ export function NetWorthChart({
   to: string;
   headline?: boolean;
 }) {
+  const money = useViewingMoney();
   const { data = [], isLoading } = useNetWorthSeries(from, to);
   const dateLabels = useMemo(() => formatDateAxisLabels(data.map((d) => d.month)), [data]);
   const xAxis = useXAxisLayout({
@@ -127,7 +130,7 @@ export function NetWorthChart({
   const debtTop =
     debtMax > 0 ? Math.ceil(debtMax / niceStep(debtMax, 2)) * niceStep(debtMax, 2) : 0;
   const summary = useMemo(() => netWorthChange(data), [data]);
-  const breakdown = breakdownLine(data[data.length - 1]?.native);
+  const breakdown = breakdownLine(data[data.length - 1]?.native, money.currency);
 
   if (isLoading) return <ChartSkeleton />;
   const hasData =
@@ -139,7 +142,7 @@ export function NetWorthChart({
   const dot = (color: string) =>
     data.length <= 24 ? { r: 3, fill: color, strokeWidth: 0 } : false;
   const yAxisProps = {
-    tickFormatter: (cents: number) => formatCentsAxis(cents),
+    tickFormatter: money.axis,
     tick: { fontSize: 11, fill: chartColors.axis },
     axisLine: false,
     tickLine: false,
@@ -154,11 +157,12 @@ export function NetWorthChart({
       {headline && summary && (
         <div className="flex items-baseline gap-2 flex-wrap px-1 pb-1">
           <span className="text-xl font-semibold text-text tabular-nums">
-            {formatCurrency(summary.latest)}
+            {money.format(summary.latest)}
           </span>
           {data.length > 1 && (
             <span className="text-sm font-medium tabular-nums" style={{ color: trend }}>
-              {summary.change >= 0 ? '▲' : '▼'} {formatChange(summary.change, summary.percent)}
+              {summary.change >= 0 ? '▲' : '▼'}{' '}
+              {formatChange(summary.change, summary.percent, money)}
             </span>
           )}
           {breakdown && (
@@ -252,6 +256,7 @@ export function NetWorthChart({
 }
 
 export function IncomeExpensesChart({ from, to }: { from: string; to: string }) {
+  const money = useViewingMoney();
   const { data = [], isLoading } = useIncomeVsExpenses(from, to);
   const chartData = useMemo(() => data.map((d) => ({ ...d, month: monthLabel(d.month) })), [data]);
   const monthLabels = useMemo(() => chartData.map((d) => d.month), [chartData]);
@@ -268,7 +273,7 @@ export function IncomeExpensesChart({ from, to }: { from: string; to: string }) 
           <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} vertical={false} />
           <XAxis dataKey="month" axisLine={false} tickLine={false} {...xAxis.axisProps} />
           <YAxis
-            tickFormatter={(cents: number) => formatCentsAxis(cents)}
+            tickFormatter={money.axis}
             tick={{ fontSize: 11, fill: chartColors.axis }}
             axisLine={false}
             tickLine={false}
@@ -302,6 +307,7 @@ export function IncomeExpensesChart({ from, to }: { from: string; to: string }) 
 }
 
 export function SpendingChart({ from, to }: { from: string; to: string }) {
+  const money = useViewingMoney();
   const showCategoryIcons = usePreferencesStore((s) => s.showCategoryIcons);
   const { data = [], isLoading } = useSpendingByCategory(from, to);
   const chartData = useMemo(
@@ -336,7 +342,7 @@ export function SpendingChart({ from, to }: { from: string; to: string }) {
         <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} horizontal={false} />
         <XAxis
           type="number"
-          tickFormatter={(cents: number) => formatCentsAxis(cents)}
+          tickFormatter={money.axis}
           tick={{ fontSize: 11, fill: chartColors.axis }}
           axisLine={false}
           tickLine={false}
@@ -363,6 +369,7 @@ export function SpendingChart({ from, to }: { from: string; to: string }) {
 
 /** Summary's full view: expenses (net of refunds) per month against the monthly average. */
 export function MonthlySpendingChart({ from, to }: { from: string; to: string }) {
+  const money = useViewingMoney();
   const { data = [], isLoading } = useIncomeVsExpenses(from, to);
   const chartData = useMemo(
     () => data.map((d) => ({ month: monthLabel(d.month), spending: -d.expenseNet })),
@@ -384,7 +391,7 @@ export function MonthlySpendingChart({ from, to }: { from: string; to: string })
           <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} vertical={false} />
           <XAxis dataKey="month" axisLine={false} tickLine={false} {...xAxis.axisProps} />
           <YAxis
-            tickFormatter={(cents: number) => formatCentsAxis(cents)}
+            tickFormatter={money.axis}
             tick={{ fontSize: 11, fill: chartColors.axis }}
             axisLine={false}
             tickLine={false}
@@ -408,7 +415,7 @@ export function MonthlySpendingChart({ from, to }: { from: string; to: string })
               stroke={chartColors.label}
               strokeDasharray="4 4"
               label={{
-                value: `Avg ${formatCurrency(Math.round(average))}`,
+                value: `Avg ${money.format(Math.round(average))}`,
                 position: 'insideTopRight',
                 fontSize: 11,
                 fill: chartColors.label,
@@ -448,6 +455,7 @@ export function SpendingTrendsChart({
   /** A short note above the chart (e.g. which categories these are) */
   caption?: string;
 }) {
+  const money = useViewingMoney();
   const showCategoryIcons = usePreferencesStore((s) => s.showCategoryIcons);
   const { data: groups = [] } = useCategories();
   const daily = monthCount(from, to) === 1;
@@ -534,7 +542,7 @@ export function SpendingTrendsChart({
                 <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} vertical={false} />
                 <XAxis dataKey="month" axisLine={false} tickLine={false} {...xAxis.axisProps} />
                 <YAxis
-                  tickFormatter={(cents: number) => formatCentsAxis(cents)}
+                  tickFormatter={money.axis}
                   tick={{ fontSize: 11, fill: chartColors.axis }}
                   axisLine={false}
                   tickLine={false}

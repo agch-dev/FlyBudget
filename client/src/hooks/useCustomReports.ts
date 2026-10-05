@@ -1,12 +1,14 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as api from '../api/customReports';
 import { useUndoStore } from '../store/undoStore';
+import { useViewingCurrency } from './useViewingCurrency';
 import type { CustomReportConfig, SavedCustomReport } from '../types';
 
 export function useCustomReportData(config: CustomReportConfig) {
+  const currency = useViewingCurrency();
   return useQuery({
-    queryKey: ['reports', 'custom', config],
-    queryFn: () => api.getCustomReportData(config),
+    queryKey: ['reports', 'custom', config, currency],
+    queryFn: () => api.getCustomReportData(config, currency),
   });
 }
 

@@ -2,7 +2,7 @@ import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { format, parseISO } from 'date-fns';
 import { ArrowDown, ArrowUp } from 'lucide-react';
 import { useDailyFlow } from '../../hooks/useReports';
-import { formatCentsAxis, formatCurrency } from '../../utils/currency';
+import { useViewingMoney } from '../../hooks/useViewingCurrency';
 import { monthCount, monthsBetween } from '../../utils/dateRange';
 import {
   CALENDAR_MONTHS_MAX,
@@ -63,6 +63,7 @@ interface Hover {
 }
 
 export function TransactionCalendar({ from, to, fit, selected, onSelect }: Props) {
+  const money = useViewingMoney();
   const { data = [], isLoading } = useDailyFlow(from, to);
   const { ref, width, height } = useSize<HTMLDivElement>();
   const [hover, setHover] = useState<Hover | null>(null);
@@ -91,7 +92,7 @@ export function TransactionCalendar({ from, to, fit, selected, onSelect }: Props
 
   const dayProps = (day: string) => {
     const flow = byDay.get(day) ?? EMPTY;
-    const label = `${format(parseISO(day), 'EEEE, MMMM d')}: ${formatCurrency(flow.income)} in, ${formatCurrency(flow.expenses)} out`;
+    const label = `${format(parseISO(day), 'EEEE, MMMM d')}: ${money.format(flow.income)} in, ${money.format(flow.expenses)} out`;
     return {
       onMouseEnter: (e: React.MouseEvent<HTMLElement>) => showTooltip(day, e.currentTarget),
       onMouseLeave: () => setHover(null),
@@ -118,10 +119,10 @@ export function TransactionCalendar({ from, to, fit, selected, onSelect }: Props
       <div className="flex items-center justify-end gap-3 flex-wrap text-xs tabular-nums shrink-0 pb-2">
         {heatmap && <HeatmapLegend />}
         <span className="inline-flex items-center gap-0.5 text-positive">
-          <ArrowUp size={12} /> {formatCurrency(totals.income)}
+          <ArrowUp size={12} /> {money.format(totals.income)}
         </span>
         <span className="inline-flex items-center gap-0.5 text-negative">
-          <ArrowDown size={12} /> {formatCurrency(totals.expenses)}
+          <ArrowDown size={12} /> {money.format(totals.expenses)}
         </span>
       </div>
       <div ref={ref} className={`relative ${fit ? 'flex-1 min-h-0' : ''}`}>
@@ -281,6 +282,7 @@ function DayCell({
   selected: boolean;
   showAmounts: boolean;
 } & React.HTMLAttributes<HTMLElement>) {
+  const money = useViewingMoney();
   const income = flow?.income ?? 0;
   const expenses = flow?.expenses ?? 0;
   const future = day > today;
@@ -313,8 +315,8 @@ function DayCell({
         </span>
         {showAmounts && (income > 0 || expenses > 0) && (
           <span className="flex flex-col items-end text-[10px] leading-tight tabular-nums">
-            {income > 0 && <span className="text-positive">+{formatCentsAxis(income)}</span>}
-            {expenses > 0 && <span className="text-negative">−{formatCentsAxis(expenses)}</span>}
+            {income > 0 && <span className="text-positive">+{money.axis(income)}</span>}
+            {expenses > 0 && <span className="text-negative">−{money.axis(expenses)}</span>}
           </span>
         )}
       </span>
@@ -513,6 +515,7 @@ function DayTooltip({
   width: number;
   height: number;
 }) {
+  const money = useViewingMoney();
   const w = 190;
   const gap = 6;
   const box = useRef<HTMLDivElement>(null);
@@ -539,10 +542,10 @@ function DayTooltip({
       </p>
       {flow && flow.count > 0 ? (
         <>
-          <p className="text-xs font-medium text-positive">In: {formatCurrency(flow.income)}</p>
-          <p className="text-xs font-medium text-negative">Out: {formatCurrency(flow.expenses)}</p>
+          <p className="text-xs font-medium text-positive">In: {money.format(flow.income)}</p>
+          <p className="text-xs font-medium text-negative">Out: {money.format(flow.expenses)}</p>
           <p className="text-xs font-semibold text-text mt-1 pt-1 border-t border-border-light">
-            Net: {formatCurrency(net)}
+            Net: {money.format(net)}
           </p>
           <p className="text-[11px] text-text-tertiary mt-0.5">
             {flow.count} {flow.count === 1 ? 'transaction' : 'transactions'}

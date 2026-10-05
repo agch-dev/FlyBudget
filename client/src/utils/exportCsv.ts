@@ -1,3 +1,18 @@
+import type { Currency } from '../types';
+import { currencySymbol } from './currency';
+
+/**
+ * Rows of amounts in one currency (a report in the viewing currency), each saying which: a
+ * last `currency` column holding its sign (`$` or `US$`). The amounts stay plain numbers.
+ */
+export function rowsInCurrency<R extends Record<string, unknown>>(
+  rows: readonly R[],
+  currency: Currency,
+): (R & { currency: string })[] {
+  const sign = currencySymbol(currency);
+  return rows.map((row) => ({ ...row, currency: sign }));
+}
+
 /**
  * One CSV cell. Text starting with `=`, `+`, `-`, `@`, tab or CR gets a leading `'` so
  * spreadsheets don't run it as a formula (names can come from banks); numbers are left as-is.

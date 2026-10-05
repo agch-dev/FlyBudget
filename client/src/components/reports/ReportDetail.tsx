@@ -21,10 +21,11 @@ import { useCategories } from '../../hooks/useCategories';
 import { usePayees } from '../../hooks/usePayees';
 import { useTransactions } from '../../hooks/useTransactions';
 import { usePreferencesStore } from '../../store/preferencesStore';
-import { formatCurrency } from '../../utils/currency';
+import { formatCurrency as formatNative } from '../../utils/currency';
+import { useViewingMoney } from '../../hooks/useViewingCurrency';
 import { breakdownLine } from '../../utils/balanceConversion';
 import { convertedNote, totalIn } from '../../utils/conversion';
-import { downloadCsv } from '../../utils/exportCsv';
+import { downloadCsv, rowsInCurrency } from '../../utils/exportCsv';
 import { dayBounds, monthCount } from '../../utils/dateRange';
 import { CALENDAR_MONTHS_MAX } from '../../utils/calendarLayout';
 import { PayeeIcon } from '../payees/PayeeIcon';
@@ -43,7 +44,7 @@ import {
 import { useSummaryCards } from './BuiltinReport';
 import { EXPENSE_COLORS } from './ChartHelpers';
 import type { StatCard } from './ChartHelpers';
-import { HOME_CURRENCY, type BuiltinWidgetType } from '../../types';
+import type { BuiltinWidgetType } from '../../types';
 
 // The full view of every built-in report has the same parts, top to bottom: four headline
 // figures, the chart, and a table of the numbers behind it (which is what Export CSV saves).
@@ -168,7 +169,8 @@ function BreakdownTable<R>({
 
 /** A signed amount colored by sign, for net and change columns. */
 function Signed({ cents, children }: { cents: number; children?: React.ReactNode }) {
-  return <span className={TONE_CLASS[toneOf(cents)!]}>{children ?? formatCurrency(cents)}</span>;
+  const money = useViewingMoney();
+  return <span className={TONE_CLASS[toneOf(cents)!]}>{children ?? money.format(cents)}</span>;
 }
 
 function Swatch({ color }: { color?: string }) {
@@ -274,6 +276,7 @@ const csvName = (type: BuiltinWidgetType, from: string, to: string) =>
   `report-${type}-${from}-to-${to}.csv`;
 
 function SummaryDetail({ from, to }: DetailProps) {
+  const money = useViewingMoney();
   const { data = [], isLoading } = useIncomeVsExpenses(from, to);
   const stats = useSummaryCards(from, to);
   const rows = data.map((d) => ({
@@ -299,13 +302,16 @@ function SummaryDetail({ from, to }: DetailProps) {
       onExport={() =>
         downloadCsv(
           csvName('summary', from, to),
-          rows.map((r) => ({
-            month: r.month,
-            income_cents: r.income,
-            expenses_cents: r.expenses,
-            net_cents: r.net,
-            transactions: r.count,
-          })),
+          rowsInCurrency(
+            rows.map((r) => ({
+              month: r.month,
+              income_cents: r.income,
+              expenses_cents: r.expenses,
+              net_cents: r.net,
+              transactions: r.count,
+            })),
+            money.currency,
+          ),
         )
       }
       table={
@@ -314,8 +320,8 @@ function SummaryDetail({ from, to }: DetailProps) {
           rowKey={(r) => r.month}
           columns={[
             { label: 'Month', cell: (r) => fullMonth(r.month) },
-            { label: 'Income', align: 'right', cell: (r) => formatCurrency(r.income) },
-            { label: 'Expenses', align: 'right', cell: (r) => formatCurrency(r.expenses) },
+            { label: 'Income', align: 'right', cell: (r) => money.format(r.income) },
+            { label: 'Expenses', align: 'right', cell: (r) => money.format(r.expenses) },
             { label: 'Net', align: 'right', cell: (r) => <Signed cents={r.net} /> },
             { label: 'Transactions', align: 'right', cell: (r) => r.count },
           ]}
@@ -323,8 +329,8 @@ function SummaryDetail({ from, to }: DetailProps) {
             {
               label: 'Total',
               cells: [
-                formatCurrency(sum('income')),
-                formatCurrency(sum('expenses')),
+                money.format(sum('income')),
+                money.format(sum('expenses')),
                 <Signed cents={sum('net')} />,
                 sum('count'),
               ],
@@ -332,8 +338,8 @@ function SummaryDetail({ from, to }: DetailProps) {
             {
               label: 'Monthly average',
               cells: [
-                formatCurrency(avg('income')),
-                formatCurrency(avg('expenses')),
+                money.format(avg('income')),
+                money.format(avg('expenses')),
                 <Signed cents={avg('net')} />,
                 Math.round(sum('count') / months),
               ],
@@ -346,6 +352,7 @@ function SummaryDetail({ from, to }: DetailProps) {
 }
 
 function NetWorthDetail({ from, to }: DetailProps) {
+  const money = useViewingMoney();
   // The stats follow the chart (daily for short ranges); the table is always month by month
   const { data: series = [], isLoading } = useNetWorthSeries(from, to);
   const { data: monthly = [] } = useNetWorth(from, to);
@@ -354,16 +361,16 @@ function NetWorthDetail({ from, to }: DetailProps) {
   const stats: StatCard[] = [
     {
       label: 'Net Worth',
-      value: formatCurrency(change?.latest ?? 0),
-      sub: breakdownLine(last?.native) ?? undefined,
+      value: money.format(change?.latest ?? 0),
+      sub: breakdownLine(last?.native, money.currency) ?? undefined,
     },
     {
       label: 'Change',
-      value: change ? formatChange(change.change, change.percent) : formatCurrency(0),
+      value: change ? formatChange(change.change, change.percent, money) : money.format(0),
       tone: toneOf(change?.change ?? 0),
     },
-    { label: 'Assets', value: formatCurrency(last?.assets ?? 0) },
-    { label: 'Liabilities', value: formatCurrency(last?.liabilities ?? 0) },
+    { label: 'Assets', value: money.format(last?.assets ?? 0) },
+    { label: 'Liabilities', value: money.format(last?.liabilities ?? 0) },
   ];
   const rows = monthly.map((d, i) => ({
     ...d,
@@ -384,16 +391,19 @@ function NetWorthDetail({ from, to }: DetailProps) {
       onExport={() =>
         downloadCsv(
           csvName('net-worth', from, to),
-          rows.map((r) => ({
-            month: r.month,
-            assets_cents: r.assets,
-            liabilities_cents: r.liabilities,
-            net_worth_cents: r.netWorth,
-            change_cents: r.change ?? '',
-            ...(hasDollars
-              ? { pesos_cents: r.native?.UYU ?? '', dollars_cents: r.native?.USD ?? '' }
-              : {}),
-          })),
+          rowsInCurrency(
+            rows.map((r) => ({
+              month: r.month,
+              assets_cents: r.assets,
+              liabilities_cents: r.liabilities,
+              net_worth_cents: r.netWorth,
+              change_cents: r.change ?? '',
+              ...(hasDollars
+                ? { pesos_cents: r.native?.UYU ?? '', dollars_cents: r.native?.USD ?? '' }
+                : {}),
+            })),
+            money.currency,
+          ),
         )
       }
       table={
@@ -402,12 +412,12 @@ function NetWorthDetail({ from, to }: DetailProps) {
           rowKey={(r) => r.month}
           columns={[
             { label: 'Month', cell: (r) => fullMonth(r.month) },
-            { label: 'Assets', align: 'right', cell: (r) => formatCurrency(r.assets) },
-            { label: 'Liabilities', align: 'right', cell: (r) => formatCurrency(r.liabilities) },
+            { label: 'Assets', align: 'right', cell: (r) => money.format(r.assets) },
+            { label: 'Liabilities', align: 'right', cell: (r) => money.format(r.liabilities) },
             {
               label: 'Net worth',
               align: 'right',
-              cell: (r) => <span className="text-text">{formatCurrency(r.netWorth)}</span>,
+              cell: (r) => <span className="text-text">{money.format(r.netWorth)}</span>,
             },
             {
               label: 'Change',
@@ -418,7 +428,7 @@ function NetWorthDetail({ from, to }: DetailProps) {
                 ) : (
                   <Signed cents={r.change}>
                     {r.change > 0 ? '+' : ''}
-                    {formatCurrency(r.change)}
+                    {money.format(r.change)}
                   </Signed>
                 ),
             },
@@ -427,12 +437,12 @@ function NetWorthDetail({ from, to }: DetailProps) {
                   {
                     label: 'In pesos',
                     align: 'right' as const,
-                    cell: (r: (typeof rows)[number]) => formatCurrency(r.native?.UYU ?? 0, 'UYU'),
+                    cell: (r: (typeof rows)[number]) => formatNative(r.native?.UYU ?? 0, 'UYU'),
                   },
                   {
                     label: 'In dollars',
                     align: 'right' as const,
-                    cell: (r: (typeof rows)[number]) => formatCurrency(r.native?.USD ?? 0, 'USD'),
+                    cell: (r: (typeof rows)[number]) => formatNative(r.native?.USD ?? 0, 'USD'),
                   },
                 ]
               : []),
@@ -444,6 +454,7 @@ function NetWorthDetail({ from, to }: DetailProps) {
 }
 
 function IncomeExpensesDetail({ from, to }: DetailProps) {
+  const money = useViewingMoney();
   const { data = [], isLoading } = useIncomeVsExpenses(from, to);
   const income = data.reduce((s, d) => s + d.income, 0);
   const expenses = data.reduce((s, d) => s + d.expenses, 0);
@@ -451,9 +462,9 @@ function IncomeExpensesDetail({ from, to }: DetailProps) {
   const months = Math.max(data.length, 1);
   const rate = (i: number, n: number) => (i > 0 ? `${Math.round((n / i) * 100)}%` : '—');
   const stats: StatCard[] = [
-    { label: 'Income', value: formatCurrency(income), tone: 'positive' },
-    { label: 'Expenses', value: formatCurrency(expenses), tone: 'negative' },
-    { label: 'Net Savings', value: formatCurrency(net), tone: toneOf(net) },
+    { label: 'Income', value: money.format(income), tone: 'positive' },
+    { label: 'Expenses', value: money.format(expenses), tone: 'negative' },
+    { label: 'Net Savings', value: money.format(net), tone: toneOf(net) },
     { label: 'Savings Rate', value: rate(income, net), tone: income > 0 ? toneOf(net) : undefined },
   ];
 
@@ -468,12 +479,15 @@ function IncomeExpensesDetail({ from, to }: DetailProps) {
       onExport={() =>
         downloadCsv(
           csvName('income-expenses', from, to),
-          data.map((d) => ({
-            month: d.month,
-            income_cents: d.income,
-            expenses_cents: d.expenses,
-            net_cents: d.net,
-          })),
+          rowsInCurrency(
+            data.map((d) => ({
+              month: d.month,
+              income_cents: d.income,
+              expenses_cents: d.expenses,
+              net_cents: d.net,
+            })),
+            money.currency,
+          ),
         )
       }
       table={
@@ -482,8 +496,8 @@ function IncomeExpensesDetail({ from, to }: DetailProps) {
           rowKey={(r) => r.month}
           columns={[
             { label: 'Month', cell: (r) => fullMonth(r.month) },
-            { label: 'Income', align: 'right', cell: (r) => formatCurrency(r.income) },
-            { label: 'Expenses', align: 'right', cell: (r) => formatCurrency(r.expenses) },
+            { label: 'Income', align: 'right', cell: (r) => money.format(r.income) },
+            { label: 'Expenses', align: 'right', cell: (r) => money.format(r.expenses) },
             { label: 'Net', align: 'right', cell: (r) => <Signed cents={r.net} /> },
             { label: 'Savings rate', align: 'right', cell: (r) => rate(r.income, r.net) },
           ]}
@@ -491,8 +505,8 @@ function IncomeExpensesDetail({ from, to }: DetailProps) {
             {
               label: 'Total',
               cells: [
-                formatCurrency(income),
-                formatCurrency(expenses),
+                money.format(income),
+                money.format(expenses),
                 <Signed cents={net} />,
                 rate(income, net),
               ],
@@ -500,8 +514,8 @@ function IncomeExpensesDetail({ from, to }: DetailProps) {
             {
               label: 'Monthly average',
               cells: [
-                formatCurrency(Math.round(income / months)),
-                formatCurrency(Math.round(expenses / months)),
+                money.format(Math.round(income / months)),
+                money.format(Math.round(expenses / months)),
                 <Signed cents={Math.round(net / months)} />,
                 '',
               ],
@@ -514,6 +528,7 @@ function IncomeExpensesDetail({ from, to }: DetailProps) {
 }
 
 function SpendingDetail({ from, to }: DetailProps) {
+  const money = useViewingMoney();
   const showIcons = usePreferencesStore((s) => s.showCategoryIcons);
   const { data = [], isLoading } = useSpendingByCategory(from, to);
   const rows = useMemo(
@@ -531,11 +546,11 @@ function SpendingDetail({ from, to }: DetailProps) {
   const months = monthCount(from, to);
   const top = rows[0];
   const stats: StatCard[] = [
-    { label: 'Total Spent', value: formatCurrency(total) },
-    { label: 'Monthly Average', value: formatCurrency(Math.round(total / months)) },
+    { label: 'Total Spent', value: money.format(total) },
+    { label: 'Monthly Average', value: money.format(Math.round(total / months)) },
     {
       label: 'Biggest Category',
-      value: top ? formatCurrency(top.totalSpent) : '—',
+      value: top ? money.format(top.totalSpent) : '—',
       sub: top?.label,
     },
     { label: 'Categories', value: String(rows.length) },
@@ -553,12 +568,15 @@ function SpendingDetail({ from, to }: DetailProps) {
       onExport={() =>
         downloadCsv(
           csvName('spending', from, to),
-          rows.map((r) => ({
-            category: r.label,
-            group: r.groupName ?? '',
-            spent_cents: r.totalSpent,
-            monthly_average_cents: Math.round(r.totalSpent / months),
-          })),
+          rowsInCurrency(
+            rows.map((r) => ({
+              category: r.label,
+              group: r.groupName ?? '',
+              spent_cents: r.totalSpent,
+              monthly_average_cents: Math.round(r.totalSpent / months),
+            })),
+            money.currency,
+          ),
         )
       }
       table={
@@ -582,11 +600,11 @@ function SpendingDetail({ from, to }: DetailProps) {
               label: 'Group',
               cell: (r) => <span className="text-text-secondary">{r.groupName ?? '—'}</span>,
             },
-            { label: 'Spent', align: 'right', cell: (r) => formatCurrency(r.totalSpent) },
+            { label: 'Spent', align: 'right', cell: (r) => money.format(r.totalSpent) },
             {
               label: 'Monthly average',
               align: 'right',
-              cell: (r) => formatCurrency(Math.round(r.totalSpent / months)),
+              cell: (r) => money.format(Math.round(r.totalSpent / months)),
             },
             {
               label: 'Share',
@@ -597,12 +615,7 @@ function SpendingDetail({ from, to }: DetailProps) {
           footer={[
             {
               label: 'Total',
-              cells: [
-                '',
-                formatCurrency(total),
-                formatCurrency(Math.round(total / months)),
-                '100%',
-              ],
+              cells: ['', money.format(total), money.format(Math.round(total / months)), '100%'],
             },
           ]}
         />
@@ -714,6 +727,7 @@ function SpendingTrendsDetail({
   categoryIds: string[] | undefined;
   onCategoryIdsChange: (ids: string[] | undefined) => void;
 }) {
+  const money = useViewingMoney();
   const showIcons = usePreferencesStore((s) => s.showCategoryIcons);
   const top = useTopSpendingCategories(from, to, TOP_TREND_CATEGORIES);
   const ids = categoryIds ?? top.ids;
@@ -747,12 +761,12 @@ function SpendingTrendsDetail({
     null,
   );
   const stats: StatCard[] = [
-    { label: 'Total Spent', value: formatCurrency(selected) },
-    { label: 'Monthly Average', value: formatCurrency(Math.round(selected / months)) },
+    { label: 'Total Spent', value: money.format(selected) },
+    { label: 'Monthly Average', value: money.format(Math.round(selected / months)) },
     { label: 'Share of All Spending', value: percent(selected, allSpending) },
     {
       label: 'Biggest Category',
-      value: biggest && biggest.total > 0 ? formatCurrency(biggest.total) : '—',
+      value: biggest && biggest.total > 0 ? money.format(biggest.total) : '—',
       sub: biggest && biggest.total > 0 ? biggest.label : undefined,
     },
   ];
@@ -774,13 +788,16 @@ function SpendingTrendsDetail({
       onExport={() =>
         downloadCsv(
           csvName('spending-trends', from, to),
-          [...trend]
-            .sort((a, b) => a.month.localeCompare(b.month))
-            .map((p) => ({
-              month: p.month,
-              category: rows.find((r) => r.id === p.categoryId)?.label ?? '',
-              spent_cents: p.total,
-            })),
+          rowsInCurrency(
+            [...trend]
+              .sort((a, b) => a.month.localeCompare(b.month))
+              .map((p) => ({
+                month: p.month,
+                category: rows.find((r) => r.id === p.categoryId)?.label ?? '',
+                spent_cents: p.total,
+              })),
+            money.currency,
+          ),
         )
       }
       table={
@@ -797,17 +814,17 @@ function SpendingTrendsDetail({
                 </span>
               ),
             },
-            { label: 'Spent', align: 'right', cell: (r) => formatCurrency(r.total) },
+            { label: 'Spent', align: 'right', cell: (r) => money.format(r.total) },
             {
               label: 'Monthly average',
               align: 'right',
-              cell: (r) => formatCurrency(Math.round(r.total / months)),
+              cell: (r) => money.format(Math.round(r.total / months)),
             },
             {
               label: 'Highest month',
               align: 'right',
               cell: (r) =>
-                r.peak ? `${formatCurrency(r.peak.total)} (${fullMonth(r.peak.month)})` : '—',
+                r.peak ? `${money.format(r.peak.total)} (${fullMonth(r.peak.month)})` : '—',
             },
             {
               label: 'Share of all spending',
@@ -819,8 +836,8 @@ function SpendingTrendsDetail({
             {
               label: 'Total',
               cells: [
-                formatCurrency(selected),
-                formatCurrency(Math.round(selected / months)),
+                money.format(selected),
+                money.format(Math.round(selected / months)),
                 '',
                 percent(selected, allSpending),
               ],
@@ -834,6 +851,7 @@ function SpendingTrendsDetail({
 
 /** Transactions on one day of the calendar, counted the same way (budget accounts, no transfers). */
 function DayTransactions({ day, onClose }: { day: string; onClose: () => void }) {
+  const money = useViewingMoney();
   const showIcons = usePreferencesStore((s) => s.showCategoryIcons);
   const { data = [], isLoading } = useTransactions({ from: day, to: day, limit: 1000 });
   const { data: accounts = [] } = useAccounts();
@@ -848,10 +866,10 @@ function DayTransactions({ day, onClose }: { day: string; onClose: () => void })
   const rows = data.filter(
     (t) => !t.transferTransactionId && accountsById.get(t.accountId)?.isOffBudget === 0,
   );
-  // Like the calendar's totals: in pesos, dollar transactions at the rate of their date. Each
-  // row below keeps its native amount.
-  const moneyIn = totalIn(rows, HOME_CURRENCY, (cents) => Math.max(cents, 0));
-  const moneyOut = totalIn(rows, HOME_CURRENCY, (cents) => -Math.min(cents, 0));
+  // Like the calendar's totals: in the viewing currency, transactions in the other one at the
+  // rate of their date. Each row below keeps its native amount.
+  const moneyIn = totalIn(rows, money.currency, (cents) => Math.max(cents, 0));
+  const moneyOut = totalIn(rows, money.currency, (cents) => -Math.min(cents, 0));
 
   return (
     <Card padding="none" className="overflow-hidden">
@@ -862,10 +880,8 @@ function DayTransactions({ day, onClose }: { day: string; onClose: () => void })
           </h3>
           <p className="text-xs text-text-tertiary mt-0.5 tabular-nums">
             {rows.length} {rows.length === 1 ? 'transaction' : 'transactions'}
-            {moneyIn > 0 && <span className="text-positive"> · {formatCurrency(moneyIn)} in</span>}
-            {moneyOut > 0 && (
-              <span className="text-negative"> · {formatCurrency(moneyOut)} out</span>
-            )}
+            {moneyIn > 0 && <span className="text-positive"> · {money.format(moneyIn)} in</span>}
+            {moneyOut > 0 && <span className="text-negative"> · {money.format(moneyOut)} out</span>}
           </p>
         </div>
         <button
@@ -927,10 +943,10 @@ function DayTransactions({ day, onClose }: { day: string; onClose: () => void })
               cell: (t) => (
                 <span
                   className={t.amount > 0 ? 'text-positive' : 'text-text'}
-                  title={convertedNote(t, HOME_CURRENCY) ?? undefined}
+                  title={convertedNote(t, money.currency) ?? undefined}
                 >
                   {t.amount > 0 && '+'}
-                  {formatCurrency(t.amount, t.currency)}
+                  {formatNative(t.amount, t.currency)}
                 </span>
               ),
             },
@@ -942,6 +958,7 @@ function DayTransactions({ day, onClose }: { day: string; onClose: () => void })
 }
 
 function CalendarDetail({ from, to }: DetailProps) {
+  const money = useViewingMoney();
   const { data = [], isLoading } = useDailyFlow(from, to);
   const [selected, setSelected] = useState<string | null>(null);
   const dayRef = useRef<HTMLDivElement>(null);
@@ -956,12 +973,12 @@ function CalendarDetail({ from, to }: DetailProps) {
     differenceInCalendarDays(parseISO(bounds.to), parseISO(bounds.from)) + 1,
   );
   const stats: StatCard[] = [
-    { label: 'Money In', value: formatCurrency(moneyIn), tone: 'positive' },
-    { label: 'Money Out', value: formatCurrency(moneyOut), tone: 'negative' },
-    { label: 'Net', value: formatCurrency(net), tone: toneOf(net) },
+    { label: 'Money In', value: money.format(moneyIn), tone: 'positive' },
+    { label: 'Money Out', value: money.format(moneyOut), tone: 'negative' },
+    { label: 'Net', value: money.format(net), tone: toneOf(net) },
     {
       label: 'Daily Average Out',
-      value: formatCurrency(days ? Math.round(moneyOut / days) : 0),
+      value: money.format(days ? Math.round(moneyOut / days) : 0),
       sub: days ? `Over ${days} ${days === 1 ? 'day' : 'days'}` : undefined,
     },
   ];
@@ -998,13 +1015,16 @@ function CalendarDetail({ from, to }: DetailProps) {
       onExport={() =>
         downloadCsv(
           csvName('calendar', from, to),
-          data.map((d) => ({
-            date: d.date,
-            transactions: d.count,
-            money_in_cents: d.income,
-            money_out_cents: d.expenses,
-            net_cents: d.income - d.expenses,
-          })),
+          rowsInCurrency(
+            data.map((d) => ({
+              date: d.date,
+              transactions: d.count,
+              money_in_cents: d.income,
+              money_out_cents: d.expenses,
+              net_cents: d.income - d.expenses,
+            })),
+            money.currency,
+          ),
         )
       }
       table={
@@ -1017,8 +1037,8 @@ function CalendarDetail({ from, to }: DetailProps) {
           columns={[
             { label: 'Date', cell: (r) => format(parseISO(r.date), 'EEE, MMM d, yyyy') },
             { label: 'Transactions', align: 'right', cell: (r) => r.count },
-            { label: 'Money in', align: 'right', cell: (r) => formatCurrency(r.income) },
-            { label: 'Money out', align: 'right', cell: (r) => formatCurrency(r.expenses) },
+            { label: 'Money in', align: 'right', cell: (r) => money.format(r.income) },
+            { label: 'Money out', align: 'right', cell: (r) => money.format(r.expenses) },
             { label: 'Net', align: 'right', cell: (r) => <Signed cents={r.income - r.expenses} /> },
           ]}
           footer={[
@@ -1026,8 +1046,8 @@ function CalendarDetail({ from, to }: DetailProps) {
               label: 'Total',
               cells: [
                 data.reduce((s, d) => s + d.count, 0),
-                formatCurrency(moneyIn),
-                formatCurrency(moneyOut),
+                money.format(moneyIn),
+                money.format(moneyOut),
                 <Signed cents={net} />,
               ],
             },

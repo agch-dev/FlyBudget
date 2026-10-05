@@ -3,57 +3,58 @@ import { useQuery } from '@tanstack/react-query';
 import { format, parseISO, subDays } from 'date-fns';
 import * as reportsApi from '../api/reports';
 import { DAILY_MAX_MONTHS, dayBounds, monthCount } from '../utils/dateRange';
-import { HOME_CURRENCY, type Currency } from '../types';
+import { useViewingCurrency } from './useViewingCurrency';
+
+// Every report here is in the viewing currency (`useViewingCurrency`): it is sent to the
+// server and is part of each query key, so flipping the switch loads the other currency.
 
 /**
- * Net worth over time in `currency` (pesos unless told otherwise), dollar and pesos balances
- * combined at the exchange rate of each point's day.
+ * Net worth over time in the viewing currency, dollar and pesos balances combined at the
+ * exchange rate of each point's day.
  */
-export const useNetWorth = (
-  from: string,
-  to: string,
-  granularity?: 'daily' | 'monthly',
-  currency: Currency = HOME_CURRENCY,
-) =>
-  useQuery({
+export function useNetWorth(from: string, to: string, granularity?: 'daily' | 'monthly') {
+  const currency = useViewingCurrency();
+  return useQuery({
     queryKey: ['reports', 'net-worth', from, to, granularity, currency],
-    queryFn: () => reportsApi.getNetWorth(from, to, granularity, currency),
+    queryFn: () => reportsApi.getNetWorth(from, to, currency, granularity),
   });
+}
 
 /**
  * Net worth for a yyyy-MM range as the reports show it: a point per day for short ranges (up to
  * DAILY_MAX_MONTHS), starting at the previous month's close so the change covers the whole
  * range; a point per month otherwise.
  */
-export function useNetWorthSeries(from: string, to: string, currency: Currency = HOME_CURRENCY) {
+export function useNetWorthSeries(from: string, to: string) {
   const daily = monthCount(from, to) <= DAILY_MAX_MONTHS;
   const days = dayBounds(from, to);
   const start = format(subDays(parseISO(days.from), 1), 'yyyy-MM-dd');
-  return useNetWorth(
-    daily ? start : from,
-    daily ? days.to : to,
-    daily ? 'daily' : undefined,
-    currency,
-  );
+  return useNetWorth(daily ? start : from, daily ? days.to : to, daily ? 'daily' : undefined);
 }
 
-export const useIncomeVsExpenses = (from: string, to: string) =>
-  useQuery({
-    queryKey: ['reports', 'income-expenses', from, to],
-    queryFn: () => reportsApi.getIncomeVsExpenses(from, to),
+export function useIncomeVsExpenses(from: string, to: string) {
+  const currency = useViewingCurrency();
+  return useQuery({
+    queryKey: ['reports', 'income-expenses', from, to, currency],
+    queryFn: () => reportsApi.getIncomeVsExpenses(from, to, currency),
   });
+}
 
-export const useDailyFlow = (from: string, to: string) =>
-  useQuery({
-    queryKey: ['reports', 'daily-flow', from, to],
-    queryFn: () => reportsApi.getDailyFlow(from, to),
+export function useDailyFlow(from: string, to: string) {
+  const currency = useViewingCurrency();
+  return useQuery({
+    queryKey: ['reports', 'daily-flow', from, to, currency],
+    queryFn: () => reportsApi.getDailyFlow(from, to, currency),
   });
+}
 
-export const useSpendingByCategory = (from: string, to: string) =>
-  useQuery({
-    queryKey: ['reports', 'spending-by-category', from, to],
-    queryFn: () => reportsApi.getSpendingByCategory(from, to),
+export function useSpendingByCategory(from: string, to: string) {
+  const currency = useViewingCurrency();
+  return useQuery({
+    queryKey: ['reports', 'spending-by-category', from, to, currency],
+    queryFn: () => reportsApi.getSpendingByCategory(from, to, currency),
   });
+}
 
 /** How many categories Spending Trends shows when none are chosen, and the most it can show. */
 export const TOP_TREND_CATEGORIES = 5;
@@ -74,26 +75,40 @@ export function useTopSpendingCategories(from: string, to: string, count: number
   return { ids, isLoading };
 }
 
-export const useIncomeByCategory = (from: string, to: string) =>
-  useQuery({
-    queryKey: ['reports', 'income-by-category', from, to],
-    queryFn: () => reportsApi.getIncomeByCategory(from, to),
+export function useIncomeByCategory(from: string, to: string) {
+  const currency = useViewingCurrency();
+  return useQuery({
+    queryKey: ['reports', 'income-by-category', from, to, currency],
+    queryFn: () => reportsApi.getIncomeByCategory(from, to, currency),
   });
+}
 
-export const useSpendingTrends = (
+export function useSpendingTrends(
   categoryIds: string[],
   from: string,
   to: string,
   granularity?: 'daily' | 'monthly',
-) =>
-  useQuery({
-    queryKey: ['reports', 'spending-trends', categoryIds.join(','), from, to, granularity],
-    queryFn: () => reportsApi.getSpendingTrends(categoryIds, from, to, granularity),
+) {
+  const currency = useViewingCurrency();
+  return useQuery({
+    queryKey: [
+      'reports',
+      'spending-trends',
+      categoryIds.join(','),
+      from,
+      to,
+      granularity,
+      currency,
+    ],
+    queryFn: () => reportsApi.getSpendingTrends(categoryIds, from, to, currency, granularity),
     enabled: categoryIds.length > 0,
   });
+}
 
-export const useSpendingComparison = (mode: string) =>
-  useQuery({
-    queryKey: ['reports', 'spending-comparison', mode],
-    queryFn: () => reportsApi.getSpendingComparison(mode),
+export function useSpendingComparison(mode: string) {
+  const currency = useViewingCurrency();
+  return useQuery({
+    queryKey: ['reports', 'spending-comparison', mode, currency],
+    queryFn: () => reportsApi.getSpendingComparison(mode, currency),
   });
+}

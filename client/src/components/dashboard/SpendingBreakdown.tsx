@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useSpendingByCategory } from '../../hooks/useReports';
-import { formatCurrency } from '../../utils/currency';
+import { useViewingMoney } from '../../hooks/useViewingCurrency';
 import { usePreferencesStore } from '../../store/preferencesStore';
 import { PieChart } from 'lucide-react';
 import { Card } from '../ui/Card';
@@ -13,6 +13,7 @@ interface Props {
 }
 
 export default function SpendingBreakdown({ currentMonth }: Props) {
+  const money = useViewingMoney();
   const showCategoryIcons = usePreferencesStore((s) => s.showCategoryIcons);
   const { data = [], isLoading } = useSpendingByCategory(currentMonth, currentMonth);
 
@@ -72,7 +73,7 @@ export default function SpendingBreakdown({ currentMonth }: Props) {
                     {cat.categoryName || 'Uncategorized'}
                   </span>
                   <span className="text-xs text-text-tertiary tabular-nums whitespace-nowrap">
-                    {formatCurrency(cat.amount)}
+                    {money.format(cat.amount)}
                   </span>
                 </div>
                 <div className="h-1.5 w-full bg-surface-alt rounded-full overflow-hidden">

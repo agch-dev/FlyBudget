@@ -12,7 +12,9 @@ import {
   useUpdateSavedReport,
 } from '../hooks/useCustomReports';
 import { useDebounce } from '../hooks/useDebounce';
-import { downloadCsv } from '../utils/exportCsv';
+import { downloadCsv, rowsInCurrency } from '../utils/exportCsv';
+import { useViewingCurrency } from '../hooks/useViewingCurrency';
+import { ViewingCurrencySwitch } from '../components/ui/ViewingCurrencySwitch';
 import { computeDateRange, decodeRangeParam, resolveDateRange } from '../utils/dateRange';
 import { Button } from '../components/ui/Button';
 import type { CustomReportConfig } from '../types';
@@ -64,6 +66,7 @@ export default function CustomReportBuilder() {
 
   const debouncedConfig = useDebounce(config, 300);
   const { data, isLoading } = useCustomReportData(debouncedConfig);
+  const currency = useViewingCurrency();
 
   function handleSave(name: string) {
     if (id && savedReport) {
@@ -93,16 +96,22 @@ export default function CustomReportBuilder() {
     if (data.mode === 'total') {
       downloadCsv(
         filename,
-        data.data.map((d) => ({ name: d.name, amount_cents: d.value })),
+        rowsInCurrency(
+          data.data.map((d) => ({ name: d.name, amount_cents: d.value })),
+          currency,
+        ),
       );
     } else {
       downloadCsv(
         filename,
-        data.data.map((d) => {
-          const row: Record<string, unknown> = { month: d.month };
-          for (const g of data.groups) row[g] = d[g] ?? 0;
-          return row;
-        }),
+        rowsInCurrency(
+          data.data.map((d) => {
+            const row: Record<string, unknown> = { month: d.month };
+            for (const g of data.groups) row[g] = d[g] ?? 0;
+            return row;
+          }),
+          currency,
+        ),
       );
     }
   }
@@ -121,6 +130,7 @@ export default function CustomReportBuilder() {
           <SavedReportsList activeId={id} />
         </div>
         <div className="flex items-center gap-2">
+          <ViewingCurrencySwitch />
           <Button variant="secondary" size="sm" onClick={handleExport} disabled={!data}>
             <Download size={13} /> Export
           </Button>

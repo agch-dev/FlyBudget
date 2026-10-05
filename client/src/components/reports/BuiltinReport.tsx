@@ -4,6 +4,7 @@ import {
   useIncomeVsExpenses,
   useTopSpendingCategories,
 } from '../../hooks/useReports';
+import { useViewingMoney } from '../../hooks/useViewingCurrency';
 import { expenseFigure, incomeFigure, monthsToAverage } from '../../utils/reportSummary';
 import {
   NetWorthChart,
@@ -40,17 +41,18 @@ export const BUILTIN_TYPES = Object.keys(BUILTIN_REPORTS) as BuiltinWidgetType[]
  */
 export function useSummaryCards(from: string, to: string): StatCard[] {
   const { data: ieData = [] } = useIncomeVsExpenses(from, to);
+  const money = useViewingMoney();
   return useMemo(() => {
     const totalInc = ieData.reduce((s, d) => s + d.income, 0);
     const expNet = ieData.reduce((s, d) => s + d.expenseNet, 0);
     const txCount = ieData.reduce((s, d) => s + d.expenseCount, 0);
     return [
-      { label: 'Total Income', ...incomeFigure(totalInc) },
-      { label: 'Total Expenses', ...expenseFigure(expNet) },
-      { label: 'Avg Monthly Expenses', ...expenseFigure(expNet / monthsToAverage(ieData)) },
-      { label: 'Avg Per Transaction', ...expenseFigure(txCount > 0 ? expNet / txCount : 0) },
+      { label: 'Total Income', ...incomeFigure(totalInc, money) },
+      { label: 'Total Expenses', ...expenseFigure(expNet, money) },
+      { label: 'Avg Monthly Expenses', ...expenseFigure(expNet / monthsToAverage(ieData), money) },
+      { label: 'Avg Per Transaction', ...expenseFigure(txCount > 0 ? expNet / txCount : 0, money) },
     ];
-  }, [ieData]);
+  }, [ieData, money]);
 }
 
 const TONE_CLASS = {

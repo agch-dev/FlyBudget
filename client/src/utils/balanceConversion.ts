@@ -75,6 +75,28 @@ export function balancesTotal(
 }
 
 /**
+ * A total of account balances in `to` and how it moved since an earlier day: today's balances
+ * at today's rate, the earlier ones (`balancesAgo`, by account id) at that day's rate, like
+ * two points of net worth. An account with no earlier balance known counts as unchanged.
+ */
+export function totalAndChange(
+  accounts: readonly { id: string; balance: number; currency?: Currency }[],
+  balancesAgo: Readonly<Record<string, number>>,
+  to: Currency,
+  days: { today: string; ago: string },
+  rates: readonly DatedRate[],
+): { total: number; before: number; change: number } {
+  const total = balancesTotal(accounts, to, days.today, rates);
+  const before = balancesTotal(
+    accounts.map((a) => ({ balance: balancesAgo[a.id] ?? a.balance, currency: a.currency })),
+    to,
+    days.ago,
+    rates,
+  );
+  return { total, before, change: total - before };
+}
+
+/**
  * What a combined total is made of, each currency in its native amount: "$150,000 + US$3,200".
  * The currency the total is shown in comes first. Null when there is nothing in any other
  * currency (the total already says it all).

@@ -3,6 +3,7 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 import { IS_DEMO } from '../demo/isDemo';
 import type { ImportConventions } from '../utils/csv';
 import { toggleGroupOpen } from '../utils/accountGroups';
+import { HOME_CURRENCY, type Currency } from '../types';
 
 export type Theme = 'light' | 'dark' | 'system';
 export type DateFormatOption = 'MMM d, yyyy' | 'MM/dd/yyyy' | 'dd/MM/yyyy' | 'yyyy-MM-dd';
@@ -28,6 +29,11 @@ interface PreferencesState {
   csvImportConventions: Record<string, ImportConventions>;
   /** Account Groups expanded in the sidebar on this device, by name; the rest are closed */
   openAccountGroups: string[];
+  /**
+   * The Viewing Currency (GLOSSARY.md): what combined totals are shown in on the dashboard,
+   * reports, cash flow and net worth on this device. Never the Budget, which is in pesos.
+   */
+  viewingCurrency: Currency;
   setTheme: (theme: Theme) => void;
   setDateFormat: (format: DateFormatOption) => void;
   setSavingsGoal: (goal: number) => void;
@@ -41,6 +47,7 @@ interface PreferencesState {
   setGettingStartedHidden: (hidden: boolean) => void;
   setCsvImportConventions: (accountId: string, conventions: ImportConventions) => void;
   toggleAccountGroup: (name: string) => void;
+  setViewingCurrency: (currency: Currency) => void;
 }
 
 const PREFERENCES_KEY = 'budget-preferences';
@@ -71,6 +78,7 @@ export const usePreferencesStore = create<PreferencesState>()(
       gettingStartedHidden: false,
       csvImportConventions: {},
       openAccountGroups: [],
+      viewingCurrency: HOME_CURRENCY,
       setTheme: (theme) => set({ theme }),
       setDateFormat: (dateFormat) => set({ dateFormat }),
       setSavingsGoal: (savingsGoal) => set({ savingsGoal }),
@@ -88,6 +96,7 @@ export const usePreferencesStore = create<PreferencesState>()(
         })),
       toggleAccountGroup: (name) =>
         set((state) => ({ openAccountGroups: toggleGroupOpen(state.openAccountGroups, name) })),
+      setViewingCurrency: (viewingCurrency) => set({ viewingCurrency }),
     }),
     {
       name: PREFERENCES_KEY,
