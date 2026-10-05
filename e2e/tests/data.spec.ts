@@ -186,6 +186,8 @@ test.describe('export, backup and restore', () => {
   });
 
   test('exports the stored exchange rates as CSV', async ({ page, api }) => {
+    // An empty budget opens on the welcome page instead
+    await api.createAccount('Checking', 0);
     await api.call('PUT', '/exchange-rates/2026-03-02', { rate: 40.25 });
     await open(page, '/settings');
     await page.getByRole('button', { name: 'Data' }).click();
