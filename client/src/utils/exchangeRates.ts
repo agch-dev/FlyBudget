@@ -1,4 +1,7 @@
-// Exchange rates (pesos per dollar): the pure parts of Settings → Exchange rates.
+import { format, parseISO } from 'date-fns';
+
+// Exchange rates (pesos per dollar): the pure parts of Settings → Exchange rates and of the
+// estimated-rates banner.
 
 /** The server refuses rates above this (MAX_RATE in server/src/services/exchangeRates.ts) */
 export const MAX_RATE = 100_000;
@@ -38,4 +41,24 @@ export function parseRateInput(text: string): number | null {
   if (!/^\d+(\.\d+)?$/.test(cleaned)) return null;
   const rate = Number(cleaned);
   return Number.isFinite(rate) && rate > 0 && rate <= MAX_RATE ? rate : null;
+}
+
+/** More estimated dates than this are shown as a count and a range */
+const NAMED_DATES_MAX = 3;
+
+/**
+ * The dates whose exchange rate is estimated, for the banner: "10 Nov 2023",
+ * "1 Feb 2023 and 10 Nov 2023", or "12 dates from 12 Mar 2021 to 10 Nov 2023".
+ * `dates` are YYYY-MM-DD, at least one.
+ */
+export function estimatedDatesLabel(dates: readonly string[]): string {
+  // ISO dates sort as text
+  const sorted = [...new Set(dates)].sort();
+  const day = (date: string) => format(parseISO(date), 'd MMM yyyy');
+  if (sorted.length > NAMED_DATES_MAX) {
+    return `${sorted.length} dates from ${day(sorted[0])} to ${day(sorted[sorted.length - 1])}`;
+  }
+  const named = sorted.map(day);
+  const last = named.pop() ?? '';
+  return named.length ? `${named.join(', ')} and ${last}` : last;
 }

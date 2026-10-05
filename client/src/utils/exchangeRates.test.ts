@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
-import { formatRate, groupRatesByMonth, parseRateInput } from './exchangeRates';
+import {
+  estimatedDatesLabel,
+  formatRate,
+  groupRatesByMonth,
+  parseRateInput,
+} from './exchangeRates';
 
 const isoDay = fc
   .integer({ min: 0, max: 3000 })
@@ -83,5 +88,36 @@ describe('parseRateInput', () => {
     expect(parseRateInput(' 40.35 ')).toBe(40.35);
     expect(parseRateInput('41')).toBe(41);
     expect(parseRateInput('1,234.5')).toBe(1234.5);
+  });
+});
+
+describe('estimatedDatesLabel', () => {
+  it('names up to three dates', () => {
+    expect(estimatedDatesLabel(['2023-11-10'])).toBe('10 Nov 2023');
+    expect(estimatedDatesLabel(['2023-02-01', '2023-11-10'])).toBe('1 Feb 2023 and 10 Nov 2023');
+    expect(estimatedDatesLabel(['2022-12-31', '2023-02-01', '2023-11-10'])).toBe(
+      '31 Dec 2022, 1 Feb 2023 and 10 Nov 2023',
+    );
+  });
+
+  it('gives the range for more, whatever order they come in', () => {
+    expect(estimatedDatesLabel(['2023-02-01', '2021-03-12', '2022-07-04', '2023-11-10'])).toBe(
+      '4 dates from 12 Mar 2021 to 10 Nov 2023',
+    );
+  });
+
+  it('counts a repeated date once', () => {
+    expect(estimatedDatesLabel(['2023-11-10', '2023-11-10'])).toBe('10 Nov 2023');
+  });
+
+  it('always mentions the first and last date (property-based)', () => {
+    fc.assert(
+      fc.property(fc.uniqueArray(isoDay, { minLength: 1, maxLength: 30 }), (dates) => {
+        const sorted = [...dates].sort();
+        const label = estimatedDatesLabel(dates);
+        expect(label).toContain(estimatedDatesLabel([sorted[0]]));
+        expect(label).toContain(estimatedDatesLabel([sorted[sorted.length - 1]]));
+      }),
+    );
   });
 });
