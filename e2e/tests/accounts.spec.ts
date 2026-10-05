@@ -148,4 +148,88 @@ test.describe('accounts', () => {
     await expect(main).toContainText(/Liabilities\s*-\$12,450/);
     await expect(main).toContainText(/Loans\s*-\$12,000/);
   });
+
+  test('a dollar account shows US$ and stays out of the pesos totals', async ({ page, api }) => {
+    await api.createAccount('Caja pesos', 100_000);
+    await open(page, '/accounts');
+    await page.getByRole('main').getByRole('button', { name: 'Add Account' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Add Account' });
+    await dialog.getByRole('textbox', { name: 'Account name' }).fill('Caja dolares');
+    // Pesos unless dollars are chosen
+    const currency = dialog.getByRole('radiogroup', { name: 'Currency' });
+    await expect(currency.getByRole('radio', { name: 'Pesos ($)' })).toBeChecked();
+    await currency.getByRole('radio', { name: 'Dollars (US$)' }).click();
+    await dialog.getByRole('textbox', { name: 'Current Balance' }).fill('250.50');
+    await dialog.getByRole('button', { name: 'Add Account' }).click();
+    await expect(dialog).toBeHidden();
+
+    await expect
+      .poll(async () => (await api.accounts()).find((a) => a.name === 'Caja dolares'))
+      .toMatchObject({ currency: 'USD', balance: 25_050 });
+
+    // Its own balance is in dollars; the totals around it are still the pesos account's
+    const main = page.getByRole('main');
+    await expect(main).toContainText('US$250.50');
+    await expect(main).toContainText(/Assets\s*\$1,000/);
+    await expect(main).toContainText(/Net Worth\s*\$1,000/);
+    const nav = page.getByRole('complementary');
+    await expect(nav.getByRole('link', { name: 'All accounts $1,000' })).toBeVisible();
+    await nav.getByRole('button', { name: 'For budget $1,000' }).click();
+    await expect(nav.getByRole('link', { name: 'Caja dolares US$250.50' })).toBeVisible();
+    await expect(nav.getByRole('link', { name: 'Caja pesos $1,000' })).toBeVisible();
+  });
+
+  test('a dollar account lists its transactions in dollars, here and in All Transactions', async ({
+    page,
+    api,
+  }) => {
+    const pesos = await api.createAccount('Caja pesos', 0);
+    const dollars = await api.createAccount('Caja dolares', 100_000, 'checking', {
+      currency: 'USD',
+    });
+    await api.createTransaction({
+      accountId: pesos.id,
+      date: isoDay(),
+      amount: -45_000,
+      payeeName: 'Supermercado',
+    });
+    await api.createTransaction({
+      accountId: dollars.id,
+      date: isoDay(),
+      amount: -1_999,
+      payeeName: 'Netflix',
+    });
+
+    await open(page, `/accounts/${dollars.id}`);
+    const main = page.getByRole('main');
+    await expect(page.getByRole('heading', { level: 1, name: 'Caja dolares' })).toBeVisible();
+    await expect(main).toContainText('US$980.01');
+    await expect(main).toContainText('US$19.99');
+
+    await open(page, '/transactions');
+    await expect(main).toContainText('Netflix');
+    await expect(main).toContainText('US$19.99');
+    await expect(main).toContainText('Supermercado');
+    await expect(main).toContainText('$450');
+    await expect(main).not.toContainText('US$450');
+  });
+
+  test('the currency can change only until the account has transactions', async ({ page, api }) => {
+    const account = await api.createAccount('Tarjeta', 0, 'credit');
+    await open(page, `/accounts/${account.id}`);
+    await page.getByRole('button', { name: 'Edit' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Edit Account' });
+    await dialog.getByRole('radio', { name: 'Dollars (US$)' }).click();
+    await dialog.getByRole('button', { name: 'Save' }).click();
+    await expect.poll(async () => (await api.accounts())[0]).toMatchObject({ currency: 'USD' });
+
+    await api.createTransaction({ accountId: account.id, date: isoDay(), amount: -5_000 });
+    await page.reload();
+    await page.getByRole('button', { name: 'Edit' }).click();
+    await expect(dialog.getByRole('radio', { name: 'Dollars (US$)' })).toBeChecked();
+    await expect(dialog.getByRole('radio', { name: 'Pesos ($)' })).toBeDisabled();
+    await expect(dialog).toContainText(
+      "The currency can't change once the account has transactions.",
+    );
+  });
 });

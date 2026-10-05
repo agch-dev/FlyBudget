@@ -9,7 +9,7 @@ import { PayeeIcon } from '../payees/PayeeIcon';
 import { formatCurrency } from '../../utils/currency';
 import { usePreferencesStore } from '../../store/preferencesStore';
 import { AccountIcon } from '../accounts/AccountIcon';
-import type { Transaction, CategoryGroup, PayeeWithCount } from '../../types';
+import type { Currency, Transaction, CategoryGroup, PayeeWithCount } from '../../types';
 
 interface Props {
   tx: Transaction;
@@ -18,6 +18,8 @@ interface Props {
   groups: CategoryGroup[];
   payees: PayeeWithCount[];
   accountName?: string;
+  /** The currency of the amount (its account's); defaults to the one sent with the row */
+  currency?: Currency;
   accountType?: string;
   accountLogo?: string | null;
   showAccountCol?: boolean;
@@ -34,6 +36,7 @@ export function TransactionRow({
   groups,
   payees,
   accountName,
+  currency = tx.currency,
   accountType,
   accountLogo,
   showAccountCol,
@@ -248,7 +251,7 @@ export function TransactionRow({
           <span
             className={`text-sm font-medium tabular-nums ${tx.amount > 0 ? 'text-positive' : 'text-text'}`}
           >
-            {formatCurrency(Math.abs(tx.amount))}
+            {formatCurrency(Math.abs(tx.amount), currency)}
           </span>
         </div>
 
@@ -286,7 +289,7 @@ export function TransactionRow({
               <span
                 className={`text-xs tabular-nums shrink-0 ${child.amount > 0 ? 'text-positive' : 'text-text-secondary'}`}
               >
-                {formatCurrency(Math.abs(child.amount))}
+                {formatCurrency(Math.abs(child.amount), currency)}
               </span>
             </div>
           );

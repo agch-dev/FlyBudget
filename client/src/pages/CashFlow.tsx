@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { format, subMonths, startOfYear, endOfYear, subYears } from 'date-fns';
 import { useSpendingByCategory, useIncomeByCategory } from '../hooks/useReports';
-import { formatCurrency } from '../utils/currency';
+import { currencySymbol, formatCurrency } from '../utils/currency';
 import { downloadCsv } from '../utils/exportCsv';
 import { usePreferencesStore } from '../store/preferencesStore';
 import { chartColors } from '../utils/chartColors';
@@ -116,7 +116,7 @@ interface SankeyDiagramProps {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function formatDollars(cents: number): string {
-  const sym = usePreferencesStore.getState().currencySymbol || '$';
+  const sym = currencySymbol();
   const abs = Math.abs(cents);
   const dollars = Math.round(abs / 100);
   const f = dollars.toLocaleString('en-US');

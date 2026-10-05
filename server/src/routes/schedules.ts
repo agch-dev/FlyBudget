@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import { db } from '../db/index.js';
 import { schedules, scheduleOccurrences, transactions, payees } from '../db/schema.js';
-import { eq, and, gte, lte, desc } from 'drizzle-orm';
+import { eq, and, or, gte, lte, desc, inArray, isNull } from 'drizzle-orm';
+import { homeCurrencyAccountIds } from '../services/balances.js';
 import { nanoid } from 'nanoid';
 import { z } from 'zod';
 import { format, addDays } from 'date-fns';
@@ -221,6 +222,8 @@ schedulesRouter.get('/summary', (req, res) => {
         eq(schedules.status, 'active'),
         gte(scheduleOccurrences.expectedDate, from),
         lte(scheduleOccurrences.expectedDate, to),
+        // A recurring item is in its account's currency; one with no account counts as pesos
+        or(isNull(schedules.accountId), inArray(schedules.accountId, homeCurrencyAccountIds)),
       ),
     )
     .all();

@@ -18,6 +18,7 @@ import {
 import { usePreferencesStore } from '../../store/preferencesStore';
 import { importPreview } from '../../api/transactions';
 import { useImportConfirm } from '../../hooks/useTransactions';
+import { useAccounts } from '../../hooks/useAccounts';
 import { formatCurrency } from '../../utils/currency';
 import type { ImportPreviewRow } from '../../types';
 import type { ImportRow } from '../../api/transactions';
@@ -38,6 +39,9 @@ const NO_PROBLEMS: ImportProblem[] = [];
 export function ImportModal({ isOpen, onClose, accountId }: Props) {
   const [step, setStep] = useState<Step>('upload');
   const canSave = useCanSave();
+  // The file's amounts are in the currency of the account they're imported into
+  const { data: accounts } = useAccounts();
+  const currency = accounts?.find((a) => a.id === accountId)?.currency;
   const [headers, setHeaders] = useState<string[]>([]);
   const [rawRows, setRawRows] = useState<string[][]>([]);
   const [roles, setRoles] = useState<ColumnRole[]>([]);
@@ -345,7 +349,7 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
             <p className="text-xs text-text-secondary">
               First row reads as{' '}
               <span className="font-medium text-text">
-                {read.rows[0].date}, {formatCurrency(read.rows[0].amount)}
+                {read.rows[0].date}, {formatCurrency(read.rows[0].amount, currency)}
               </span>
               .
             </p>
@@ -421,7 +425,7 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
                     <td
                       className={`px-2 py-1.5 text-xs text-right tabular-nums ${row.amount < 0 ? 'text-text' : 'text-positive'}`}
                     >
-                      {formatCurrency(row.amount)}
+                      {formatCurrency(row.amount, currency)}
                     </td>
                   </tr>
                 ))}

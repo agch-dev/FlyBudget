@@ -201,6 +201,8 @@ export interface Transaction {
   scheduleId: string | null;
   createdAt: string;
   children?: Transaction[];
+  /** The account's currency, sent with transaction lists (closed accounts included) */
+  currency?: Currency;
 }
 
 export interface ImportPreviewRow {
@@ -287,10 +289,26 @@ export interface BudgetSummary {
   toBeBudgeted: number;
 }
 
+// Keep in sync with CURRENCIES in server/src/utils/currency.ts
+/** The currencies an account can hold: Uruguayan pesos and US dollars. No others exist. */
+export const CURRENCIES = [
+  { value: 'UYU', label: 'Pesos', symbol: '$' },
+  { value: 'USD', label: 'Dollars', symbol: 'US$' },
+] as const;
+
+export type Currency = (typeof CURRENCIES)[number]['value'];
+
+/** The currency the budget is planned in and combined totals are shown in. It is fixed. */
+export const HOME_CURRENCY: Currency = 'UYU';
+
 export interface Account {
   id: string;
   name: string;
   type: AccountType;
+  /** Every amount in the account (balance, starting balance, transactions) is in it */
+  currency: Currency;
+  /** False while the account has no transactions: only then can its currency change */
+  hasTransactions?: boolean;
   startingBalance: number;
   isOffBudget: number;
   sortOrder: number;

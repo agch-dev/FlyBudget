@@ -46,6 +46,8 @@ export function TransactionDetailPanel({
   accountLogo,
   onClose,
 }: Props) {
+  // Native amount: in the transaction's own account's currency
+  const currency = tx.currency ?? accounts.find((a) => a.id === tx.accountId)?.currency;
   const updateTx = useUpdateTransaction();
   const updatePayee = useUpdatePayee();
   const deleteTx = useDeleteTransaction();
@@ -183,7 +185,7 @@ export function TransactionDetailPanel({
           <span
             className={`text-lg font-semibold tabular-nums ${tx.amount > 0 ? 'text-positive' : 'text-text'}`}
           >
-            {formatCurrency(Math.abs(tx.amount))}
+            {formatCurrency(Math.abs(tx.amount), currency)}
           </span>
         </div>
 
@@ -227,7 +229,7 @@ export function TransactionDetailPanel({
                       </span>
                     </div>
                     <span className="tabular-nums text-text-tertiary">
-                      {formatCurrency(Math.abs(child.amount))}
+                      {formatCurrency(Math.abs(child.amount), currency)}
                     </span>
                   </div>
                 );

@@ -28,6 +28,7 @@ export function useCreateAccount() {
             type: created.type,
             startingBalance: created.startingBalance,
             isOffBudget: created.isOffBudget,
+            currency: created.currency,
           });
           qc.invalidateQueries({ queryKey: ['accounts'] });
         },
@@ -51,7 +52,9 @@ export function useUpdateAccount() {
       return { old: accounts?.find((a) => a.id === id) };
     },
     onSuccess: (_, { id, data }, ctx) => {
-      qc.invalidateQueries({ queryKey: ['accounts'] });
+      // A new currency moves the account in or out of every combined total
+      if (data.currency) qc.invalidateQueries();
+      else qc.invalidateQueries({ queryKey: ['accounts'] });
       if (!ctx?.old) return;
       const snapshot = ctx.old;
       useUndoStore.getState().push({

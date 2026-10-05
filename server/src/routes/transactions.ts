@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { deleteTransactionRow, resolvePayee } from '../services/transactionHelpers.js';
 import { buildRuleContext, insertNewTransaction, loadRules } from '../services/ruleService.js';
 import { isoDate } from '../utils/validation.js';
+import { HOME_CURRENCY } from '../utils/currency.js';
 
 export const transactionsRouter = Router();
 
@@ -152,9 +153,23 @@ transactionsRouter.get('/', (req, res) => {
     }
   }
 
-  const result = rows.map((r) => ({
+  // Each row says which currency its amount is in (its account's), so a list that mixes
+  // accounts, closed ones included, can write `$` or `US$` on every row
+  const currencyOf = new Map(
+    db
+      .select({ id: accounts.id, currency: accounts.currency })
+      .from(accounts)
+      .all()
+      .map((a) => [a.id, a.currency]),
+  );
+  const withCurrency = (r: (typeof rows)[number]) => ({
     ...r,
-    ...(r.isParent === 1 ? { children: childrenMap.get(r.id) ?? [] } : {}),
+    currency: currencyOf.get(r.accountId) ?? HOME_CURRENCY,
+  });
+
+  const result = rows.map((r) => ({
+    ...withCurrency(r),
+    ...(r.isParent === 1 ? { children: (childrenMap.get(r.id) ?? []).map(withCurrency) } : {}),
   }));
 
   res.json(result);

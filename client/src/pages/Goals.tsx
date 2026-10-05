@@ -12,9 +12,9 @@ import { docsUrl } from '../utils/project';
 import { Card } from '../components/ui/Card';
 import { StatCardRow } from '../components/reports/ChartHelpers';
 import RowMenu from '../components/ui/RowMenu';
-import { formatCurrency } from '../utils/currency';
+import { formatCurrency, homeCurrencyTotal } from '../utils/currency';
 import { usePreferencesStore } from '../store/preferencesStore';
-import type { Goal } from '../types';
+import type { Currency, Goal } from '../types';
 
 function progressOf(goal: Goal) {
   const pct =
@@ -52,11 +52,14 @@ function GoalIcon({ goal }: { goal: Goal }) {
 function GoalRow({
   goal,
   accountName,
+  currency,
   onEdit,
   onDelete,
 }: {
   goal: Goal;
   accountName: string | null;
+  /** The linked account's currency: a goal's amounts are in it (pesos with no account) */
+  currency?: Currency;
   onEdit: () => void;
   onDelete: () => void;
 }) {
@@ -78,10 +81,10 @@ function GoalRow({
         </div>
         <div className="text-right shrink-0">
           <span className="text-sm font-medium tabular-nums text-text block">
-            {formatCurrency(goal.currentAmount)}
+            {formatCurrency(goal.currentAmount, currency)}
           </span>
           <span className="text-xs text-text-tertiary tabular-nums block mt-0.5">
-            of {formatCurrency(goal.targetAmount)}
+            of {formatCurrency(goal.targetAmount, currency)}
           </span>
         </div>
         <div onClick={(e) => e.stopPropagation()}>
@@ -107,15 +110,15 @@ function GoalRow({
               'Goal reached'
             ) : schedule?.overdue ? (
               <span className="text-negative">
-                Past target date · {formatCurrency(remaining)} to go
+                Past target date · {formatCurrency(remaining, currency)} to go
               </span>
             ) : (
               <>
-                {formatCurrency(remaining)} to go
+                {formatCurrency(remaining, currency)} to go
                 {schedule?.perMonth != null && (
                   <span className="text-text-tertiary">
                     {' '}
-                    · {formatCurrency(schedule.perMonth)}/mo to reach it on time
+                    · {formatCurrency(schedule.perMonth, currency)}/mo to reach it on time
                   </span>
                 )}
               </>
@@ -128,10 +131,23 @@ function GoalRow({
   );
 }
 
+/** Totals are in pesos: goals linked to a dollar account show their own amounts only. */
+function pesosTotal(
+  goals: Goal[],
+  currencyOf: (g: Goal) => Currency | undefined,
+  amount: (g: Goal) => number,
+): number {
+  return homeCurrencyTotal(
+    goals.map((goal) => ({ goal, currency: currencyOf(goal) })),
+    (g) => amount(g.goal),
+  );
+}
+
 function GoalGroup({
   label,
   goals,
   accountNames,
+  currencyOf,
   onEdit,
   onDelete,
   defaultCollapsed = false,
@@ -139,12 +155,13 @@ function GoalGroup({
   label: string;
   goals: Goal[];
   accountNames: Map<string, string>;
+  currencyOf: (g: Goal) => Currency | undefined;
   onEdit: (g: Goal) => void;
   onDelete: (g: Goal) => void;
   defaultCollapsed?: boolean;
 }) {
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
-  const saved = goals.reduce((s, g) => s + g.currentAmount, 0);
+  const saved = pesosTotal(goals, currencyOf, (g) => g.currentAmount);
 
   return (
     <Card padding="none">
@@ -174,6 +191,7 @@ function GoalGroup({
               key={goal.id}
               goal={goal}
               accountName={goal.accountId ? (accountNames.get(goal.accountId) ?? null) : null}
+              currency={currencyOf(goal)}
               onEdit={() => onEdit(goal)}
               onDelete={() => onDelete(goal)}
             />
@@ -200,9 +218,12 @@ export default function GoalsPage() {
   const inProgress = goals.filter((g) => progressOf(g).remaining > 0 || g.targetAmount <= 0);
   const completed = goals.filter((g) => progressOf(g).remaining === 0 && g.targetAmount > 0);
 
-  const totalSaved = goals.reduce((s, g) => s + g.currentAmount, 0);
-  const totalTarget = goals.reduce((s, g) => s + g.targetAmount, 0);
-  const leftToSave = goals.reduce((s, g) => s + progressOf(g).remaining, 0);
+  const currencies = useMemo(() => new Map(accounts.map((a) => [a.id, a.currency])), [accounts]);
+  const currencyOf = (g: Goal) => (g.accountId ? currencies.get(g.accountId) : undefined);
+
+  const totalSaved = pesosTotal(goals, currencyOf, (g) => g.currentAmount);
+  const totalTarget = pesosTotal(goals, currencyOf, (g) => g.targetAmount);
+  const leftToSave = pesosTotal(goals, currencyOf, (g) => progressOf(g).remaining);
   const overallPct = totalTarget > 0 ? Math.floor((totalSaved / totalTarget) * 100) : 0;
 
   if (isLoading) {
@@ -268,6 +289,7 @@ export default function GoalsPage() {
                 label="In progress"
                 goals={inProgress}
                 accountNames={accountNames}
+                currencyOf={currencyOf}
                 onEdit={setEditGoal}
                 onDelete={setDeleting}
               />
@@ -277,6 +299,7 @@ export default function GoalsPage() {
                 label="Completed"
                 goals={completed}
                 accountNames={accountNames}
+                currencyOf={currencyOf}
                 onEdit={setEditGoal}
                 onDelete={setDeleting}
               />

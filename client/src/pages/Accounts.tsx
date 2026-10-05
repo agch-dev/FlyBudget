@@ -17,9 +17,9 @@ import { Card } from '../components/ui/Card';
 import { EmptyState } from '../components/ui/EmptyState';
 import { useOpenFromLink } from '../hooks/useOpenFromLink';
 import { docsUrl } from '../utils/project';
-import { formatCurrency } from '../utils/currency';
+import { formatCurrency, homeCurrencyTotal, inHomeCurrency } from '../utils/currency';
 import NetWorthMini from '../components/dashboard/NetWorthMini';
-import { ACCOUNT_GROUPS, type Account, type AccountGroup } from '../types';
+import { ACCOUNT_GROUPS, HOME_CURRENCY, type Account, type AccountGroup } from '../types';
 import { AccountIcon } from '../components/accounts/AccountIcon';
 import { accountTypeInfo, accountTypeLabel } from '../utils/accountTypes';
 
@@ -46,8 +46,9 @@ interface AccountGroupProps {
 function AccountGroup({ label, accounts, balancesAgo }: AccountGroupProps) {
   const [collapsed, setCollapsed] = useState(false);
   const navigate = useNavigate();
-  const groupTotal = accounts.reduce((sum, a) => sum + a.balance, 0);
-  const groupTotalAgo = accounts.reduce((sum, a) => sum + (balancesAgo[a.id] ?? a.balance), 0);
+  // In pesos: dollar accounts are listed with their own balance but not added in
+  const groupTotal = homeCurrencyTotal(accounts, (a) => a.balance);
+  const groupTotalAgo = homeCurrencyTotal(accounts, (a) => balancesAgo[a.id] ?? a.balance);
   const change = groupTotal - groupTotalAgo;
   const changePct = groupTotalAgo !== 0 ? (change / Math.abs(groupTotalAgo)) * 100 : 0;
 
@@ -108,7 +109,7 @@ function AccountGroup({ label, accounts, balancesAgo }: AccountGroupProps) {
                 </div>
               </div>
               <span className="text-sm font-medium tabular-nums text-text">
-                {formatCurrency(account.balance)}
+                {formatCurrency(account.balance, account.currency)}
               </span>
             </div>
           ))}
@@ -176,12 +177,18 @@ export default function AccountsPage() {
                 <NetWorthMini />
               </Card>
               <Card>
-                <AssetLiabilitySummary accounts={accounts} />
+                <AssetLiabilitySummary accounts={inHomeCurrency(accounts)} />
               </Card>
             </div>
           </div>
 
           <div className="px-6 pb-6 space-y-4">
+            {accounts.some((a) => a.currency !== HOME_CURRENCY) && (
+              <p className="text-xs text-text-tertiary">
+                Totals and net worth are in pesos and don&apos;t include dollar accounts yet. Each
+                dollar account shows its own balance.
+              </p>
+            )}
             {allGroups.map((g) => (
               <AccountGroup
                 key={g.label}
