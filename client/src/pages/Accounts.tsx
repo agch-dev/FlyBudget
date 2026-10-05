@@ -20,7 +20,7 @@ import { docsUrl } from '../utils/project';
 import { formatCurrency } from '../utils/currency';
 import { totalAndChange } from '../utils/balanceConversion';
 import NetWorthMini from '../components/dashboard/NetWorthMini';
-import { ACCOUNT_GROUPS, type Account, type AccountGroup } from '../types';
+import { ACCOUNT_TYPE_GROUPS, type Account, type AccountTypeGroup } from '../types';
 import { AccountIcon } from '../components/accounts/AccountIcon';
 import { accountTypeInfo, accountTypeLabel } from '../utils/accountTypes';
 import { groupTotal, listAccountsByGroup } from '../utils/accountGroups';
@@ -29,14 +29,14 @@ import { useBalanceRates } from '../hooks/useExchangeRates';
 import { useViewingCurrency } from '../hooks/useViewingCurrency';
 
 function groupAccountsByType(accounts: Account[]) {
-  const groups = new Map<AccountGroup, Account[]>();
+  const groups = new Map<AccountTypeGroup, Account[]>();
   for (const a of accounts) {
     const group = accountTypeInfo(a.type).group;
     const list = groups.get(group) ?? [];
     list.push(a);
     groups.set(group, list);
   }
-  return ACCOUNT_GROUPS.filter((g) => groups.has(g.value)).map((g) => ({
+  return ACCOUNT_TYPE_GROUPS.filter((g) => groups.has(g.value)).map((g) => ({
     label: g.label,
     accounts: groups.get(g.value)!,
   }));

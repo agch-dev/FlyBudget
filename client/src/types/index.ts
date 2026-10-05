@@ -18,12 +18,12 @@ export type AccountType =
   | 'other_asset'
   | 'other_liability';
 
-export type AccountGroup = 'cash' | 'credit' | 'investments' | 'property' | 'loans' | 'other';
+export type AccountTypeGroup = 'cash' | 'credit' | 'investments' | 'property' | 'loans' | 'other';
 
 export interface AccountTypeInfo {
   value: AccountType;
   label: string;
-  group: AccountGroup;
+  group: AccountTypeGroup;
   /** Debts: the balance is what's owed, stored as a negative number */
   liability: boolean;
   /** Everyday spending accounts; the rest default to off budget */
@@ -171,7 +171,7 @@ export const ACCOUNT_TYPES: AccountTypeInfo[] = [
   },
 ];
 
-export const ACCOUNT_GROUPS: { value: AccountGroup; label: string }[] = [
+export const ACCOUNT_TYPE_GROUPS: { value: AccountTypeGroup; label: string }[] = [
   { value: 'cash', label: 'Cash' },
   { value: 'credit', label: 'Credit' },
   { value: 'investments', label: 'Investments' },
