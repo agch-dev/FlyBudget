@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
 import {
   FIRST_RATE_DATE,
+  BACKFILL_RETRY_MS,
   FETCH_INTERVAL_MS,
   backfillRange,
   parseRatesResponse,
@@ -226,6 +227,25 @@ describe('backfillRange', () => {
 
   it('does nothing for a future date', () => {
     expect(backfillRange({ from: '2027-01-01', earliestFetched: null, today })).toBeNull();
+  });
+
+  it('waits at least an hour after the source failed, whatever date is asked for', () => {
+    expect(BACKFILL_RETRY_MS).toBeGreaterThanOrEqual(60 * 60 * 1000);
+    fc.assert(
+      fc.property(
+        isoDay,
+        fc.option(isoDay, { nil: null }),
+        fc.integer({ min: 0, max: 10 * BACKFILL_RETRY_MS }),
+        fc.integer({ min: -BACKFILL_RETRY_MS, max: 3 * BACKFILL_RETRY_MS }),
+        (from, earliestFetched, failedAt, since) => {
+          const input = { from, earliestFetched, today };
+          const range = backfillRange({ ...input, lastFailedAt: failedAt, now: failedAt + since });
+          // A failure "in the future" means the clock moved: still wait
+          if (Math.abs(since) < BACKFILL_RETRY_MS) expect(range).toBeNull();
+          else expect(range).toEqual(backfillRange(input));
+        },
+      ),
+    );
   });
 });
 

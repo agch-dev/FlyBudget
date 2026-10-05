@@ -7,6 +7,7 @@ import { db } from '../db/index.js';
 import { exchangeRates, transactions } from '../db/schema.js';
 import type { DateRange, RatePoint } from '../services/exchangeRates.js';
 import {
+  backfillRatesForDate,
   backfillRatesForDollarTransactions,
   resetExchangeRateFetchState,
 } from '../services/exchangeRateService.js';
@@ -124,6 +125,46 @@ describe('adding a dollar transaction older than every stored rate', () => {
     expect(res.body.date).toBe('2023-11-10');
     expect(asked).toHaveLength(1);
     expect(await estimated()).toEqual({ dates: ['2023-11-10'] });
+  });
+
+  it('asks a source that is down once, not for every save, start or bank sync', async () => {
+    storeFetched(march);
+    answer = unreachable;
+    expect((await add(dollarsId, '2023-11-10')).status).toBe(201);
+    expect((await add(dollarsId, '2022-02-02')).status).toBe(201);
+    expect((await importRows(dollarsId, ['2021-01-05'])).body.imported).toBe(1);
+    await backfillRatesForDollarTransactions(source).catch(() => {});
+    expect(asked).toHaveLength(1);
+    expect(await estimated()).toEqual({ dates: ['2021-01-05', '2022-02-02', '2023-11-10'] });
+  });
+
+  it('tries a source that was down again once an hour has passed', async () => {
+    storeFetched(march);
+    answer = unreachable;
+    const failedAt = new Date('2026-10-05T10:00:00.000Z');
+    const later = (minutes: number) => new Date(failedAt.getTime() + minutes * 60_000);
+    await backfillRatesForDate('2023-11-10', source, failedAt).catch(() => {});
+    answer = () => [{ date: '2023-11-03', rate: 39.8 }];
+    expect(await backfillRatesForDate('2023-11-10', source, later(59))).toEqual({
+      fetched: false,
+      stored: 0,
+    });
+    expect(asked).toHaveLength(1);
+    expect(await backfillRatesForDate('2023-11-10', source, later(61))).toEqual({
+      fetched: true,
+      stored: 1,
+    });
+    expect(asked).toHaveLength(2);
+  });
+
+  it('asks once for a transaction older than anything the source has', async () => {
+    storeFetched(march);
+    answer = () => [];
+    expect((await add(dollarsId, '2019-05-10')).status).toBe(201);
+    expect((await add(dollarsId, '2019-05-10')).status).toBe(201);
+    expect((await add(dollarsId, '2020-01-01')).status).toBe(201);
+    await backfillRatesForDollarTransactions(source);
+    expect(asked).toEqual([{ start: '2019-05-03', end: '2024-03-01' }]);
   });
 
   it('asks nothing for a date the stored rates already cover', async () => {
@@ -303,6 +344,8 @@ describe('estimated dates', () => {
     expect(await estimated()).toEqual({ dates: ['2023-11-10'] });
     asked = [];
     answer = () => [{ date: '2023-11-09', rate: 39.7 }];
+    // A new server process remembers nothing of the failed attempt
+    resetExchangeRateFetchState();
     await backfillRatesForDollarTransactions(source);
     expect(asked).toEqual([{ start: '2023-11-03', end: '2024-03-01' }]);
     expect(await estimated()).toEqual({ dates: [] });

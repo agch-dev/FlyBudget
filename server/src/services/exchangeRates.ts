@@ -18,6 +18,9 @@ export const FIRST_RATE_DATE = '2024-01-01';
 /** The source is a personal API: on its own, the app asks at most this often. */
 export const FETCH_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
+/** After the source failed to answer a backfill, nothing older is asked of it for this long. */
+export const BACKFILL_RETRY_MS = 60 * 60 * 1000;
+
 /** Above any pesos-per-dollar rate that could be real */
 export const MAX_RATE = 100_000;
 
@@ -115,7 +118,8 @@ export function refreshRange(input: {
 
 /**
  * What to fetch so rates reach back to `from` (a dollar transaction older than every stored
- * rate), or null when they already do, or when that was already asked of the source.
+ * rate), or null when they already do, when that was already asked of the source, or when
+ * the source failed less than `BACKFILL_RETRY_MS` ago.
  */
 export function backfillRange(input: {
   from: string;
@@ -123,10 +127,17 @@ export function backfillRange(input: {
   earliestFetched: string | null;
   /** The earliest date a backfill already asked for (the source may have nothing that old) */
   alreadyAskedFrom?: string | null;
+  /** When a backfill last failed (milliseconds since the epoch), with `now` on the same clock */
+  lastFailedAt?: number | null;
+  now?: number;
   today: string;
 }): DateRange | null {
-  const { from, earliestFetched, alreadyAskedFrom, today } = input;
+  const { from, earliestFetched, alreadyAskedFrom, lastFailedAt, now, today } = input;
   if (from > today) return null;
+  // A failure "in the future" means the clock moved: still wait
+  if (lastFailedAt != null && now != null && Math.abs(now - lastFailedAt) < BACKFILL_RETRY_MS) {
+    return null;
+  }
   if (earliestFetched && from >= earliestFetched) return null;
   if (alreadyAskedFrom && from >= alreadyAskedFrom) return null;
   return { start: from, end: earliestFetched ?? today };
