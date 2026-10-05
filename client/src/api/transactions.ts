@@ -80,6 +80,21 @@ export const reconcileAccount = (accountId: string, transactionIds: string[]) =>
 export const createTransfer = (data: CreateTransferData) =>
   apiFetch<Transaction[]>('/transactions/transfer', { method: 'POST', body: JSON.stringify(data) });
 
+/** Unlinked transactions that could be the other side of this one, nearest in date first */
+export const getTransferCandidates = (id: string) =>
+  apiFetch<Transaction[]>(`/transactions/${id}/transfer-candidates`);
+
+/** Makes two existing transactions a transfer; answers with both sides */
+export const linkTransfer = (id: string, otherTransactionId: string) =>
+  apiFetch<Transaction[]>(`/transactions/${id}/link-transfer`, {
+    method: 'POST',
+    body: JSON.stringify({ otherTransactionId }),
+  });
+
+/** Makes both sides of a transfer ordinary, uncategorized transactions again */
+export const unlinkTransfer = (id: string) =>
+  apiFetch<Transaction[]>(`/transactions/${id}/unlink-transfer`, { method: 'POST' });
+
 export const importPreview = (accountId: string, rows: ImportRow[]) =>
   apiFetch<ImportPreviewRow[]>('/transactions/import/preview', {
     method: 'POST',
