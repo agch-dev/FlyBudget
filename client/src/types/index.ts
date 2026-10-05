@@ -320,6 +320,8 @@ export interface Account {
   currency: Currency;
   /** False while the account has no transactions: only then can its currency change */
   hasTransactions?: boolean;
+  /** Its Account Group (accounts with the same name are shown together); null = none */
+  groupName?: string | null;
   startingBalance: number;
   isOffBudget: number;
   sortOrder: number;
