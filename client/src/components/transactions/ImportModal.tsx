@@ -4,7 +4,8 @@ import { Modal } from '../ui/Modal';
 import { useCanSave } from '../../hooks/useConnection';
 import { SavingPausedHint } from '../connection/SavingPausedHint';
 import {
-  parseCsv,
+  decodeCsvBytes,
+  readCsvFile,
   guessColumnRoles,
   guessConventions,
   readImportRows,
@@ -80,8 +81,8 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
     setError(null);
     const reader = new FileReader();
     reader.onload = (e) => {
-      const text = e.target?.result as string;
-      const { headers: h, rows: r } = parseCsv(text);
+      const text = decodeCsvBytes(e.target?.result as ArrayBuffer);
+      const { headers: h, rows: r, preamble } = readCsvFile(text);
       if (h.length === 0) {
         setError('Could not parse CSV file');
         return;
@@ -90,12 +91,14 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
       setRawRows(r);
       setRoles(guessColumnRoles(h));
       // What this account's files used last time, else what this file's data suggests
+      // (the lines above the headers too: a statement's period often has a day above 12)
       setConventions(
-        usePreferencesStore.getState().csvImportConventions[accountId] ?? guessConventions(r),
+        usePreferencesStore.getState().csvImportConventions[accountId] ??
+          guessConventions([...preamble, ...r]),
       );
       setStep('map');
     };
-    reader.readAsText(file);
+    reader.readAsArrayBuffer(file);
   }
 
   function handleDrop(e: React.DragEvent) {

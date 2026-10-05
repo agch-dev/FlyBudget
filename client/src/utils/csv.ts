@@ -16,6 +16,18 @@ export const DEFAULT_CONVENTIONS: ImportConventions = {
   decimal: 'point',
 };
 
+/**
+ * The text of a CSV file. Files are UTF-8 unless their bytes aren't valid UTF-8: then they
+ * are Windows-1252 (Latin-1), which older bank systems still write ("Número", "Débito").
+ */
+export function decodeCsvBytes(bytes: ArrayBuffer | Uint8Array): string {
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+  } catch {
+    return new TextDecoder('windows-1252').decode(bytes);
+  }
+}
+
 const withoutBom = (text: string) => (text.charCodeAt(0) === 0xfeff ? text.slice(1) : text);
 
 /**
@@ -302,6 +314,74 @@ export function guessColumnRoles(headers: string[]): ColumnRole[] {
     const key = h.toLowerCase().normalize('NFD').replace(/\p{M}/gu, '');
     return (COLUMN_HINTS[key] as ColumnRole) ?? 'skip';
   });
+}
+
+const isAmountRole = (role: ColumnRole) =>
+  role === 'amount' || role === 'inflow' || role === 'outflow';
+
+/**
+ * Where the column headers are: the first line naming a date column and an amount column.
+ * Banks put the account's details above it (holder, number, currency, the period). A file
+ * with no such line has its headers on the first one.
+ */
+function headerRowIndex(records: string[][]): number {
+  const found = records.findIndex((record) => {
+    const roles = guessColumnRoles(record);
+    return roles.includes('date') && roles.some(isAmountRole);
+  });
+  return found === -1 ? 0 : found;
+}
+
+const readsAsDate = (cell: string | undefined) =>
+  parseImportDate(cell, 'day-first') !== null || parseImportDate(cell, 'month-first') !== null;
+const readsAsAmount = (cell: string | undefined) =>
+  parseImportAmount(cell, 'point') !== null || parseImportAmount(cell, 'comma') !== null;
+
+/**
+ * Headers that line up with the data. Some banks (Santander Uruguay) name a column in the
+ * header that their transaction rows leave out, so every cell after it sits one header too
+ * far left and the balance would be read as the amount. That shows as: every dated row is
+ * shorter than the header, and a payee column holds nothing but numbers. That header is dropped
+ * when the amount columns then hold amounts; anything else is left as written.
+ */
+function alignHeaders(headers: string[], rows: string[][]): string[] {
+  const roles = guessColumnRoles(headers);
+  const dateIdx = roles.indexOf('date');
+  const dated = rows.filter((row) => readsAsDate(row[dateIdx]));
+  if (dated.length === 0 || dated.some((row) => row.length >= headers.length)) return headers;
+
+  // Empty cells count: a debit column is empty on a credit's row
+  const extra = roles.findIndex(
+    (role, i) =>
+      role === 'payee' &&
+      dated.some((row) => (row[i] ?? '') !== '') &&
+      dated.every((row) => readsAsAmount(row[i])),
+  );
+  if (extra === -1) return headers;
+
+  const aligned = headers.filter((_, i) => i !== extra);
+  const fits = guessColumnRoles(aligned).every(
+    (role, i) => !isAmountRole(role) || dated.every((row) => readsAsAmount(row[i])),
+  );
+  return fits ? aligned : headers;
+}
+
+/**
+ * A bank's CSV file as the import dialog needs it: the column headers wherever they are,
+ * lined up with the data (`alignHeaders`), the rows under them, and the lines above them
+ * (`preamble`), which are never imported but still show how the file writes dates.
+ */
+export function readCsvFile(text: string): {
+  headers: string[];
+  rows: string[][];
+  preamble: string[][];
+} {
+  const { headers: first, rows: rest } = parseCsv(text);
+  if (first.length === 0) return { headers: [], rows: [], preamble: [] };
+  const records = [first, ...rest];
+  const at = headerRowIndex(records);
+  const rows = records.slice(at + 1);
+  return { headers: alignHeaders(records[at], rows), rows, preamble: records.slice(0, at) };
 }
 
 /** One transaction read from a file, ready for the import API */

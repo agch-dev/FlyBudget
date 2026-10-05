@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
 import {
+  decodeCsvBytes,
   detectDelimiter,
   generateImportId,
   guessColumnRoles,
@@ -8,6 +9,7 @@ import {
   parseCsv,
   parseImportAmount,
   parseImportDate,
+  readCsvFile,
   readImportRows,
   type DateOrder,
   type DecimalSeparator,
@@ -66,6 +68,75 @@ describe('parseCsv (property-based)', () => {
       headers: ['Date', 'Amount'],
       rows: [['2024-01-02', '5']],
     });
+  });
+});
+
+describe('decodeCsvBytes', () => {
+  it('reads UTF-8 and falls back to Windows-1252 for older bank files', () => {
+    expect(decodeCsvBytes(new TextEncoder().encode('Número,Débito'))).toBe('Número,Débito');
+    // "Número" as Latin-1 bytes: ú is the single byte 0xFA, which is not valid UTF-8
+    expect(decodeCsvBytes(Uint8Array.from([0x4e, 0xfa, 0x6d, 0x65, 0x72, 0x6f]))).toBe('Número');
+  });
+
+  it('round-trips any text written as UTF-8 (property-based)', () => {
+    fc.assert(
+      fc.property(fc.string({ unit: 'grapheme' }), (text) => {
+        fc.pre(text.charCodeAt(0) !== 0xfeff);
+        expect(decodeCsvBytes(new TextEncoder().encode(text))).toBe(text);
+      }),
+    );
+  });
+});
+
+describe('readCsvFile', () => {
+  // A Santander Uruguay statement: account details first, and transaction rows with one
+  // cell fewer than the header (no "Descripción"), unlike the balance rows
+  const santander =
+    'Cliente,Chaer B Agustina,\r\nCuenta,Ca Total Convenio,\r\nMoneda,UYU,\r\n\r\n' +
+    'Movimientos,\r\nDesde:,01/10/2026,Hasta:,31/10/2026\r\n\r\n' +
+    'Fecha,Referencia,Concepto,Descripción,Débito,Crédito,Saldos,\r\n' +
+    ',,Saldo inicial,,,,15919.26\r\n\r\n' +
+    '02/10/2026,764991,DEBITO OPERACION EN BANCA DIGITAL T--,-6425.00,,9494.26,\r\n\r\n' +
+    '03/10/2026,764992,CREDITO POR SUELDO,,80000.00,89494.26,\r\n\r\n' +
+    ',,Saldo final,,,,89494.26';
+
+  it('finds the headers under the account details and lines them up with the data', () => {
+    const { headers, rows, preamble } = readCsvFile(santander);
+    expect(headers).toEqual(['Fecha', 'Referencia', 'Concepto', 'Débito', 'Crédito', 'Saldos', '']);
+    expect(preamble).toHaveLength(5);
+    expect(guessConventions([...preamble, ...rows])).toEqual({
+      dateOrder: 'day-first',
+      decimal: 'point',
+    });
+    const read = readImportRows(rows, guessColumnRoles(headers), {
+      dateOrder: 'day-first',
+      decimal: 'point',
+    });
+    expect(read.problems).toEqual([]);
+    expect(read.rows.map((r) => [r.date, r.amount, r.payeeName, r.notes])).toEqual([
+      ['2026-10-02', -642500, 'DEBITO OPERACION EN BANCA DIGITAL T--', '764991'],
+      ['2026-10-03', 8000000, 'CREDITO POR SUELDO', '764992'],
+    ]);
+  });
+
+  it('leaves the headers alone when rows only drop empty cells at the end', () => {
+    const { headers } = readCsvFile(
+      'Fecha,Concepto,Importe,Referencia\n05/03/2026,Kiosco,-50.00\n',
+    );
+    expect(headers).toEqual(['Fecha', 'Concepto', 'Importe', 'Referencia']);
+  });
+
+  it('reads a file with its headers on the first line like parseCsv (property-based)', () => {
+    fc.assert(
+      fc.property(
+        fc.array(fc.array(field, { minLength: 3, maxLength: 3 }), { minLength: 1, maxLength: 20 }),
+        (records) => {
+          const text = records.map((r) => r.map(quote).join(',')).join('\n');
+          const { headers, rows, preamble } = readCsvFile(text);
+          expect([...preamble, headers, ...rows]).toEqual(records);
+        },
+      ),
+    );
   });
 });
 

@@ -46,6 +46,9 @@ hand _and_ import files for the same account, check the preview for rows you alr
 - **Dates**: `2026-01-05`, `01/05/2026` (month first) and written-out dates like `Jan 5, 2026`.
 - **Amounts**: `-12.00`, `$1,234.56`, `(12.00)` and `12.00-` for money going out. With separate
   inflow and outflow columns, FlyBudget works out the sign.
+- **Statements with details on top**: when the bank writes the account holder, number or period
+  above the column headers, FlyBudget starts at the headers and leaves those lines out.
+- **Accents**: older bank files (not UTF-8) are read too, so `Número` and `Débito` show properly.
 - Files up to 100,000 rows. Rows with an amount of zero are left out.
 
 If your bank writes the day before the month (`05/01/2026` for 5 January), or uses a comma as the
