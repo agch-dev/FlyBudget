@@ -103,11 +103,8 @@ const es: Translation<typeof en> = {
       choose: 'Restaurar copia…',
       restoring: 'Restaurando…',
       notBackup: '{{name}} no es un archivo de copia de seguridad de FlyBudget.',
-      done_one: 'Se restauró {{name}} ({{total}} transacción).',
-      done_other: 'Se restauró {{name}} ({{total}} transacciones).',
-      doneWithCopy_one:
-        'Se restauró {{name}} ({{total}} transacción). Tus datos anteriores se guardaron como {{file}} junto a la base de datos.',
-      doneWithCopy_other:
+      done: 'Se restauró {{name}} ({{total}} transacciones).',
+      doneWithCopy:
         'Se restauró {{name}} ({{total}} transacciones). Tus datos anteriores se guardaron como {{file}} junto a la base de datos.',
       failed: 'No se pudo restaurar',
       confirmTitle: '¿Restaurar esta copia de seguridad?',

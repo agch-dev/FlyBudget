@@ -55,11 +55,10 @@ export function DataExport() {
           safetyCopy
             ? t('data.restore.doneWithCopy', {
                 name,
-                count,
                 total: count.toLocaleString('en-US'),
                 file: safetyCopy,
               })
-            : t('data.restore.done', { name, count, total: count.toLocaleString('en-US') }),
+            : t('data.restore.done', { name, total: count.toLocaleString('en-US') }),
       });
       // Everything on screen is from before the restore
       await queryClient.invalidateQueries();
