@@ -25,6 +25,21 @@ describe('dayRange (property-based)', () => {
     );
   });
 
+  it('keeps a day whose midnight a daylight-saving change removed (Montevideo, 1990-10-21)', () => {
+    // Fails in that time zone when the days are walked as local midnights
+    expect(dayRange('1990-10-20', '1990-10-23')).toEqual([
+      '1990-10-20',
+      '1990-10-21',
+      '1990-10-22',
+      '1990-10-23',
+    ]);
+    expect(dayRange('2024-02-28', '2024-03-01')).toEqual([
+      '2024-02-28',
+      '2024-02-29',
+      '2024-03-01',
+    ]);
+  });
+
   it('is empty when `to` is before `from`', () => {
     fc.assert(
       fc.property(arbDay, fc.integer({ min: 1, max: 100 }), (start, back) => {
