@@ -155,7 +155,7 @@ function BudgetWidget({
     <div className="bg-surface rounded-lg shadow-card border border-border-light p-4">
       <h2 className="text-sm font-semibold text-text">{t('category.budget')}</h2>
       <p className="text-xs text-text-tertiary mt-0.5 first-letter:uppercase">
-        {format(parseISO(`${month}-01`), 'MMMM yyyy')}
+        {format(parseISO(`${month}-01`), t('datePattern.monthYear', { ns: 'common' }))}
       </p>
       <div className="mt-3 border-t border-border-light pt-3 space-y-2.5">
         <div className="flex items-center justify-between">

@@ -90,7 +90,7 @@ function SheetBody({
   return (
     <form onSubmit={save} className="grid gap-4">
       <p className="text-sm text-text-secondary first-letter:uppercase">
-        {format(parseISO(`${month}-01`), 'MMMM yyyy')}
+        {format(parseISO(`${month}-01`), t('datePattern.monthYear', { ns: 'common' }))}
       </p>
       <label className="grid gap-1">
         <span className="text-sm font-medium text-text-secondary">{t('columns.planned')}</span>

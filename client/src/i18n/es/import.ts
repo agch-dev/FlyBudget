@@ -3,7 +3,7 @@ import type en from '../en/import';
 
 const es: Translation<typeof en> = {
   title: 'Importar transacciones',
-  dismiss: 'Cerrar',
+  dismiss: 'Descartar',
   back: 'Atrás',
   upload: {
     drop: 'Arrastrá y soltá un archivo CSV o de Excel, o hacé clic para buscarlo',

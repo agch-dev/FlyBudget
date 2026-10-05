@@ -170,7 +170,7 @@ const es: Translation<typeof en> = {
     intro:
       'Se revisó tu historial de transacciones en busca de pagos al mismo beneficiario, por un monto similar, con una frecuencia semanal, quincenal o mensual. Seleccioná los que quieras seguir. Las transacciones anteriores que coincidan se van a vincular con cada nuevo recurrente.',
     missing:
-      '¿Falta algo? Las transacciones solo se agrupan cuando tienen el mismo beneficiario, así que renombrar beneficiarios para que coincidan puede ayudar. Los beneficiarios que ya seguís no aparecen.',
+      '¿Falta algo? Las transacciones solo se agrupan cuando tienen el mismo beneficiario, así que cambiar el nombre de los beneficiarios para que coincidan puede ayudar. Los beneficiarios que ya seguís no aparecen.',
     selectAll: 'Seleccionar todos',
     payee: 'Beneficiario',
     account: 'Cuenta',

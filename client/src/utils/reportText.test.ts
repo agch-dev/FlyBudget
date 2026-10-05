@@ -32,7 +32,7 @@ describe('chart dates', () => {
     expect(formatDateAxisLabels(['2026-03-05', '2026-03-06'])).toEqual(['5 mar', '6 mar']);
     expect(formatDateAxisLabels(['2025-12-31', '2026-01-01'])).toEqual(["31 dic '25", "1 ene '26"]);
     expect(formatDateLabel('2026-03-05')).toBe('5 mar 2026');
-    expect(formatDateLabel('2026-03')).toBe('marzo 2026');
+    expect(formatDateLabel('2026-03')).toBe('marzo de 2026');
   });
 
   it('keeps month labels short in Spanish', () => {

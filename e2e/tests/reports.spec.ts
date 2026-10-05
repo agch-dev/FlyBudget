@@ -210,7 +210,9 @@ test.describe('reports in Spanish', () => {
     );
     await expect(main.getByText(/Gastos \$52\.50 este mes/)).toBeVisible();
     // The month by its Spanish name
-    await expect(main.getByRole('link', { name: new RegExp(`^${month()} \\d{4}$`) })).toBeVisible();
+    await expect(
+      main.getByRole('link', { name: new RegExp(`^${month()} de \\d{4}$`) }),
+    ).toBeVisible();
     for (const english of ['Net Worth', 'Cash Flow', 'Upcoming Bills', 'View all']) {
       await expect(main.getByText(english, { exact: true })).toHaveCount(0);
     }
@@ -236,11 +238,11 @@ test.describe('reports in Spanish', () => {
     }
     await expect(main.getByText('Este mes', { exact: true }).first()).toBeVisible();
     // The calendar: Spanish month name and weekday letters, still Sunday first
-    await expect(main.getByText(new RegExp(`^${month()} \\d{4}$`))).toBeVisible();
+    await expect(main.getByText(new RegExp(`^${month()} de \\d{4}$`))).toBeVisible();
     await expect(main.getByText('D', { exact: true }).first()).toBeVisible();
 
     await page.getByRole('button', { name: 'Agregar widget' }).click();
-    await expect(page.getByText('Lo que entra y lo que sale cada día')).toBeVisible();
+    await expect(page.getByText('Entradas y salidas de cada día')).toBeVisible();
     await page.keyboard.press('Escape');
 
     // A full view: stat cards, table headers and the calendar's day list

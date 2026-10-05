@@ -234,10 +234,10 @@ test.describe('budget', () => {
 test.describe('the budget in Spanish', () => {
   test.use({ language: 'es' });
 
-  /** A month's name as the Spanish app writes it ("octubre 2026"; shown with a capital) */
+  /** A month's name as the Spanish app writes it ("octubre de 2026"; shown with a capital) */
   const monthTitle = (date: Date) =>
     new RegExp(
-      `^${new Intl.DateTimeFormat('es', { month: 'long' }).format(date)} ${date.getFullYear()}$`,
+      `^${new Intl.DateTimeFormat('es', { month: 'long' }).format(date)} de ${date.getFullYear()}$`,
       'i',
     );
 
@@ -291,8 +291,8 @@ test.describe('the budget in Spanish', () => {
       'Planificado',
       'Real',
       'Restante',
-      'Total de ingresos',
-      'Total de gastos',
+      'Ingresos totales',
+      'Gastos totales',
       'Fijos',
       'Flexibles',
       'Resumen',
@@ -331,7 +331,7 @@ test.describe('the budget in Spanish', () => {
       'Resumen',
       'Cantidad de transacciones',
       'Transacción más grande',
-      'Total de gastos',
+      'Gastos totales',
       'Primera transacción',
     ]) {
       await expect(main).toContainText(text);

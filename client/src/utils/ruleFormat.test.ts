@@ -336,7 +336,7 @@ describe('rule summaries in Spanish', () => {
       'Asignar la categoría (eliminada)',
     );
     expect(actionText({ type: 'set_payee', value: 'p1' }, lookups)).toBe(
-      'Renombrar el beneficiario a Starbucks',
+      'Cambiar el nombre del beneficiario a Starbucks',
     );
     expect(actionText({ type: 'set_notes', value: '' }, lookups)).toBe('Borrar las notas');
     expect(actionText({ type: 'set_notes', value: 'trabajo' }, lookups)).toBe(

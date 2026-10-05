@@ -15,8 +15,8 @@ const es: Translation<typeof en> = {
   sections: {
     income: 'Ingresos',
     expenses: 'Gastos',
-    totalIncome: 'Total de ingresos',
-    totalExpenses: 'Total de gastos',
+    totalIncome: 'Ingresos totales',
+    totalExpenses: 'Gastos totales',
   },
   budgetType: {
     fixed: 'Fijos',
@@ -93,8 +93,8 @@ const es: Translation<typeof en> = {
       count: 'Cantidad de transacciones',
       largest: 'Transacción más grande',
       average: 'Transacción promedio',
-      totalIncome: 'Total de ingresos',
-      totalSpending: 'Total de gastos',
+      totalIncome: 'Ingresos totales',
+      totalSpending: 'Gastos totales',
       first: 'Primera transacción',
       last: 'Última transacción',
     },

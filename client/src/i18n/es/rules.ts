@@ -12,7 +12,7 @@ const es: Translation<typeof en> = {
     loading: 'Cargando...',
     emptyTitle: 'Dejá que las reglas ordenen por vos',
     emptyDescription:
-      'Las reglas categorizan, renombran y dividen las transacciones a medida que llegan, por ejemplo “el beneficiario contiene Netflix → Streaming”. También podés crear una desde cualquier transacción.',
+      'Las reglas categorizan las transacciones, les cambian el nombre y las dividen a medida que llegan, por ejemplo “el beneficiario contiene Netflix → Streaming”. También podés crear una desde cualquier transacción.',
     addFirst: 'Agregar tu primera regla',
     countSearch: '{{shown}} de {{total}} reglas',
     count_one: '{{count}} regla · activas: {{enabled}}',
@@ -237,7 +237,7 @@ const es: Translation<typeof en> = {
   },
   actionType: {
     set_category: 'Asignar categoría',
-    set_payee: 'Renombrar beneficiario',
+    set_payee: 'Cambiar nombre del beneficiario',
     set_notes: 'Reemplazar notas',
     prepend_notes: 'Agregar texto antes de las notas',
     append_notes: 'Agregar texto después de las notas',
@@ -245,7 +245,7 @@ const es: Translation<typeof en> = {
   },
   action: {
     set_category: 'Asignar la categoría {{value}}',
-    set_payee: 'Renombrar el beneficiario a {{value}}',
+    set_payee: 'Cambiar el nombre del beneficiario a {{value}}',
     set_notes: 'Reemplazar las notas por {{value}}',
     clear_notes: 'Borrar las notas',
     prepend_notes: 'Agregar {{value}} antes de las notas',
@@ -317,7 +317,7 @@ const es: Translation<typeof en> = {
   },
   preview: {
     fillIn: 'Completá todas las condiciones para ver las transacciones que coinciden',
-    checking: 'Revisando…',
+    checking: 'Comprobando…',
     none: 'Todavía no coincide ninguna transacción',
     matches_one: 'Coincide con {{total}} transacción',
     matches_other: 'Coincide con {{total}} transacciones',

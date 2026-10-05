@@ -70,7 +70,7 @@ const es: Translation<typeof en> = {
 
   rangeControl: {
     freezeHint: 'Dejar estas fechas fijas en vez de que avancen con el mes actual',
-    frozen: 'Fijas',
+    frozen: 'Fechas fijas',
     fromMonth: 'Desde el mes',
     toMonth: 'Hasta el mes',
     to: 'a',
@@ -84,7 +84,7 @@ const es: Translation<typeof en> = {
     },
     'income-expenses': {
       label: 'Ingresos y gastos',
-      description: 'Lo que entra y lo que sale cada mes',
+      description: 'Entradas y salidas de cada mes',
     },
     spending: {
       label: 'Gastos por categoría',
@@ -96,7 +96,7 @@ const es: Translation<typeof en> = {
     },
     calendar: {
       label: 'Calendario de transacciones',
-      description: 'Lo que entra y lo que sale cada día',
+      description: 'Entradas y salidas de cada día',
     },
   },
 
@@ -136,7 +136,7 @@ const es: Translation<typeof en> = {
     cashFlow: {
       title: 'Flujo de fondos',
       netThisMonth: 'Neto de este mes: <amount>{{amount}}</amount>',
-      emptyTitle: 'Todavía no entró ni salió dinero',
+      emptyTitle: 'Todavía no hay entradas ni salidas',
       emptyDescription:
         'Agregá transacciones para comparar lo que entra con lo que sale, mes a mes.',
       addTransaction: 'Agregar una transacción',
@@ -302,7 +302,7 @@ const es: Translation<typeof en> = {
     ownRange: 'Rango de fechas propio',
     followDashboard: 'Seguir al panel',
     ownRangeHint: 'Ignora el rango del panel',
-    frozenNote: 'Fijas: este widget sigue mostrando estos meses.',
+    frozenNote: 'Fechas fijas: este widget sigue mostrando estos meses.',
     liveNote: 'En vivo: este widget avanza con el mes actual.',
   },
 
@@ -342,7 +342,7 @@ const es: Translation<typeof en> = {
       netSavings: 'Ahorro neto',
       savingsRateStat: 'Tasa de ahorro',
       chartTitle: 'Ingresos vs. gastos',
-      chartSubtitle: 'Lo que entra y lo que sale cada mes',
+      chartSubtitle: 'Entradas y salidas de cada mes',
     },
     spending: {
       chartTitle: 'Gastos por categoría',
@@ -375,7 +375,7 @@ const es: Translation<typeof en> = {
       heatmapSubtitle:
         'Cada día se colorea según su neto: verde cuando entró más, rojo cuando salió más. Hacé clic en un día para ver sus transacciones.',
       gridSubtitle:
-        'Verde es lo que entra, rojo es lo que sale. Hacé clic en un día para ver sus transacciones.',
+        'Verde son las entradas, rojo las salidas. Hacé clic en un día para ver sus transacciones.',
       tableTitle: 'Días con transacciones',
       moneyIn: 'Entradas',
       moneyOut: 'Salidas',
@@ -412,7 +412,7 @@ const es: Translation<typeof en> = {
     groupByLabel: 'Agrupar por',
     balanceTypeSection: 'Tipo de saldo',
     dateRangeSection: 'Rango de fechas',
-    frozenNote: 'Fijas: estas fechas no cambian.',
+    frozenNote: 'Fechas fijas: no cambian.',
     liveNote: 'En vivo: avanza con el mes actual.',
     showCategories: 'Mostrar las categorías de {{group}}',
     hideCategories: 'Ocultar las categorías de {{group}}',

@@ -56,6 +56,6 @@ test('the budget plans an amount and opens a category in Spanish', async ({ page
   await card.getByRole('link').click();
   await expect(page).toHaveURL(new RegExp(`#/budget/category/${groceries.id}$`));
   await expect(main).toContainText('Historial de gastos');
-  await expect(main).toContainText('Total de gastos');
+  await expect(main).toContainText('Gastos totales');
   await expect(main).toContainText('Última transacción');
 });

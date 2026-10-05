@@ -26,7 +26,10 @@ export default function BudgetProgress({ currentMonth }: Props) {
   const { data: groups = [], isLoading } = useBudget(currentMonth);
 
   // Not memoized: the month's name follows the App Language
-  const monthLabel = format(parse(currentMonth, 'yyyy-MM', new Date()), 'MMMM yyyy');
+  const monthLabel = format(
+    parse(currentMonth, 'yyyy-MM', new Date()),
+    t('datePattern.monthYear', { ns: 'common' }),
+  );
 
   const groupStats = useMemo(() => {
     const types = ['fixed', 'flexible', 'non_monthly'] as const satisfies BudgetType[];

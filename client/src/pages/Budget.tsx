@@ -487,7 +487,7 @@ export default function BudgetPage() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1">
             <span className="inline-block text-lg font-semibold text-text first-letter:uppercase">
-              {format(monthDate, 'MMMM yyyy')}
+              {format(monthDate, t('datePattern.monthYear', { ns: 'common' }))}
             </span>
           </div>
           <div className="flex items-center gap-2">

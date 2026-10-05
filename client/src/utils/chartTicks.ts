@@ -29,6 +29,6 @@ export function formatDateAxisLabels(values: string[]): string[] {
 export function formatDateLabel(dateStr: unknown): string {
   const s = String(dateStr ?? '');
   if (s.length === 10) return format(parseISO(s), t('datePattern.medium'));
-  if (s.length === 7) return format(parseISO(`${s}-01`), 'MMMM yyyy');
+  if (s.length === 7) return format(parseISO(`${s}-01`), t('datePattern.monthYear'));
   return s;
 }
