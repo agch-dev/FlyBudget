@@ -163,6 +163,8 @@ export function useCreateTransfer() {
               toAccountId: created[1].accountId,
               date: created[0].date,
               amount: Math.abs(created[0].amount),
+              // Its own amount when the accounts have different currencies
+              toAmount: Math.abs(created[1].amount),
               notes: created[0].notes,
             });
           }

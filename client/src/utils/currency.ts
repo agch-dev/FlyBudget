@@ -39,6 +39,32 @@ export function formatCurrency(cents: number, currency: Currency = HOME_CURRENCY
   return cents < 0 ? `-${sym}${formatted}` : `${sym}${formatted}`;
 }
 
+/**
+ * The exchange rate two native amounts imply, in pesos per dollar: $ 40,000 against US$ 1,000
+ * is 40. The order and the signs don't matter. Null when both are in the same currency, or
+ * while either is still zero. (The server has the same function in `utils/currency.ts`.)
+ */
+export function impliedRate(
+  a: { amount: number; currency?: Currency },
+  b: { amount: number; currency?: Currency },
+): number | null {
+  const currencyOf = (x: { currency?: Currency }) => x.currency ?? HOME_CURRENCY;
+  if (currencyOf(a) === currencyOf(b)) return null;
+  const [pesos, dollars] = currencyOf(a) === HOME_CURRENCY ? [a, b] : [b, a];
+  if (pesos.amount === 0 || dollars.amount === 0) return null;
+  return Math.abs(pesos.amount / dollars.amount);
+}
+
+const rateDigits = new Intl.NumberFormat('en-US', {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 3,
+});
+
+/** An exchange rate (pesos per dollar) as the pesos one dollar costs: "US$1 = $40.25" */
+export function formatRate(rate: number): string {
+  return `${currencySymbol('USD')}1 = ${currencySymbol('UYU')}${rateDigits.format(rate)}`;
+}
+
 const oneDecimal = (n: number) => String(Math.round(n * 10) / 10);
 
 /** Short axis label: "$950", "$12.5k", "-$1.2M". Thresholds sit where rounding would reach the next unit. */

@@ -130,11 +130,12 @@ export function outboxEntryFor(
     if (accountId && item.data.accountId !== accountId) return null;
     return { accountId: item.data.accountId, amount: item.data.amount };
   }
-  const { fromAccountId, toAccountId, amount } = item.data;
+  const { fromAccountId, toAccountId, amount, toAmount } = item.data;
   // All accounts: the transfer shows once, as money leaving the first account
   if (!accountId || accountId === fromAccountId)
     return { accountId: fromAccountId, amount: -amount };
-  if (accountId === toAccountId) return { accountId: toAccountId, amount };
+  // Between currencies, what arrives is its own amount in the other account's currency
+  if (accountId === toAccountId) return { accountId: toAccountId, amount: toAmount ?? amount };
   return null;
 }
 
