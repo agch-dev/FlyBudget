@@ -54,8 +54,9 @@ export function formatCentsAxis(cents: number, currency: Currency = HOME_CURRENC
 /**
  * The items a combined total may add up: those in the home currency (pesos). Amounts are
  * stored in each account's own currency, so adding a dollar amount to a pesos one would be
- * wrong by the exchange rate; dollar accounts stay out of combined totals until those
- * totals convert them (docs/adr/0001). Something with no currency counts as pesos.
+ * wrong by the exchange rate; dollar accounts stay out of the combined totals that don't
+ * convert yet (docs/adr/0001; the ones that do use utils/conversion.ts). Something with no
+ * currency counts as pesos.
  */
 export function inHomeCurrency<T extends { currency?: Currency }>(items: readonly T[]): T[] {
   return items.filter((item) => (item.currency ?? HOME_CURRENCY) === HOME_CURRENCY);
@@ -67,23 +68,4 @@ export function homeCurrencyTotal<T extends { currency?: Currency }>(
   amount: (item: T) => number,
 ): number {
   return inHomeCurrency(items).reduce((sum, item) => sum + amount(item), 0);
-}
-
-/**
- * Total for a list of transactions that may come from several accounts (a day in the
- * register, a category's transactions). When they are all in one currency it is their sum in
- * that currency; when the list mixes currencies, only the pesos are added.
- */
-export function listTotal<T extends { currency?: Currency }>(
-  items: readonly T[],
-  amount: (item: T) => number,
-): { currency: Currency; total: number } {
-  const first = items[0]?.currency ?? HOME_CURRENCY;
-  const currency = items.every((item) => (item.currency ?? HOME_CURRENCY) === first)
-    ? first
-    : HOME_CURRENCY;
-  const total = items
-    .filter((item) => (item.currency ?? HOME_CURRENCY) === currency)
-    .reduce((sum, item) => sum + amount(item), 0);
-  return { currency, total };
 }

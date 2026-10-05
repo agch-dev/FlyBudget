@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { db } from '../db/index.js';
 import { accounts, budgetMonths, categories, categoryGroups, transactions } from '../db/schema.js';
 import { eq, and, gte, lte, lt, sql, inArray } from 'drizzle-orm';
+import { convertedAmount, convertedSum } from '../services/convertedAmounts.js';
 import { HOME_CURRENCY } from '../utils/currency.js';
 import { nanoid } from 'nanoid';
 import { z } from 'zod';
@@ -14,13 +15,19 @@ const cents = z.number().int().min(-1e13).max(1e13);
 const upsertSchema = z.object({ budgeted: cents });
 
 // The budget only counts money in on-budget accounts: a categorized dividend in an
-// off-budget brokerage account isn't money to budget. The budget is in pesos, so dollar
-// accounts are left out too until their amounts are converted (see `inHomeCurrency`).
+// off-budget brokerage account isn't money to budget.
 const onBudgetAccountIds = db
   .select({ id: accounts.id })
   .from(accounts)
-  .where(and(eq(accounts.isOffBudget, 0), eq(accounts.currency, HOME_CURRENCY)));
+  .where(eq(accounts.isOffBudget, 0));
 const onBudget = inArray(transactions.accountId, onBudgetAccountIds);
+
+// The budget is in pesos, whatever currency an account holds: every sum of transactions here
+// adds each one converted to pesos at the exchange rate of its own date (docs/adr/0001).
+// Dollar income therefore counts at the rate of the day it arrived, and a later rate never
+// revalues it. Planned amounts (`budget_months`) are entered and stored in pesos.
+const inPesos = convertedAmount(HOME_CURRENCY);
+const pesosTotal = convertedSum(HOME_CURRENCY);
 
 // Every route here takes a YYYY-MM month
 budgetRouter.param('month', (_req, res, next, month) => {
@@ -39,7 +46,7 @@ budgetRouter.get('/:month', (req, res) => {
   const spentRows = db
     .select({
       categoryId: transactions.categoryId,
-      spent: sql<number>`coalesce(sum(${transactions.amount}), 0)`,
+      spent: pesosTotal,
     })
     .from(transactions)
     .where(and(gte(transactions.date, from), lte(transactions.date, to), onBudget))
@@ -59,7 +66,7 @@ budgetRouter.get('/:month', (req, res) => {
   const priorActivityRows = db
     .select({
       categoryId: transactions.categoryId,
-      total: sql<number>`coalesce(sum(${transactions.amount}), 0)`,
+      total: pesosTotal,
     })
     .from(transactions)
     .where(and(lt(transactions.date, from), onBudget))
@@ -165,8 +172,8 @@ budgetRouter.get('/category/:categoryId/history', (req, res) => {
   const startDate = `${adjustedYear}-${String(adjustedMonth).padStart(2, '0')}-01`;
 
   const amountExpr = isIncome
-    ? sql<number>`coalesce(sum(max(${transactions.amount}, 0)), 0)`
-    : sql<number>`coalesce(sum(abs(min(${transactions.amount}, 0))), 0)`;
+    ? sql<number>`coalesce(sum(max(${inPesos}, 0)), 0)`
+    : sql<number>`coalesce(sum(abs(min(${inPesos}, 0))), 0)`;
 
   const rows = db
     .select({
@@ -263,7 +270,7 @@ budgetRouter.get('/:month/summary', (req, res) => {
   const { from, to } = monthBounds(month);
 
   const incomeRow = db
-    .select({ total: sql<number>`coalesce(sum(${transactions.amount}), 0)` })
+    .select({ total: pesosTotal })
     .from(transactions)
     .innerJoin(categories, eq(transactions.categoryId, categories.id))
     .innerJoin(categoryGroups, eq(categories.groupId, categoryGroups.id))
@@ -286,7 +293,7 @@ budgetRouter.get('/:month/summary', (req, res) => {
     .get();
 
   const priorIncomeRow = db
-    .select({ total: sql<number>`coalesce(sum(${transactions.amount}), 0)` })
+    .select({ total: pesosTotal })
     .from(transactions)
     .innerJoin(categories, eq(transactions.categoryId, categories.id))
     .innerJoin(categoryGroups, eq(categories.groupId, categoryGroups.id))

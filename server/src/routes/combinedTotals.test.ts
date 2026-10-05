@@ -6,14 +6,14 @@ import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
 import { db } from '../db/index.js';
 import { categories, categoryGroups } from '../db/schema.js';
 import { accountsRouter } from './accounts.js';
-import { budgetRouter } from './budget.js';
 import { reportsRouter } from './reports.js';
 import { schedulesRouter } from './schedules.js';
 import { transactionsRouter } from './transactions.js';
 
 // Until converted totals exist, a total that combines accounts counts pesos accounts only:
 // adding a dollar amount to a pesos one would be wrong by the exchange rate. Every figure
-// below is what the pesos account alone gives.
+// below is what the pesos account alone gives. The Budget already converts (it counts
+// dollar accounts at each transaction's rate): see budgetConversion.test.ts.
 
 let server: Server;
 let base: string;
@@ -53,7 +53,6 @@ beforeAll(async () => {
   const app = express();
   app.use(express.json());
   app.use('/api/accounts', accountsRouter);
-  app.use('/api/budget', budgetRouter);
   app.use('/api/reports', reportsRouter);
   app.use('/api/schedules', schedulesRouter);
   app.use('/api/transactions', transactionsRouter);
@@ -82,20 +81,6 @@ describe('combined totals leave dollar accounts out', () => {
     const balance = (id: string) => list.find((a: { id: string }) => a.id === id).balance;
     expect(balance(pesosId)).toBe(130_000);
     expect(balance(dollarsId)).toBe(8_900);
-  });
-
-  it('budget: category activity and the month summary', async () => {
-    const groups = await get(`/budget/${month}`);
-    const food = groups
-      .flatMap((g: { categories: unknown[] }) => g.categories)
-      .find((c: { id: string }) => c.id === 'food');
-    expect(food).toMatchObject({ spent: 20_000, balance: -20_000 });
-
-    const summary = await get(`/budget/${month}/summary`);
-    expect(summary).toMatchObject({ income: 50_000, toBeBudgeted: 50_000 });
-
-    const history = await get(`/budget/category/food/history?months=1&currentMonth=${month}`);
-    expect(history.history).toEqual([{ month, amount: 20_000 }]);
   });
 
   it('net worth', async () => {

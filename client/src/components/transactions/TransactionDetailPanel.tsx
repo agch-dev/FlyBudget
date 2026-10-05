@@ -13,7 +13,8 @@ import { useUpdatePayee } from '../../hooks/usePayees';
 import { usePreferencesStore } from '../../store/preferencesStore';
 import { AccountIcon } from '../accounts/AccountIcon';
 import { formatCurrency } from '../../utils/currency';
-import { RECURRENCE_TYPE_LABELS } from '../../types';
+import { convertedNote } from '../../utils/conversion';
+import { HOME_CURRENCY, RECURRENCE_TYPE_LABELS } from '../../types';
 import type {
   Transaction,
   CategoryGroup,
@@ -48,6 +49,8 @@ export function TransactionDetailPanel({
 }: Props) {
   // Native amount: in the transaction's own account's currency
   const currency = tx.currency ?? accounts.find((a) => a.id === tx.accountId)?.currency;
+  // A dollar transaction counts in the Budget, which is in pesos: say what it counts as
+  const converted = convertedNote({ ...tx, currency }, HOME_CURRENCY);
   const updateTx = useUpdateTransaction();
   const updatePayee = useUpdatePayee();
   const deleteTx = useDeleteTransaction();
@@ -182,11 +185,21 @@ export function TransactionDetailPanel({
               )}
             </div>
           </div>
-          <span
-            className={`text-lg font-semibold tabular-nums ${tx.amount > 0 ? 'text-positive' : 'text-text'}`}
-          >
-            {formatCurrency(Math.abs(tx.amount), currency)}
-          </span>
+          <div className="text-right">
+            <div
+              className={`text-lg font-semibold tabular-nums ${tx.amount > 0 ? 'text-positive' : 'text-text'}`}
+            >
+              {formatCurrency(Math.abs(tx.amount), currency)}
+            </div>
+            {converted && (
+              <div
+                className="text-xs text-text-tertiary tabular-nums"
+                data-testid="converted-amount"
+              >
+                {converted}
+              </div>
+            )}
+          </div>
         </div>
 
         {isReconciled && (
@@ -228,7 +241,10 @@ export function TransactionDetailPanel({
                         {childCat?.name ?? 'Uncategorized'}
                       </span>
                     </div>
-                    <span className="tabular-nums text-text-tertiary">
+                    <span
+                      className="tabular-nums text-text-tertiary"
+                      title={convertedNote({ ...child, currency }, HOME_CURRENCY) ?? undefined}
+                    >
                       {formatCurrency(Math.abs(child.amount), currency)}
                     </span>
                   </div>

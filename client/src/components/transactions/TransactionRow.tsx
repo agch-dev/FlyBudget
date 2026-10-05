@@ -7,6 +7,7 @@ import { CategoryPicker } from './CategoryPicker';
 import { PayeePicker } from './PayeePicker';
 import { PayeeIcon } from '../payees/PayeeIcon';
 import { formatCurrency } from '../../utils/currency';
+import { convertedNote } from '../../utils/conversion';
 import { usePreferencesStore } from '../../store/preferencesStore';
 import { AccountIcon } from '../accounts/AccountIcon';
 import type { Currency, Transaction, CategoryGroup, PayeeWithCount } from '../../types';
@@ -20,6 +21,11 @@ interface Props {
   accountName?: string;
   /** The currency of the amount (its account's); defaults to the one sent with the row */
   currency?: Currency;
+  /**
+   * The currency of the totals this list feeds, when it isn't one account's own (the Budget's
+   * pesos): an amount in another currency shows its converted amount on hover
+   */
+  totalCurrency?: Currency;
   accountType?: string;
   accountLogo?: string | null;
   showAccountCol?: boolean;
@@ -37,6 +43,7 @@ export function TransactionRow({
   payees,
   accountName,
   currency = tx.currency,
+  totalCurrency,
   accountType,
   accountLogo,
   showAccountCol,
@@ -52,6 +59,9 @@ export function TransactionRow({
   const updatePayee = useUpdatePayee();
   const navigate = useNavigate();
   const showCategoryIcons = usePreferencesStore((s) => s.showCategoryIcons);
+
+  const converted = (t: Transaction) =>
+    (totalCurrency && convertedNote({ ...t, currency }, totalCurrency)) || undefined;
 
   const isTransfer = !!tx.transferTransactionId;
   const isSplitParent = tx.isParent === 1 && tx.children && tx.children.length > 0;
@@ -249,6 +259,7 @@ export function TransactionRow({
         {/* Amount */}
         <div className="w-24 text-right shrink-0 mx-2">
           <span
+            title={converted(tx)}
             className={`text-sm font-medium tabular-nums ${tx.amount > 0 ? 'text-positive' : 'text-text'}`}
           >
             {formatCurrency(Math.abs(tx.amount), currency)}
@@ -287,6 +298,7 @@ export function TransactionRow({
                 )}
               </div>
               <span
+                title={converted(child)}
                 className={`text-xs tabular-nums shrink-0 ${child.amount > 0 ? 'text-positive' : 'text-text-secondary'}`}
               >
                 {formatCurrency(Math.abs(child.amount), currency)}
