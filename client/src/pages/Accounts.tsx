@@ -22,6 +22,8 @@ import NetWorthMini from '../components/dashboard/NetWorthMini';
 import { ACCOUNT_GROUPS, HOME_CURRENCY, type Account, type AccountGroup } from '../types';
 import { AccountIcon } from '../components/accounts/AccountIcon';
 import { accountTypeInfo, accountTypeLabel } from '../utils/accountTypes';
+import { groupTotal, listAccountsByGroup } from '../utils/accountGroups';
+import { useTodayRate } from '../hooks/useExchangeRates';
 
 function groupAccountsByType(accounts: Account[]) {
   const groups = new Map<AccountGroup, Account[]>();
@@ -43,9 +45,66 @@ interface AccountGroupProps {
   balancesAgo: Record<string, number>;
 }
 
-function AccountGroup({ label, accounts, balancesAgo }: AccountGroupProps) {
-  const [collapsed, setCollapsed] = useState(false);
+/** One account inside a card: icon, name, type and its own balance; opens the account */
+function AccountLine({ account }: { account: Account }) {
   const navigate = useNavigate();
+  return (
+    <div
+      onClick={() => navigate(`/accounts/${account.id}`)}
+      className="flex items-center justify-between px-5 py-4 hover:bg-hover cursor-pointer group transition-colors last:rounded-b-lg"
+    >
+      <div className="min-w-0">
+        <div className="flex items-center gap-3 min-w-0">
+          <AccountIcon name={account.name} type={account.type} logo={account.logo} size="md" />
+          <div className="min-w-0">
+            <span className="text-sm font-medium text-text truncate block">{account.name}</span>
+            <span className="text-xs text-text-tertiary mt-0.5 block">
+              {accountTypeLabel(account.type)}
+            </span>
+          </div>
+        </div>
+      </div>
+      <span className="text-sm font-medium tabular-nums text-text">
+        {formatCurrency(account.balance, account.currency)}
+      </span>
+    </div>
+  );
+}
+
+/**
+ * An Account Group as a card: its name, its combined balance at today's rate, and its
+ * accounts with their own balances. The group itself opens nothing; each account does.
+ */
+function AccountGroupCard({ name, accounts }: { name: string; accounts: Account[] }) {
+  const { currency, total, complete } = groupTotal(accounts, useTodayRate());
+  return (
+    <Card padding="none">
+      <section aria-label={`${name} group`}>
+        <div className="flex items-center justify-between gap-3 px-5 py-3.5 border-b border-border">
+          <div className="flex items-baseline gap-2.5 min-w-0">
+            <h2 className="text-base font-semibold text-text truncate">{name}</h2>
+            <span className="text-xs text-text-tertiary shrink-0">
+              {complete ? 'Group' : 'Group · dollar balances left out: no exchange rate yet'}
+            </span>
+          </div>
+          <span
+            className={`text-base font-semibold tabular-nums ${total < 0 ? 'text-negative' : 'text-text'}`}
+          >
+            {formatCurrency(total, currency)}
+          </span>
+        </div>
+        <div className="divide-y divide-border-light">
+          {accounts.map((account) => (
+            <AccountLine key={account.id} account={account} />
+          ))}
+        </div>
+      </section>
+    </Card>
+  );
+}
+
+function AccountTypeSection({ label, accounts, balancesAgo }: AccountGroupProps) {
+  const [collapsed, setCollapsed] = useState(false);
   // In pesos: dollar accounts are listed with their own balance but not added in
   const groupTotal = homeCurrencyTotal(accounts, (a) => a.balance);
   const groupTotalAgo = homeCurrencyTotal(accounts, (a) => balancesAgo[a.id] ?? a.balance);
@@ -85,33 +144,7 @@ function AccountGroup({ label, accounts, balancesAgo }: AccountGroupProps) {
       {!collapsed && (
         <div className="divide-y divide-border-light">
           {accounts.map((account) => (
-            <div
-              key={account.id}
-              onClick={() => navigate(`/accounts/${account.id}`)}
-              className="flex items-center justify-between px-5 py-4 hover:bg-hover cursor-pointer group transition-colors last:rounded-b-lg"
-            >
-              <div className="min-w-0">
-                <div className="flex items-center gap-3 min-w-0">
-                  <AccountIcon
-                    name={account.name}
-                    type={account.type}
-                    logo={account.logo}
-                    size="md"
-                  />
-                  <div className="min-w-0">
-                    <span className="text-sm font-medium text-text truncate block">
-                      {account.name}
-                    </span>
-                    <span className="text-xs text-text-tertiary mt-0.5 block">
-                      {accountTypeLabel(account.type)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <span className="text-sm font-medium tabular-nums text-text">
-                {formatCurrency(account.balance, account.currency)}
-              </span>
-            </div>
+            <AccountLine key={account.id} account={account} />
           ))}
         </div>
       )}
@@ -124,7 +157,16 @@ export default function AccountsPage() {
   const { data: balancesAgo = {} } = useBalancesAgo();
   const [addOpen, setAddOpen] = useState(false);
   useOpenFromLink('add', () => setAddOpen(true));
-  const allGroups = useMemo(() => groupAccountsByType(accounts), [accounts]);
+  // Account Groups get a card each; the accounts with no group stay in the cards by type
+  const { groups, byType } = useMemo(() => {
+    const entries = listAccountsByGroup(accounts);
+    return {
+      groups: entries.filter((e) => e.kind === 'group'),
+      byType: groupAccountsByType(
+        entries.flatMap((e) => (e.kind === 'account' ? [e.account] : [])),
+      ),
+    };
+  }, [accounts]);
 
   if (isLoading) {
     return (
@@ -187,10 +229,14 @@ export default function AccountsPage() {
               <p className="text-xs text-text-tertiary">
                 Totals and net worth are in pesos and don&apos;t include dollar accounts yet. Each
                 dollar account shows its own balance.
+                {groups.length > 0 && " A group's total does, at today's exchange rate."}
               </p>
             )}
-            {allGroups.map((g) => (
-              <AccountGroup
+            {groups.map((g) => (
+              <AccountGroupCard key={`group:${g.name}`} name={g.name} accounts={g.accounts} />
+            ))}
+            {byType.map((g) => (
+              <AccountTypeSection
                 key={g.label}
                 label={g.label}
                 accounts={g.accounts}

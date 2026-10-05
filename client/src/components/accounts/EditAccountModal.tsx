@@ -10,6 +10,7 @@ import { HOME_CURRENCY, type Account, type AccountType, type Currency } from '..
 import { AccountIcon } from './AccountIcon';
 import { AccountTypeSelect } from './AccountTypeSelect';
 import { CurrencySelect } from './CurrencySelect';
+import { AccountGroupField } from './AccountGroupField';
 import { fileToSquareDataUrl } from '../../utils/imageResize';
 import { usePreferencesStore } from '../../store/preferencesStore';
 
@@ -23,6 +24,7 @@ export function EditAccountModal({ account, onClose }: Props) {
   const [type, setType] = useState<AccountType>('checking');
   const [currency, setCurrency] = useState<Currency>(HOME_CURRENCY);
   const [startingBalance, setStartingBalance] = useState(0);
+  const [groupName, setGroupName] = useState('');
   const [isOffBudget, setIsOffBudget] = useState(false);
   const [confirmClose, setConfirmClose] = useState(false);
   const canSave = useCanSave();
@@ -41,6 +43,7 @@ export function EditAccountModal({ account, onClose }: Props) {
     setType(account.type);
     setCurrency(account.currency);
     setStartingBalance(account.startingBalance);
+    setGroupName(account.groupName ?? '');
     setIsOffBudget(account.isOffBudget === 1);
     setLogo(account.logo ?? null);
     setLogoError(null);
@@ -49,6 +52,7 @@ export function EditAccountModal({ account, onClose }: Props) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!account || !name.trim()) return;
+    const group = groupName.trim() || null;
     await updateAccount.mutateAsync({
       id: account.id,
       data: {
@@ -59,6 +63,7 @@ export function EditAccountModal({ account, onClose }: Props) {
         // Only when chosen anew: the server refuses a change once there are transactions
         ...(currency !== account.currency ? { currency } : {}),
         ...(logo !== (account.logo ?? null) ? { logo } : {}),
+        ...(group !== (account.groupName ?? null) ? { groupName: group } : {}),
       },
     });
     onClose();
@@ -165,6 +170,8 @@ export function EditAccountModal({ account, onClose }: Props) {
               aria-label="Starting balance"
             />
           </div>
+
+          <AccountGroupField value={groupName} onChange={setGroupName} />
 
           <label className="flex items-center gap-3 cursor-pointer">
             <input

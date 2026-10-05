@@ -9,6 +9,8 @@ export const createAccount = (data: {
   startingBalance: number;
   isOffBudget?: number;
   currency?: Currency;
+  /** The Account Group to join or start; null or blank = none */
+  groupName?: string | null;
 }) => apiFetch<Account>('/accounts', { method: 'POST', body: JSON.stringify(data) });
 
 export const updateAccount = (
@@ -21,6 +23,7 @@ export const updateAccount = (
     logo: string | null;
     /** Refused by the server once the account has transactions */
     currency: Currency;
+    groupName: string | null;
   }>,
 ) => apiFetch<Account>(`/accounts/${id}`, { method: 'PUT', body: JSON.stringify(data) });
 

@@ -8,6 +8,7 @@ import { HOME_CURRENCY, type AccountType, type Currency } from '../../types';
 import { accountTypeInfo } from '../../utils/accountTypes';
 import { AccountTypeSelect } from './AccountTypeSelect';
 import { CurrencySelect } from './CurrencySelect';
+import { AccountGroupField } from './AccountGroupField';
 
 interface Props {
   isOpen: boolean;
@@ -19,6 +20,7 @@ export function AddAccountModal({ isOpen, onClose }: Props) {
   const [type, setType] = useState<AccountType>('checking');
   const [currency, setCurrency] = useState<Currency>(HOME_CURRENCY);
   const [amount, setAmount] = useState(0);
+  const [groupName, setGroupName] = useState('');
   const [isOffBudget, setIsOffBudget] = useState(false);
   const canSave = useCanSave();
   const createAccount = useCreateAccount();
@@ -29,6 +31,7 @@ export function AddAccountModal({ isOpen, onClose }: Props) {
     setType('checking');
     setCurrency(HOME_CURRENCY);
     setAmount(0);
+    setGroupName('');
     setIsOffBudget(false);
     onClose();
   }
@@ -45,6 +48,7 @@ export function AddAccountModal({ isOpen, onClose }: Props) {
       name: name.trim(),
       type,
       currency,
+      groupName: groupName.trim() || null,
       // Debts are entered as the amount owed and stored as a negative balance
       startingBalance: info.liability ? -Math.abs(amount) : amount,
       isOffBudget: isOffBudget ? 1 : 0,
@@ -99,6 +103,8 @@ export function AddAccountModal({ isOpen, onClose }: Props) {
           />
           <p className="mt-1 text-xs text-text-secondary">{amountHint}</p>
         </div>
+
+        <AccountGroupField value={groupName} onChange={setGroupName} />
 
         <label className="flex items-start gap-3 cursor-pointer">
           <input

@@ -26,6 +26,9 @@ function ratesChanged(qc: QueryClient) {
 export const useExchangeRates = () =>
   useQuery({ queryKey: KEY, queryFn: ratesApi.getExchangeRates });
 
+/** Today's rate (pesos per dollar), for balances shown as of now; null while none is stored */
+export const useTodayRate = (): number | null => useExchangeRates().data?.current?.rate ?? null;
+
 /** The Refresh button: the server fetches from the last stored date through today. */
 export function useRefreshExchangeRates() {
   const qc = useQueryClient();
