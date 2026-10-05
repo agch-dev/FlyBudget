@@ -4,15 +4,19 @@ import { NavLink } from 'react-router-dom';
 import { Plus, Building2, Link2, ChevronDown, ChevronRight } from 'lucide-react';
 import { useAccounts } from '../../hooks/useAccounts';
 import { usePlaidStatus } from '../../hooks/usePlaid';
-import { useTodayRate } from '../../hooks/useExchangeRates';
+import { format } from 'date-fns';
+import { useExchangeRates, useTodayRate } from '../../hooks/useExchangeRates';
 import { usePreferencesStore } from '../../store/preferencesStore';
 import { groupTotal, listAccountsByGroup } from '../../utils/accountGroups';
-import { formatCurrency, homeCurrencyTotal } from '../../utils/currency';
+import { formatCurrency } from '../../utils/currency';
+import { balancesTotal } from '../../utils/balanceConversion';
 import { AddAccountModal } from '../accounts/AddAccountModal';
 import { ConnectBankModal } from '../plaid/ConnectBankModal';
 import { PlaidSetupModal } from '../plaid/PlaidSetupModal';
 import { SimplefinConnectModal } from '../simplefin/SimplefinConnectModal';
-import type { Account } from '../../types';
+import { HOME_CURRENCY, type Account } from '../../types';
+
+const NO_RATES: never[] = [];
 
 /** Three 36px rows plus padding */
 const MENU_HEIGHT = 116;
@@ -148,11 +152,14 @@ export function SidebarAccountList() {
 
   const onBudget = accounts.filter((a) => a.isOffBudget === 0);
   const offBudget = accounts.filter((a) => a.isOffBudget === 1);
-  // Totals are in pesos; dollar accounts show their own balance on their row only
-  const balance = (a: Account) => a.balance;
-  const allTotal = homeCurrencyTotal(accounts, balance);
-  const onBudgetTotal = homeCurrencyTotal(onBudget, balance);
-  const offBudgetTotal = homeCurrencyTotal(offBudget, balance);
+  // Totals are in pesos, dollar balances counted at today's rate (rows keep native balances)
+  const { data: rates } = useExchangeRates();
+  const today = format(new Date(), 'yyyy-MM-dd');
+  const total = (list: Account[]) =>
+    balancesTotal(list, HOME_CURRENCY, today, rates?.rates ?? NO_RATES);
+  const allTotal = total(accounts);
+  const onBudgetTotal = total(onBudget);
+  const offBudgetTotal = total(offBudget);
 
   return (
     <>

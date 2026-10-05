@@ -227,9 +227,9 @@ export default function AccountsPage() {
           <div className="px-6 pb-6 space-y-4">
             {accounts.some((a) => a.currency !== HOME_CURRENCY) && (
               <p className="text-xs text-text-tertiary">
-                Totals and net worth are in pesos and don&apos;t include dollar accounts yet. Each
-                dollar account shows its own balance.
-                {groups.length > 0 && " A group's total does, at today's exchange rate."}
+                The totals below are in pesos and don&apos;t include dollar accounts yet. Each
+                dollar account shows its own balance; net worth counts it at the day&apos;s rate.
+                {groups.length > 0 && " A group's total does too, at today's exchange rate."}
               </p>
             )}
             {groups.map((g) => (

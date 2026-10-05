@@ -1,5 +1,6 @@
 import { apiFetch } from './client';
 import type {
+  Currency,
   NetWorthPoint,
   IncomeExpensesPoint,
   SpendingByCategory,
@@ -11,9 +12,15 @@ import type {
 
 const toQueryString = (from: string, to: string) => `?from=${from}&to=${to}`;
 
-export const getNetWorth = (from: string, to: string, granularity?: 'daily' | 'monthly') =>
+/** Net worth in `currency` (pesos when left out), each point at the rate of its own day */
+export const getNetWorth = (
+  from: string,
+  to: string,
+  granularity?: 'daily' | 'monthly',
+  currency?: Currency,
+) =>
   apiFetch<NetWorthPoint[]>(
-    `/reports/net-worth${toQueryString(from, to)}${granularity ? `&granularity=${granularity}` : ''}`,
+    `/reports/net-worth${toQueryString(from, to)}${granularity ? `&granularity=${granularity}` : ''}${currency ? `&currency=${currency}` : ''}`,
   );
 
 export const getIncomeVsExpenses = (from: string, to: string) =>

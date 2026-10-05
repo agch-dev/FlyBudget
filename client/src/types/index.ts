@@ -333,10 +333,14 @@ export interface Account {
 }
 
 export interface NetWorthPoint {
+  /** YYYY-MM, or YYYY-MM-DD for daily points */
   month: string;
+  /** In the currency asked for (pesos by default), balances converted at this point's rate */
   assets: number;
   liabilities: number;
   netWorth: number;
+  /** What the total is made of: each currency's own net worth in its native amount */
+  native?: Record<Currency, number>;
 }
 export interface IncomeExpensesPoint {
   month: string;

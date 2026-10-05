@@ -149,7 +149,10 @@ test.describe('accounts', () => {
     await expect(main).toContainText(/Loans\s*-\$12,000/);
   });
 
-  test('a dollar account shows US$ and stays out of the pesos totals', async ({ page, api }) => {
+  test('a dollar account shows US$ and, with no exchange rate yet, stays out of the totals', async ({
+    page,
+    api,
+  }) => {
     await api.createAccount('Caja pesos', 100_000);
     await open(page, '/accounts');
     await page.getByRole('main').getByRole('button', { name: 'Add Account' }).click();
@@ -177,6 +180,38 @@ test.describe('accounts', () => {
     await nav.getByRole('button', { name: 'For budget $1,000' }).click();
     await expect(nav.getByRole('link', { name: 'Caja dolares US$250.50' })).toBeVisible();
     await expect(nav.getByRole('link', { name: 'Caja pesos $1,000' })).toBeVisible();
+  });
+
+  test('net worth and the sidebar totals count a dollar account at the rate of the day', async ({
+    page,
+    api,
+  }) => {
+    await api.createAccount('Caja pesos', 100_000);
+    await api.createAccount('Caja dolares', 25_050, 'savings', { currency: 'USD' });
+    await api.call('PUT', `/exchange-rates/${isoDay()}`, { rate: 40 });
+    await open(page, '/accounts');
+
+    // $ 1,000 + US$ 250.50 × 40
+    const main = page.getByRole('main');
+    await expect(main).toContainText(/Net Worth\s*\$11,020/);
+    await expect(main.getByTestId('net-worth-breakdown')).toHaveText('$1,000 + US$250.50');
+    const nav = page.getByRole('complementary');
+    await expect(nav.getByRole('link', { name: 'All accounts $11,020' })).toBeVisible();
+    await nav.getByRole('button', { name: 'For budget $11,020' }).click();
+    // Each account keeps its own balance in its own currency
+    await expect(nav.getByRole('link', { name: 'Caja dolares US$250.50' })).toBeVisible();
+
+    // The dollar moves and no balance does: net worth follows
+    await api.call('PUT', `/exchange-rates/${isoDay()}`, { rate: 42 });
+    await page.reload();
+    await expect(main).toContainText(/Net Worth\s*\$11,521/);
+    await expect(nav.getByRole('link', { name: 'All accounts $11,521' })).toBeVisible();
+
+    await open(page, '/dashboard');
+    await expect(page.getByRole('main')).toContainText(/Net Worth\s*\$11,521/);
+    await expect(page.getByRole('main').getByTestId('net-worth-breakdown')).toHaveText(
+      '$1,000 + US$250.50',
+    );
   });
 
   test('a dollar account lists its transactions in dollars, here and in All Transactions', async ({

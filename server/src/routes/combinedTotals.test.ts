@@ -13,7 +13,8 @@ import { transactionsRouter } from './transactions.js';
 // Until converted totals exist, a total that combines accounts counts pesos accounts only:
 // adding a dollar amount to a pesos one would be wrong by the exchange rate. Every figure
 // below is what the pesos account alone gives. The Budget already converts (it counts
-// dollar accounts at each transaction's rate): see budgetConversion.test.ts.
+// dollar accounts at each transaction's rate): see budgetConversion.test.ts. So does net worth
+// (each balance at the rate of the day shown): see netWorthConversion.test.ts.
 
 let server: Server;
 let base: string;
@@ -81,14 +82,6 @@ describe('combined totals leave dollar accounts out', () => {
     const balance = (id: string) => list.find((a: { id: string }) => a.id === id).balance;
     expect(balance(pesosId)).toBe(130_000);
     expect(balance(dollarsId)).toBe(8_900);
-  });
-
-  it('net worth', async () => {
-    const points = await get(`/reports/net-worth?from=${month}&to=${month}`);
-    expect(points.at(-1)).toMatchObject({ assets: 130_000, liabilities: 0, netWorth: 130_000 });
-
-    const daily = await get(`/reports/net-worth?granularity=daily&from=${today}&to=${today}`);
-    expect(daily.at(-1)).toMatchObject({ netWorth: 130_000 });
   });
 
   it('spending and income by category', async () => {
