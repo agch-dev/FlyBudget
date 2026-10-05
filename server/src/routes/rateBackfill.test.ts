@@ -4,7 +4,7 @@ import type { AddressInfo } from 'net';
 import type { Server } from 'http';
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
 import { db } from '../db/index.js';
-import { exchangeRates, transactions } from '../db/schema.js';
+import { exchangeRates, scheduleOccurrences, schedules, transactions } from '../db/schema.js';
 import type { DateRange, RatePoint } from '../services/exchangeRates.js';
 import {
   backfillRatesForDate,
@@ -13,7 +13,8 @@ import {
 } from '../services/exchangeRateService.js';
 import { accountsRouter } from './accounts.js';
 import { createExchangeRatesRouter } from './exchangeRates.js';
-import { createRateBackfill } from './rateBackfill.js';
+import { createRateBackfill, createScheduleRateBackfill } from './rateBackfill.js';
+import { schedulesRouter } from './schedules.js';
 import { transactionsRouter } from './transactions.js';
 
 // A dollar transaction older than every stored rate fetches the missing history; when that
@@ -64,6 +65,7 @@ beforeAll(async () => {
   app.use(express.json());
   app.use('/api/accounts', accountsRouter);
   app.use('/api/transactions', createRateBackfill(source), transactionsRouter);
+  app.use('/api/schedules', createScheduleRateBackfill(source), schedulesRouter);
   app.use('/api/exchange-rates', createExchangeRatesRouter(source));
   server = await new Promise<Server>((r) => {
     const s = app.listen(0, '127.0.0.1', () => r(s));
@@ -78,7 +80,9 @@ beforeAll(async () => {
 afterAll(() => server.close());
 
 beforeEach(async () => {
+  db.delete(scheduleOccurrences).run();
   db.delete(transactions).run();
+  db.delete(schedules).run();
   db.delete(exchangeRates).run();
   resetExchangeRateFetchState();
   asked = [];
@@ -267,6 +271,88 @@ describe('adding a dollar transaction older than every stored rate', () => {
     } finally {
       slow.close();
     }
+  });
+});
+
+describe('moving a dollar transaction to a date older than every stored rate', () => {
+  it('fetches the missing history', async () => {
+    storeFetched(march);
+    const tx = (await add(dollarsId, '2024-05-02')).body;
+    expect(asked).toEqual([]);
+    answer = () => [{ date: '2023-11-10', rate: 39.8 }];
+    const moved = await send('PUT', `/transactions/${tx.id}`, { date: '2023-11-10' });
+    expect(moved.status).toBe(200);
+    expect(asked).toEqual([{ start: '2023-11-03', end: '2024-03-01' }]);
+    expect(await estimated()).toEqual({ dates: [] });
+  });
+
+  it('fetches for the dollar side of a transfer edited from its pesos side', async () => {
+    storeFetched(march);
+    const made = await send('POST', '/transactions/transfer', {
+      fromAccountId: pesosId,
+      toAccountId: dollarsId,
+      date: '2024-05-02',
+      amount: 400_000,
+      toAmount: 10_000,
+    });
+    expect(made.status).toBe(201);
+    const rows: { id: string; accountId: string }[] = (await send('GET', '/transactions')).body;
+    const pesosSide = rows.find((t) => t.accountId === pesosId)!;
+    const moved = await send('PUT', `/transactions/${pesosSide.id}`, { date: '2023-11-10' });
+    expect(moved.status).toBe(200);
+    expect(asked).toEqual([{ start: '2023-11-03', end: '2024-03-01' }]);
+  });
+
+  it('saves the change when the source cannot be reached, and reports the date', async () => {
+    storeFetched(march);
+    const tx = (await add(dollarsId, '2024-05-02')).body;
+    answer = unreachable;
+    const moved = await send('PUT', `/transactions/${tx.id}`, { date: '2023-11-10' });
+    expect(moved.status).toBe(200);
+    expect(await estimated()).toEqual({ dates: ['2023-11-10'] });
+  });
+
+  it('asks nothing for an edit that leaves the date alone, or for a pesos transaction', async () => {
+    storeFetched(march);
+    const dollars = (await add(dollarsId, '2024-05-02')).body;
+    const pesos = (await add(pesosId, '2024-05-02')).body;
+    await send('PUT', `/transactions/${dollars.id}`, { notes: 'lunch' });
+    await send('PUT', `/transactions/${pesos.id}`, { date: '2019-01-01' });
+    await send('PUT', '/transactions/no-such-transaction', { date: '2019-01-01' });
+    expect(asked).toEqual([]);
+  });
+});
+
+describe('marking a recurring item paid in a dollar account', () => {
+  const recurring = async (accountId: string) =>
+    (
+      await send('POST', '/schedules', {
+        name: 'Hosting',
+        accountId,
+        amount: -2_000,
+        recurrenceType: 'monthly',
+        startDate: '2026-01-10',
+      })
+    ).body;
+
+  it('fetches the missing history for a payment older than every stored rate', async () => {
+    storeFetched(march);
+    const item = await recurring(dollarsId);
+    answer = () => [{ date: '2023-11-10', rate: 39.8 }];
+    const paid = await send('POST', `/schedules/${item.id}/mark-paid`, { date: '2023-11-10' });
+    expect(paid.status).toBe(201);
+    expect(asked).toEqual([{ start: '2023-11-03', end: '2024-03-01' }]);
+    expect(await estimated()).toEqual({ dates: [] });
+  });
+
+  it('asks nothing for a pesos item, a covered date or any other recurring request', async () => {
+    storeFetched(march);
+    const inPesos = await recurring(pesosId);
+    const inDollars = await recurring(dollarsId);
+    await send('POST', `/schedules/${inPesos.id}/mark-paid`, { date: '2023-11-10' });
+    await send('POST', `/schedules/${inDollars.id}/mark-paid`, { date: '2026-01-10' });
+    await send('PUT', `/schedules/${inDollars.id}`, { name: 'Servers' });
+    expect(asked).toEqual([]);
   });
 });
 
