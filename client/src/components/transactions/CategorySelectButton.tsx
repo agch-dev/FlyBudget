@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ChevronDown } from 'lucide-react';
 import { useCategories } from '../../hooks/useCategories';
 import { usePreferencesStore } from '../../store/preferencesStore';
@@ -20,9 +21,11 @@ export function CategorySelectButton({
   value,
   onChange,
   position = 'below',
-  placeholder = 'Search categories...',
+  placeholder,
   transferAccounts,
 }: Props) {
+  const { t } = useTranslation('transactions');
+  const shownPlaceholder = placeholder ?? t('picker.searchCategories');
   const showCategoryIcons = usePreferencesStore((s) => s.showCategoryIcons);
   const { data: groups = [] } = useCategories();
   const [open, setOpen] = useState(false);
@@ -31,21 +34,21 @@ export function CategorySelectButton({
     if (!value) return null;
     if (value.startsWith('transfer:')) {
       const account = transferAccounts?.find((a) => `transfer:${a.id}` === value);
-      return account ? { name: `Transfer: ${account.name}`, icon: null } : null;
+      return account ? { name: t('term.transferTo', { account: account.name }), icon: null } : null;
     }
     for (const g of groups as CategoryGroup[]) {
       const cat = g.categories.find((c) => c.id === value);
       if (cat) return { name: cat.name, icon: cat.icon };
     }
     return null;
-  }, [value, groups, transferAccounts]);
+  }, [value, groups, transferAccounts, t]);
 
   return (
     <div className="relative">
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        aria-label={`Category: ${entry?.name ?? placeholder}`}
+        aria-label={t('picker.categoryNamed', { name: entry?.name ?? shownPlaceholder })}
         aria-expanded={open}
         className={`${selectorInputClass} text-left flex items-center justify-between cursor-pointer`}
       >
@@ -56,7 +59,7 @@ export function CategorySelectButton({
               <span className="text-text">{entry.name}</span>
             </>
           ) : (
-            <span className="text-text-disabled">{placeholder}</span>
+            <span className="text-text-disabled">{shownPlaceholder}</span>
           )}
         </span>
         <ChevronDown size={14} className="text-text-tertiary shrink-0" />

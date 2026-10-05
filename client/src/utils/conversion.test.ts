@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
 import { amountIn, convertedNote, listTotal, totalIn } from './conversion';
 import type { Currency } from '../types';
+import { setLanguage } from '../i18n';
 
 const groceries = { amount: -5_000, currency: 'USD' as const, convertedAmount: -200_000 };
 const rent = { amount: -30_000, currency: 'UYU' as const, convertedAmount: -750 };
@@ -60,6 +61,13 @@ describe('convertedNote', () => {
     );
     expect(convertedNote({ ...rent, date: '2026-03-10' }, 'USD')).toBe(
       'US$7.50 at the exchange rate of Mar 10, 2026',
+    );
+  });
+
+  it('says it in Spanish, with the day written the Spanish way', () => {
+    setLanguage('es');
+    expect(convertedNote({ ...groceries, date: '2026-03-03' }, 'UYU')).toBe(
+      '$2,000 al tipo de cambio del 3 mar 2026',
     );
   });
 

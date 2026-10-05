@@ -1,4 +1,5 @@
 import type { TransferSuggestion } from '../api/transferSuggestions';
+import { t } from '../i18n';
 
 /** The suggestions with a side in this account's register; all of them without an account */
 export function suggestionsForAccount(
@@ -13,5 +14,5 @@ export function suggestionsForAccount(
 
 /** "1 possible transfer" / "3 possible transfers" */
 export function suggestionCountLabel(count: number): string {
-  return `${count} possible transfer${count === 1 ? '' : 's'}`;
+  return t('transactions:suggestions.count', { count });
 }

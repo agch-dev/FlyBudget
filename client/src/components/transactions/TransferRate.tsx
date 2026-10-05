@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { formatRate } from '../../utils/exchangeRates';
 
 /**
@@ -12,10 +13,11 @@ export function TransferRate({
   rate: number | null;
   className?: string;
 }) {
+  const { t } = useTranslation('transactions');
   if (rate === null) return null;
   return (
     <p className={`text-xs text-text-tertiary tabular-nums ${className}`} aria-live="polite">
-      Rate: $ {formatRate(rate)} per US$ 1
+      {t('transferRate', { rate: formatRate(rate) })}
     </p>
   );
 }

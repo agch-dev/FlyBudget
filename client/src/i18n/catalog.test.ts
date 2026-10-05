@@ -7,8 +7,6 @@ import { CATALOGS, NAMESPACES, catalogKeys, type Namespace } from './catalog';
  * language fails this test. The list is empty once the whole app is translated.
  */
 const STILL_TO_TRANSLATE: Namespace[] = [
-  'transactions',
-  'import',
   'budget',
   'reports',
   'recurring',

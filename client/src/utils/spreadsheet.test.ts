@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
+import { setLanguage } from '../i18n';
 import { readSpreadsheet, sheetText, spreadsheetKind, SpreadsheetError } from './spreadsheet';
 import { isDateFormat, numberText, serialToIsoDate } from './spreadsheetCells';
 import { parseImportAmount, readTable } from './csv';
@@ -162,6 +163,25 @@ describe('readSpreadsheet (.xlsx)', () => {
       SpreadsheetError,
     );
     await expect(readSpreadsheet(utf8('Date,Amount\n'))).rejects.toThrow(SpreadsheetError);
+  });
+
+  it('says why in the App Language', async () => {
+    const notWorkbook = await zip({ 'hello.txt': 'hi' });
+    await expect(readSpreadsheet(notWorkbook)).rejects.toThrow(
+      "This file isn't an Excel workbook.",
+    );
+    const bytes = await zip(workbookFiles);
+    const damaged = bytes.subarray(0, bytes.length - 30);
+    await expect(readSpreadsheet(damaged)).rejects.toThrow(
+      "This Excel file is damaged and can't be read.",
+    );
+    setLanguage('es');
+    await expect(readSpreadsheet(notWorkbook)).rejects.toThrow(
+      'Este archivo no es un libro de Excel.',
+    );
+    await expect(readSpreadsheet(damaged)).rejects.toThrow(
+      'Este archivo de Excel está dañado y no se puede leer.',
+    );
   });
 
   it('never throws anything but its own error on arbitrary bytes (property-based)', async () => {

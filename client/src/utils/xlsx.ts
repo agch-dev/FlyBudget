@@ -8,6 +8,7 @@ import {
   type Sheet,
   type SparseRows,
 } from './spreadsheetCells';
+import { t } from '../i18n';
 
 // Reads Excel workbooks (.xlsx, .xltx, .xlsm): a zip of XML files. Only what an import
 // needs: each sheet's cell values. Files come from banks, so they are untrusted input:
@@ -16,7 +17,7 @@ import {
 /** A workbook's unpacked files may not be larger than this in total */
 const MAX_UNPACKED_BYTES = 200 * 1024 * 1024;
 
-const corrupt = () => new SpreadsheetError("This Excel file is damaged and can't be read.");
+const corrupt = () => new SpreadsheetError(t('import:spreadsheet.damaged'));
 
 interface ZipEntry {
   method: number;
@@ -66,7 +67,7 @@ async function unzipText(
   const packed = bytes.subarray(start, start + entry.compressedSize);
   if (packed.length !== entry.compressedSize) throw corrupt();
 
-  const tooLarge = () => new SpreadsheetError('This Excel file is too large to import.');
+  const tooLarge = () => new SpreadsheetError(t('import:spreadsheet.tooLarge'));
   if (entry.method === 0) {
     if ((budget.left -= packed.length) < 0) throw tooLarge();
     return new TextDecoder().decode(packed);
@@ -221,7 +222,7 @@ export async function readXlsx(bytes: Uint8Array): Promise<Sheet[]> {
 
   const workbook = await file('xl/workbook.xml');
   if (workbook === undefined) {
-    throw new SpreadsheetError("This file isn't an Excel workbook.");
+    throw new SpreadsheetError(t('import:spreadsheet.notWorkbook'));
   }
   const targets = new Map<string, string>();
   for (const { attrs } of elements(
@@ -250,7 +251,7 @@ export async function readXlsx(bytes: Uint8Array): Promise<Sheet[]> {
     const xml = await file(path);
     if (xml === undefined) continue;
     sheets.push({
-      name: attr(attrs, 'name') ?? `Sheet ${position}`,
+      name: attr(attrs, 'name') ?? t('import:spreadsheet.sheetName', { number: position }),
       rows: readSheet(xml, strings, isDateStyle, date1904),
     });
   }

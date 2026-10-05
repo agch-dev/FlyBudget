@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Search, Check, Plus, X } from 'lucide-react';
 import { useCreateCategory } from '../../hooks/useCategories';
 import { usePreferencesStore } from '../../store/preferencesStore';
@@ -22,6 +23,7 @@ export function CategoryPicker({
   position = 'below',
   transferAccounts = [],
 }: Props) {
+  const { t } = useTranslation('transactions');
   const [query, setQuery] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState('');
@@ -60,7 +62,7 @@ export function CategoryPicker({
     }))
     .filter((g) => g.categories.length > 0);
   const filteredTransfers = transferAccounts.filter((a) =>
-    `Transfer: ${a.name}`.toLowerCase().includes(query.toLowerCase()),
+    t('term.transferTo', { account: a.name }).toLowerCase().includes(query.toLowerCase()),
   );
 
   const selectedGroup = groups.find((g) => g.id === newGroupId);
@@ -99,8 +101,8 @@ export function CategoryPicker({
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search categories..."
-            aria-label="Search categories"
+            placeholder={t('picker.searchCategories')}
+            aria-label={t('picker.searchCategoriesLabel')}
             className="w-full pl-8 pr-3 py-1.5 text-sm border border-border rounded-md bg-surface text-text focus:border-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-600"
           />
         </div>
@@ -112,7 +114,7 @@ export function CategoryPicker({
           onClick={() => onChange(null)}
           className={`w-full text-left px-3 py-2 text-sm flex items-center justify-between hover:bg-hover ${value === null ? 'bg-brand-50 text-brand-700' : 'text-text-secondary'}`}
         >
-          <span className="italic">Uncategorized</span>
+          <span className="italic">{t('term.uncategorized')}</span>
           {value === null && <Check size={14} className="text-brand-600 shrink-0" />}
         </button>
 
@@ -141,7 +143,7 @@ export function CategoryPicker({
         {filteredTransfers.length > 0 && (
           <div>
             <div className="px-3 py-1.5 text-xs font-medium text-text-tertiary bg-surface-alt">
-              Transfer
+              {t('term.transfer')}
             </div>
             {filteredTransfers.map((a) => {
               const id = `transfer:${a.id}`;
@@ -152,7 +154,9 @@ export function CategoryPicker({
                   onClick={() => onChange(id)}
                   className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2 hover:bg-hover ${value === id ? 'bg-brand-50 text-brand-700' : 'text-text'}`}
                 >
-                  <span className="truncate flex-1">Transfer: {a.name}</span>
+                  <span className="truncate flex-1">
+                    {t('term.transferTo', { account: a.name })}
+                  </span>
                   {value === id && <Check size={14} className="text-brand-600 shrink-0" />}
                 </button>
               );
@@ -162,7 +166,7 @@ export function CategoryPicker({
 
         {filtered.length === 0 && filteredTransfers.length === 0 && (
           <div className="px-3 py-4 text-sm text-text-tertiary text-center">
-            No categories found
+            {t('picker.noCategories')}
           </div>
         )}
       </div>
@@ -183,13 +187,7 @@ export function CategoryPicker({
             </select>
             {!isIncomeGroup && (
               <div className="flex gap-1">
-                {(
-                  [
-                    ['fixed', 'Fixed'],
-                    ['flexible', 'Flexible'],
-                    ['non_monthly', 'Non-Monthly'],
-                  ] as [BudgetType, string][]
-                ).map(([key, label]) => (
+                {(['fixed', 'flexible', 'non_monthly'] as const).map((key) => (
                   <button
                     key={key}
                     type="button"
@@ -200,7 +198,7 @@ export function CategoryPicker({
                         : 'bg-surface text-text-secondary border-border hover:border-brand-400'
                     }`}
                   >
-                    {label}
+                    {t(`picker.budgetType.${key}`)}
                   </button>
                 ))}
               </div>
@@ -209,8 +207,8 @@ export function CategoryPicker({
               type="text"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
-              placeholder="Category name"
-              aria-label="New category name"
+              placeholder={t('picker.categoryName')}
+              aria-label={t('picker.newCategoryName')}
               className="w-full text-sm border border-border rounded px-2 py-1.5 bg-surface text-text focus:border-brand-600 focus:outline-none"
               onKeyDown={(e) => {
                 if (e.key === 'Enter') handleCreate();
@@ -224,7 +222,7 @@ export function CategoryPicker({
                 disabled={!newName.trim() || createCategory.isPending}
                 className="flex-1 text-xs font-medium text-white bg-brand-600 hover:bg-brand-700 rounded px-2 py-1.5 disabled:opacity-50"
               >
-                {createCategory.isPending ? 'Creating...' : 'Create'}
+                {createCategory.isPending ? t('picker.creating') : t('picker.create')}
               </button>
               <button
                 type="button"
@@ -245,7 +243,7 @@ export function CategoryPicker({
             className="w-full px-3 py-2.5 text-sm text-brand-600 hover:text-brand-700 font-medium flex items-center gap-1.5 hover:bg-hover"
           >
             <Plus size={14} />
-            Create new category
+            {t('picker.createCategory')}
           </button>
         )}
       </div>
