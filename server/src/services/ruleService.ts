@@ -15,6 +15,8 @@ import {
   type TxState,
 } from './rulesEngine.js';
 import { resolvePayee } from './transactionHelpers.js';
+import { accountCurrency, accountCurrencyLookup } from './accountCurrency.js';
+import type { Currency } from '../utils/currency.js';
 
 type RuleRow = typeof rules.$inferSelect;
 type TxRow = typeof transactions.$inferSelect;
@@ -97,7 +99,7 @@ export function insertNewTransaction(input: NewTransactionInput, opts: InsertOpt
   }
 
   const { tx, split } = runRules(
-    { ...input, payeeId },
+    { ...input, payeeId, currency: accountCurrency(input.accountId) },
     opts.rules ?? loadRules(),
     opts.ctx ?? buildRuleContext(),
     {
@@ -200,6 +202,8 @@ export type PlannedChange = {
   transactionId: string;
   date: string;
   accountId: string;
+  /** The account's currency; `amount` and split amounts are native amounts in it */
+  currency: Currency;
   amount: number;
   payeeName: string | null;
   changes: {
@@ -216,8 +220,9 @@ export type PlannedChange = {
   };
 };
 
-const txState = (t: TxRow): TxState => ({
+const txState = (t: TxRow, currency: Currency): TxState => ({
   accountId: t.accountId,
+  currency,
   date: t.date,
   amount: t.amount,
   payeeId: t.payeeId,
@@ -268,8 +273,10 @@ export function planRules(opts: PlanOptions): PlannedChange[] {
           .map((p) => [p.id, p.cat!]),
       );
 
+  const currencyOf = accountCurrencyLookup();
   return candidates(opts).flatMap((t): PlannedChange[] => {
-    const { tx, split } = runRules(txState(t), selected, ctx);
+    const currency = currencyOf(t.accountId);
+    const { tx, split } = runRules(txState(t, currency), selected, ctx);
     if (defaults && !tx.categoryId && !split && tx.payeeId)
       tx.categoryId = defaults.get(tx.payeeId) ?? null;
 
@@ -287,6 +294,7 @@ export function planRules(opts: PlanOptions): PlannedChange[] {
         transactionId: t.id,
         date: t.date,
         accountId: t.accountId,
+        currency,
         amount: t.amount,
         payeeName: t.payeeName,
         changes,
@@ -350,7 +358,10 @@ export function testConditions(conditionsOp: ConditionsOp, conditions: Condition
     .where(isNull(transactions.parentTransactionId))
     .orderBy(desc(transactions.date))
     .all();
-  const matches = rows.filter((t) => matchesRule({ conditionsOp, conditions }, txState(t)));
+  const currencyOf = accountCurrencyLookup();
+  const matches = rows.filter((t) =>
+    matchesRule({ conditionsOp, conditions }, txState(t, currencyOf(t.accountId))),
+  );
   return {
     count: matches.length,
     matches: matches.slice(0, limit).map((t) => ({
@@ -359,6 +370,7 @@ export function testConditions(conditionsOp: ConditionsOp, conditions: Condition
       payeeName: t.payeeName,
       amount: t.amount,
       accountId: t.accountId,
+      currency: currencyOf(t.accountId),
       categoryId: t.categoryId,
     })),
   };

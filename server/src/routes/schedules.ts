@@ -3,6 +3,7 @@ import { db } from '../db/index.js';
 import { schedules, scheduleOccurrences, transactions, payees } from '../db/schema.js';
 import { eq, and, or, gte, lte, desc, inArray, isNull } from 'drizzle-orm';
 import { homeCurrencyAccountIds } from '../services/balances.js';
+import { accountCurrency, accountCurrencyLookup } from '../services/accountCurrency.js';
 import { nanoid } from 'nanoid';
 import { z } from 'zod';
 import { format, addDays } from 'date-fns';
@@ -112,6 +113,14 @@ function deriveDisplayStatus(dbStatus: string, expectedDate: string): string {
   return 'waiting';
 }
 
+/**
+ * A recurring item has no currency of its own: its amounts are native amounts in its
+ * account's currency (the home currency while it has no account).
+ */
+function withCurrency<T extends { accountId: string | null }>(schedule: T) {
+  return { ...schedule, currency: accountCurrency(schedule.accountId) };
+}
+
 // --- Static routes FIRST (before /:id) ---
 
 // GET /discover — find likely recurring transactions not yet covered by a schedule
@@ -182,6 +191,7 @@ schedulesRouter.get('/occurrences', (req, res) => {
     }
   }
 
+  const currencyOf = accountCurrencyLookup();
   const result = rows.map(({ occ, schedule }) => {
     const matchedTx = occ.matchedTransactionId ? matchedTxMap.get(occ.matchedTransactionId) : null;
     return {
@@ -191,6 +201,7 @@ schedulesRouter.get('/occurrences', (req, res) => {
       recurrenceType: schedule.recurrenceType,
       amountType: schedule.amountType,
       scheduleAccountId: schedule.accountId,
+      currency: currencyOf(schedule.accountId),
       scheduleCategoryId: schedule.categoryId,
       schedulePayeeId: schedule.payeeId,
       matchedAmount: matchedTx?.amount ?? null,
@@ -271,7 +282,8 @@ schedulesRouter.get('/', (req, res) => {
     .where(conditions.length ? and(...conditions) : undefined)
     .orderBy(schedules.name)
     .all();
-  res.json(rows);
+  const currencyOf = accountCurrencyLookup();
+  res.json(rows.map((s) => ({ ...s, currency: currencyOf(s.accountId) })));
 });
 
 // POST / — create schedule
@@ -318,7 +330,7 @@ schedulesRouter.post('/', (req, res) => {
   ensureOccurrences(row.id, horizon);
 
   const created = db.select().from(schedules).where(eq(schedules.id, row.id)).get();
-  res.status(201).json(created);
+  res.status(201).json(withCurrency(created!));
 });
 
 // GET /:id — single schedule with recent occurrences
@@ -335,7 +347,7 @@ schedulesRouter.get('/:id', (req, res) => {
     .all()
     .map((o) => ({ ...o, displayStatus: deriveDisplayStatus(o.status, o.expectedDate) }));
 
-  res.json({ ...schedule, occurrences: recentOccs });
+  res.json({ ...withCurrency(schedule), occurrences: recentOccs });
 });
 
 // PUT /:id — update schedule
@@ -403,7 +415,7 @@ schedulesRouter.put('/:id', (req, res) => {
   }
 
   const updated = db.select().from(schedules).where(eq(schedules.id, req.params.id)).get();
-  res.json(updated);
+  res.json(withCurrency(updated!));
 });
 
 // DELETE /:id — soft cancel or hard delete
@@ -545,6 +557,19 @@ schedulesRouter.post('/occurrences/:occId/match', (req, res) => {
     .where(eq(scheduleOccurrences.id, req.params.occId))
     .get();
   if (!occ) return res.status(404).json({ error: 'Occurrence not found' });
+
+  // Amounts are native: a transaction can only pay an item in its own currency
+  const schedule = db.select().from(schedules).where(eq(schedules.id, occ.scheduleId)).get();
+  const tx = db
+    .select({ accountId: transactions.accountId })
+    .from(transactions)
+    .where(eq(transactions.id, parsed.data.transactionId))
+    .get();
+  if (schedule && tx && accountCurrency(tx.accountId) !== accountCurrency(schedule.accountId)) {
+    return res
+      .status(400)
+      .json({ error: 'That transaction is in a different currency than this recurring item' });
+  }
 
   linkOccurrenceToTransaction(req.params.occId, parsed.data.transactionId, 'manual', 100);
   res.json({ ok: true });
