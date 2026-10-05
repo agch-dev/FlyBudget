@@ -105,6 +105,17 @@ const createSchema = z
 // (`{ status }`) would otherwise reset its amount type, weekend rule and auto-create
 const updateSchema = z.object(scheduleFields).partial().refine(ruleMatchesType, ruleTypeMessage);
 
+// A recurring item has one amount, and a transfer between a pesos and a dollars account needs
+// two (what leaves and what arrives, which changes with the exchange rate)
+const CROSS_CURRENCY_TRANSFER =
+  "A recurring transfer can't go between a pesos and a dollars account, because the amount " +
+  'arriving changes with the exchange rate. Add each transfer when it happens instead.';
+
+function crossesCurrencies(accountId?: string | null, transferAccountId?: string | null) {
+  if (!accountId || !transferAccountId) return false;
+  return accountCurrency(accountId) !== accountCurrency(transferAccountId);
+}
+
 function deriveDisplayStatus(dbStatus: string, expectedDate: string): string {
   if (dbStatus !== 'pending') return dbStatus;
   const today = format(new Date(), 'yyyy-MM-dd');
@@ -292,6 +303,9 @@ schedulesRouter.post('/', (req, res) => {
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
 
   const data = parsed.data;
+  if (crossesCurrencies(data.accountId, data.transferAccountId)) {
+    return res.status(400).json({ error: CROSS_CURRENCY_TRANSFER });
+  }
   const rule = data.recurrenceRule
     ? JSON.stringify(data.recurrenceRule)
     : JSON.stringify(buildRecurrenceRule(data.recurrenceType as RecurrenceType, data.startDate));
@@ -364,6 +378,14 @@ schedulesRouter.put('/:id', (req, res) => {
     data.recurrenceRule.type !== (data.recurrenceType ?? existing.recurrenceType)
   ) {
     return res.status(400).json({ error: ruleTypeMessage.message });
+  }
+  if (
+    crossesCurrencies(
+      data.accountId === undefined ? existing.accountId : data.accountId,
+      data.transferAccountId === undefined ? existing.transferAccountId : data.transferAccountId,
+    )
+  ) {
+    return res.status(400).json({ error: CROSS_CURRENCY_TRANSFER });
   }
   const updates: Record<string, any> = { ...data, updatedAt: new Date().toISOString() };
 

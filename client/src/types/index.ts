@@ -203,6 +203,11 @@ export interface Transaction {
   children?: Transaction[];
   /** The account's currency, sent with transaction lists (closed accounts included) */
   currency?: Currency;
+  /**
+   * For a transfer, sent with transaction lists: the other side's account, its native amount
+   * there, and the rate the two amounts imply (pesos per dollar; null within one currency)
+   */
+  transfer?: { accountId: string; amount: number; currency: Currency; rate: number | null };
 }
 
 export interface ImportPreviewRow {
