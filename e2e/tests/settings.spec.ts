@@ -182,6 +182,62 @@ test.describe('exchange rates', () => {
   });
 });
 
+test.describe('estimated exchange rates', () => {
+  test('a banner names dollar dates without a rate until one is entered', async ({ page, api }) => {
+    const dollars = await api.createAccount('Dollars', 0, 'checking', { currency: 'USD' });
+    await api.call('PUT', `/exchange-rates/${isoDay(-30)}`, { rate: 40.25 });
+    for (const days of [-90, -60, -10]) {
+      await api.createTransaction({ accountId: dollars.id, date: isoDay(days), amount: -1_500 });
+    }
+    await open(page, '/dashboard');
+
+    const banner = page.getByRole('status', { name: 'Estimated exchange rates' });
+    await expect(banner).toContainText('No exchange rate for');
+    await expect(banner).toContainText('those dates');
+    expect((await api.call('GET', '/exchange-rates/estimated')).dates).toEqual([
+      isoDay(-90),
+      isoDay(-60),
+    ]);
+
+    await banner.getByRole('link', { name: 'Enter rates' }).click();
+    await expect(page).toHaveURL(/settings\?tab=rates/);
+    await page.getByRole('button', { name: 'Enter a rate' }).first().click();
+    const dialog = page.getByRole('dialog', { name: 'Enter a rate' });
+    await dialog.getByLabel('Date').fill(isoDay(-60));
+    await dialog.getByLabel('Pesos per dollar').fill('39.9');
+    await dialog.getByRole('button', { name: 'Save rate' }).click();
+    await expect(dialog).toBeHidden();
+    // One date left
+    await expect(banner).toContainText('that date');
+
+    await api.call('PUT', `/exchange-rates/${isoDay(-90)}`, { rate: 39.5 });
+    await page.reload();
+    await expect(page.getByRole('main')).toContainText('per US$ 1');
+    await expect(banner).toBeHidden();
+  });
+
+  test('a budget in pesos only never shows the banner', async ({ page, api }) => {
+    const checking = await api.createAccount('Checking', 0);
+    await api.createTransaction({ accountId: checking.id, date: isoDay(-900), amount: -1_500 });
+    const answered = page.waitForResponse((r) => r.url().endsWith('/exchange-rates/estimated'));
+    await open(page, '/accounts');
+    expect(await (await answered).json()).toEqual({ dates: [] });
+    await expect(page.getByRole('heading', { level: 1, name: 'Accounts' })).toBeVisible();
+    await expect(page.getByRole('status', { name: 'Estimated exchange rates' })).toBeHidden();
+  });
+
+  test('the banner appears when an old dollar transaction is added', async ({ page, api }) => {
+    const dollars = await api.createAccount('Dollars', 0, 'checking', { currency: 'USD' });
+    await api.call('PUT', `/exchange-rates/${isoDay(-30)}`, { rate: 40.25 });
+    await open(page, '/dashboard');
+    const banner = page.getByRole('status', { name: 'Estimated exchange rates' });
+    await expect(banner).toBeHidden();
+    await api.createTransaction({ accountId: dollars.id, date: isoDay(-60), amount: -1_500 });
+    await page.reload();
+    await expect(banner).toContainText('that date');
+  });
+});
+
 test('settings link to the license and the source code', async ({ page, api }) => {
   await api.createAccount('Checking');
   await open(page, '/settings');

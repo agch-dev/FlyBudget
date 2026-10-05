@@ -18,8 +18,9 @@ const txAccountId = sql.raw('"transactions"."account_id"');
 
 /**
  * The rate a date converts at: its own, else the closest earlier one; a date before every
- * stored rate uses the earliest; NULL when no rates are stored. The SQL twin of
- * `conversionRates` (currencyConversion.ts): change the two together.
+ * stored rate uses the earliest (an estimate); NULL when no rates are stored. The SQL twin of
+ * `rateLookupOrEstimate` (exchangeRates.ts), which `conversionRates` uses: change the two
+ * together.
  */
 export function rateOnSql(date: SQL): SQL<number | null> {
   return sql<number | null>`coalesce(

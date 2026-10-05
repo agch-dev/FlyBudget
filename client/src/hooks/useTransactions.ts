@@ -176,6 +176,72 @@ export function useCreateTransfer() {
   });
 }
 
+/** Transactions that could be the other side of `id` when linking it as a transfer */
+export function useTransferCandidates(id: string, enabled = true) {
+  return useQuery({
+    queryKey: ['transactions', 'transfer-candidates', id],
+    queryFn: () => txApi.getTransferCandidates(id),
+    enabled,
+  });
+}
+
+/** Linking and unlinking, with undo */
+function useTransferLinkMutation<V>(
+  description: string,
+  run: (vars: V) => Promise<Transaction[]>,
+  reverse: (sides: Transaction[], before: (Transaction | undefined)[]) => Promise<unknown>,
+) {
+  const qc = useQueryClient();
+  const refresh = () => {
+    qc.invalidateQueries({ queryKey: ['transactions'] });
+    qc.invalidateQueries({ queryKey: ['accounts'] });
+  };
+  return useMutation({
+    mutationFn: run,
+    onSuccess: (sides, vars) => {
+      // The categories each side had, to put back on undo
+      const before = sides.map((t) => findTxInCache(qc, t.id));
+      refresh();
+      useUndoStore.getState().push({
+        description,
+        undo: async () => {
+          await reverse(sides, before);
+          refresh();
+        },
+        redo: async () => {
+          await run(vars);
+          refresh();
+        },
+      });
+    },
+  });
+}
+
+export function useLinkTransfer() {
+  return useTransferLinkMutation(
+    'Link as transfer',
+    ({ id, otherTransactionId }: { id: string; otherTransactionId: string }) =>
+      txApi.linkTransfer(id, otherTransactionId),
+    async (sides, before) => {
+      await txApi.unlinkTransfer(sides[0].id);
+      for (const old of before) {
+        if (old?.categoryId) await txApi.updateTransaction(old.id, { categoryId: old.categoryId });
+      }
+    },
+  );
+}
+
+export function useUnlinkTransfer() {
+  return useTransferLinkMutation(
+    'Unlink transfer',
+    (id: string) => txApi.unlinkTransfer(id),
+    (sides) =>
+      sides.length >= 2 && sides[0].id !== sides[1].id
+        ? txApi.linkTransfer(sides[0].id, sides[1].id)
+        : Promise.resolve(),
+  );
+}
+
 export function useImportConfirm() {
   const qc = useQueryClient();
   return useMutation({

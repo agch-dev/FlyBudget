@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, type Response } from 'express';
 import { db } from '../db/index.js';
 import { transactions, payees, accounts, categories } from '../db/schema.js';
 import { eq, and, or, like, gte, lte, sql, isNull, inArray } from 'drizzle-orm';
@@ -10,6 +10,12 @@ import { isoDate } from '../utils/validation.js';
 import { converter } from '../services/currencyConversion.js';
 import { listRates } from '../services/exchangeRateService.js';
 import { HOME_CURRENCY, impliedRate, otherCurrency } from '../utils/currency.js';
+import {
+  linkAsTransfer,
+  transferCandidates,
+  unlinkTransfer,
+  type LinkResult,
+} from '../services/transferLinkService.js';
 
 export const transactionsRouter = Router();
 
@@ -384,6 +390,31 @@ transactionsRouter.post('/transfer', (req, res) => {
     tx.insert(transactions).values(toTx).run();
   });
   res.status(201).json([fromTx, toTx]);
+});
+
+// Linking two existing transactions as a transfer, and unlinking one (transferLinkService.ts)
+const sendLinkResult = (res: Response, result: LinkResult) =>
+  result.ok
+    ? res.json(result.transactions)
+    : res.status(result.status).json({ error: result.error });
+
+// GET /transactions/:id/transfer-candidates — what could be the other side of this one
+transactionsRouter.get('/:id/transfer-candidates', (req, res) => {
+  const candidates = transferCandidates(req.params.id);
+  if (!candidates) return res.status(404).json({ error: 'Not found' });
+  res.json(candidates);
+});
+
+// POST /transactions/:id/link-transfer — this transaction and another become a transfer
+transactionsRouter.post('/:id/link-transfer', (req, res) => {
+  const parsed = z.object({ otherTransactionId: id }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+  sendLinkResult(res, linkAsTransfer(req.params.id, parsed.data.otherTransactionId));
+});
+
+// POST /transactions/:id/unlink-transfer — both sides become ordinary transactions again
+transactionsRouter.post('/:id/unlink-transfer', (req, res) => {
+  sendLinkResult(res, unlinkTransfer(req.params.id));
 });
 
 // POST /transactions/import/preview — check for duplicates before importing

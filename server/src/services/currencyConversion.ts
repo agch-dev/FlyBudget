@@ -1,5 +1,5 @@
 import { HOME_CURRENCY, type Currency } from '../utils/currency.js';
-import { rateLookup, type RatePoint } from './exchangeRates.js';
+import { rateLookupOrEstimate, type RatePoint } from './exchangeRates.js';
 
 // The conversion rule (docs/adr/0001): stored facts are native amounts and the exchange rates;
 // a converted amount is computed when it is read and never stored. A transaction converts at
@@ -23,17 +23,13 @@ export function convertCents(cents: number, from: Currency, to: Currency, rate: 
 
 /**
  * The rate each date converts at: its own, else the closest earlier one. A date before every
- * stored rate has no earlier one and uses the closest rate there is, the earliest; with no
- * rates at all there is none (null).
- *
- * This is the one place that decides what a date without an earlier rate uses (`rateOnSql` in
- * convertedAmounts.ts is its SQL twin).
+ * stored rate uses the earliest one (an estimate: see `rateLookupOrEstimate`, which owns that
+ * decision); with no rates at all there is none (null). `rateOnSql` in convertedAmounts.ts is
+ * its SQL twin.
  */
 export function conversionRates(rates: readonly RatePoint[]): (date: string) => number | null {
-  const lookup = rateLookup(rates);
-  let earliest: RatePoint | null = null;
-  for (const r of rates) if (!earliest || r.date < earliest.date) earliest = r;
-  return (date) => (lookup(date) ?? earliest)?.rate ?? null;
+  const lookup = rateLookupOrEstimate(rates);
+  return (date) => lookup(date)?.rate ?? null;
 }
 
 /** Converts an amount dated `date`; null when the currencies differ and no rate is stored. */

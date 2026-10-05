@@ -3,6 +3,7 @@ import { addDays, format } from 'date-fns';
 import { z } from 'zod';
 import { MAX_RATE } from '../services/exchangeRates.js';
 import {
+  estimatedRateDates,
   ratesOverview,
   refreshRates,
   saveManualRate,
@@ -21,6 +22,11 @@ export function createExchangeRatesRouter(source: RateSource) {
 
   router.get('/', (_req, res) => {
     res.json(ratesOverview());
+  });
+
+  // The dates of dollar transactions older than every stored rate (the "estimated" banner)
+  router.get('/estimated', (_req, res) => {
+    res.json({ dates: estimatedRateDates() });
   });
 
   // The Refresh button: from the last stored date through today, whatever the 24-hour wait says

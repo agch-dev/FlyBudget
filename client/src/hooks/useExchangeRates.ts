@@ -1,7 +1,10 @@
+import { useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import * as ratesApi from '../api/exchangeRates';
 
 const KEY = ['exchange-rates'];
+// Under KEY, so saving a rate refreshes it too
+const ESTIMATED_KEY = [...KEY, 'estimated'];
 
 /**
  * Queries whose answers hold converted amounts. Converted amounts are worked out from the
@@ -31,6 +34,7 @@ export function useRefreshExchangeRates() {
     onSuccess: (overview) => {
       qc.setQueryData(KEY, overview);
       ratesChanged(qc);
+      qc.invalidateQueries({ queryKey: ESTIMATED_KEY });
     },
   });
 }
@@ -45,4 +49,27 @@ export function useSaveExchangeRate() {
       ratesChanged(qc);
     },
   });
+}
+
+/**
+ * The dates of dollar transactions older than every stored rate (the estimated-rates
+ * banner). It changes when transactions do, and every change to transactions reloads the
+ * accounts (their balances), so it reloads whenever fresh accounts arrive.
+ */
+export function useEstimatedRateDates() {
+  const qc = useQueryClient();
+  useEffect(
+    () =>
+      qc.getQueryCache().subscribe((event) => {
+        if (
+          event.type === 'updated' &&
+          event.action.type === 'success' &&
+          event.query.queryKey[0] === 'accounts'
+        ) {
+          void qc.invalidateQueries({ queryKey: ESTIMATED_KEY });
+        }
+      }),
+    [qc],
+  );
+  return useQuery({ queryKey: ESTIMATED_KEY, queryFn: ratesApi.getEstimatedRateDates });
 }

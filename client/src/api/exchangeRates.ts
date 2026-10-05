@@ -35,3 +35,14 @@ export const saveExchangeRate = ({ date, rate }: { date: string; rate: number })
     method: 'PUT',
     body: JSON.stringify({ rate }),
   });
+
+export interface EstimatedRateDates {
+  /**
+   * Dates (YYYY-MM-DD, oldest first) of dollar transactions with no rate on or before them:
+   * their converted amounts use the closest rate there is
+   */
+  dates: string[];
+}
+
+export const getEstimatedRateDates = () =>
+  apiFetch<EstimatedRateDates>('/exchange-rates/estimated');

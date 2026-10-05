@@ -8,6 +8,7 @@ import { useUndoKeyboard } from '../../hooks/useUndoKeyboard';
 import { UndoToast } from '../ui/UndoToast';
 import { ConnectionBanner } from '../connection/ConnectionBanner';
 import { DemoBanner } from '../demo/DemoBanner';
+import { EstimatedRatesBanner } from './EstimatedRatesBanner';
 import { Sidebar, SidebarDrawer } from './Sidebar';
 import { BrandName } from '../ui/BrandName';
 import logoUrl from '/logo.png';
@@ -38,6 +39,7 @@ export function AppShell() {
       <div className="flex-1 min-w-0 flex flex-col">
         <DemoBanner />
         <ConnectionBanner />
+        <EstimatedRatesBanner />
         <main className="flex-1 overflow-y-auto">
           <Outlet />
         </main>
@@ -109,6 +111,7 @@ function PhoneShell() {
         </header>
         <DemoBanner />
         <ConnectionBanner />
+        <EstimatedRatesBanner />
         <main className="flex-1 min-h-0 overflow-y-auto">
           <Outlet />
         </main>
