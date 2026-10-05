@@ -2,12 +2,14 @@ import {
   sqliteTable,
   text,
   integer,
+  real,
   uniqueIndex,
   index,
   customType,
 } from 'drizzle-orm/sqlite-core';
 import { sql } from 'drizzle-orm';
 import { secretCipher } from './secretCrypto.js';
+import type { Currency } from '../utils/currency.js';
 
 /** TEXT column encrypted at rest when a key is configured (see secretCrypto.ts). Can't be queried by value. */
 const encryptedText = customType<{ data: string; driverData: string }>({
@@ -26,6 +28,14 @@ export const accounts = sqliteTable('accounts', {
   closedAt: text('closed_at'),
   /** Custom logo as a small image data URL; null = colored initials */
   logo: text('logo'),
+  /** 'UYU' (pesos) or 'USD' (dollars): see utils/currency.ts. Every amount in the account is in it */
+  currency: text('currency').$type<Currency>().notNull().default('UYU'),
+  /**
+   * Its Account Group: accounts with the same name are shown together. Null = no group.
+   * A group is only this shared name (no table, nothing unique), so it is gone when no
+   * account names it, and two devices typing the same name end up in the same group
+   */
+  groupName: text('group_name'),
   createdAt: text('created_at')
     .notNull()
     .default(sql`(datetime('now'))`),
@@ -220,6 +230,28 @@ export const scheduleMatchDismissals = sqliteTable(
   (table) => [uniqueIndex('idx_dismissal_unique').on(table.occurrenceId, table.transactionId)],
 );
 
+/**
+ * Transfer suggestions the user dismissed: that pair of transactions is not suggested again.
+ * The id is derived from the two transaction ids (`pairKey` in services/transferSuggestions.ts,
+ * the smaller id first), so every device stores the same row for the same pair.
+ */
+export const transferSuggestionDismissals = sqliteTable(
+  'transfer_suggestion_dismissals',
+  {
+    id: text('id').primaryKey(),
+    transactionId: text('transaction_id')
+      .notNull()
+      .references(() => transactions.id, { onDelete: 'cascade' }),
+    otherTransactionId: text('other_transaction_id')
+      .notNull()
+      .references(() => transactions.id, { onDelete: 'cascade' }),
+    dismissedAt: text('dismissed_at')
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (table) => [index('idx_transfer_dismissal_other').on(table.otherTransactionId)],
+);
+
 export const customReports = sqliteTable('custom_reports', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
@@ -272,6 +304,9 @@ export const goals = sqliteTable('goals', {
   currentAmount: integer('current_amount').notNull().default(0),
   targetDate: text('target_date'),
   accountId: text('account_id').references(() => accounts.id, { onDelete: 'set null' }),
+  // 'UYU' or 'USD': the currency of the goal's amounts. A linked account's currency wins
+  // (services/goalAmounts.ts); this is what the goal keeps once it has no account
+  currency: text('currency').$type<Currency>().notNull().default('UYU'),
   icon: text('icon').notNull().default('🎯'),
   color: text('color').notNull().default('#2563EB'),
   sortOrder: integer('sort_order').notNull().default(0),
@@ -394,4 +429,20 @@ export const sessions = sqliteTable('sessions', {
   userAgent: text('user_agent'),
   /** Roughly when the session was last used (updated at most every few minutes) */
   lastUsedAt: text('last_used_at'),
+});
+
+// --- Multi-currency ---
+
+/**
+ * Daily exchange rates: pesos per dollar (interbank, no spread). The date is the key, so
+ * every device stores the same row for the same day. A date with no row uses the closest
+ * earlier one (`rateLookup` in services/exchangeRates.ts).
+ */
+export const exchangeRates = sqliteTable('exchange_rates', {
+  date: text('date').primaryKey(),
+  rate: real('rate').notNull(),
+  /** When the rate was fetched from the source, or typed in */
+  fetchedAt: text('fetched_at').notNull(),
+  /** Entered by hand: a fetch never overwrites it */
+  isManual: integer('is_manual').notNull().default(0),
 });

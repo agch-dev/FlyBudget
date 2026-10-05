@@ -18,12 +18,12 @@ export type AccountType =
   | 'other_asset'
   | 'other_liability';
 
-export type AccountGroup = 'cash' | 'credit' | 'investments' | 'property' | 'loans' | 'other';
+export type AccountTypeGroup = 'cash' | 'credit' | 'investments' | 'property' | 'loans' | 'other';
 
 export interface AccountTypeInfo {
   value: AccountType;
   label: string;
-  group: AccountGroup;
+  group: AccountTypeGroup;
   /** Debts: the balance is what's owed, stored as a negative number */
   liability: boolean;
   /** Everyday spending accounts; the rest default to off budget */
@@ -171,7 +171,7 @@ export const ACCOUNT_TYPES: AccountTypeInfo[] = [
   },
 ];
 
-export const ACCOUNT_GROUPS: { value: AccountGroup; label: string }[] = [
+export const ACCOUNT_TYPE_GROUPS: { value: AccountTypeGroup; label: string }[] = [
   { value: 'cash', label: 'Cash' },
   { value: 'credit', label: 'Credit' },
   { value: 'investments', label: 'Investments' },
@@ -201,6 +201,19 @@ export interface Transaction {
   scheduleId: string | null;
   createdAt: string;
   children?: Transaction[];
+  /** The account's currency, sent with transaction lists (closed accounts included) */
+  currency?: Currency;
+  /**
+   * The amount in the other currency (pesos for a dollar transaction and the reverse), at
+   * the exchange rate of its date. Sent with transaction lists, worked out by the server on
+   * every read and never stored; null when no rate is stored. Read it with `utils/conversion.ts`
+   */
+  convertedAmount?: number | null;
+  /**
+   * For a transfer, sent with transaction lists: the other side's account, its native amount
+   * there, and the rate the two amounts imply (pesos per dollar; null within one currency)
+   */
+  transfer?: { accountId: string; amount: number; currency: Currency; rate: number | null };
 }
 
 export interface ImportPreviewRow {
@@ -287,10 +300,33 @@ export interface BudgetSummary {
   toBeBudgeted: number;
 }
 
+// Keep in sync with CURRENCIES in server/src/utils/currency.ts
+/** The currencies an account can hold: Uruguayan pesos and US dollars. No others exist. */
+export const CURRENCIES = [
+  { value: 'UYU', label: 'Pesos', symbol: '$' },
+  { value: 'USD', label: 'Dollars', symbol: 'US$' },
+] as const;
+
+export type Currency = (typeof CURRENCIES)[number]['value'];
+
+/** The currency the budget is planned in and combined totals are shown in. It is fixed. */
+export const HOME_CURRENCY: Currency = 'UYU';
+
 export interface Account {
   id: string;
   name: string;
   type: AccountType;
+  /** Every amount in the account (balance, starting balance, transactions) is in it */
+  currency: Currency;
+  /** False while the account has no transactions */
+  hasTransactions?: boolean;
+  /**
+   * What ties the account to its currency: its transactions, a recurring item that uses it
+   * or a goal linked to it. Null when nothing does: only then can the currency change.
+   */
+  currencyLockedBy?: 'transactions' | 'recurring' | 'goal' | null;
+  /** Its Account Group (accounts with the same name are shown together); null = none */
+  groupName?: string | null;
   startingBalance: number;
   isOffBudget: number;
   sortOrder: number;
@@ -302,10 +338,16 @@ export interface Account {
 }
 
 export interface NetWorthPoint {
+  /** YYYY-MM, or YYYY-MM-DD for daily points */
   month: string;
+  /** In the currency asked for (pesos by default), balances converted at this point's rate */
   assets: number;
   liabilities: number;
   netWorth: number;
+  /** What the total is made of: each currency's own net worth in its native amount */
+  native?: Record<Currency, number>;
+  /** Currencies `native` lists but the totals leave out: no exchange rate to convert them */
+  leftOut?: Currency[];
 }
 export interface IncomeExpensesPoint {
   month: string;
@@ -456,7 +498,8 @@ export type WidgetType = DashboardWidget['type'];
 // --- Rules (mirrors server/src/services/rulesEngine.ts) ---
 export type RuleTextField = 'payee_name' | 'imported_payee' | 'notes';
 export type RuleIdField = 'payee' | 'account' | 'category';
-export type RuleConditionField = RuleTextField | RuleIdField | 'amount' | 'direction' | 'date';
+export type RuleConditionField =
+  RuleTextField | RuleIdField | 'amount' | 'direction' | 'currency' | 'date';
 
 export type RuleCondition =
   | {
@@ -467,10 +510,12 @@ export type RuleCondition =
   | { field: RuleTextField | RuleIdField; op: 'one_of' | 'not_one_of'; value: string[] }
   | { field: RuleTextField | RuleIdField; op: 'is_empty' | 'is_not_empty' }
   | { field: RuleIdField; op: 'is' | 'is_not'; value: string }
-  /** Absolute value in cents; `direction` tells inflow from outflow */
+  /** Absolute native amount in cents; `direction` tells inflow from outflow, `currency` pesos from dollars */
   | { field: 'amount'; op: 'is' | 'is_not' | 'gt' | 'gte' | 'lt' | 'lte' | 'approx'; value: number }
   | { field: 'amount'; op: 'between'; value: [number, number] }
   | { field: 'direction'; op: 'is'; value: 'inflow' | 'outflow' }
+  /** The currency of the transaction's account */
+  | { field: 'currency'; op: 'is'; value: Currency }
   | { field: 'date'; op: 'is' | 'before' | 'after'; value: string }
   | { field: 'date'; op: 'between'; value: [string, string] };
 
@@ -567,6 +612,8 @@ export interface Schedule {
   occurrenceHorizon: string | null;
   createdAt: string;
   updatedAt: string;
+  /** Its account's currency (pesos while it has no account); amounts are native amounts in it */
+  currency?: Currency;
 }
 
 export interface ScheduleWithOccurrences extends Schedule {
@@ -595,6 +642,15 @@ export interface ScheduleOccurrence {
   schedulePayeeId: string | null;
   matchedAmount: number | null;
   matchedDate: string | null;
+  /** The recurring item's currency: its account's, closed accounts included */
+  currency?: Currency;
+  /**
+   * `expectedAmount` in the other currency, at the exchange rate of its date (today's while
+   * that date is still to come); null or missing when it could not be converted
+   */
+  convertedExpectedAmount?: number | null;
+  /** `matchedAmount` in the other currency, at the rate of the day it was paid */
+  convertedMatchedAmount?: number | null;
 }
 
 export interface ScheduleSummary {
@@ -607,6 +663,7 @@ export interface DiscoveredSchedule {
   id: string;
   accountId: string;
   accountName: string;
+  currency?: Currency;
   payeeId: string | null;
   payeeName: string;
   amount: number;
@@ -626,6 +683,8 @@ export interface MatchSuggestion {
   scheduledDate: string;
   expectedDate: string;
   expectedAmount: number;
+  /** The recurring item's currency; every candidate is in it too */
+  currency?: Currency;
   candidates: {
     transactionId: string;
     date: string;
@@ -642,6 +701,7 @@ export interface RulePreviewItem {
   transactionId: string;
   date: string;
   accountId: string;
+  currency?: Currency;
   amount: number;
   payeeName: string | null;
   changes: {
@@ -660,11 +720,19 @@ export interface RuleTestResult {
     payeeName: string | null;
     amount: number;
     accountId: string;
+    currency?: Currency;
     categoryId: string | null;
   }>;
 }
 
 // Goals
+/** A goal's amounts in pesos at today's exchange rate */
+export interface GoalInPesos {
+  target: number;
+  saved: number;
+  remaining: number;
+}
+
 export interface Goal {
   id: string;
   name: string;
@@ -672,6 +740,10 @@ export interface Goal {
   currentAmount: number;
   targetDate: string | null;
   accountId: string | null;
+  /** The currency of the goal's amounts: its linked account's, or the one chosen without one */
+  currency: Currency;
+  /** For the page's summary; null for a dollar goal while no exchange rate is stored */
+  inPesos?: GoalInPesos | null;
   icon: string;
   color: string;
   sortOrder: number;

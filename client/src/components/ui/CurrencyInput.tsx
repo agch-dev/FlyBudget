@@ -1,21 +1,28 @@
 import { useState } from 'react';
 import { formatCurrency, parseCents } from '../../utils/currency';
+import type { Currency } from '../../types';
 
 interface Props {
   value: number;
   onChange: (cents: number) => void;
+  /** Also called on every keystroke, for figures that follow the amount as it's typed */
+  onTyping?: (cents: number) => void;
   placeholder?: string;
   className?: string;
   allowNegative?: boolean;
+  /** The currency the amount is in (its account's); pesos when left out */
+  currency?: Currency;
   'aria-label'?: string;
 }
 
 export function CurrencyInput({
   value,
   onChange,
+  onTyping,
   placeholder = '0.00',
   className = '',
   allowNegative = false,
+  currency,
   'aria-label': ariaLabel,
 }: Props) {
   const [focused, setFocused] = useState(false);
@@ -44,10 +51,16 @@ export function CurrencyInput({
   return (
     <input
       type={focused ? 'number' : 'text'}
-      value={focused ? raw : value === 0 ? '' : formatCurrency(value)}
+      value={focused ? raw : value === 0 ? '' : formatCurrency(value, currency)}
       onFocus={handleFocus}
       onBlur={handleBlur}
-      onChange={(e) => setRaw(e.target.value)}
+      onChange={(e) => {
+        setRaw(e.target.value);
+        if (onTyping) {
+          const cents = parseCents(e.target.value);
+          onTyping(allowNegative ? cents : Math.abs(cents));
+        }
+      }}
       placeholder={placeholder}
       aria-label={ariaLabel}
       step="0.01"

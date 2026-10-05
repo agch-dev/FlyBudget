@@ -1,6 +1,10 @@
 import { useState, useEffect } from 'react';
-import { X, Lock, Trash2, Repeat, Unlink, Wand2 } from 'lucide-react';
-import { useUpdateTransaction, useDeleteTransaction } from '../../hooks/useTransactions';
+import { X, Lock, Trash2, Repeat, Unlink, Wand2, ArrowLeftRight } from 'lucide-react';
+import {
+  useUpdateTransaction,
+  useDeleteTransaction,
+  useUnlinkTransfer,
+} from '../../hooks/useTransactions';
 import { useSchedules, useUnmatchByTransaction } from '../../hooks/useSchedules';
 import { CategoryPicker } from './CategoryPicker';
 import { PayeeCombobox } from './PayeeCombobox';
@@ -13,7 +17,13 @@ import { useUpdatePayee } from '../../hooks/usePayees';
 import { usePreferencesStore } from '../../store/preferencesStore';
 import { AccountIcon } from '../accounts/AccountIcon';
 import { formatCurrency } from '../../utils/currency';
-import { RECURRENCE_TYPE_LABELS } from '../../types';
+import { convertedNote } from '../../utils/conversion';
+import { TransferRate } from './TransferRate';
+import { LinkTransferModal } from './LinkTransferModal';
+import { canLinkAsTransfer } from '../../utils/transferLink';
+import { useCanSave } from '../../hooks/useConnection';
+import { SavingPausedHint } from '../connection/SavingPausedHint';
+import { HOME_CURRENCY, RECURRENCE_TYPE_LABELS } from '../../types';
 import type {
   Transaction,
   CategoryGroup,
@@ -46,6 +56,10 @@ export function TransactionDetailPanel({
   accountLogo,
   onClose,
 }: Props) {
+  // Native amount: in the transaction's own account's currency
+  const currency = tx.currency ?? accounts.find((a) => a.id === tx.accountId)?.currency;
+  // A dollar transaction counts in the Budget, which is in pesos: say what it counts as
+  const converted = convertedNote({ ...tx, currency }, HOME_CURRENCY);
   const updateTx = useUpdateTransaction();
   const updatePayee = useUpdatePayee();
   const deleteTx = useDeleteTransaction();
@@ -62,21 +76,36 @@ export function TransactionDetailPanel({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [ruleDraft, setRuleDraft] = useState<RuleInput | null>(null);
   const ruleModal = useModalValue(ruleDraft);
+  const [showLinkTransfer, setShowLinkTransfer] = useState(false);
+  const unlinkTransfer = useUnlinkTransfer();
+  const canSave = useCanSave();
 
+  // Each field follows its own saved value: a refresh after saving the notes must not put
+  // back a date that is being typed
+  useEffect(() => setLocalDate(tx.date), [tx.id, tx.date]);
+  useEffect(() => setLocalNotes(tx.notes ?? ''), [tx.id, tx.notes]);
+  useEffect(
+    () => setLocalPayee({ id: tx.payeeId, name: tx.payeeName ?? '' }),
+    [tx.id, tx.payeeId, tx.payeeName],
+  );
   useEffect(() => {
-    setLocalDate(tx.date);
-    setLocalNotes(tx.notes ?? '');
-    setLocalPayee({ id: tx.payeeId, name: tx.payeeName ?? '' });
     setShowCategoryPicker(false);
   }, [tx.id, tx.date, tx.notes, tx.payeeId, tx.payeeName]);
 
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
-      if (e.key === 'Escape' && !showCategoryPicker && !showDeleteConfirm && !ruleDraft) onClose();
+      if (
+        e.key === 'Escape' &&
+        !showCategoryPicker &&
+        !showDeleteConfirm &&
+        !ruleDraft &&
+        !showLinkTransfer
+      )
+        onClose();
     }
     document.addEventListener('keydown', handleKey);
     return () => document.removeEventListener('keydown', handleKey);
-  }, [onClose, showCategoryPicker, showDeleteConfirm, ruleDraft]);
+  }, [onClose, showCategoryPicker, showDeleteConfirm, ruleDraft, showLinkTransfer]);
 
   const isReconciled = tx.reconciled === 1;
   const isTransfer = !!tx.transferTransactionId;
@@ -180,11 +209,21 @@ export function TransactionDetailPanel({
               )}
             </div>
           </div>
-          <span
-            className={`text-lg font-semibold tabular-nums ${tx.amount > 0 ? 'text-positive' : 'text-text'}`}
-          >
-            {formatCurrency(Math.abs(tx.amount))}
-          </span>
+          <div className="text-right">
+            <div
+              className={`text-lg font-semibold tabular-nums ${tx.amount > 0 ? 'text-positive' : 'text-text'}`}
+            >
+              {formatCurrency(Math.abs(tx.amount), currency)}
+            </div>
+            {converted && (
+              <div
+                className="text-xs text-text-tertiary tabular-nums"
+                data-testid="converted-amount"
+              >
+                {converted}
+              </div>
+            )}
+          </div>
         </div>
 
         {isReconciled && (
@@ -226,8 +265,11 @@ export function TransactionDetailPanel({
                         {childCat?.name ?? 'Uncategorized'}
                       </span>
                     </div>
-                    <span className="tabular-nums text-text-tertiary">
-                      {formatCurrency(Math.abs(child.amount))}
+                    <span
+                      className="tabular-nums text-text-tertiary"
+                      title={convertedNote({ ...child, currency }, HOME_CURRENCY) ?? undefined}
+                    >
+                      {formatCurrency(Math.abs(child.amount), currency)}
                     </span>
                   </div>
                 );
@@ -236,6 +278,47 @@ export function TransactionDetailPanel({
           ) : isTransfer ? (
             <div className="text-sm text-brand-500 px-3 py-2 border border-border rounded-lg bg-surface-alt">
               Transfer
+              {/* Between a pesos and a dollars account: the other side's own amount and the rate */}
+              {tx.transfer && tx.transfer.rate !== null && (
+                <div className="mt-1 text-xs text-text-secondary tabular-nums">
+                  <p>
+                    {formatCurrency(Math.abs(tx.transfer.amount), tx.transfer.currency)}{' '}
+                    {tx.transfer.amount > 0 ? 'arrived in' : 'left'}{' '}
+                    {accounts.find((a) => a.id === tx.transfer!.accountId)?.name ??
+                      'the other account'}
+                  </p>
+                  <TransferRate rate={tx.transfer.rate} />
+                </div>
+              )}
+              {tx.transfer && tx.transfer.rate === null && (
+                <p className="mt-1 text-xs text-text-secondary">
+                  {tx.transfer.amount > 0 ? 'To' : 'From'}{' '}
+                  {accounts.find((a) => a.id === tx.transfer!.accountId)?.name ??
+                    'the other account'}
+                </p>
+              )}
+              {/* Back to two ordinary transactions (e.g. the wrong two were linked) */}
+              {!isReconciled && (
+                <div className="mt-2">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    disabled={!canSave || unlinkTransfer.isPending}
+                    onClick={() => unlinkTransfer.mutate(tx.id)}
+                  >
+                    <Unlink size={14} />
+                    Unlink transfer
+                  </Button>
+                  <SavingPausedHint className="mt-1" />
+                  {unlinkTransfer.isError && (
+                    <p role="alert" className="mt-1 text-xs text-negative">
+                      {unlinkTransfer.error instanceof Error
+                        ? unlinkTransfer.error.message
+                        : "Couldn't unlink this transfer"}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           ) : (
             <div className="relative">
@@ -319,6 +402,12 @@ export function TransactionDetailPanel({
       </div>
 
       <div className="px-5 py-4 border-t border-border space-y-2">
+        {canLinkAsTransfer(tx) && (
+          <Button variant="secondary" onClick={() => setShowLinkTransfer(true)} className="w-full">
+            <ArrowLeftRight size={14} />
+            Link as transfer
+          </Button>
+        )}
         {!isTransfer && (
           <Button variant="secondary" onClick={startRule} className="w-full">
             <Wand2 size={14} />
@@ -341,6 +430,13 @@ export function TransactionDetailPanel({
           title="New rule from transaction"
         />
       )}
+
+      <LinkTransferModal
+        isOpen={showLinkTransfer}
+        onClose={() => setShowLinkTransfer(false)}
+        transaction={tx}
+        accounts={accounts}
+      />
 
       <ConfirmModal
         isOpen={showDeleteConfirm}

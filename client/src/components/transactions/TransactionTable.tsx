@@ -11,6 +11,7 @@ import { TransactionFormRow } from './TransactionFormRow';
 import { TransactionRow } from './TransactionRow';
 import { TransactionCard } from './TransactionCard';
 import { WaitingTransactions } from './WaitingTransactions';
+import { TransferSuggestions } from './TransferSuggestions';
 import { Modal } from '../ui/Modal';
 import { useIsPhone } from '../../hooks/useIsPhone';
 import { TransactionDetailPanel } from './TransactionDetailPanel';
@@ -21,8 +22,10 @@ import { useOpenFromLink } from '../../hooks/useOpenFromLink';
 import { docsUrl } from '../../utils/project';
 import { useAddTransaction } from '../../hooks/useOffline';
 import { formatCurrency } from '../../utils/currency';
+import { listTotal } from '../../utils/conversion';
 import type { FilterState } from './TransactionFilters';
-import type { CategoryGroup } from '../../types';
+import { HOME_CURRENCY } from '../../types';
+import type { CategoryGroup, Currency, Transaction } from '../../types';
 import type { CreateTransactionData } from '../../api/transactions';
 
 interface Props {
@@ -57,6 +60,10 @@ export function TransactionTable({
   const [showImport, setShowImport] = useState(false);
 
   const showAccountCol = !accountId;
+  // One account's page adds up native amounts. Every other list (all transactions, a
+  // category's) feeds pesos totals like the Budget's, so its dollar rows also say what they
+  // are in pesos.
+  const totalCurrency = accountId ? undefined : HOME_CURRENCY;
 
   const params = useMemo(() => {
     const base = filtersToParams(filters, accountId);
@@ -103,8 +110,19 @@ export function TransactionTable({
   }, [groups]);
 
   const accountInfoMap = useMemo(
-    () => new Map(accounts.map((a) => [a.id, { name: a.name, type: a.type, logo: a.logo }])),
+    () =>
+      new Map(
+        accounts.map((a) => [
+          a.id,
+          { name: a.name, type: a.type, logo: a.logo, currency: a.currency },
+        ]),
+      ),
     [accounts],
+  );
+  // Each row shows its native amount: the currency sent with it, else its account's
+  const currencyOf = useCallback(
+    (tx: Transaction) => tx.currency ?? accountInfoMap.get(tx.accountId)?.currency,
+    [accountInfoMap],
   );
 
   const selectedTx = useMemo(
@@ -139,7 +157,19 @@ export function TransactionTable({
   }, [panelVisible]);
 
   const groupedByDate = useMemo(() => {
-    const result: Array<{ date: string; txs: typeof transactions; total: number }> = [];
+    const result: Array<{
+      date: string;
+      txs: typeof transactions;
+      total: number;
+      currency: Currency;
+    }> = [];
+    // A day's total is in its rows' currency; a day that mixes currencies is in pesos, its
+    // dollar rows converted at the day's rate
+    const dayTotal = (txs: typeof transactions) =>
+      listTotal(
+        txs.map((t) => ({ ...t, currency: currencyOf(t) })),
+        Math.abs,
+      );
     let currentDate = '';
     let currentTxs: typeof transactions = [];
 
@@ -149,7 +179,7 @@ export function TransactionTable({
           result.push({
             date: currentDate,
             txs: currentTxs,
-            total: currentTxs.reduce((sum, t) => sum + Math.abs(t.amount), 0),
+            ...dayTotal(currentTxs),
           });
         }
         currentDate = tx.date;
@@ -163,24 +193,30 @@ export function TransactionTable({
       result.push({
         date: currentDate,
         txs: currentTxs,
-        total: currentTxs.reduce((sum, t) => sum + Math.abs(t.amount), 0),
+        ...dayTotal(currentTxs),
       });
     }
 
     return result;
-  }, [transactions]);
+  }, [transactions, currencyOf]);
 
-  function handleCreate(data: CreateTransactionData) {
+  function handleCreate(data: CreateTransactionData, otherSideAmount?: number) {
     if (data.categoryId?.startsWith('transfer:') && accountId) {
-      const toAccountId = data.categoryId.slice('transfer:'.length);
+      const otherAccountId = data.categoryId.slice('transfer:'.length);
+      // An outflow leaves this account for the other one; an inflow arrives from it
+      const out = data.amount <= 0;
+      const here = Math.abs(data.amount);
+      // Between currencies the other account's side is its own amount (see TransactionFormRow)
+      const there = otherSideAmount ?? here;
       newTx.add(
         {
           kind: 'transfer',
           data: {
-            fromAccountId: accountId,
-            toAccountId,
+            fromAccountId: out ? accountId : otherAccountId,
+            toAccountId: out ? otherAccountId : accountId,
             date: data.date,
-            amount: Math.abs(data.amount),
+            amount: out ? here : there,
+            ...(otherSideAmount === undefined ? {} : { toAmount: out ? there : here }),
             notes: data.notes,
           },
         },
@@ -231,11 +267,18 @@ export function TransactionTable({
         <div className="flex-1 overflow-y-auto">
           {/* Not in a category or month view: they may not belong there */}
           {!categoryId && !categoryIds?.length && !categoryGroupId && !month && (
-            <WaitingTransactions
-              accountId={accountId}
-              categoryName={(id) => categoryMap.get(id)?.name}
-              accountName={(id) => accountInfoMap.get(id)?.name}
-            />
+            <>
+              <WaitingTransactions
+                accountId={accountId}
+                categoryName={(id) => categoryMap.get(id)?.name}
+                accountName={(id) => accountInfoMap.get(id)?.name}
+                accountCurrency={(id) => accountInfoMap.get(id)?.currency}
+              />
+              <TransferSuggestions
+                accountId={accountId}
+                accountName={(id) => accountInfoMap.get(id)?.name}
+              />
+            </>
           )}
           {showAdd && accountId && !isPhone && (
             <TransactionFormRow
@@ -318,7 +361,7 @@ export function TransactionTable({
                     {format(parseISO(group.date), 'MMMM d, yyyy')}
                   </span>
                   <span className="text-sm font-medium text-text-secondary tabular-nums">
-                    {formatCurrency(group.total)}
+                    {formatCurrency(group.total, group.currency)}
                   </span>
                 </div>
 
@@ -334,6 +377,7 @@ export function TransactionTable({
                       accountName={
                         showAccountCol ? accountInfoMap.get(tx.accountId)?.name : undefined
                       }
+                      currency={currencyOf(tx)}
                       isSelected={detailId === tx.id}
                       onOpenDetail={setDetailId}
                     />
@@ -357,6 +401,8 @@ export function TransactionTable({
                         showAccountCol ? accountInfoMap.get(tx.accountId)?.logo : undefined
                       }
                       showAccountCol={showAccountCol}
+                      currency={currencyOf(tx)}
+                      totalCurrency={totalCurrency}
                       isSelected={detailId === tx.id}
                       onOpenDetail={setDetailId}
                       onFilterCategory={(catId) =>

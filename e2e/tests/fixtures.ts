@@ -18,7 +18,14 @@ import {
 
 const token = () => process.env.E2E_API_TOKEN!;
 
-export type Account = { id: string; name: string; balance: number; startingBalance: number };
+export type Account = {
+  id: string;
+  name: string;
+  balance: number;
+  startingBalance: number;
+  currency: 'UYU' | 'USD';
+  groupName: string | null;
+};
 export type Category = { id: string; name: string; groupId: string };
 export type CategoryGroup = { id: string; name: string; isIncome: number; categories: Category[] };
 

@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import * as txApi from '../api/transactions';
+import * as suggestionsApi from '../api/transferSuggestions';
 import { useUndoStore } from '../store/undoStore';
 import type { Transaction, TransactionQueryParams } from '../types';
 
@@ -163,6 +164,8 @@ export function useCreateTransfer() {
               toAccountId: created[1].accountId,
               date: created[0].date,
               amount: Math.abs(created[0].amount),
+              // Its own amount when the accounts have different currencies
+              toAmount: Math.abs(created[1].amount),
               notes: created[0].notes,
             });
           }
@@ -171,6 +174,96 @@ export function useCreateTransfer() {
         },
       });
     },
+  });
+}
+
+/** Transactions that could be the other side of `id` when linking it as a transfer */
+export function useTransferCandidates(id: string, enabled = true) {
+  return useQuery({
+    queryKey: ['transactions', 'transfer-candidates', id],
+    queryFn: () => txApi.getTransferCandidates(id),
+    enabled,
+  });
+}
+
+/** Linking and unlinking, with undo */
+function useTransferLinkMutation<V>(
+  description: string,
+  run: (vars: V) => Promise<Transaction[]>,
+  reverse: (sides: Transaction[], before: (Transaction | undefined)[]) => Promise<unknown>,
+) {
+  const qc = useQueryClient();
+  const refresh = () => {
+    qc.invalidateQueries({ queryKey: ['transactions'] });
+    qc.invalidateQueries({ queryKey: ['accounts'] });
+  };
+  return useMutation({
+    mutationFn: run,
+    onSuccess: (sides, vars) => {
+      // The categories each side had, to put back on undo
+      const before = sides.map((t) => findTxInCache(qc, t.id));
+      refresh();
+      useUndoStore.getState().push({
+        description,
+        undo: async () => {
+          await reverse(sides, before);
+          refresh();
+        },
+        redo: async () => {
+          await run(vars);
+          refresh();
+        },
+      });
+    },
+  });
+}
+
+export function useLinkTransfer() {
+  return useTransferLinkMutation(
+    'Link as transfer',
+    ({ id, otherTransactionId }: { id: string; otherTransactionId: string }) =>
+      txApi.linkTransfer(id, otherTransactionId),
+    async (sides, before) => {
+      await txApi.unlinkTransfer(sides[0].id);
+      for (const old of before) {
+        if (old?.categoryId) await txApi.updateTransaction(old.id, { categoryId: old.categoryId });
+      }
+    },
+  );
+}
+
+export function useUnlinkTransfer() {
+  return useTransferLinkMutation(
+    'Unlink transfer',
+    (id: string) => txApi.unlinkTransfer(id),
+    (sides) =>
+      sides.length >= 2 && sides[0].id !== sides[1].id
+        ? txApi.linkTransfer(sides[0].id, sides[1].id)
+        : Promise.resolve(),
+  );
+}
+
+const TRANSFER_SUGGESTIONS_KEY = ['transactions', 'transfer-suggestions'];
+
+/**
+ * Pairs of transactions that look like transfers. Under the `transactions` key, so anything
+ * that changes transactions (an import above all) asks for them again. Confirm one with
+ * `useLinkTransfer`.
+ */
+export function useTransferSuggestions() {
+  return useQuery({
+    queryKey: TRANSFER_SUGGESTIONS_KEY,
+    queryFn: suggestionsApi.getTransferSuggestions,
+  });
+}
+
+/** "Not a transfer": the pair is not suggested again */
+export function useDismissTransferSuggestion() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, otherTransactionId }: { id: string; otherTransactionId: string }) =>
+      suggestionsApi.dismissTransferSuggestion(id, otherTransactionId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: TRANSFER_SUGGESTIONS_KEY }),
   });
 }
 

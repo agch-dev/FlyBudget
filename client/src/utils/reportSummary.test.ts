@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
 import { expenseFigure, incomeFigure, monthsToAverage } from './reportSummary';
+import { moneyIn } from './currency';
+
+const pesos = moneyIn('UYU');
 import { formatCurrency } from './currency';
 
 const cents = fc.integer({ min: -100_000_000, max: 100_000_000 });
@@ -38,7 +41,7 @@ describe('expenseFigure (property-based)', () => {
   it('shows spending as a plain amount and money back with a plus sign', () => {
     fc.assert(
       fc.property(cents, (net) => {
-        const { value, tone } = expenseFigure(net);
+        const { value, tone } = expenseFigure(net, pesos);
         if (net < 0) {
           expect(value).toBe(formatCurrency(-net));
           expect(tone).toBe('negative');
@@ -55,8 +58,15 @@ describe('expenseFigure (property-based)', () => {
   });
 
   it('a $250 balance correction left as money back reads "+$250", not "$250" spent', () => {
-    expect(expenseFigure(25_000)).toEqual({ value: '+$250', tone: 'positive' });
-    expect(expenseFigure(-5_250)).toEqual({ value: '$52.50', tone: 'negative' });
+    expect(expenseFigure(25_000, pesos)).toEqual({ value: '+$250', tone: 'positive' });
+    expect(expenseFigure(-5_250, pesos)).toEqual({ value: '$52.50', tone: 'negative' });
+  });
+
+  it('carries the sign of the currency the report is viewed in', () => {
+    const dollars = moneyIn('USD');
+    expect(expenseFigure(25_000, dollars)).toEqual({ value: '+US$250', tone: 'positive' });
+    expect(expenseFigure(-5_250, dollars)).toEqual({ value: 'US$52.50', tone: 'negative' });
+    expect(incomeFigure(-100, dollars)).toEqual({ value: '-US$1', tone: 'negative' });
   });
 });
 
@@ -64,7 +74,7 @@ describe('incomeFigure (property-based)', () => {
   it('keeps the sign and colors it', () => {
     fc.assert(
       fc.property(cents, (c) => {
-        const { value, tone } = incomeFigure(c);
+        const { value, tone } = incomeFigure(c, pesos);
         expect(value).toBe(formatCurrency(c));
         expect(tone).toBe(c > 0 ? 'positive' : c < 0 ? 'negative' : 'neutral');
       }),

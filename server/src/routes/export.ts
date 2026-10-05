@@ -8,6 +8,7 @@ import {
   restoreBackup,
   saveSafetyCopy,
 } from '../services/backupService.js';
+import { listRates } from '../services/exchangeRateService.js';
 import { eq, and, gte, lte } from 'drizzle-orm';
 import { isRealDate } from '../utils/validation.js';
 
@@ -63,7 +64,7 @@ exportRouter.get('/transactions/csv', (req, res) => {
       .select()
       .from(accounts)
       .all()
-      .map((a) => [a.id, a.name]),
+      .map((a) => [a.id, a]),
   );
   const cats = Object.fromEntries(
     db
@@ -73,12 +74,16 @@ exportRouter.get('/transactions/csv', (req, res) => {
       .map((c) => [c.id, c.name]),
   );
 
-  const header = 'Date,Account,Payee,Category,Notes,Amount,Reconciled\n';
+  // Amounts are native: each row's is in its account's currency, named in its own column.
+  // Group is the account's Account Group (empty when it has none)
+  const header = 'Date,Account,Group,Currency,Payee,Category,Notes,Amount,Reconciled\n';
   const body = rows
     .map((r) =>
       [
         r.date,
-        escapeCsv(accts[r.accountId] ?? ''),
+        escapeCsv(accts[r.accountId]?.name ?? ''),
+        escapeCsv(accts[r.accountId]?.groupName),
+        accts[r.accountId]?.currency ?? '',
         escapeCsv(r.payeeName),
         escapeCsv(r.categoryId ? (cats[r.categoryId] ?? '') : ''),
         escapeCsv(r.notes),
@@ -90,6 +95,18 @@ exportRouter.get('/transactions/csv', (req, res) => {
 
   res.setHeader('Content-Type', 'text/csv');
   res.setHeader('Content-Disposition', 'attachment; filename="transactions.csv"');
+  res.send(header + body);
+});
+
+// Every stored exchange rate (pesos per dollar), oldest first: what converted totals use
+exportRouter.get('/exchange-rates/csv', (_req, res) => {
+  const header = 'Date,Pesos per dollar,Source\n';
+  const body = listRates()
+    .map((r) => [r.date, String(r.rate), escapeCsv(r.manual ? 'Entered by hand' : 'Fetched')])
+    .map((cells) => cells.join(','))
+    .join('\n');
+  res.setHeader('Content-Type', 'text/csv');
+  res.setHeader('Content-Disposition', 'attachment; filename="exchange-rates.csv"');
   res.send(header + body);
 });
 

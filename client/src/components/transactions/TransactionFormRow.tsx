@@ -6,7 +6,14 @@ import { useCanAddTransaction } from '../../hooks/useOffline';
 import { CategorySelect } from './CategorySelect';
 import type { Account, CategoryGroup, Payee, Transaction } from '../../types';
 import type { CreateTransactionData, SplitItem } from '../../api/transactions';
-import { parseCents, centsToInput, formatCurrency } from '../../utils/currency';
+import {
+  parseCents,
+  centsToInput,
+  currencySymbol,
+  formatCurrency,
+  impliedRate,
+} from '../../utils/currency';
+import { TransferRate } from './TransferRate';
 
 interface Props {
   initial?: Transaction;
@@ -14,7 +21,11 @@ interface Props {
   groups: CategoryGroup[];
   payees: Payee[];
   accounts?: Account[];
-  onSave: (data: CreateTransactionData) => void;
+  /**
+   * `otherSideAmount` comes with a transfer to an account of another currency: the amount on
+   * that account's side, in its currency (positive cents)
+   */
+  onSave: (data: CreateTransactionData, otherSideAmount?: number) => void;
   onCancel: () => void;
   onDelete?: () => void;
   /** `row`: inline in the register (desktop). `sheet`: one column in a phone sheet. */
@@ -64,13 +75,29 @@ export function TransactionFormRow({
   const isTransfer = categoryId?.startsWith('transfer:');
   const isEditingParent = initial?.isParent === 1;
 
+  // A transfer to an account of another currency has a second amount: the other account's
+  // side, as its own statement shows it
+  const [otherSide, setOtherSide] = useState('');
+  const account = accounts?.find((a) => a.id === accountId);
+  const transferTo =
+    isTransfer && !splitMode ? accounts?.find((a) => `transfer:${a.id}` === categoryId) : undefined;
+  const otherCurrencyAccount =
+    account && transferTo && transferTo.currency !== account.currency ? transferTo : undefined;
+  const otherSideCents = parseCents(otherSide);
+  const ownSymbol = otherCurrencyAccount ? ` (${currencySymbol(account?.currency)})` : '';
+
   function getTotalCents() {
     const inflowCents = parseCents(inflow);
     return inflowCents > 0 ? inflowCents : -parseCents(outflow);
   }
+  // An inflow here is money that left the other account; an outflow arrives there
+  const otherSideLabel = otherCurrencyAccount
+    ? `Amount ${getTotalCents() > 0 ? 'leaving' : 'arriving'} (${currencySymbol(otherCurrencyAccount.currency)})`
+    : '';
 
   function handleSave() {
     const amount = getTotalCents();
+    if (otherCurrencyAccount && !(otherSideCents > 0 && amount !== 0)) return;
 
     if (splitMode) {
       const splitItems: SplitItem[] = splits
@@ -96,15 +123,18 @@ export function TransactionFormRow({
       return;
     }
 
-    onSave({
-      accountId,
-      date,
-      payeeId: payee.id,
-      payeeName: payee.name || null,
-      categoryId,
-      notes: notes || null,
-      amount,
-    });
+    onSave(
+      {
+        accountId,
+        date,
+        payeeId: payee.id,
+        payeeName: payee.name || null,
+        categoryId,
+        notes: notes || null,
+        amount,
+      },
+      otherCurrencyAccount ? otherSideCents : undefined,
+    );
   }
 
   function updateSplit(idx: number, field: keyof SplitRow, value: string | null) {
@@ -142,7 +172,7 @@ export function TransactionFormRow({
   const saveButton = (
     <button
       onClick={handleSave}
-      disabled={!canAdd}
+      disabled={!canAdd || (!!otherCurrencyAccount && !(otherSideCents > 0))}
       className={
         sheet
           ? `${sheetBtn} flex-1 bg-brand-600 text-white`
@@ -248,7 +278,7 @@ export function TransactionFormRow({
 
       <div className={sheet ? 'grid grid-cols-2 gap-3' : 'flex items-end gap-3'}>
         <div className={sheet ? '' : 'w-28'}>
-          <label className={labelCls}>Outflow</label>
+          <label className={labelCls}>Outflow{ownSymbol}</label>
           <input
             type="number"
             inputMode="decimal"
@@ -263,7 +293,7 @@ export function TransactionFormRow({
           />
         </div>
         <div className={sheet ? '' : 'w-28'}>
-          <label className={labelCls}>Inflow</label>
+          <label className={labelCls}>Inflow{ownSymbol}</label>
           <input
             type="number"
             inputMode="decimal"
@@ -277,6 +307,33 @@ export function TransactionFormRow({
             className={`${inputCls} text-right tabular-nums`}
           />
         </div>
+        {otherCurrencyAccount && (
+          <div className={sheet ? 'col-span-2' : 'w-44'}>
+            <label className={`${labelCls} truncate`} title={otherCurrencyAccount.name}>
+              {otherSideLabel}
+            </label>
+            <input
+              type="number"
+              inputMode="decimal"
+              value={otherSide}
+              aria-label={otherSideLabel}
+              onChange={(e) => setOtherSide(e.target.value)}
+              placeholder="0.00"
+              min="0"
+              step="0.01"
+              className={`${inputCls} text-right tabular-nums`}
+            />
+          </div>
+        )}
+        {otherCurrencyAccount && (
+          <TransferRate
+            className={sheet ? 'col-span-2' : 'pb-2'}
+            rate={impliedRate(
+              { amount: getTotalCents(), currency: account?.currency },
+              { amount: otherSideCents, currency: otherCurrencyAccount.currency },
+            )}
+          />
+        )}
         {!sheet && (
           <>
             <div className="flex-1" />
@@ -367,7 +424,9 @@ export function TransactionFormRow({
             <span
               className={`text-xs tabular-nums ${splitRemaining === 0 ? 'text-positive' : 'text-negative'}`}
             >
-              {splitRemaining === 0 ? 'Balanced' : `${formatCurrency(splitRemaining)} remaining`}
+              {splitRemaining === 0
+                ? 'Balanced'
+                : `${formatCurrency(splitRemaining, accounts?.find((a) => a.id === accountId)?.currency)} remaining`}
             </span>
           </div>
         </div>

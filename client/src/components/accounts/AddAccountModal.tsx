@@ -4,9 +4,11 @@ import { useCanSave } from '../../hooks/useConnection';
 import { SavingPausedHint } from '../connection/SavingPausedHint';
 import { CurrencyInput } from '../ui/CurrencyInput';
 import { useCreateAccount } from '../../hooks/useAccounts';
-import type { AccountType } from '../../types';
+import { HOME_CURRENCY, type AccountType, type Currency } from '../../types';
 import { accountTypeInfo } from '../../utils/accountTypes';
 import { AccountTypeSelect } from './AccountTypeSelect';
+import { CurrencySelect } from './CurrencySelect';
+import { AccountGroupField } from './AccountGroupField';
 
 interface Props {
   isOpen: boolean;
@@ -16,7 +18,9 @@ interface Props {
 export function AddAccountModal({ isOpen, onClose }: Props) {
   const [name, setName] = useState('');
   const [type, setType] = useState<AccountType>('checking');
+  const [currency, setCurrency] = useState<Currency>(HOME_CURRENCY);
   const [amount, setAmount] = useState(0);
+  const [groupName, setGroupName] = useState('');
   const [isOffBudget, setIsOffBudget] = useState(false);
   const canSave = useCanSave();
   const createAccount = useCreateAccount();
@@ -25,7 +29,9 @@ export function AddAccountModal({ isOpen, onClose }: Props) {
   function handleClose() {
     setName('');
     setType('checking');
+    setCurrency(HOME_CURRENCY);
     setAmount(0);
+    setGroupName('');
     setIsOffBudget(false);
     onClose();
   }
@@ -41,6 +47,8 @@ export function AddAccountModal({ isOpen, onClose }: Props) {
     await createAccount.mutateAsync({
       name: name.trim(),
       type,
+      currency,
+      groupName: groupName.trim() || null,
       // Debts are entered as the amount owed and stored as a negative balance
       startingBalance: info.liability ? -Math.abs(amount) : amount,
       isOffBudget: isOffBudget ? 1 : 0,
@@ -79,6 +87,8 @@ export function AddAccountModal({ isOpen, onClose }: Props) {
 
         <AccountTypeSelect value={type} onChange={handleTypeChange} />
 
+        <CurrencySelect value={currency} onChange={setCurrency} />
+
         <div>
           <label className="block text-sm font-medium text-text-secondary mb-1">
             {amountLabel}
@@ -89,9 +99,12 @@ export function AddAccountModal({ isOpen, onClose }: Props) {
             placeholder="0.00"
             aria-label={amountLabel}
             allowNegative={!info.liability}
+            currency={currency}
           />
           <p className="mt-1 text-xs text-text-secondary">{amountHint}</p>
         </div>
+
+        <AccountGroupField value={groupName} onChange={setGroupName} />
 
         <label className="flex items-start gap-3 cursor-pointer">
           <input

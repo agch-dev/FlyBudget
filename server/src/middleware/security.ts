@@ -172,6 +172,18 @@ export const bankRateLimit = rateLimit({
 });
 
 /**
+ * The exchange rate source is a personal API: a stuck Refresh button or a script must not
+ * be able to hammer it through this server.
+ */
+export const exchangeRateRefreshLimit = rateLimit({
+  windowMs: 60 * 60_000,
+  limit: 10,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  message: { error: 'Exchange rates were refreshed a lot just now. Try again in an hour.' },
+});
+
+/**
  * Server mode behind a reverse proxy that FlyBudget wasn't told about: every request
  * seems to come from the proxy, so HTTPS isn't detected (cookies lose `Secure`) and new
  * browsers share one login rate limit. Says so once in the log.

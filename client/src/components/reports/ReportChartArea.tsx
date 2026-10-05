@@ -17,7 +17,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
-import { formatCentsAxis } from '../../utils/currency';
+import { useViewingMoney } from '../../hooks/useViewingCurrency';
 import { chartColors } from '../../utils/chartColors';
 import {
   CurrencyTooltip,
@@ -161,6 +161,7 @@ function TotalChartView({
   config: CustomReportConfig;
   data: Extract<CustomReportData, { mode: 'total' }>;
 }) {
+  const money = useViewingMoney();
   const chartData = useMemo(() => withColors(data.data), [data]);
   const total = useMemo(() => chartData.reduce((s, d) => s + d.value, 0), [chartData]);
   const chartType = singlePointType(config.chartType, chartData.length);
@@ -194,7 +195,7 @@ function TotalChartView({
             tick={{ fontSize: 11, fill: chartColors.axis }}
             axisLine={false}
             tickLine={false}
-            tickFormatter={formatCentsAxis}
+            tickFormatter={money.axis}
           />
           <Tooltip content={<ShareTooltip total={total} noSwatch={chartType !== 'bar'} />} />
           {chartType === 'area' ? (
@@ -235,6 +236,7 @@ function TimeChartView({
   config: CustomReportConfig;
   data: Extract<CustomReportData, { mode: 'time' }>;
 }) {
+  const money = useViewingMoney();
   const chartData = useMemo(
     () => data.data.map((d) => ({ ...d, month: monthLabel(d.month as string) })),
     [data],
@@ -262,7 +264,7 @@ function TimeChartView({
               tick={{ fontSize: 11, fill: chartColors.axis }}
               axisLine={false}
               tickLine={false}
-              tickFormatter={formatCentsAxis}
+              tickFormatter={money.axis}
             />
             <Tooltip content={<CurrencyTooltip summary={sumSeries} hideZero />} />
             <Legend wrapperStyle={{ fontSize: 11 }} />
@@ -292,7 +294,7 @@ function TimeChartView({
             tick={{ fontSize: 11, fill: chartColors.axis }}
             axisLine={false}
             tickLine={false}
-            tickFormatter={formatCentsAxis}
+            tickFormatter={money.axis}
           />
           <Tooltip content={<CurrencyTooltip summary={sumSeries} />} />
           <Legend wrapperStyle={{ fontSize: 11 }} />

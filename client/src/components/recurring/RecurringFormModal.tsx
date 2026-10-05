@@ -10,8 +10,14 @@ import { usePayees } from '../../hooks/usePayees';
 import { useCanSave } from '../../hooks/useConnection';
 import { SavingPausedHint } from '../connection/SavingPausedHint';
 import { format } from 'date-fns';
+import { Button } from '../ui/Button';
+import { formatCurrency } from '../../utils/currency';
+import { amountNeedsConfirming } from './scheduleFormat';
 import {
+  CURRENCIES,
+  HOME_CURRENCY,
   RECURRENCE_TYPE_LABELS,
+  type Currency,
   type Schedule,
   type RecurrenceType,
   type AmountType,
@@ -61,6 +67,14 @@ export default function RecurringFormModal({ isOpen, onClose, onSave, editItem }
   const [notes, setNotes] = useState('');
   const [autoCreate, setAutoCreate] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  // Saving is waiting for the user to confirm the amount in its new currency
+  const [confirming, setConfirming] = useState(false);
+
+  // The amount is a native amount in the chosen account's currency. An item still on a closed
+  // account (not in the list) keeps the currency it came with.
+  const currency =
+    accounts.find((a) => a.id === accountId)?.currency ??
+    (editItem && accountId === (editItem.accountId ?? '') ? editItem.currency : undefined);
 
   // Set when the form opened before accounts/payees had loaded: filled in once they arrive
   const pendingDefaults = useRef({ account: false, payee: false });
@@ -68,6 +82,7 @@ export default function RecurringFormModal({ isOpen, onClose, onSave, editItem }
   // Filled once per opening: payees and accounts refetch (e.g. after picking or creating a
   // payee) and must not wipe the form
   useFormReset(isOpen ? (editItem?.id ?? 'new') : null, () => {
+    setConfirming(false);
     if (editItem) {
       setName(editItem.name);
       setAmount(Math.abs(editItem.amount));
@@ -129,6 +144,16 @@ export default function RecurringFormModal({ isOpen, onClose, onSave, editItem }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    // The item moved to an account of the other currency: the number typed for the old one
+    // is not converted, so the user is asked whether it is still right
+    if (amountNeedsConfirming(editItem, currency)) {
+      setConfirming(true);
+      return;
+    }
+    save();
+  }
+
+  function save() {
     const signedAmount = isExpense ? -Math.abs(amount) : Math.abs(amount);
     onSave({
       name,
@@ -149,6 +174,42 @@ export default function RecurringFormModal({ isOpen, onClose, onSave, editItem }
 
   const showWeekendAdjust =
     recurrenceType !== 'once' && recurrenceType !== 'weekly' && recurrenceType !== 'biweekly';
+
+  if (confirming && editItem) {
+    const now = currency ?? HOME_CURRENCY;
+    const currencyName = (c: Currency) =>
+      CURRENCIES.find((x) => x.value === c)?.label.toLowerCase() ?? c;
+    const account = accounts.find((a) => a.id === accountId);
+    return (
+      <Modal isOpen={isOpen} onClose={onClose} title="Check the amount" size="sm">
+        <div className="space-y-4">
+          <p className="text-sm text-text-secondary">
+            {account
+              ? `${account.name} is in ${currencyName(now)}`
+              : 'With no account it is in pesos'}
+            , so this recurring item changes from {currencyName(editItem.currency ?? HOME_CURRENCY)}{' '}
+            to {currencyName(now)}. Its amount keeps its number and is not converted.
+          </p>
+          <dl className="text-sm rounded-md border border-border-light">
+            <div className="flex justify-between px-3 py-2">
+              <dt className="text-text-secondary">{isExpense ? 'Expense' : 'Income'}</dt>
+              <dd className="font-medium tabular-nums text-text">{formatCurrency(amount, now)}</dd>
+            </div>
+          </dl>
+          <p className="text-sm text-text-secondary">Is that the right amount?</p>
+          <SavingPausedHint className="text-right" />
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="secondary" onClick={() => setConfirming(false)}>
+              Change amount
+            </Button>
+            <Button onClick={save} disabled={!canSave}>
+              Yes, save
+            </Button>
+          </div>
+        </div>
+      </Modal>
+    );
+  }
 
   return (
     <Modal
@@ -175,7 +236,12 @@ export default function RecurringFormModal({ isOpen, onClose, onSave, editItem }
             <label className="block text-sm font-medium text-text-secondary mb-1">
               {amountType === 'variable' ? 'Estimated Amount' : 'Amount'}
             </label>
-            <CurrencyInput value={amount} onChange={setAmount} aria-label="Amount" />
+            <CurrencyInput
+              value={amount}
+              onChange={setAmount}
+              currency={currency}
+              aria-label="Amount"
+            />
           </div>
           <div>
             <label className="block text-sm font-medium text-text-secondary mb-1">Type</label>

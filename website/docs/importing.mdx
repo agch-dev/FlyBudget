@@ -5,8 +5,9 @@ sidebar_label: Importing transactions
 
 # Importing transactions
 
-Almost every bank lets you download your transactions as a CSV file from its website (look for
-"Download", "Export" or "Statements"). FlyBudget can import those files into any account. It's
+Almost every bank lets you download your transactions as a CSV or Excel file from its website
+(look for "Download", "Export" or "Statements"). FlyBudget can import those files into any
+account. It's
 free, works with every bank, and nothing but the file is involved. If you'd rather have
 transactions arrive by themselves, [connect a bank](./bank-sync) instead.
 
@@ -16,10 +17,16 @@ transactions arrive by themselves, [connect a bank](./bank-sync) instead.
 2. Drop the file on the window, or click to pick it.
 3. **Map the columns.** FlyBudget reads the file's headers and guesses what each column holds.
    Check the guesses, and change any that are wrong: **Date**, **Payee**, **Amount**,
-   **Inflow**, **Outflow**, **Notes** or **Skip**. The first rows are shown underneath so you
-   can see that it looks right. You need a date and either an amount or inflow/outflow columns.
+   **Inflow**, **Outflow**, **Notes** or **Skip** (and, for a statement in two currencies,
+   **Amount in pesos**, **Amount in dollars** or **Currency**: see
+   [Credit cards](#credit-cards)). The first rows are shown underneath so you can see that it
+   looks right. You need a date and either an amount or inflow/outflow columns.
 
    <Screenshot name="import-csv" alt="Mapping the columns of a CSV file" dialog />
+
+   Under the columns, check **Dates** and **Decimals** (see
+   [Dates and decimals](#dates-and-decimals) below). FlyBudget shows how the first row reads, so
+   you can tell at a glance that the day and the amount are right.
 
 4. **Preview.** Every row is listed with its date, payee and amount. Rows you already have are
    marked **duplicate** and unticked. Untick anything else you don't want.
@@ -43,16 +50,71 @@ hand _and_ import files for the same account, check the preview for rows you alr
 
 ## What FlyBudget understands
 
-- **Dates**: `2026-01-05`, `01/05/2026` (month first) and written-out dates like `Jan 5, 2026`.
-- **Amounts**: `-12.00`, `$1,234.56`, `(12.00)` and `12.00-` for money going out. With separate
-  inflow and outflow columns, FlyBudget works out the sign.
+- **Dates**: `2026-01-05`, `05/01/2026` with the day or the month first, and written-out dates
+  like `Jan 5, 2026`.
+- **Amounts**: `-12.00`, `$1,234.56` or `1.234,56`, and `(12.00)` or `12.00-` for money going
+  out. With separate inflow and outflow columns, FlyBudget works out the sign.
+- **Separators**: columns separated by commas or by semicolons.
+- **Excel files**: `.xlsx` and the older `.xls`, read on your device like a CSV file. When a
+  workbook has several sheets, FlyBudget opens the first one that holds transactions, and you can
+  pick another under **Sheet**. Password-protected workbooks can't be read.
+- **Headers** in English or Spanish (`Fecha`, `Concepto`, `Débito`, `Crédito`, `Importe`).
+- **Statements with details on top**: when the bank writes the account holder, number or period
+  above the column headers, FlyBudget starts at the headers and leaves those lines out.
+- **Accents**: older bank files (not UTF-8) are read too, so `Número` and `Débito` show properly.
 - Files up to 100,000 rows. Rows with an amount of zero are left out.
 
-If your bank writes the day before the month (`05/01/2026` for 5 January), or uses a comma as the
-decimal separator, change the format in a spreadsheet before importing.
+## Dates and decimals
+
+Banks don't agree on how to write a date or an amount, so the import has two choices:
+
+- **Dates**: **Day first** (`31/12/2026`) or **Month first** (`12/31/2026`). `05/01/2026` is
+  5 January under the first and 1 May under the second.
+- **Decimals**: **Comma** (`1.234,56`) or **Point** (`1,234.56`).
+
+FlyBudget guesses both from the file: a date with a day above 12 shows the order, and an amount
+with cents shows the decimal mark. When nothing in the file tells (every day is 12 or lower, no
+amount has cents), it picks month first and point, so check the choices the first time you import
+from a bank. Once an import succeeds, FlyBudget remembers the choices for that account on this
+device and uses them for its next file, along with how you mapped the columns (for files with the
+same headers).
+
+In an Excel file, amounts stored as numbers are read exactly whatever you choose; the choices
+apply to dates and amounts the file stores as text.
+
+A row whose date or amount can't be read under your choices is never imported as a wrong day or
+a wrong amount. It's listed in the dialog with what couldn't be read, and left out. If many rows
+are listed, one of the two choices is probably wrong: change it, and the file is read again
+straight away, on the preview too.
 
 ## Credit cards
 
-Some banks export credit card purchases as positive numbers. If your purchases show up as money
-coming in, map the column as **Outflow** instead of **Amount**. Every row is then treated as money
-going out, so fix any refunds by hand after importing.
+**Purchases written as positive numbers.** Many card statements write a purchase as `1.234,56`
+and a payment or refund as `-1.234,56`, the opposite of what an account needs. Tick **Purchases
+are positive in this file** under the columns: every sign is turned around, so purchases are
+money going out and payments and refunds are money coming in. For a credit card account FlyBudget
+ticks it for you when most of the file's amounts are positive. Check that the first row reads the
+way you expect.
+
+**Pesos and dollars in one file.** A card that works in both currencies is two accounts in
+FlyBudget, one in pesos and one in dollars, and its statement lists both. FlyBudget reads the two
+ways banks write that:
+
+- a column for each currency (`Pesos` and `Dólares`, or `Importe $` and `Importe U$S`), mapped as
+  **Amount in pesos** and **Amount in dollars**;
+- one amount column and a column that names each row's currency (`Moneda`: `Pesos` or `Dólares`),
+  mapped as **Amount** and **Currency**.
+
+Open either of the card's two accounts and import the file there. The rows in that account's
+currency go into it. For the others, the dialog shows **Rows in dollars go to** (or **Rows in
+pesos go to**) with the accounts of that currency:
+
+- When the account is in an Account Group that has exactly one other account of the same type in
+  the other currency, that account is already chosen.
+- Otherwise it starts on **Not imported**, and you choose. FlyBudget never guesses between two
+  accounts.
+
+The preview shows which account each row goes to, and the amount in that account's currency.
+Nothing is converted: a dollar purchase is saved as dollars. FlyBudget remembers the account you
+chose for the next file. Importing the same file again from the other account is safe: every row
+is found as a duplicate.

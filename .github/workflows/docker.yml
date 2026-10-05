@@ -63,6 +63,11 @@ jobs:
           openssl rand -base64 32 > flybudget_data_key.txt
           sudo chown 1000:1000 flybudget_data_key.txt
           sudo chmod 400 flybudget_data_key.txt
+          # The exchange rate source is a personal API: CI must not call it on every run.
+          # An override file on top of the real one, for this and the later steps
+          printf 'services:\n  flybudget:\n    environment:\n      - FLYBUDGET_EXCHANGE_RATES=off\n' > compose.ci.yml
+          export COMPOSE_FILE=docker-compose.yml:compose.ci.yml
+          echo "COMPOSE_FILE=$COMPOSE_FILE" >> "$GITHUB_ENV"
           # --wait also requires the image's health check to report healthy
           docker compose up -d --wait --wait-timeout 180
 

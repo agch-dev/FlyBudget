@@ -141,6 +141,63 @@ test.describe('budget', () => {
       page.getByTestId('transaction-row').filter({ hasText: 'Farm Stand' }),
     ).toBeVisible();
   });
+  test('a dollar account counts in pesos, at the exchange rate of each transaction’s date', async ({
+    page,
+    api,
+  }) => {
+    const dollars = await api.createAccount('Dollar savings', 0, 'checking', { currency: 'USD' });
+    const groceries = await api.category('Groceries');
+    const paychecks = await api.category('Paychecks');
+    await api.call('PUT', `/exchange-rates/${isoDay()}`, { rate: 40 });
+    await api.createTransaction({
+      accountId: dollars.id,
+      date: isoDay(),
+      amount: 100_000,
+      payeeName: 'Client abroad',
+      categoryId: paychecks.id,
+    });
+    await api.createTransaction({
+      accountId: dollars.id,
+      date: isoDay(),
+      amount: -5_000,
+      payeeName: 'Import Market',
+      categoryId: groceries.id,
+    });
+
+    // US$ 1,000 received and US$ 50 spent at 40 pesos per dollar
+    await open(page, '/budget');
+    await expect(toBeBudgeted(page)).toContainText('$40,000');
+    const groceriesRow = page.getByRole('row').filter({ hasText: 'Groceries' });
+    await expect(groceriesRow).toContainText('$2,000');
+
+    // The category page lists the native amount, with the pesos it counts as on hover and in
+    // the detail panel
+    await groceriesRow.getByRole('link').click();
+    const purchase = page.getByTestId('transaction-row').filter({ hasText: 'Import Market' });
+    await expect(purchase).toContainText('US$50');
+    await expect(purchase.getByTitle(/^\$2,000 at the exchange rate of /)).toHaveText('US$50');
+    await expect(page.getByRole('main')).toContainText('Total spending');
+    await purchase.focus();
+    await page.keyboard.press('Enter');
+    const panel = page.getByRole('complementary', { name: 'Transaction details' });
+    await expect(panel.getByTestId('converted-amount')).toContainText(
+      '$2,000 at the exchange rate of',
+    );
+    await page.getByRole('button', { name: 'Close details' }).click();
+
+    // Correcting that day's rate changes the budget right away
+    await page.getByRole('link', { name: 'Settings' }).click();
+    await page.getByRole('button', { name: 'Exchange rates' }).click();
+    await page.getByRole('button', { name: /^Edit the rate of / }).click();
+    const dialog = page.getByRole('dialog', { name: 'Correct a rate' });
+    await dialog.getByLabel('Pesos per dollar').fill('42');
+    await dialog.getByRole('button', { name: 'Save rate' }).click();
+    await expect(dialog).toBeHidden();
+    await page.getByRole('link', { name: 'Budget', exact: true }).click();
+    await expect(toBeBudgeted(page)).toContainText('$42,000');
+    await expect(page.getByRole('row').filter({ hasText: 'Groceries' })).toContainText('$2,100');
+  });
+
   test('switching months keeps the budget on screen while the next month loads', async ({
     page,
     api,

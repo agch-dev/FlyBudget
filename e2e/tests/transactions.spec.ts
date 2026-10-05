@@ -240,6 +240,296 @@ test('the Add transaction dialog makes transfers too', async ({ page, api }) => 
   expect(into.transferTransactionId).not.toBeNull();
 });
 
+test.describe('transfers between a pesos and a dollars account', () => {
+  async function pesosAndDollars(api: Api) {
+    const pesos = await api.createAccount('Cuenta pesos', 10_000_000);
+    const dollars = await api.createAccount('Caja dolares', 0, 'savings', { currency: 'USD' });
+    return { pesos, dollars };
+  }
+
+  test('the Add transaction dialog asks for both amounts and shows the rate', async ({
+    page,
+    api,
+  }) => {
+    const { pesos, dollars } = await pesosAndDollars(api);
+    await open(page, '/transactions?add=1');
+    const dialog = page.getByRole('dialog', { name: 'Add transaction' });
+
+    await dialog.getByRole('button', { name: /Select account/ }).click();
+    await dialog.getByRole('button', { name: /Cuenta pesos/ }).click();
+    // One amount until the transfer goes to an account of another currency
+    await expect(dialog.getByLabel('Amount', { exact: true })).toBeVisible();
+    await dialog.getByRole('button', { name: /^Category:/ }).click();
+    await dialog.getByRole('button', { name: 'Transfer: Caja dolares' }).click();
+
+    await expect(dialog.getByText('Amount leaving Cuenta pesos ($) *')).toBeVisible();
+    await expect(dialog.getByText('Amount arriving in Caja dolares (US$) *')).toBeVisible();
+    const add = dialog.getByRole('button', { name: 'Add transaction' });
+    await typeAmount(dialog.getByLabel('Amount leaving ($)'), '40000');
+    // Both amounts are needed
+    await expect(add).toBeDisabled();
+    await expect(dialog.getByText(/^Rate:/)).toBeHidden();
+
+    // The rate follows the amount as it's typed
+    await dialog.getByLabel('Amount arriving (US$)').click();
+    await page.keyboard.type('1000');
+    await expect(dialog.getByText('Rate: $ 40.00 per US$ 1')).toBeVisible();
+    await add.click();
+    await expect(dialog).toBeHidden();
+
+    // Each side keeps its own native amount
+    expect(await api.balance(pesos.id)).toBe(6_000_000);
+    expect(await api.balance(dollars.id)).toBe(100_000);
+    const [out] = await api.transactions(`?account_id=${pesos.id}`);
+    const [into] = await api.transactions(`?account_id=${dollars.id}`);
+    expect(out).toMatchObject({ amount: -4_000_000, transferTransactionId: into.id });
+    expect(into).toMatchObject({ amount: 100_000, transferTransactionId: out.id });
+  });
+
+  test('the register form asks for the other amount, and the details show the rate', async ({
+    page,
+    api,
+  }) => {
+    const { pesos, dollars } = await pesosAndDollars(api);
+    // Selling dollars, entered from the pesos account: an inflow here that left the dollars
+    await api.call('POST', '/transactions/transfer', {
+      fromAccountId: pesos.id,
+      toAccountId: dollars.id,
+      date: otherDayThisMonth(),
+      amount: 8_000_000,
+      toAmount: 200_000,
+    });
+    await open(page, `/accounts/${pesos.id}`);
+    await fillNewTransaction(page, { category: 'Transfer: Caja dolares', inflow: '20250' });
+    const form = newForm(page);
+    await expect(form.getByText('Inflow ($)')).toBeVisible();
+    await expect(form.getByRole('button', { name: 'Save' })).toBeDisabled();
+    await form.getByRole('spinbutton', { name: 'Amount leaving (US$)' }).fill('500');
+    await expect(form.getByText('Rate: $ 40.50 per US$ 1')).toBeVisible();
+    await form.getByRole('button', { name: 'Save' }).click();
+    await expect(form).toBeHidden();
+
+    expect(await api.balance(pesos.id)).toBe(10_000_000 - 8_000_000 + 2_025_000);
+    expect(await api.balance(dollars.id)).toBe(200_000 - 50_000);
+
+    // The dollars side of the sale, with what happened in pesos
+    await open(page, `/accounts/${dollars.id}`);
+    await expect(row(page, 'Transfer: Cuenta pesos')).toHaveCount(2);
+    await row(page, 'Transfer: Cuenta pesos').filter({ hasText: 'US$500' }).focus();
+    await page.keyboard.press('Enter');
+    const panel = page.getByRole('complementary', { name: 'Transaction details' });
+    await expect(panel).toContainText('$20,250 arrived in Cuenta pesos');
+    await expect(panel).toContainText('Rate: $ 40.50 per US$ 1');
+  });
+
+  test('editing one side changes its amount only, and its date on both sides', async ({ api }) => {
+    const { pesos, dollars } = await pesosAndDollars(api);
+    const [out, into] = await api.call<{ id: string }[]>('POST', '/transactions/transfer', {
+      fromAccountId: pesos.id,
+      toAccountId: dollars.id,
+      date: isoDay(),
+      amount: 4_000_000,
+      toAmount: 100_000,
+    });
+    await api.call('PUT', `/transactions/${into.id}`, { amount: 99_500, date: isoDay(-1) });
+    expect(await api.balance(pesos.id)).toBe(6_000_000);
+    expect(await api.balance(dollars.id)).toBe(99_500);
+    const [pesosSide] = await api.transactions(`?account_id=${pesos.id}`);
+    expect(pesosSide).toMatchObject({ id: out.id, amount: -4_000_000, date: isoDay(-1) });
+  });
+});
+
+test.describe('linking two imported transactions as a transfer', () => {
+  const panel = (page: Page) => page.getByRole('complementary', { name: 'Transaction details' });
+
+  async function openDetails(page: Page, payee: string) {
+    await row(page, payee).focus();
+    await page.keyboard.press('Enter');
+    await expect(panel(page)).toBeVisible();
+  }
+
+  test('an outflow in pesos is linked to an inflow in dollars, then unlinked', async ({
+    page,
+    api,
+  }) => {
+    const pesos = await api.createAccount('Cuenta pesos', 10_000_000);
+    const dollars = await api.createAccount('Caja dolares', 0, 'savings', { currency: 'USD' });
+    const groceries = await api.category('Groceries');
+    const out = await api.createTransaction({
+      accountId: pesos.id,
+      date: isoDay(),
+      amount: -4_000_000,
+      payeeName: 'COMPRA MONEDA EXTRANJERA',
+      categoryId: groceries.id,
+    });
+    const into = await api.createTransaction({
+      accountId: dollars.id,
+      date: isoDay(-1),
+      amount: 100_000,
+      payeeName: 'CREDITO POR COMPRA USD',
+    });
+    // Not offered: an outflow, and a transaction in the same account
+    await api.createTransaction({
+      accountId: dollars.id,
+      date: isoDay(),
+      amount: -5_000,
+      payeeName: 'Cafe en dolares',
+    });
+    await api.createTransaction({
+      accountId: pesos.id,
+      date: isoDay(),
+      amount: 300_000,
+      payeeName: 'Reintegro',
+    });
+
+    await open(page, `/accounts/${pesos.id}`);
+    await openDetails(page, 'COMPRA MONEDA EXTRANJERA');
+    await panel(page).getByRole('button', { name: 'Link as transfer' }).click();
+
+    const dialog = page.getByRole('dialog', { name: 'Link as transfer' });
+    const offered = dialog.getByRole('list', { name: 'Transactions to link' });
+    await expect(offered.getByRole('button')).toHaveCount(1);
+    await offered.getByRole('button', { name: /CREDITO POR COMPRA USD.*US\$1,000/ }).click();
+    await expect(dialog).toBeHidden();
+
+    await expect(panel(page)).toContainText('US$1,000 arrived in Caja dolares');
+    await expect(panel(page)).toContainText('Rate: $ 40.00 per US$ 1');
+    await expect(panel(page).getByRole('button', { name: 'Link as transfer' })).toBeHidden();
+    const [pesosSide] = await api.transactions(`?account_id=${pesos.id}&search=COMPRA`);
+    expect(pesosSide).toMatchObject({
+      id: out.id,
+      amount: -4_000_000,
+      categoryId: null,
+      transferTransactionId: into.id,
+    });
+
+    await panel(page).getByRole('button', { name: 'Unlink transfer' }).click();
+    await expect(panel(page).getByRole('button', { name: 'Link as transfer' })).toBeVisible();
+    await expect(panel(page).getByRole('button', { name: 'Uncategorized' })).toBeVisible();
+    const [dollarsSide] = await api.transactions(`?account_id=${dollars.id}&search=CREDITO`);
+    expect(dollarsSide).toMatchObject({ amount: 100_000, transferTransactionId: null });
+  });
+
+  test('two pesos transactions of different amounts are refused with a reason', async ({
+    page,
+    api,
+  }) => {
+    const checking = await api.createAccount('Everyday Checking', 100_000);
+    const savings = await api.createAccount('Rainy Day Savings', 0, 'savings');
+    await api.createTransaction({
+      accountId: checking.id,
+      date: isoDay(),
+      amount: -25_000,
+      payeeName: 'TRASPASO A CAJA',
+    });
+    await api.createTransaction({
+      accountId: savings.id,
+      date: isoDay(),
+      amount: 24_000,
+      payeeName: 'TRASPASO DE CUENTA',
+    });
+
+    await open(page, `/accounts/${checking.id}`);
+    await openDetails(page, 'TRASPASO A CAJA');
+    await panel(page).getByRole('button', { name: 'Link as transfer' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Link as transfer' });
+    await dialog.getByRole('button', { name: /TRASPASO DE CUENTA/ }).click();
+    await expect(dialog.getByRole('alert')).toContainText('must be for the same amount');
+    expect(await api.balance(savings.id)).toBe(24_000);
+  });
+});
+
+test.describe('transfer suggestions', () => {
+  const suggestions = (page: Page) => page.getByRole('region', { name: 'Possible transfers' });
+  const suggestion = (page: Page, payee: string) =>
+    suggestions(page).getByTestId('transfer-suggestion').filter({ hasText: payee });
+
+  /** Both sides of two movements, as importing each account's file leaves them */
+  async function seed(api: Api) {
+    const pesos = await api.createAccount('Cuenta pesos', 10_000_000);
+    const savings = await api.createAccount('Caja de ahorro', 0, 'savings');
+    const dollars = await api.createAccount('Caja dolares', 0, 'savings', { currency: 'USD' });
+    await api.call('PUT', `/exchange-rates/${isoDay(-10)}`, { rate: 40 });
+    const add = (accountId: string, amount: number, payeeName: string, daysAgo = 0) =>
+      api.createTransaction({ accountId, date: isoDay(-daysAgo), amount, payeeName });
+    const out = await add(pesos.id, -250_000, 'TRASPASO A CAJA', 1);
+    const into = await add(savings.id, 250_000, 'TRASPASO DE CUENTA');
+    const bought = await add(pesos.id, -4_050_000, 'COMPRA MONEDA EXTRANJERA');
+    const credited = await add(dollars.id, 100_000, 'CREDITO POR COMPRA USD');
+    // Spending that matches nothing
+    await add(pesos.id, -99_900, 'Supermercado');
+    return { pesos, savings, dollars, out, into, bought, credited };
+  }
+
+  test('shows both transactions of each pair, and the rate between currencies', async ({
+    page,
+    api,
+  }) => {
+    const { pesos, out } = await seed(api);
+    await open(page, `/accounts/${pesos.id}`);
+
+    await expect(suggestions(page)).toContainText('2 possible transfers');
+    await suggestions(page).getByRole('button', { name: 'Review' }).click();
+    await expect(suggestions(page).getByTestId('transfer-suggestion')).toHaveCount(2);
+
+    const same = suggestion(page, 'TRASPASO A CAJA');
+    await expect(same).toContainText('TRASPASO DE CUENTA');
+    await expect(same).toContainText('Caja de ahorro');
+    await expect(same).toContainText('-$2,500');
+    await expect(same).toContainText('+$2,500');
+    await expect(same).not.toContainText('Rate:');
+
+    const across = suggestion(page, 'COMPRA MONEDA EXTRANJERA');
+    await expect(across).toContainText('-$40,500');
+    await expect(across).toContainText('+US$1,000');
+    await expect(across).toContainText('Rate: $ 40.50 per US$ 1');
+
+    // Looking at them links nothing
+    const [stillAlone] = await api.transactions(`?account_id=${pesos.id}&search=TRASPASO`);
+    expect(stillAlone).toMatchObject({ id: out.id, transferTransactionId: null });
+  });
+
+  test('confirming one links the pair as a transfer', async ({ page, api }) => {
+    const { pesos, dollars, bought, credited } = await seed(api);
+    await open(page, `/accounts/${pesos.id}`);
+    await suggestions(page).getByRole('button', { name: 'Review' }).click();
+    await suggestion(page, 'COMPRA MONEDA EXTRANJERA')
+      .getByRole('button', { name: /^Link as transfer/ })
+      .click();
+
+    await expect(suggestions(page)).toContainText('1 possible transfer');
+    await expect(suggestion(page, 'COMPRA MONEDA EXTRANJERA')).toHaveCount(0);
+    const [pesosSide] = await api.transactions(`?account_id=${pesos.id}&search=COMPRA`);
+    expect(pesosSide).toMatchObject({
+      id: bought.id,
+      amount: -4_050_000,
+      transferTransactionId: credited.id,
+    });
+    const [dollarsSide] = await api.transactions(`?account_id=${dollars.id}&search=CREDITO`);
+    expect(dollarsSide).toMatchObject({ amount: 100_000, transferTransactionId: bought.id });
+  });
+
+  test('a dismissed pair is not suggested again', async ({ page, api }) => {
+    const { savings, out } = await seed(api);
+    // Only the pesos pair has a side in this account
+    await open(page, `/accounts/${savings.id}`);
+    await expect(suggestions(page)).toContainText('1 possible transfer');
+    await suggestions(page).getByRole('button', { name: 'Review' }).click();
+    await suggestion(page, 'TRASPASO A CAJA')
+      .getByRole('button', { name: /^Not a transfer/ })
+      .click();
+    await expect(suggestions(page)).toBeHidden();
+
+    await page.reload();
+    await expect(row(page, 'TRASPASO DE CUENTA')).toBeVisible();
+    await expect(suggestions(page)).toBeHidden();
+    const found = await api.call<{ outflow: { id: string } }[]>('GET', '/transfer-suggestions');
+    expect(found.map((s) => s.outflow.id)).not.toContain(out.id);
+    const [untouched] = await api.transactions(`?account_id=${savings.id}`);
+    expect(untouched.transferTransactionId).toBeNull();
+  });
+});
+
 test('sending a new transaction twice (offline retry) saves it once', async ({ api }) => {
   const checking = await api.createAccount('Everyday Checking', 100_000);
   const savings = await api.createAccount('Savings', 0, 'savings');

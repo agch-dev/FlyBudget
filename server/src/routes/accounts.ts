@@ -6,7 +6,10 @@ import { nanoid } from 'nanoid';
 import { z } from 'zod';
 import { logoSchema } from '../utils/logo.js';
 import { accountTypeSchema, defaultOffBudget } from '../utils/accountTypes.js';
+import { currencySchema, HOME_CURRENCY } from '../utils/currency.js';
+import { groupNameSchema, resolveGroupName } from '../utils/accountGroups.js';
 import { accountTransactionSum, inAccountBalance } from '../services/balances.js';
+import { CURRENCY_LOCK_MESSAGE, currencyLockLookup } from '../services/accountCurrency.js';
 
 export const accountsRouter = Router();
 
@@ -15,20 +18,48 @@ const fields = {
   type: accountTypeSchema,
   startingBalance: z.number().int(),
   isOffBudget: z.number().int().min(0).max(1),
+  currency: currencySchema,
+  groupName: groupNameSchema,
 };
 
 const createSchema = z.object({
   ...fields,
   startingBalance: fields.startingBalance.default(0),
   isOffBudget: fields.isOffBudget.optional(),
+  currency: fields.currency.default(HOME_CURRENCY),
+  groupName: fields.groupName.optional(),
 });
 
 // Built without defaults: Zod applies `.default()` even inside `.partial()`, so an update
 // that only renames an account would otherwise reset its starting balance to 0
 const updateSchema = z.object(fields).partial().extend({ logo: logoSchema.optional() });
 
-function withBalance(account: typeof accounts.$inferSelect) {
-  return { ...account, balance: account.startingBalance + accountTransactionSum(account.id) };
+/** The group name to store: the spelling the other open accounts already use, if any */
+function groupNameFor(name: string | null, accountId?: string): string | null {
+  const others = db
+    .select({ id: accounts.id, groupName: accounts.groupName })
+    .from(accounts)
+    .where(isNull(accounts.closedAt))
+    .all()
+    .filter((a) => a.id !== accountId);
+  return resolveGroupName(
+    name,
+    others.map((a) => a.groupName),
+  );
+}
+
+/**
+ * `currencyLockedBy` tells the edit dialog whether the currency can still change, and why
+ * not. `hasTransactions` stays for an app that was loaded before `currencyLockedBy` existed.
+ */
+function withBalance(account: typeof accounts.$inferSelect, lockOf = currencyLockLookup()) {
+  const currencyLockedBy = lockOf(account.id);
+  return {
+    ...account,
+    balance: account.startingBalance + accountTransactionSum(account.id),
+    hasTransactions: currencyLockedBy === 'transactions',
+    currencyLockedBy,
+  };
 }
 
 accountsRouter.get('/', (_req, res) => {
@@ -50,8 +81,17 @@ accountsRouter.get('/', (_req, res) => {
     .groupBy(transactions.accountId)
     .all();
 
-  const sumMap = Object.fromEntries(sums.map((s) => [s.accountId, s.sum]));
-  res.json(rows.map((a) => ({ ...a, balance: a.startingBalance + (sumMap[a.id] ?? 0) })));
+  // Every split child has a parent in the same account, so these are all accounts with rows
+  const sumMap = new Map(sums.map((s) => [s.accountId, s.sum]));
+  const lockOf = currencyLockLookup();
+  res.json(
+    rows.map((a) => ({
+      ...a,
+      balance: a.startingBalance + (sumMap.get(a.id) ?? 0),
+      hasTransactions: sumMap.has(a.id),
+      currencyLockedBy: lockOf(a.id),
+    })),
+  );
 });
 
 accountsRouter.get('/balances-ago', (_req, res) => {
@@ -85,6 +125,7 @@ accountsRouter.post('/', (req, res) => {
   const account = {
     id: nanoid(),
     ...parsed.data,
+    groupName: groupNameFor(parsed.data.groupName ?? null),
     // Homes, cars, investments and loans stay off budget unless asked otherwise
     isOffBudget: parsed.data.isOffBudget ?? defaultOffBudget(parsed.data.type),
     sortOrder: 0,
@@ -133,8 +174,27 @@ accountsRouter.put('/:id', (req, res) => {
   const parsed = updateSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
 
-  if (Object.keys(parsed.data).length) {
-    db.update(accounts).set(parsed.data).where(eq(accounts.id, req.params.id)).run();
+  // Amounts are stored in the account's currency, so changing it would silently turn every
+  // existing transaction's pesos into dollars (or back), and the same for the amount of a
+  // recurring item or a linked goal
+  if (parsed.data.currency) {
+    const current = db
+      .select({ currency: accounts.currency })
+      .from(accounts)
+      .where(eq(accounts.id, req.params.id))
+      .get();
+    const lock = currencyLockLookup()(req.params.id);
+    if (current && current.currency !== parsed.data.currency && lock) {
+      return res.status(409).json({ error: CURRENCY_LOCK_MESSAGE[lock] });
+    }
+  }
+
+  const changes = { ...parsed.data };
+  if (changes.groupName !== undefined) {
+    changes.groupName = groupNameFor(changes.groupName, req.params.id);
+  }
+  if (Object.keys(changes).length) {
+    db.update(accounts).set(changes).where(eq(accounts.id, req.params.id)).run();
   }
   const updated = db.select().from(accounts).where(eq(accounts.id, req.params.id)).get();
   if (!updated) return res.status(404).json({ error: 'Not found' });

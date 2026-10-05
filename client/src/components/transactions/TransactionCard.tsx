@@ -3,7 +3,7 @@ import { ArrowLeftRight, ChevronRight, Lock, Split } from 'lucide-react';
 import { PayeeIcon } from '../payees/PayeeIcon';
 import { formatCurrency } from '../../utils/currency';
 import { usePreferencesStore } from '../../store/preferencesStore';
-import type { Transaction, PayeeWithCount } from '../../types';
+import type { Currency, Transaction, PayeeWithCount } from '../../types';
 
 interface Props {
   tx: Transaction;
@@ -11,6 +11,8 @@ interface Props {
   payees: PayeeWithCount[];
   /** Shown on the all-transactions page, where rows come from several accounts */
   accountName?: string;
+  /** The currency of the amount (its account's); defaults to the one sent with the row */
+  currency?: Currency;
   isSelected: boolean;
   onOpenDetail: (id: string) => void;
 }
@@ -25,6 +27,7 @@ export function TransactionCard({
   categoryEntry,
   payees,
   accountName,
+  currency = tx.currency,
   isSelected,
   onOpenDetail,
 }: Props) {
@@ -74,7 +77,7 @@ export function TransactionCard({
             className={`shrink-0 text-[15px] font-medium tabular-nums ${tx.amount > 0 ? 'text-positive' : 'text-text'}`}
           >
             {tx.amount > 0 ? '+' : ''}
-            {formatCurrency(Math.abs(tx.amount))}
+            {formatCurrency(Math.abs(tx.amount), currency)}
           </span>
         </span>
         <span className="flex items-center gap-1.5 text-xs text-text-tertiary min-w-0">

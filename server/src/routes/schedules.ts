@@ -2,6 +2,10 @@ import { Router } from 'express';
 import { db } from '../db/index.js';
 import { schedules, scheduleOccurrences, transactions, payees } from '../db/schema.js';
 import { eq, and, gte, lte, desc } from 'drizzle-orm';
+import { converter, rateDateFor } from '../services/currencyConversion.js';
+import { listRates } from '../services/exchangeRateService.js';
+import { otherCurrency, targetCurrencyParam } from '../utils/currency.js';
+import { accountCurrency, accountCurrencyLookup } from '../services/accountCurrency.js';
 import { nanoid } from 'nanoid';
 import { z } from 'zod';
 import { format, addDays } from 'date-fns';
@@ -103,12 +107,31 @@ const createSchema = z
 // (`{ status }`) would otherwise reset its amount type, weekend rule and auto-create
 const updateSchema = z.object(scheduleFields).partial().refine(ruleMatchesType, ruleTypeMessage);
 
+// A recurring item has one amount, and a transfer between a pesos and a dollars account needs
+// two (what leaves and what arrives, which changes with the exchange rate)
+const CROSS_CURRENCY_TRANSFER =
+  "A recurring transfer can't go between a pesos and a dollars account, because the amount " +
+  'arriving changes with the exchange rate. Add each transfer when it happens instead.';
+
+function crossesCurrencies(accountId?: string | null, transferAccountId?: string | null) {
+  if (!accountId || !transferAccountId) return false;
+  return accountCurrency(accountId) !== accountCurrency(transferAccountId);
+}
+
 function deriveDisplayStatus(dbStatus: string, expectedDate: string): string {
   if (dbStatus !== 'pending') return dbStatus;
   const today = format(new Date(), 'yyyy-MM-dd');
   if (expectedDate > today) return 'upcoming';
   if (expectedDate === today) return 'due';
   return 'waiting';
+}
+
+/**
+ * A recurring item has no currency of its own: its amounts are native amounts in its
+ * account's currency (the home currency while it has no account).
+ */
+function withCurrency<T extends { accountId: string | null }>(schedule: T) {
+  return { ...schedule, currency: accountCurrency(schedule.accountId) };
 }
 
 // --- Static routes FIRST (before /:id) ---
@@ -181,8 +204,16 @@ schedulesRouter.get('/occurrences', (req, res) => {
     }
   }
 
+  // Like a transaction's `convertedAmount`: the amounts in the other currency, for totals that
+  // mix pesos and dollar items. The expected amount converts at the rate of its date, or
+  // today's while that date is still to come; what was paid, at the rate of the day it was paid.
+  const currencyOf = accountCurrencyLookup();
+  const convert = converter(listRates());
+  const today = format(new Date(), 'yyyy-MM-dd');
   const result = rows.map(({ occ, schedule }) => {
     const matchedTx = occ.matchedTransactionId ? matchedTxMap.get(occ.matchedTransactionId) : null;
+    const currency = currencyOf(schedule.accountId);
+    const other = otherCurrency(currency);
     return {
       ...occ,
       displayStatus: deriveDisplayStatus(occ.status, occ.expectedDate),
@@ -190,10 +221,20 @@ schedulesRouter.get('/occurrences', (req, res) => {
       recurrenceType: schedule.recurrenceType,
       amountType: schedule.amountType,
       scheduleAccountId: schedule.accountId,
+      currency,
       scheduleCategoryId: schedule.categoryId,
       schedulePayeeId: schedule.payeeId,
       matchedAmount: matchedTx?.amount ?? null,
       matchedDate: matchedTx?.date ?? null,
+      convertedExpectedAmount: convert(
+        occ.expectedAmount,
+        currency,
+        other,
+        rateDateFor(occ.expectedDate, today),
+      ),
+      convertedMatchedAmount: matchedTx
+        ? convert(matchedTx.amount, currency, other, matchedTx.date)
+        : null,
     };
   });
 
@@ -207,12 +248,18 @@ schedulesRouter.get('/summary', (req, res) => {
   if (!isMonth(month))
     return res.status(400).json({ error: 'month query param required (YYYY-MM)' });
 
+  // Pesos unless asked otherwise
+  const target = targetCurrencyParam(req.query.currency);
+  if (!target) return res.status(400).json({ error: 'Expected `currency` as UYU or USD' });
+
   const from = `${month}-01`;
   const to = `${month}-31`;
 
   const rows = db
     .select({
       expectedAmount: scheduleOccurrences.expectedAmount,
+      expectedDate: scheduleOccurrences.expectedDate,
+      accountId: schedules.accountId,
     })
     .from(scheduleOccurrences)
     .innerJoin(schedules, eq(scheduleOccurrences.scheduleId, schedules.id))
@@ -225,11 +272,24 @@ schedulesRouter.get('/summary', (req, res) => {
     )
     .all();
 
+  // A recurring item is in its account's currency (pesos with no account). Each expected
+  // amount converts at the rate of its date, or today's while that date is still to come;
+  // one that can't be converted (no rate stored at all) is left out.
+  const currencyOf = accountCurrencyLookup();
+  const convert = converter(listRates());
+  const today = format(new Date(), 'yyyy-MM-dd');
   let income = 0;
   let expenses = 0;
   for (const row of rows) {
-    if (row.expectedAmount > 0) income += row.expectedAmount;
-    else expenses += row.expectedAmount;
+    const amount = convert(
+      row.expectedAmount,
+      currencyOf(row.accountId),
+      target,
+      rateDateFor(row.expectedDate, today),
+    );
+    if (amount === null) continue;
+    if (amount > 0) income += amount;
+    else expenses += amount;
   }
 
   res.json({ income, expenses });
@@ -268,7 +328,8 @@ schedulesRouter.get('/', (req, res) => {
     .where(conditions.length ? and(...conditions) : undefined)
     .orderBy(schedules.name)
     .all();
-  res.json(rows);
+  const currencyOf = accountCurrencyLookup();
+  res.json(rows.map((s) => ({ ...s, currency: currencyOf(s.accountId) })));
 });
 
 // POST / — create schedule
@@ -277,6 +338,9 @@ schedulesRouter.post('/', (req, res) => {
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
 
   const data = parsed.data;
+  if (crossesCurrencies(data.accountId, data.transferAccountId)) {
+    return res.status(400).json({ error: CROSS_CURRENCY_TRANSFER });
+  }
   const rule = data.recurrenceRule
     ? JSON.stringify(data.recurrenceRule)
     : JSON.stringify(buildRecurrenceRule(data.recurrenceType as RecurrenceType, data.startDate));
@@ -315,7 +379,7 @@ schedulesRouter.post('/', (req, res) => {
   ensureOccurrences(row.id, horizon);
 
   const created = db.select().from(schedules).where(eq(schedules.id, row.id)).get();
-  res.status(201).json(created);
+  res.status(201).json(withCurrency(created!));
 });
 
 // GET /:id — single schedule with recent occurrences
@@ -332,7 +396,7 @@ schedulesRouter.get('/:id', (req, res) => {
     .all()
     .map((o) => ({ ...o, displayStatus: deriveDisplayStatus(o.status, o.expectedDate) }));
 
-  res.json({ ...schedule, occurrences: recentOccs });
+  res.json({ ...withCurrency(schedule), occurrences: recentOccs });
 });
 
 // PUT /:id — update schedule
@@ -349,6 +413,14 @@ schedulesRouter.put('/:id', (req, res) => {
     data.recurrenceRule.type !== (data.recurrenceType ?? existing.recurrenceType)
   ) {
     return res.status(400).json({ error: ruleTypeMessage.message });
+  }
+  if (
+    crossesCurrencies(
+      data.accountId === undefined ? existing.accountId : data.accountId,
+      data.transferAccountId === undefined ? existing.transferAccountId : data.transferAccountId,
+    )
+  ) {
+    return res.status(400).json({ error: CROSS_CURRENCY_TRANSFER });
   }
   const updates: Record<string, any> = { ...data, updatedAt: new Date().toISOString() };
 
@@ -400,7 +472,7 @@ schedulesRouter.put('/:id', (req, res) => {
   }
 
   const updated = db.select().from(schedules).where(eq(schedules.id, req.params.id)).get();
-  res.json(updated);
+  res.json(withCurrency(updated!));
 });
 
 // DELETE /:id — soft cancel or hard delete
@@ -542,6 +614,19 @@ schedulesRouter.post('/occurrences/:occId/match', (req, res) => {
     .where(eq(scheduleOccurrences.id, req.params.occId))
     .get();
   if (!occ) return res.status(404).json({ error: 'Occurrence not found' });
+
+  // Amounts are native: a transaction can only pay an item in its own currency
+  const schedule = db.select().from(schedules).where(eq(schedules.id, occ.scheduleId)).get();
+  const tx = db
+    .select({ accountId: transactions.accountId })
+    .from(transactions)
+    .where(eq(transactions.id, parsed.data.transactionId))
+    .get();
+  if (schedule && tx && accountCurrency(tx.accountId) !== accountCurrency(schedule.accountId)) {
+    return res
+      .status(400)
+      .json({ error: 'That transaction is in a different currency than this recurring item' });
+  }
 
   linkOccurrenceToTransaction(req.params.occId, parsed.data.transactionId, 'manual', 100);
   res.json({ ok: true });

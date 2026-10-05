@@ -52,20 +52,21 @@ export function UpdateValueModal({ account, onClose }: Props) {
             {liability ? 'Amount owed today' : 'Value today'}
           </label>
           <CurrencyInput
+            currency={account.currency}
             value={value}
             onChange={setValue}
             allowNegative={!liability}
             aria-label={liability ? 'Amount owed today' : 'Value today'}
           />
           <p className="mt-1 text-xs text-text-tertiary">
-            Currently {formatCurrency(current)}.
+            Currently {formatCurrency(current, account.currency)}.
             {change !== 0 && (
               <>
                 {' '}
                 Adds a{' '}
                 <span className={change > 0 ? 'text-positive' : 'text-negative'}>
                   {change > 0 ? '+' : ''}
-                  {formatCurrency(change)}
+                  {formatCurrency(change, account.currency)}
                 </span>{' '}
                 adjustment dated today.
               </>

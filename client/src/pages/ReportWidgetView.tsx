@@ -5,6 +5,7 @@ import { NetworkError } from '../api/client';
 import { Button } from '../components/ui/Button';
 import { PageHeader } from '../components/ui/PageHeader';
 import { DateRangeControl } from '../components/reports/DateRangeControl';
+import { ViewingCurrencySwitch } from '../components/ui/ViewingCurrencySwitch';
 import { BUILTIN_REPORTS } from '../components/reports/BuiltinReport';
 import { ReportDetail } from '../components/reports/ReportDetail';
 import { ChartSkeleton } from '../components/reports/ChartHelpers';
@@ -108,14 +109,17 @@ function BuiltinView({
           { label: page?.name ?? 'Dashboard', to: dashboardPath },
         ]}
         actions={
-          <Button
-            size="sm"
-            disabled={!changed || updateWidget.isPending}
-            title="Show these settings on the dashboard widget"
-            onClick={save}
-          >
-            <Save size={13} /> Save to widget
-          </Button>
+          <>
+            <ViewingCurrencySwitch />
+            <Button
+              size="sm"
+              disabled={!changed || updateWidget.isPending}
+              title="Show these settings on the dashboard widget"
+              onClick={save}
+            >
+              <Save size={13} /> Save to widget
+            </Button>
+          </>
         }
       />
 

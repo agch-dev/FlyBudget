@@ -1,6 +1,37 @@
 import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
-import { centsToInput, formatCentsAxis, formatCurrency, parseCents } from './currency';
+import {
+  centsToInput,
+  currencySymbol,
+  formatCentsAxis,
+  formatCurrency,
+  impliedRate,
+  moneyIn,
+  parseCents,
+} from './currency';
+
+describe('the rate a transfer between currencies implies', () => {
+  it('is pesos per dollar, whichever side is which', () => {
+    const pesos = { amount: -4_000_000, currency: 'UYU' as const };
+    const dollars = { amount: 100_000, currency: 'USD' as const };
+    expect(impliedRate(pesos, dollars)).toBe(40);
+    expect(impliedRate(dollars, pesos)).toBe(40);
+    expect(impliedRate({ amount: 1_003_125 }, { amount: -25_000, currency: 'USD' })).toBe(40.125);
+  });
+
+  it('is nothing until both amounts are typed, or between accounts of one currency', () => {
+    expect(
+      impliedRate({ amount: 4_000_000, currency: 'UYU' }, { amount: 0, currency: 'USD' }),
+    ).toBe(null);
+    expect(impliedRate({ amount: 0, currency: 'UYU' }, { amount: 100_000, currency: 'USD' })).toBe(
+      null,
+    );
+    expect(impliedRate({ amount: 500, currency: 'USD' }, { amount: -500, currency: 'USD' })).toBe(
+      null,
+    );
+    expect(impliedRate({ amount: 500 }, { amount: -500, currency: 'UYU' })).toBe(null);
+  });
+});
 
 // Up to ±$100 billion, far beyond any real balance but still exact in a double
 const arbCents = fc.integer({ min: -10_000_000_000_00, max: 10_000_000_000_00 });
@@ -8,10 +39,75 @@ const arbCents = fc.integer({ min: -10_000_000_000_00, max: 10_000_000_000_00 })
 // Undo formatCurrency's "-$1,234.56" formatting to get cents back
 const unformat = (s: string) => {
   const negative = s.startsWith('-');
-  const digits = s.replace(/[-$,]/g, '');
+  const digits = s.replace(/US\$|[-$,]/g, '');
   const cents = Math.round(parseFloat(digits) * 100);
   return negative ? -cents : cents;
 };
+
+describe('amounts in pesos and dollars', () => {
+  it('writes pesos with $ and dollars with US$', () => {
+    expect(formatCurrency(123_456, 'UYU')).toBe('$1,234.56');
+    expect(formatCurrency(123_456, 'USD')).toBe('US$1,234.56');
+    expect(formatCurrency(-123_456, 'UYU')).toBe('-$1,234.56');
+    expect(formatCurrency(-123_456, 'USD')).toBe('-US$1,234.56');
+    expect(formatCurrency(500_000, 'USD')).toBe('US$5,000');
+    expect(formatCurrency(0, 'USD')).toBe('US$0');
+  });
+
+  it('is in pesos, the home currency, when no currency is given', () => {
+    expect(formatCurrency(123_456)).toBe('$1,234.56');
+    expect(formatCentsAxis(1_250_000)).toBe('$12.5k');
+  });
+
+  it('labels axes in either currency', () => {
+    expect(formatCentsAxis(95_000, 'USD')).toBe('US$950');
+    expect(formatCentsAxis(1_250_000, 'USD')).toBe('US$12.5k');
+    expect(formatCentsAxis(-120_000_000, 'USD')).toBe('-US$1.2M');
+  });
+
+  it('names each currency by its sign', () => {
+    expect(currencySymbol('UYU')).toBe('$');
+    expect(currencySymbol('USD')).toBe('US$');
+  });
+
+  it('a dollar amount is the pesos amount with US in front: same digits and separators', () => {
+    fc.assert(
+      fc.property(arbCents, (cents) => {
+        const pesos = formatCurrency(cents, 'UYU');
+        const dollars = formatCurrency(cents, 'USD');
+        expect(dollars).toBe(pesos.replace('$', 'US$'));
+        expect(dollars).toMatch(/^-?US\$\d{1,3}(,\d{3})*(\.\d{2})?$/);
+        expect(formatCentsAxis(cents, 'USD')).toBe(
+          formatCentsAxis(cents, 'UYU').replace('$', 'US$'),
+        );
+      }),
+    );
+  });
+
+  it('reads back to the same cents in either currency', () => {
+    fc.assert(
+      fc.property(arbCents, fc.constantFrom('UYU' as const, 'USD' as const), (cents, currency) => {
+        expect(unformat(formatCurrency(cents, currency))).toBe(cents);
+      }),
+    );
+  });
+});
+
+describe('amounts in a viewing currency', () => {
+  it('writes combined totals with the sign of the currency they are shown in', () => {
+    expect(moneyIn('UYU').format(123_456)).toBe('$1,234.56');
+    expect(moneyIn('USD').format(123_456)).toBe('US$1,234.56');
+    expect(moneyIn('USD').format(-5_000)).toBe('-US$50');
+    expect(moneyIn('UYU').axis(1_250_000)).toBe('$12.5k');
+    expect(moneyIn('USD').axis(1_250_000)).toBe('US$12.5k');
+    expect(moneyIn('USD').currency).toBe('USD');
+  });
+
+  it('is the same object for the same currency, so it can be a hook dependency', () => {
+    expect(moneyIn('USD')).toBe(moneyIn('USD'));
+    expect(moneyIn('UYU')).not.toBe(moneyIn('USD'));
+  });
+});
 
 describe('currency helpers (property-based)', () => {
   it('parseCents(centsToInput(c)) gives back the absolute amount', () => {

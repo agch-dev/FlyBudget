@@ -1,7 +1,8 @@
 /**
  * Recurring-transaction discovery — a port of Actual Budget's `find-schedules.ts`.
  *
- * For each open account, starting from its latest transaction, we try every candidate
+ * Each account is scanned on its own, so amounts are only ever compared within one account
+ * and therefore within one currency. For each open account, starting from its latest transaction, we try every candidate
  * start day for each pattern (weekly, every 2 weeks, monthly on day X, monthly on the
  * last day). For a candidate we take its 3 most recent occurrence dates and look for
  * transactions within ±2 days that share the same payee and an amount within 7.5%.
@@ -32,6 +33,8 @@ import {
 } from '../utils/recurrence.js';
 import { ensureOccurrences } from './scheduleService.js';
 import { linkOccurrenceToTransaction } from './matchingEngine.js';
+import { type Currency } from '../utils/currency.js';
+import { accountCurrencyLookup } from './accountCurrency.js';
 
 const DATE_WINDOW = 2; // ±days, Actual's approx-date bound
 const OCCURRENCES_TO_MATCH = 3;
@@ -64,6 +67,8 @@ export interface DiscoveredSchedule {
   id: string;
   accountId: string;
   accountName: string;
+  /** The account's currency: `amount` is a native amount in it */
+  currency: Currency;
   payeeId: string | null;
   payeeName: string;
   amount: number;
@@ -273,6 +278,7 @@ function loadTransactions(accountId: string, claimed: Set<string>): Tx[] {
 export function findSchedules(): DiscoveredSchedule[] {
   const openAccounts = db.select().from(accounts).where(isNull(accounts.closedAt)).all();
   const accountName = new Map(openAccounts.map((a) => [a.id, a.name]));
+  const currencyOf = accountCurrencyLookup();
 
   // Payees already covered by a live schedule are excluded
   const scheduledPayees = new Set(
@@ -328,6 +334,7 @@ export function findSchedules(): DiscoveredSchedule[] {
       id: `${c.payeeKey}|${c.accountId}`,
       accountId: c.accountId,
       accountName: accountName.get(c.accountId) ?? '',
+      currency: currencyOf(c.accountId),
       payeeId: sample?.payeeId ?? null,
       payeeName: sample?.payeeName ?? 'Unknown payee',
       amount: c.amount,
@@ -349,7 +356,8 @@ export function findSchedules(): DiscoveredSchedule[] {
  * like Actual's DiscoverSchedules onCreate. Past occurrences with no matching
  * transaction are marked skipped so history doesn't show as "missed".
  */
-export function createDiscoveredSchedules(items: DiscoveredSchedule[]): string[] {
+/** `currency` is not taken from the client: the created item gets its account's. */
+export function createDiscoveredSchedules(items: Omit<DiscoveredSchedule, 'currency'>[]): string[] {
   const now = new Date().toISOString();
   const today = fmt(new Date());
   const horizon = fmt(addDays(new Date(), 90));

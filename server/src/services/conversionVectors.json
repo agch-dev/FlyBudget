@@ -1,0 +1,174 @@
+{
+  "comment": "Fixed conversion examples, worked by hand. The server's rule (services/currencyConversion.ts) and the client's copy of it (client/src/utils/balanceConversion.ts) are both tested against this file, so they cannot drift apart. Amounts are integer cents; rates are pesos per dollar.",
+  "rates": [
+    { "date": "2026-03-04", "rate": 42.5 },
+    { "date": "2026-03-02", "rate": 40 },
+    { "date": "2026-03-09", "rate": 39.123 }
+  ],
+  "rateOn": [
+    { "date": "2026-03-02", "rate": 40, "why": "its own rate" },
+    { "date": "2026-03-03", "rate": 40, "why": "the closest earlier rate" },
+    { "date": "2026-03-04", "rate": 42.5, "why": "its own rate" },
+    { "date": "2026-03-08", "rate": 42.5, "why": "a weekend uses the last business day" },
+    { "date": "2026-03-09", "rate": 39.123, "why": "its own rate" },
+    { "date": "2027-01-01", "rate": 39.123, "why": "after every rate: the latest" },
+    { "date": "2026-03-01", "rate": 40, "why": "before every rate: the earliest, as an estimate" },
+    { "date": "2020-01-01", "rate": 40, "why": "long before every rate: still the earliest" }
+  ],
+  "conversions": [
+    {
+      "cents": 100000,
+      "from": "USD",
+      "to": "UYU",
+      "date": "2026-03-02",
+      "expected": 4000000,
+      "why": "US$1,000 at 40"
+    },
+    {
+      "cents": 100000,
+      "from": "UYU",
+      "to": "USD",
+      "date": "2026-03-02",
+      "expected": 2500,
+      "why": "$1,000 at 40"
+    },
+    {
+      "cents": 12345,
+      "from": "USD",
+      "to": "UYU",
+      "date": "2026-03-04",
+      "expected": 524663,
+      "why": "524,662.5 rounds half away from zero"
+    },
+    {
+      "cents": -12345,
+      "from": "USD",
+      "to": "UYU",
+      "date": "2026-03-04",
+      "expected": -524663,
+      "why": "money out mirrors money in"
+    },
+    {
+      "cents": 3,
+      "from": "USD",
+      "to": "UYU",
+      "date": "2026-03-05",
+      "expected": 128,
+      "why": "127.5 rounds up, at the carried rate"
+    },
+    {
+      "cents": -3,
+      "from": "USD",
+      "to": "UYU",
+      "date": "2026-03-05",
+      "expected": -128,
+      "why": "-127.5 rounds away from zero"
+    },
+    {
+      "cents": 20,
+      "from": "UYU",
+      "to": "USD",
+      "date": "2026-03-02",
+      "expected": 1,
+      "why": "0.5 rounds up"
+    },
+    {
+      "cents": -20,
+      "from": "UYU",
+      "to": "USD",
+      "date": "2026-03-02",
+      "expected": -1,
+      "why": "-0.5 rounds away from zero"
+    },
+    {
+      "cents": 19,
+      "from": "UYU",
+      "to": "USD",
+      "date": "2026-03-02",
+      "expected": 0,
+      "why": "0.475 rounds to nothing"
+    },
+    {
+      "cents": -1,
+      "from": "UYU",
+      "to": "USD",
+      "date": "2026-03-02",
+      "expected": 0,
+      "why": "never negative zero"
+    },
+    {
+      "cents": 100,
+      "from": "USD",
+      "to": "UYU",
+      "date": "2026-03-09",
+      "expected": 3912,
+      "why": "3,912.3 rounds down"
+    },
+    {
+      "cents": 1000,
+      "from": "USD",
+      "to": "UYU",
+      "date": "2026-03-09",
+      "expected": 39123,
+      "why": "three decimals of rate"
+    },
+    {
+      "cents": 100000,
+      "from": "UYU",
+      "to": "USD",
+      "date": "2026-03-09",
+      "expected": 2556,
+      "why": "2,556.04 rounds down"
+    },
+    {
+      "cents": 1000,
+      "from": "USD",
+      "to": "UYU",
+      "date": "2020-01-01",
+      "expected": 40000,
+      "why": "before every rate: the earliest one"
+    },
+    {
+      "cents": 5000,
+      "from": "UYU",
+      "to": "UYU",
+      "date": "2026-03-04",
+      "expected": 5000,
+      "why": "same currency: unchanged"
+    },
+    {
+      "cents": -777,
+      "from": "USD",
+      "to": "USD",
+      "date": "2019-01-01",
+      "expected": -777,
+      "why": "same currency: unchanged, whatever the date"
+    }
+  ],
+  "withoutRates": [
+    {
+      "cents": 1000,
+      "from": "USD",
+      "to": "UYU",
+      "date": "2026-03-04",
+      "expected": null,
+      "why": "nothing to convert with"
+    },
+    {
+      "cents": 1000,
+      "from": "UYU",
+      "to": "USD",
+      "date": "2026-03-04",
+      "expected": null,
+      "why": "nothing to convert with"
+    },
+    {
+      "cents": 1000,
+      "from": "UYU",
+      "to": "UYU",
+      "date": "2026-03-04",
+      "expected": 1000,
+      "why": "same currency needs no rate"
+    }
+  ]
+}

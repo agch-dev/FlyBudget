@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Plus, ChevronDown, ChevronRight, Target } from 'lucide-react';
 import { differenceInCalendarDays, differenceInCalendarMonths, format, parseISO } from 'date-fns';
 import { useGoals, useCreateGoal, useUpdateGoal, useDeleteGoal } from '../hooks/useGoals';
@@ -13,14 +14,9 @@ import { Card } from '../components/ui/Card';
 import { StatCardRow } from '../components/reports/ChartHelpers';
 import RowMenu from '../components/ui/RowMenu';
 import { formatCurrency } from '../utils/currency';
+import { goalsSummary, progressOf } from '../utils/goals';
 import { usePreferencesStore } from '../store/preferencesStore';
-import type { Goal } from '../types';
-
-function progressOf(goal: Goal) {
-  const pct =
-    goal.targetAmount > 0 ? Math.min(100, (goal.currentAmount / goal.targetAmount) * 100) : 0;
-  return { pct, remaining: Math.max(0, goal.targetAmount - goal.currentAmount) };
-}
+import { HOME_CURRENCY, type Goal } from '../types';
 
 /** Target date status, plus the monthly amount needed to get there on time (Monarch-style). */
 function scheduleOf(goal: Goal, remaining: number) {
@@ -32,7 +28,7 @@ function scheduleOf(goal: Goal, remaining: number) {
   if (remaining === 0) return { date, overdue: false, perMonth: null };
   if (days < 0) return { date, overdue: true, perMonth: null };
   const months = Math.max(1, differenceInCalendarMonths(target, today));
-  // Rounded up to whole dollars, so following it always gets there on time
+  // Rounded up to whole pesos or dollars, so following it always gets there on time
   return { date, overdue: false, perMonth: Math.ceil(remaining / months / 100) * 100 };
 }
 
@@ -60,6 +56,8 @@ function GoalRow({
   onEdit: () => void;
   onDelete: () => void;
 }) {
+  // Everything on a goal's card is in the goal's own currency
+  const currency = goal.currency;
   const { pct, remaining } = progressOf(goal);
   const complete = remaining === 0 && goal.targetAmount > 0;
   const schedule = scheduleOf(goal, remaining);
@@ -78,10 +76,10 @@ function GoalRow({
         </div>
         <div className="text-right shrink-0">
           <span className="text-sm font-medium tabular-nums text-text block">
-            {formatCurrency(goal.currentAmount)}
+            {formatCurrency(goal.currentAmount, currency)}
           </span>
           <span className="text-xs text-text-tertiary tabular-nums block mt-0.5">
-            of {formatCurrency(goal.targetAmount)}
+            of {formatCurrency(goal.targetAmount, currency)}
           </span>
         </div>
         <div onClick={(e) => e.stopPropagation()}>
@@ -107,15 +105,15 @@ function GoalRow({
               'Goal reached'
             ) : schedule?.overdue ? (
               <span className="text-negative">
-                Past target date · {formatCurrency(remaining)} to go
+                Past target date · {formatCurrency(remaining, currency)} to go
               </span>
             ) : (
               <>
-                {formatCurrency(remaining)} to go
+                {formatCurrency(remaining, currency)} to go
                 {schedule?.perMonth != null && (
                   <span className="text-text-tertiary">
                     {' '}
-                    · {formatCurrency(schedule.perMonth)}/mo to reach it on time
+                    · {formatCurrency(schedule.perMonth, currency)}/mo to reach it on time
                   </span>
                 )}
               </>
@@ -144,7 +142,13 @@ function GoalGroup({
   defaultCollapsed?: boolean;
 }) {
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
-  const saved = goals.reduce((s, g) => s + g.currentAmount, 0);
+  // One currency: the group's own total. Mixed: pesos, dollar goals at today's rate
+  const first = goals[0]?.currency ?? HOME_CURRENCY;
+  const oneCurrency = goals.every((g) => (g.currency ?? HOME_CURRENCY) === first);
+  const saved = oneCurrency
+    ? goals.reduce((sum, g) => sum + g.currentAmount, 0)
+    : goalsSummary(goals).saved;
+  const savedCurrency = oneCurrency ? first : HOME_CURRENCY;
 
   return (
     <Card padding="none">
@@ -164,7 +168,7 @@ function GoalGroup({
           </span>
         </div>
         <span className="text-base font-semibold tabular-nums text-text">
-          {formatCurrency(saved)}
+          {formatCurrency(saved, savedCurrency)}
         </span>
       </button>
       {!collapsed && (
@@ -200,10 +204,10 @@ export default function GoalsPage() {
   const inProgress = goals.filter((g) => progressOf(g).remaining > 0 || g.targetAmount <= 0);
   const completed = goals.filter((g) => progressOf(g).remaining === 0 && g.targetAmount > 0);
 
-  const totalSaved = goals.reduce((s, g) => s + g.currentAmount, 0);
-  const totalTarget = goals.reduce((s, g) => s + g.targetAmount, 0);
-  const leftToSave = goals.reduce((s, g) => s + progressOf(g).remaining, 0);
-  const overallPct = totalTarget > 0 ? Math.floor((totalSaved / totalTarget) * 100) : 0;
+  // The summary is in pesos: dollar goals converted at today's rate
+  const summary = goalsSummary(goals);
+  const hasDollarGoals = goals.some((g) => (g.currency ?? HOME_CURRENCY) !== HOME_CURRENCY);
+  const converted = hasDollarGoals && summary.notCounted === 0;
 
   if (isLoading) {
     return (
@@ -251,11 +255,11 @@ export default function GoalsPage() {
               cards={[
                 {
                   label: 'Saved',
-                  value: formatCurrency(totalSaved),
-                  sub: `${overallPct}% of target`,
+                  value: formatCurrency(summary.saved),
+                  sub: `${summary.percent}% of target`,
                 },
-                { label: 'Target', value: formatCurrency(totalTarget) },
-                { label: 'Left to save', value: formatCurrency(leftToSave) },
+                { label: 'Target', value: formatCurrency(summary.target) },
+                { label: 'Left to save', value: formatCurrency(summary.leftToSave) },
                 {
                   label: 'Goals reached',
                   value: `${completed.length} of ${goals.length}`,
@@ -263,6 +267,22 @@ export default function GoalsPage() {
                 },
               ]}
             />
+            {converted && (
+              <p className="text-xs text-text-tertiary">
+                Totals are in pesos, with dollar goals converted at today&apos;s exchange rate.
+              </p>
+            )}
+            {summary.notCounted > 0 && (
+              <p role="status" className="text-xs text-text-secondary">
+                {summary.notCounted === 1
+                  ? '1 dollar goal is'
+                  : `${summary.notCounted} dollar goals are`}{' '}
+                not in these totals because there is no exchange rate yet.{' '}
+                <Link to="/settings?tab=rates" className="text-brand-600 hover:underline">
+                  Enter rates
+                </Link>
+              </p>
+            )}
             {inProgress.length > 0 && (
               <GoalGroup
                 label="In progress"

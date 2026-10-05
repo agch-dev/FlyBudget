@@ -1,4 +1,4 @@
-import { formatCurrency } from './currency';
+import type { Money } from './currency';
 
 export type Tone = 'positive' | 'negative' | 'neutral';
 
@@ -20,19 +20,19 @@ export function monthsToAverage(months: MonthFlow[]): number {
   return first === -1 ? 1 : months.length - first;
 }
 
-/** An income figure: negative (more refunded than received) keeps its minus sign. */
-export function incomeFigure(cents: number): { value: string; tone: Tone } {
+/** An income figure in `money`'s currency: negative (more refunded than received) keeps its minus sign. */
+export function incomeFigure(cents: number, money: Money): { value: string; tone: Tone } {
   const v = Math.round(cents);
-  return { value: formatCurrency(v), tone: v > 0 ? 'positive' : v < 0 ? 'negative' : 'neutral' };
+  return { value: money.format(v), tone: v > 0 ? 'positive' : v < 0 ? 'negative' : 'neutral' };
 }
 
 /**
  * An expenses figure from net spending (negative = money out): shown as the amount spent,
  * or "+$X" when refunds outweighed spending, so money back never reads as money spent.
  */
-export function expenseFigure(netCents: number): { value: string; tone: Tone } {
+export function expenseFigure(netCents: number, money: Money): { value: string; tone: Tone } {
   const v = Math.round(netCents);
-  if (v < 0) return { value: formatCurrency(-v), tone: 'negative' };
-  if (v > 0) return { value: `+${formatCurrency(v)}`, tone: 'positive' };
-  return { value: formatCurrency(0), tone: 'neutral' };
+  if (v < 0) return { value: money.format(-v), tone: 'negative' };
+  if (v > 0) return { value: `+${money.format(v)}`, tone: 'positive' };
+  return { value: money.format(0), tone: 'neutral' };
 }

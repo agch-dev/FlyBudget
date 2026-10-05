@@ -1,8 +1,10 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { format, subMonths, startOfYear, endOfYear, subYears } from 'date-fns';
 import { useSpendingByCategory, useIncomeByCategory } from '../hooks/useReports';
-import { formatCurrency } from '../utils/currency';
-import { downloadCsv } from '../utils/exportCsv';
+import { currencySymbol } from '../utils/currency';
+import { useViewingMoney } from '../hooks/useViewingCurrency';
+import { downloadCsv, rowsInCurrency } from '../utils/exportCsv';
+import { ViewingCurrencySwitch } from '../components/ui/ViewingCurrencySwitch';
 import { usePreferencesStore } from '../store/preferencesStore';
 import { chartColors } from '../utils/chartColors';
 import { Button } from '../components/ui/Button';
@@ -17,7 +19,7 @@ import {
   EXPENSE_COLORS,
 } from '../components/reports/ChartHelpers';
 import type { StatCard } from '../components/reports/ChartHelpers';
-import type { SpendingByCategory as SpendingByCat, IncomeByCategoryItem } from '../types';
+import type { Currency, SpendingByCategory as SpendingByCat, IncomeByCategoryItem } from '../types';
 
 // ─── Types & Constants ───────────────────────────────────────────────────────
 
@@ -115,8 +117,8 @@ interface SankeyDiagramProps {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function formatDollars(cents: number): string {
-  const sym = usePreferencesStore.getState().currencySymbol || '$';
+function formatDollars(cents: number, currency: Currency): string {
+  const sym = currencySymbol(currency);
   const abs = Math.abs(cents);
   const dollars = Math.round(abs / 100);
   const f = dollars.toLocaleString('en-US');
@@ -513,6 +515,7 @@ function useContainerSize(ref: React.RefObject<HTMLDivElement | null>) {
 }
 
 function SankeyDiagram({ from, to, selectedNode, onNodeClick }: SankeyDiagramProps) {
+  const { currency } = useViewingMoney();
   const showIcons = usePreferencesStore((s) => s.showCategoryIcons);
   const { data: incomeData = [], isLoading: il } = useIncomeByCategory(from, to);
   const { data: spendingData = [], isLoading: sl } = useSpendingByCategory(from, to);
@@ -721,7 +724,7 @@ function SankeyDiagram({ from, to, selectedNode, onNodeClick }: SankeyDiagramPro
               }
 
               // Build label text
-              const amtStr = formatDollars(n.amount);
+              const amtStr = formatDollars(n.amount, currency);
               let pctStr = '';
               if (n.nodeType === 'income' && n.pctOfIncome != null) {
                 pctStr = ` · ${n.pctOfIncome.toFixed(1)}%`;
@@ -828,8 +831,9 @@ function SankeyTooltip({
   totalIncome: number;
   totalExpenses: number;
 }) {
+  const money = useViewingMoney();
   const n = node;
-  const amt = formatCurrency(n.amount);
+  const amt = money.format(n.amount);
 
   if (n.nodeType === 'hub') {
     return (
@@ -916,6 +920,7 @@ const pct = (n: number | undefined) =>
  * and a category (or "All of …") to list its transactions below.
  */
 function CashFlowList({ from, to, selectedNode, onNodeClick }: SankeyDiagramProps) {
+  const money = useViewingMoney();
   const showIcons = usePreferencesStore((s) => s.showCategoryIcons);
   const { data: incomeData = [], isLoading: il } = useIncomeByCategory(from, to);
   const { data: spendingData = [], isLoading: sl } = useSpendingByCategory(from, to);
@@ -983,7 +988,7 @@ function CashFlowList({ from, to, selectedNode, onNodeClick }: SankeyDiagramProp
             <div className="flex items-baseline justify-between gap-3 text-sm">
               <span className="truncate text-text">{n.name}</span>
               <span className="tabular-nums font-medium text-positive">
-                {formatCurrency(n.amount)}
+                {money.format(n.amount)}
               </span>
             </div>
             {bar(n.amount, n.color)}
@@ -998,7 +1003,7 @@ function CashFlowList({ from, to, selectedNode, onNodeClick }: SankeyDiagramProp
             <div className="flex items-baseline justify-between gap-3 text-sm">
               <span className="text-text font-medium">Saved</span>
               <span className="tabular-nums font-medium text-positive">
-                {formatCurrency(savings.amount)}
+                {money.format(savings.amount)}
                 <span className="ml-1.5 text-xs font-normal text-text-tertiary">
                   {' '}
                   {pct(savings.savingsRate)}
@@ -1031,7 +1036,7 @@ function CashFlowList({ from, to, selectedNode, onNodeClick }: SankeyDiagramProp
                     <span className="truncate">{g.name}</span>
                   </span>
                   <span className="tabular-nums text-text whitespace-nowrap">
-                    {formatCurrency(g.amount)}
+                    {money.format(g.amount)}
                     <span className="ml-1.5 text-xs text-text-tertiary">
                       {' '}
                       {pct(g.pctOfIncome)}
@@ -1054,7 +1059,7 @@ function CashFlowList({ from, to, selectedNode, onNodeClick }: SankeyDiagramProp
                       >
                         <span className="truncate">{c.name}</span>
                         <span className="tabular-nums whitespace-nowrap">
-                          {formatCurrency(c.amount)}
+                          {money.format(c.amount)}
                         </span>
                       </button>
                     </li>
@@ -1081,6 +1086,7 @@ function CashFlowList({ from, to, selectedNode, onNodeClick }: SankeyDiagramProp
 // ─── Page Component ──────────────────────────────────────────────────────────
 
 export default function CashFlowPage() {
+  const money = useViewingMoney();
   const showIcons = usePreferencesStore((s) => s.showCategoryIcons);
   const today = new Date();
   const [preset, setPreset] = useState<Preset>('6m');
@@ -1124,11 +1130,11 @@ export default function CashFlowPage() {
     const net = totalIncome - totalExpenses;
     const savingsRate = totalIncome > 0 ? (net / totalIncome) * 100 : 0;
     return [
-      { label: 'Total income', value: formatCurrency(totalIncome), tone: 'positive' },
-      { label: 'Total expenses', value: formatCurrency(totalExpenses), tone: 'negative' },
+      { label: 'Total income', value: money.format(totalIncome), tone: 'positive' },
+      { label: 'Total expenses', value: money.format(totalExpenses), tone: 'negative' },
       {
         label: 'Total net income',
-        value: formatCurrency(net),
+        value: money.format(net),
         tone: net < 0 ? 'negative' : undefined,
       },
       {
@@ -1137,7 +1143,7 @@ export default function CashFlowPage() {
         tone: savingsRate < 0 ? 'negative' : undefined,
       },
     ];
-  }, [incData, spData]);
+  }, [incData, spData, money]);
 
   const handleNodeClick = useCallback((node: SelectedNode | null) => {
     setSelectedNode(node);
@@ -1151,11 +1157,14 @@ export default function CashFlowPage() {
   function handleExport() {
     downloadCsv(
       `cash-flow-${from}-${to}.csv`,
-      spData.map((d) => ({
-        category: `${showIcons && d.categoryIcon ? d.categoryIcon + ' ' : ''}${d.categoryName ?? 'Uncategorized'}`,
-        group: d.groupName ?? '',
-        total_cents: d.totalSpent,
-      })),
+      rowsInCurrency(
+        spData.map((d) => ({
+          category: `${showIcons && d.categoryIcon ? d.categoryIcon + ' ' : ''}${d.categoryName ?? 'Uncategorized'}`,
+          group: d.groupName ?? '',
+          total_cents: d.totalSpent,
+        })),
+        money.currency,
+      ),
     );
   }
 
@@ -1191,6 +1200,7 @@ export default function CashFlowPage() {
                 defaultOpen
               />
             )}
+            <ViewingCurrencySwitch />
             <Button variant="secondary" size="sm" onClick={handleExport}>
               <Download size={13} /> Export CSV
             </Button>

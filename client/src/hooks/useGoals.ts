@@ -29,6 +29,7 @@ export function useCreateGoal() {
             currentAmount: created.currentAmount,
             targetDate: created.targetDate,
             accountId: created.accountId,
+            currency: created.currency,
             icon: created.icon,
             color: created.color,
           });
@@ -61,6 +62,7 @@ export function useUpdateGoal() {
             currentAmount: snapshot.currentAmount,
             targetDate: snapshot.targetDate,
             accountId: snapshot.accountId,
+            currency: snapshot.currency,
             icon: snapshot.icon,
             color: snapshot.color,
           });
@@ -95,6 +97,7 @@ export function useDeleteGoal() {
             currentAmount: snapshot.currentAmount,
             targetDate: snapshot.targetDate,
             accountId: snapshot.accountId,
+            currency: snapshot.currency,
             icon: snapshot.icon,
             color: snapshot.color,
           });

@@ -10,6 +10,7 @@ import {
   customReports,
   dashboardPages,
   dashboardWidgets,
+  exchangeRates,
   goals,
   payees,
   plaidAccountMappings,
@@ -19,7 +20,10 @@ import {
   schedules,
   simplefinAccountMappings,
   transactions,
+  transferSuggestionDismissals,
 } from '../db/schema.js';
+import { isCurrency } from '../utils/currency.js';
+import { MAX_RATE } from './exchangeRates.js';
 
 // Full JSON backup of the user's data, and restoring one.
 //
@@ -42,12 +46,14 @@ const TABLES = {
   transactions,
   scheduleOccurrences,
   scheduleMatchDismissals,
+  transferSuggestionDismissals,
   budgetMonths,
   rules,
   customReports,
   dashboardPages,
   dashboardWidgets,
   goals,
+  exchangeRates,
 } satisfies Record<string, SQLiteTable>;
 
 export type BackupTable = keyof typeof TABLES;
@@ -74,7 +80,8 @@ type Row = Record<string, unknown>;
 /**
  * Checks a backup's shape against the schema: every table is a list of rows, and every
  * column has the right type (SQLite would otherwise happily store "abc" as an amount).
- * Tables missing from older backups are restored as empty. Unknown fields are dropped.
+ * Tables missing from older backups are restored as empty, and columns missing from them get
+ * their default (an account with no currency is in pesos). Unknown fields are dropped.
  */
 export function parseBackup(input: unknown): Record<BackupTable, Row[]> {
   if (!input || typeof input !== 'object' || Array.isArray(input)) {
@@ -113,8 +120,20 @@ export function parseBackup(input: unknown): Record<BackupTable, Row[]> {
         const ok =
           column.columnType === 'SQLiteInteger'
             ? Number.isSafeInteger(value)
-            : typeof value === 'string' && value.length <= 1_000_000;
-        if (!ok) throw new InvalidBackupError(`Row ${i + 1} of "${name}" has an invalid "${key}"`);
+            : column.columnType === 'SQLiteReal'
+              ? typeof value === 'number' && Number.isFinite(value)
+              : typeof value === 'string' && value.length <= 1_000_000;
+        // Amounts are read in the account's or goal's currency, so an unknown one can't be stored
+        const known =
+          (column !== accounts.currency && column !== goals.currency) || isCurrency(value);
+        // The same bounds as a fetched or hand-entered rate: zero can't be divided by, and a
+        // negative rate would turn money in into money out
+        const plausible =
+          column !== exchangeRates.rate ||
+          (typeof value === 'number' && value > 0 && value <= MAX_RATE);
+        if (!ok || !known || !plausible) {
+          throw new InvalidBackupError(`Row ${i + 1} of "${name}" has an invalid "${key}"`);
+        }
         row[key] = value;
       }
       return row;

@@ -63,6 +63,45 @@ test.describe('reports', () => {
     }
   });
 
+  test('a dollar account counts in every report, in pesos at the rate of each date', async ({
+    page,
+    api,
+  }) => {
+    await seed(api);
+    const dollars = await api.createAccount('Dollar savings', 0, 'checking', { currency: 'USD' });
+    const groceries = await api.category('Groceries');
+    const paychecks = await api.category('Paychecks');
+    await api.call('PUT', `/exchange-rates/${isoDay()}`, { rate: 40 });
+    await api.createTransaction({
+      accountId: dollars.id,
+      date: isoDay(),
+      amount: 100_000,
+      payeeName: 'Client abroad',
+      categoryId: paychecks.id,
+    });
+    await api.createTransaction({
+      accountId: dollars.id,
+      date: isoDay(),
+      amount: -5_000,
+      payeeName: 'Import Market',
+      categoryId: groceries.id,
+    });
+
+    // US$ 1,000 received and US$ 50 spent at 40 pesos per dollar, on top of the pesos ones
+    await open(page, '/reports');
+    const main = page.getByRole('main');
+    await expect(main).toContainText(/\$42,000\s*Total Income/);
+    await expect(main).toContainText(/\$2,052\.50\s*Total Expenses/);
+
+    await open(page, '/reports/custom');
+    await page.getByRole('button', { name: 'Table' }).click();
+    await page.getByRole('combobox', { name: 'Group by' }).selectOption('category');
+    const table = page.getByRole('table');
+    await expect(table.getByRole('row', { name: 'Groceries $2,048.50' })).toBeVisible();
+    await page.getByRole('combobox', { name: 'Group by' }).selectOption('account');
+    await expect(table.getByRole('row', { name: 'Dollar savings $2,000' })).toBeVisible();
+  });
+
   test('builds, saves and reopens a custom report', async ({ page, api }) => {
     await seed(api);
     await open(page, '/reports');

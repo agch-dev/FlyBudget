@@ -6,11 +6,27 @@ import { SavingPausedHint } from '../connection/SavingPausedHint';
 import { ConfirmModal } from '../ui/ConfirmModal';
 import { CurrencyInput } from '../ui/CurrencyInput';
 import { useUpdateAccount, useCloseAccount } from '../../hooks/useAccounts';
-import type { Account, AccountType } from '../../types';
+import { HOME_CURRENCY, type Account, type AccountType, type Currency } from '../../types';
 import { AccountIcon } from './AccountIcon';
 import { AccountTypeSelect } from './AccountTypeSelect';
+import { CurrencySelect } from './CurrencySelect';
+import { AccountGroupField } from './AccountGroupField';
 import { fileToSquareDataUrl } from '../../utils/imageResize';
 import { usePreferencesStore } from '../../store/preferencesStore';
+
+/** Why the currency can't change; undefined (the default hint) for an account with transactions */
+const CURRENCY_LOCK_HINT: Partial<Record<NonNullable<Account['currencyLockedBy']>, string>> = {
+  recurring:
+    "The currency can't change while a recurring item uses this account. Move or delete the recurring item first.",
+  goal: "The currency can't change while a goal is linked to this account. Unlink the goal first.",
+};
+
+/** An account from a copy saved before `currencyLockedBy` existed only says `hasTransactions` */
+function currencyLock(account: Account | null): Account['currencyLockedBy'] {
+  if (!account) return 'transactions';
+  if (account.currencyLockedBy !== undefined) return account.currencyLockedBy;
+  return account.hasTransactions === false ? null : 'transactions';
+}
 
 interface Props {
   account: Account | null;
@@ -20,10 +36,13 @@ interface Props {
 export function EditAccountModal({ account, onClose }: Props) {
   const [name, setName] = useState('');
   const [type, setType] = useState<AccountType>('checking');
+  const [currency, setCurrency] = useState<Currency>(HOME_CURRENCY);
   const [startingBalance, setStartingBalance] = useState(0);
+  const [groupName, setGroupName] = useState('');
   const [isOffBudget, setIsOffBudget] = useState(false);
   const [confirmClose, setConfirmClose] = useState(false);
   const canSave = useCanSave();
+  const lock = currencyLock(account);
   const [logo, setLogo] = useState<string | null>(null);
   const [logoError, setLogoError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -37,7 +56,9 @@ export function EditAccountModal({ account, onClose }: Props) {
     if (!account) return;
     setName(account.name);
     setType(account.type);
+    setCurrency(account.currency);
     setStartingBalance(account.startingBalance);
+    setGroupName(account.groupName ?? '');
     setIsOffBudget(account.isOffBudget === 1);
     setLogo(account.logo ?? null);
     setLogoError(null);
@@ -46,6 +67,7 @@ export function EditAccountModal({ account, onClose }: Props) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!account || !name.trim()) return;
+    const group = groupName.trim() || null;
     await updateAccount.mutateAsync({
       id: account.id,
       data: {
@@ -53,7 +75,10 @@ export function EditAccountModal({ account, onClose }: Props) {
         type,
         startingBalance,
         isOffBudget: isOffBudget ? 1 : 0,
+        // Only when chosen anew: the server refuses a change once something depends on it
+        ...(currency !== account.currency ? { currency } : {}),
         ...(logo !== (account.logo ?? null) ? { logo } : {}),
+        ...(group !== (account.groupName ?? null) ? { groupName: group } : {}),
       },
     });
     onClose();
@@ -142,6 +167,13 @@ export function EditAccountModal({ account, onClose }: Props) {
 
           <AccountTypeSelect value={type} onChange={setType} />
 
+          <CurrencySelect
+            value={currency}
+            onChange={setCurrency}
+            locked={lock != null}
+            lockedHint={lock ? CURRENCY_LOCK_HINT[lock] : undefined}
+          />
+
           <div>
             <label className="block text-sm font-medium text-text-secondary mb-1">
               Starting Balance
@@ -150,9 +182,12 @@ export function EditAccountModal({ account, onClose }: Props) {
               value={startingBalance}
               onChange={setStartingBalance}
               allowNegative
+              currency={currency}
               aria-label="Starting balance"
             />
           </div>
+
+          <AccountGroupField value={groupName} onChange={setGroupName} />
 
           <label className="flex items-center gap-3 cursor-pointer">
             <input

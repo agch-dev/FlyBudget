@@ -1,4 +1,4 @@
-import { ACCOUNT_GROUPS, ACCOUNT_TYPES, type AccountType } from '../../types';
+import { ACCOUNT_TYPE_GROUPS, ACCOUNT_TYPES, type AccountType } from '../../types';
 import { accountTypeInfo } from '../../utils/accountTypes';
 
 interface Props {
@@ -17,7 +17,7 @@ export function AccountTypeSelect({ value, onChange }: Props) {
         onChange={(e) => onChange(e.target.value as AccountType)}
         className="block w-full rounded-lg border border-border px-3 py-2 text-sm bg-surface text-text focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
       >
-        {ACCOUNT_GROUPS.map((g) => (
+        {ACCOUNT_TYPE_GROUPS.map((g) => (
           <optgroup key={g.value} label={g.label}>
             {ACCOUNT_TYPES.filter((t) => t.group === g.value).map((t) => (
               <option key={t.value} value={t.value}>

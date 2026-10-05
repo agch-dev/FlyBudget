@@ -38,7 +38,8 @@ function startServer(name: string, env: Record<string, string>, log: string[]): 
   const tsx = path.join(root, 'server/node_modules/tsx/dist/cli.mjs');
   const child = spawn(process.execPath, [tsx, 'src/index.ts'], {
     cwd: path.join(root, 'server'),
-    env: { ...process.env, NODE_ENV: 'test', ...env },
+    // The exchange rate source is a personal API: the test servers must never call it
+    env: { ...process.env, NODE_ENV: 'test', FLYBUDGET_EXCHANGE_RATES: 'off', ...env },
     stdio: ['ignore', 'pipe', 'pipe'],
     // Its own process group (Linux/macOS), so stopping it also stops the server tsx starts
     detached: !isWindows,

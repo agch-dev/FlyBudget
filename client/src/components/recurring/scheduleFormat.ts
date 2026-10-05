@@ -7,16 +7,43 @@ import {
   parseISO,
   startOfMonth,
 } from 'date-fns';
-import { RECURRENCE_TYPE_LABELS, type AmountType, type ScheduleOccurrence } from '../../types';
+import {
+  HOME_CURRENCY,
+  RECURRENCE_TYPE_LABELS,
+  type AmountType,
+  type Currency,
+  type ScheduleOccurrence,
+} from '../../types';
 import type { RecurringBadgeStatus } from './StatusBadge';
 
 export const FREQ_LABEL = new Map(RECURRENCE_TYPE_LABELS.map((f) => [f.value, f.label]));
 
-/** Actual-style amount: `~` prefix when not exact, `+` prefix for income. */
-export function formatScheduleAmount(amount: number, amountType: AmountType): string {
+/**
+ * Actual-style amount: `~` prefix when not exact, `+` prefix for income. Pass the recurring
+ * item's currency (its account's): the amount is a native amount in it.
+ */
+export function formatScheduleAmount(
+  amount: number,
+  amountType: AmountType,
+  currency?: Currency,
+): string {
   const approx = amountType !== 'exact' ? '~' : '';
   const sign = amount > 0 ? '+' : '';
-  return `${approx}${sign}${formatCurrency(Math.abs(amount))}`;
+  return `${approx}${sign}${formatCurrency(Math.abs(amount), currency)}`;
+}
+
+/**
+ * Whether saving a recurring item should first ask the user to confirm its amount: an
+ * existing item whose account is now in the other currency, so the same number means a
+ * different sum of money (US$ 100 would become $ 100). `formCurrency` is the chosen
+ * account's; no account, like an item from before currencies existed, counts as pesos.
+ */
+export function amountNeedsConfirming(
+  editItem: { currency?: Currency } | null | undefined,
+  formCurrency: Currency | undefined,
+): boolean {
+  if (!editItem) return false;
+  return (editItem.currency ?? HOME_CURRENCY) !== (formCurrency ?? HOME_CURRENCY);
 }
 
 // ─── Upcoming length (port of Actual Budget's getUpcomingDays) ───────────────

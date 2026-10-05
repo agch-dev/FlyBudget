@@ -2,7 +2,10 @@ import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { format, addDays, parseISO, differenceInCalendarDays } from 'date-fns';
 import { useScheduleOccurrences } from '../../hooks/useSchedules';
-import { formatCurrency } from '../../utils/currency';
+// A native amount: each bill is shown in its own account's currency
+import { formatCurrency as formatNative } from '../../utils/currency';
+import { expectedNote } from '../../utils/recurringTotals';
+import { useViewingCurrency } from '../../hooks/useViewingCurrency';
 import { CalendarClock } from 'lucide-react';
 import { Card } from '../ui/Card';
 import { EmptyState } from '../ui/EmptyState';
@@ -10,6 +13,7 @@ import { ButtonLink } from '../ui/Button';
 import { useSchedules } from '../../hooks/useSchedules';
 
 export default function UpcomingBills() {
+  const viewingCurrency = useViewingCurrency();
   const today = format(new Date(), 'yyyy-MM-dd');
   const thirtyDaysOut = format(addDays(new Date(), 30), 'yyyy-MM-dd');
 
@@ -104,8 +108,10 @@ export default function UpcomingBills() {
                   className={`text-sm font-medium tabular-nums whitespace-nowrap ${
                     occ.expectedAmount > 0 ? 'text-positive' : 'text-text'
                   }`}
+                  // A dollar bill: what it comes to in pesos, at today's rate until it is due
+                  title={expectedNote(occ, viewingCurrency, today) ?? undefined}
                 >
-                  {formatCurrency(occ.expectedAmount)}
+                  {formatNative(occ.expectedAmount, occ.currency)}
                 </span>
               </div>
             );

@@ -1,6 +1,6 @@
 import { format, parseISO } from 'date-fns';
 import { ChartNoAxesColumn } from 'lucide-react';
-import { formatCurrency } from '../../utils/currency';
+import { useViewingMoney } from '../../hooks/useViewingCurrency';
 import { CATEGORY_COLORS } from '../../utils/chartColors';
 
 export const EXPENSE_COLORS = CATEGORY_COLORS;
@@ -32,6 +32,7 @@ export function CurrencyTooltip({
   summary,
   hideZero,
 }: any) {
+  const money = useViewingMoney();
   if (!active || !payload?.length) return null;
   const rows = hideZero ? payload.filter((p: any) => Number(p.value) !== 0) : payload;
   const extra: TooltipSummary | null = summary ? summary(payload) : null;
@@ -42,12 +43,12 @@ export function CurrencyTooltip({
       </p>
       {rows.map((p: any) => (
         <p key={p.name} className="text-xs font-medium" style={{ color: p.color }}>
-          {p.name}: {formatCurrency(p.value)}
+          {p.name}: {money.format(p.value)}
         </p>
       ))}
       {extra && (
         <p className="text-xs font-semibold text-text mt-1 pt-1 border-t border-border-light">
-          {extra.label}: {formatCurrency(extra.value)}
+          {extra.label}: {money.format(extra.value)}
         </p>
       )}
     </div>
@@ -60,6 +61,7 @@ export function CurrencyTooltip({
  * for single-color line and area charts).
  */
 export function ShareTooltip({ active, payload, label, total, noSwatch }: any) {
+  const money = useViewingMoney();
   if (!active || !payload?.length) return null;
   const p = payload[0];
   const item = p.payload ?? {};
@@ -72,10 +74,10 @@ export function ShareTooltip({ active, payload, label, total, noSwatch }: any) {
         {color && <span className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />}
         {/^\d{4}-\d{2}$/.test(name) ? monthLabel(name) : name}
       </p>
-      <p className="text-sm font-semibold text-text tabular-nums">{formatCurrency(value)}</p>
+      <p className="text-sm font-semibold text-text tabular-nums">{money.format(value)}</p>
       {total > 0 && (
         <p className="text-xs text-text-tertiary tabular-nums">
-          {((value / total) * 100).toFixed(1)}% of {formatCurrency(total)}
+          {((value / total) * 100).toFixed(1)}% of {money.format(total)}
         </p>
       )}
     </div>

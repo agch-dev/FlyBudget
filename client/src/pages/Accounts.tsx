@@ -18,20 +18,25 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { useOpenFromLink } from '../hooks/useOpenFromLink';
 import { docsUrl } from '../utils/project';
 import { formatCurrency } from '../utils/currency';
+import { totalAndChange } from '../utils/balanceConversion';
 import NetWorthMini from '../components/dashboard/NetWorthMini';
-import { ACCOUNT_GROUPS, type Account, type AccountGroup } from '../types';
+import { ACCOUNT_TYPE_GROUPS, type Account, type AccountTypeGroup } from '../types';
 import { AccountIcon } from '../components/accounts/AccountIcon';
 import { accountTypeInfo, accountTypeLabel } from '../utils/accountTypes';
+import { groupTotal, listAccountsByGroup } from '../utils/accountGroups';
+import { format, subMonths } from 'date-fns';
+import { useBalanceRates } from '../hooks/useExchangeRates';
+import { useViewingCurrency } from '../hooks/useViewingCurrency';
 
 function groupAccountsByType(accounts: Account[]) {
-  const groups = new Map<AccountGroup, Account[]>();
+  const groups = new Map<AccountTypeGroup, Account[]>();
   for (const a of accounts) {
     const group = accountTypeInfo(a.type).group;
     const list = groups.get(group) ?? [];
     list.push(a);
     groups.set(group, list);
   }
-  return ACCOUNT_GROUPS.filter((g) => groups.has(g.value)).map((g) => ({
+  return ACCOUNT_TYPE_GROUPS.filter((g) => groups.has(g.value)).map((g) => ({
     label: g.label,
     accounts: groups.get(g.value)!,
   }));
@@ -43,13 +48,82 @@ interface AccountGroupProps {
   balancesAgo: Record<string, number>;
 }
 
-function AccountGroup({ label, accounts, balancesAgo }: AccountGroupProps) {
-  const [collapsed, setCollapsed] = useState(false);
+/** One account inside a card: icon, name, type and its own balance; opens the account */
+function AccountLine({ account }: { account: Account }) {
   const navigate = useNavigate();
-  const groupTotal = accounts.reduce((sum, a) => sum + a.balance, 0);
-  const groupTotalAgo = accounts.reduce((sum, a) => sum + (balancesAgo[a.id] ?? a.balance), 0);
-  const change = groupTotal - groupTotalAgo;
-  const changePct = groupTotalAgo !== 0 ? (change / Math.abs(groupTotalAgo)) * 100 : 0;
+  return (
+    <div
+      onClick={() => navigate(`/accounts/${account.id}`)}
+      className="flex items-center justify-between px-5 py-4 hover:bg-hover cursor-pointer group transition-colors last:rounded-b-lg"
+    >
+      <div className="min-w-0">
+        <div className="flex items-center gap-3 min-w-0">
+          <AccountIcon name={account.name} type={account.type} logo={account.logo} size="md" />
+          <div className="min-w-0">
+            <span className="text-sm font-medium text-text truncate block">{account.name}</span>
+            <span className="text-xs text-text-tertiary mt-0.5 block">
+              {accountTypeLabel(account.type)}
+            </span>
+          </div>
+        </div>
+      </div>
+      <span className="text-sm font-medium tabular-nums text-text">
+        {formatCurrency(account.balance, account.currency)}
+      </span>
+    </div>
+  );
+}
+
+/**
+ * An Account Group as a card: its name, its combined balance in the viewing currency at
+ * today's rate, and its accounts with their own balances. The group itself opens nothing;
+ * each account does.
+ */
+function AccountGroupCard({ name, accounts }: { name: string; accounts: Account[] }) {
+  const { rates, today } = useBalanceRates();
+  const { currency, total, complete } = groupTotal(accounts, useViewingCurrency(), today, rates);
+  return (
+    <Card padding="none">
+      <section aria-label={`${name} group`}>
+        <div className="flex items-center justify-between gap-3 px-5 py-3.5 border-b border-border">
+          <div className="flex items-baseline gap-2.5 min-w-0">
+            <h2 className="text-base font-semibold text-text truncate">{name}</h2>
+            <span className="text-xs text-text-tertiary shrink-0">
+              {complete
+                ? 'Group'
+                : 'Group · balances in the other currency left out: no exchange rate yet'}
+            </span>
+          </div>
+          <span
+            className={`text-base font-semibold tabular-nums ${total < 0 ? 'text-negative' : 'text-text'}`}
+          >
+            {formatCurrency(total, currency)}
+          </span>
+        </div>
+        <div className="divide-y divide-border-light">
+          {accounts.map((account) => (
+            <AccountLine key={account.id} account={account} />
+          ))}
+        </div>
+      </section>
+    </Card>
+  );
+}
+
+function AccountTypeSection({ label, accounts, balancesAgo }: AccountGroupProps) {
+  const [collapsed, setCollapsed] = useState(false);
+  // In the viewing currency, like net worth: today's balances at today's rate, the month-ago
+  // ones at the rate of that day. Each account below keeps its own balance.
+  const viewing = useViewingCurrency();
+  const { rates, today } = useBalanceRates();
+  const { total, before, change } = totalAndChange(
+    accounts,
+    balancesAgo,
+    viewing,
+    { today, ago: format(subMonths(new Date(), 1), 'yyyy-MM-dd') },
+    rates,
+  );
+  const changePct = before !== 0 ? (change / Math.abs(before)) * 100 : 0;
 
   return (
     <Card padding="none">
@@ -70,47 +144,22 @@ function AccountGroup({ label, accounts, balancesAgo }: AccountGroupProps) {
             >
               {change >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
               {change >= 0 ? '+' : ''}
-              {formatCurrency(change)} ({Math.abs(changePct).toFixed(1)}%)
+              {formatCurrency(change, viewing)} ({Math.abs(changePct).toFixed(1)}%)
             </span>
           )}
           <span className="text-xs text-text-tertiary">past month</span>
         </div>
         <span
-          className={`text-base font-semibold tabular-nums ${groupTotal < 0 ? 'text-negative' : 'text-text'}`}
+          className={`text-base font-semibold tabular-nums ${total < 0 ? 'text-negative' : 'text-text'}`}
+          data-testid="account-type-total"
         >
-          {formatCurrency(groupTotal)}
+          {formatCurrency(total, viewing)}
         </span>
       </button>
       {!collapsed && (
         <div className="divide-y divide-border-light">
           {accounts.map((account) => (
-            <div
-              key={account.id}
-              onClick={() => navigate(`/accounts/${account.id}`)}
-              className="flex items-center justify-between px-5 py-4 hover:bg-hover cursor-pointer group transition-colors last:rounded-b-lg"
-            >
-              <div className="min-w-0">
-                <div className="flex items-center gap-3 min-w-0">
-                  <AccountIcon
-                    name={account.name}
-                    type={account.type}
-                    logo={account.logo}
-                    size="md"
-                  />
-                  <div className="min-w-0">
-                    <span className="text-sm font-medium text-text truncate block">
-                      {account.name}
-                    </span>
-                    <span className="text-xs text-text-tertiary mt-0.5 block">
-                      {accountTypeLabel(account.type)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <span className="text-sm font-medium tabular-nums text-text">
-                {formatCurrency(account.balance)}
-              </span>
-            </div>
+            <AccountLine key={account.id} account={account} />
           ))}
         </div>
       )}
@@ -123,7 +172,16 @@ export default function AccountsPage() {
   const { data: balancesAgo = {} } = useBalancesAgo();
   const [addOpen, setAddOpen] = useState(false);
   useOpenFromLink('add', () => setAddOpen(true));
-  const allGroups = useMemo(() => groupAccountsByType(accounts), [accounts]);
+  // Account Groups get a card each; the accounts with no group stay in the cards by type
+  const { groups, byType } = useMemo(() => {
+    const entries = listAccountsByGroup(accounts);
+    return {
+      groups: entries.filter((e) => e.kind === 'group'),
+      byType: groupAccountsByType(
+        entries.flatMap((e) => (e.kind === 'account' ? [e.account] : [])),
+      ),
+    };
+  }, [accounts]);
 
   if (isLoading) {
     return (
@@ -182,8 +240,11 @@ export default function AccountsPage() {
           </div>
 
           <div className="px-6 pb-6 space-y-4">
-            {allGroups.map((g) => (
-              <AccountGroup
+            {groups.map((g) => (
+              <AccountGroupCard key={`group:${g.name}`} name={g.name} accounts={g.accounts} />
+            ))}
+            {byType.map((g) => (
+              <AccountTypeSection
                 key={g.label}
                 label={g.label}
                 accounts={g.accounts}

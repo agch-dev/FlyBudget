@@ -20,6 +20,8 @@ import { customReportsRouter } from '../routes/customReports.js';
 import { dashboardsRouter } from '../routes/dashboards.js';
 import { schedulesRouter } from '../routes/schedules.js';
 import { goalsRouter } from '../routes/goals.js';
+import { createExchangeRatesRouter } from '../routes/exchangeRates.js';
+import { transferSuggestionsRouter } from '../routes/transferSuggestions.js';
 
 /** Answer for anything that needs a real server: bank connections, sign-in. */
 const NOT_IN_DEMO = "This isn't available in the demo. Download FlyBudget to use it.";
@@ -49,6 +51,12 @@ app.use('/custom-reports', customReportsRouter as unknown as ShimRouter);
 app.use('/dashboards', dashboardsRouter as unknown as ShimRouter);
 app.use('/schedules', schedulesRouter as unknown as ShimRouter);
 app.use('/goals', goalsRouter as unknown as ShimRouter);
+app.use('/transfer-suggestions', transferSuggestionsRouter as unknown as ShimRouter);
+// The demo never fetches exchange rates: its "source" always fails, and the page hides Refresh
+app.use(
+  '/exchange-rates',
+  createExchangeRatesRouter(() => Promise.reject(new Error(NOT_IN_DEMO))) as unknown as ShimRouter,
+);
 
 app.use('/plaid', (_req, res) => res.status(403).json({ error: NOT_IN_DEMO }));
 app.use('/simplefin', (_req, res) => res.status(403).json({ error: NOT_IN_DEMO }));

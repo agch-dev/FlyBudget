@@ -1,6 +1,9 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { IS_DEMO } from '../demo/isDemo';
+import type { ImportMemory } from '../utils/csv';
+import { toggleGroupOpen } from '../utils/accountGroups';
+import { HOME_CURRENCY, type Currency } from '../types';
 
 export type Theme = 'light' | 'dark' | 'system';
 export type DateFormatOption = 'MMM d, yyyy' | 'MM/dd/yyyy' | 'dd/MM/yyyy' | 'yyyy-MM-dd';
@@ -8,7 +11,6 @@ export type SidebarMode = 'persistent' | 'auto-hide';
 
 interface PreferencesState {
   theme: Theme;
-  currencySymbol: string;
   dateFormat: DateFormatOption;
   savingsGoal: number;
   sidebarMode: SidebarMode;
@@ -23,8 +25,16 @@ interface PreferencesState {
   setupSkipped: boolean;
   /** The getting started checklist on the dashboard was hidden */
   gettingStartedHidden: boolean;
+  /** Import choices (date order, decimal mark, columns, card choices) last used for each account, by account id */
+  csvImportConventions: Record<string, ImportMemory>;
+  /** Account Groups expanded in the sidebar on this device, by name; the rest are closed */
+  openAccountGroups: string[];
+  /**
+   * The Viewing Currency (GLOSSARY.md): what combined totals are shown in on the dashboard,
+   * reports, cash flow and net worth on this device. Never the Budget, which is in pesos.
+   */
+  viewingCurrency: Currency;
   setTheme: (theme: Theme) => void;
-  setCurrencySymbol: (symbol: string) => void;
   setDateFormat: (format: DateFormatOption) => void;
   setSavingsGoal: (goal: number) => void;
   setSidebarMode: (mode: SidebarMode) => void;
@@ -35,15 +45,27 @@ interface PreferencesState {
   setKeepOfflineCopy: (keep: boolean) => void;
   setSetupSkipped: (skipped: boolean) => void;
   setGettingStartedHidden: (hidden: boolean) => void;
+  setCsvImportConventions: (accountId: string, conventions: ImportMemory) => void;
+  toggleAccountGroup: (name: string) => void;
+  setViewingCurrency: (currency: Currency) => void;
 }
 
 const PREFERENCES_KEY = 'budget-preferences';
+
+/**
+ * Brings preferences saved by an earlier version up to date. Version 1 removed the currency
+ * symbol: each account now has its own currency (pesos `$` or dollars `US$`).
+ */
+export function migratePreferences(saved: unknown): Partial<PreferencesState> {
+  if (!saved || typeof saved !== 'object') return {};
+  const { currencySymbol: _removed, ...rest } = saved as Record<string, unknown>;
+  return rest as Partial<PreferencesState>;
+}
 
 export const usePreferencesStore = create<PreferencesState>()(
   persist(
     (set) => ({
       theme: 'light',
-      currencySymbol: '$',
       dateFormat: 'MMM d, yyyy',
       savingsGoal: 20,
       sidebarMode: 'persistent',
@@ -54,8 +76,10 @@ export const usePreferencesStore = create<PreferencesState>()(
       keepOfflineCopy: true,
       setupSkipped: false,
       gettingStartedHidden: false,
+      csvImportConventions: {},
+      openAccountGroups: [],
+      viewingCurrency: HOME_CURRENCY,
       setTheme: (theme) => set({ theme }),
-      setCurrencySymbol: (currencySymbol) => set({ currencySymbol }),
       setDateFormat: (dateFormat) => set({ dateFormat }),
       setSavingsGoal: (savingsGoal) => set({ savingsGoal }),
       setSidebarMode: (sidebarMode) => set({ sidebarMode }),
@@ -66,9 +90,18 @@ export const usePreferencesStore = create<PreferencesState>()(
       setKeepOfflineCopy: (keepOfflineCopy) => set({ keepOfflineCopy }),
       setSetupSkipped: (setupSkipped) => set({ setupSkipped }),
       setGettingStartedHidden: (gettingStartedHidden) => set({ gettingStartedHidden }),
+      setCsvImportConventions: (accountId, conventions) =>
+        set((state) => ({
+          csvImportConventions: { ...state.csvImportConventions, [accountId]: conventions },
+        })),
+      toggleAccountGroup: (name) =>
+        set((state) => ({ openAccountGroups: toggleGroupOpen(state.openAccountGroups, name) })),
+      setViewingCurrency: (viewingCurrency) => set({ viewingCurrency }),
     }),
     {
       name: PREFERENCES_KEY,
+      version: 1,
+      migrate: migratePreferences,
       // The demo (website "Try the demo") shares the website's storage: keep its preferences
       // in this tab only, so they're gone with the demo budget when the tab closes
       storage: createJSONStorage(() => (IS_DEMO ? sessionStorage : localStorage)),

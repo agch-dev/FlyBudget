@@ -1,5 +1,5 @@
 import { apiFetch } from './client';
-import type { Account, AccountType } from '../types';
+import type { Account, AccountType, Currency } from '../types';
 
 export const getAccounts = () => apiFetch<Account[]>('/accounts');
 
@@ -8,6 +8,9 @@ export const createAccount = (data: {
   type: AccountType;
   startingBalance: number;
   isOffBudget?: number;
+  currency?: Currency;
+  /** The Account Group to join or start; null or blank = none */
+  groupName?: string | null;
 }) => apiFetch<Account>('/accounts', { method: 'POST', body: JSON.stringify(data) });
 
 export const updateAccount = (
@@ -18,6 +21,9 @@ export const updateAccount = (
     startingBalance: number;
     isOffBudget: number;
     logo: string | null;
+    /** Refused by the server once the account has transactions */
+    currency: Currency;
+    groupName: string | null;
   }>,
 ) => apiFetch<Account>(`/accounts/${id}`, { method: 'PUT', body: JSON.stringify(data) });
 
