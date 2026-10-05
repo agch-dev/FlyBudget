@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { db } from '../db/index.js';
 import { accounts, budgetMonths, categories, categoryGroups, transactions } from '../db/schema.js';
 import { eq, and, gte, lte, lt, sql, inArray } from 'drizzle-orm';
+import { HOME_CURRENCY } from '../utils/currency.js';
 import { nanoid } from 'nanoid';
 import { z } from 'zod';
 import { monthBounds } from '../utils/date.js';
@@ -13,11 +14,12 @@ const cents = z.number().int().min(-1e13).max(1e13);
 const upsertSchema = z.object({ budgeted: cents });
 
 // The budget only counts money in on-budget accounts: a categorized dividend in an
-// off-budget brokerage account isn't money to budget
+// off-budget brokerage account isn't money to budget. The budget is in pesos, so dollar
+// accounts are left out too until their amounts are converted (see `inHomeCurrency`).
 const onBudgetAccountIds = db
   .select({ id: accounts.id })
   .from(accounts)
-  .where(eq(accounts.isOffBudget, 0));
+  .where(and(eq(accounts.isOffBudget, 0), eq(accounts.currency, HOME_CURRENCY)));
 const onBudget = inArray(transactions.accountId, onBudgetAccountIds);
 
 // Every route here takes a YYYY-MM month

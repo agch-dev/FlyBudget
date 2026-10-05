@@ -16,7 +16,7 @@ import { useBudget, useCategoryHistory } from '../hooks/useBudget';
 import { useTransactions } from '../hooks/useTransactions';
 import { useAppStore } from '../store/appStore';
 import { usePreferencesStore } from '../store/preferencesStore';
-import { formatCurrency } from '../utils/currency';
+import { formatCurrency, inHomeCurrency } from '../utils/currency';
 import { chartColors } from '../utils/chartColors';
 import { TransactionTable } from '../components/transactions/TransactionTable';
 import type { Transaction } from '../types';
@@ -170,6 +170,8 @@ function BudgetWidget({
     </div>
   );
 }
+
+// The summary is in pesos like the budget: it is given the pesos transactions only
 
 /** What a transaction put in this category: for a split, only its parts in it */
 function amountInCategory(t: Transaction, categoryId: string): number {
@@ -333,7 +335,11 @@ export default function CategoryDetailPage() {
             )}
           </div>
           <div>
-            <SummaryWidget transactions={transactions} categoryId={id ?? ''} isIncome={isIncome} />
+            <SummaryWidget
+              transactions={inHomeCurrency(transactions)}
+              categoryId={id ?? ''}
+              isIncome={isIncome}
+            />
           </div>
         </div>
       </div>

@@ -1,6 +1,7 @@
-import { and, eq, isNull, sql, type SQL } from 'drizzle-orm';
+import { and, eq, inArray, isNull, sql, type SQL } from 'drizzle-orm';
 import { db } from '../db/index.js';
-import { transactions } from '../db/schema.js';
+import { accounts, transactions } from '../db/schema.js';
+import { HOME_CURRENCY } from '../utils/currency.js';
 
 // A split is stored as a parent row holding the full amount plus child rows holding
 // the parts, all in the same account. Account balances count the parent only;
@@ -15,6 +16,20 @@ export const inAccountBalance: SQL = isNull(transactions.parentTransactionId);
  * Balances and net worth still count those.
  */
 export const isIncomeOrSpending: SQL = sql`not (${transactions.isAdjustment} = 1 and ${transactions.categoryId} is null)`;
+
+/**
+ * Accounts in the home currency (pesos). A total that combines accounts counts only these:
+ * amounts are stored in each account's own currency, so adding a dollar account's amounts to
+ * a pesos total would be wrong by the exchange rate. Dollar accounts are left out of every
+ * combined total until those totals convert them (docs/adr/0001).
+ */
+export const homeCurrencyAccountIds = db
+  .select({ id: accounts.id })
+  .from(accounts)
+  .where(eq(accounts.currency, HOME_CURRENCY));
+
+/** Transactions in a home-currency account: add it to every query that sums across accounts. */
+export const inHomeCurrency: SQL = inArray(transactions.accountId, homeCurrencyAccountIds);
 
 /** Sum of an account's transactions, as added to its starting balance. */
 export function accountTransactionSum(accountId: string): number {

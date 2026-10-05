@@ -6,9 +6,10 @@ import { SavingPausedHint } from '../connection/SavingPausedHint';
 import { ConfirmModal } from '../ui/ConfirmModal';
 import { CurrencyInput } from '../ui/CurrencyInput';
 import { useUpdateAccount, useCloseAccount } from '../../hooks/useAccounts';
-import type { Account, AccountType } from '../../types';
+import { HOME_CURRENCY, type Account, type AccountType, type Currency } from '../../types';
 import { AccountIcon } from './AccountIcon';
 import { AccountTypeSelect } from './AccountTypeSelect';
+import { CurrencySelect } from './CurrencySelect';
 import { fileToSquareDataUrl } from '../../utils/imageResize';
 import { usePreferencesStore } from '../../store/preferencesStore';
 
@@ -20,6 +21,7 @@ interface Props {
 export function EditAccountModal({ account, onClose }: Props) {
   const [name, setName] = useState('');
   const [type, setType] = useState<AccountType>('checking');
+  const [currency, setCurrency] = useState<Currency>(HOME_CURRENCY);
   const [startingBalance, setStartingBalance] = useState(0);
   const [isOffBudget, setIsOffBudget] = useState(false);
   const [confirmClose, setConfirmClose] = useState(false);
@@ -37,6 +39,7 @@ export function EditAccountModal({ account, onClose }: Props) {
     if (!account) return;
     setName(account.name);
     setType(account.type);
+    setCurrency(account.currency);
     setStartingBalance(account.startingBalance);
     setIsOffBudget(account.isOffBudget === 1);
     setLogo(account.logo ?? null);
@@ -53,6 +56,8 @@ export function EditAccountModal({ account, onClose }: Props) {
         type,
         startingBalance,
         isOffBudget: isOffBudget ? 1 : 0,
+        // Only when chosen anew: the server refuses a change once there are transactions
+        ...(currency !== account.currency ? { currency } : {}),
         ...(logo !== (account.logo ?? null) ? { logo } : {}),
       },
     });
@@ -142,6 +147,12 @@ export function EditAccountModal({ account, onClose }: Props) {
 
           <AccountTypeSelect value={type} onChange={setType} />
 
+          <CurrencySelect
+            value={currency}
+            onChange={setCurrency}
+            locked={account?.hasTransactions !== false}
+          />
+
           <div>
             <label className="block text-sm font-medium text-text-secondary mb-1">
               Starting Balance
@@ -150,6 +161,7 @@ export function EditAccountModal({ account, onClose }: Props) {
               value={startingBalance}
               onChange={setStartingBalance}
               allowNegative
+              currency={currency}
               aria-label="Starting balance"
             />
           </div>

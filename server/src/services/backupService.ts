@@ -20,6 +20,7 @@ import {
   simplefinAccountMappings,
   transactions,
 } from '../db/schema.js';
+import { isCurrency } from '../utils/currency.js';
 
 // Full JSON backup of the user's data, and restoring one.
 //
@@ -74,7 +75,8 @@ type Row = Record<string, unknown>;
 /**
  * Checks a backup's shape against the schema: every table is a list of rows, and every
  * column has the right type (SQLite would otherwise happily store "abc" as an amount).
- * Tables missing from older backups are restored as empty. Unknown fields are dropped.
+ * Tables missing from older backups are restored as empty, and columns missing from them get
+ * their default (an account with no currency is in pesos). Unknown fields are dropped.
  */
 export function parseBackup(input: unknown): Record<BackupTable, Row[]> {
   if (!input || typeof input !== 'object' || Array.isArray(input)) {
@@ -114,7 +116,11 @@ export function parseBackup(input: unknown): Record<BackupTable, Row[]> {
           column.columnType === 'SQLiteInteger'
             ? Number.isSafeInteger(value)
             : typeof value === 'string' && value.length <= 1_000_000;
-        if (!ok) throw new InvalidBackupError(`Row ${i + 1} of "${name}" has an invalid "${key}"`);
+        // Amounts are read in the account's currency, so an unknown one can't be stored
+        const known = column !== accounts.currency || isCurrency(value);
+        if (!ok || !known) {
+          throw new InvalidBackupError(`Row ${i + 1} of "${name}" has an invalid "${key}"`);
+        }
         row[key] = value;
       }
       return row;

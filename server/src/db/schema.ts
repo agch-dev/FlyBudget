@@ -8,6 +8,7 @@ import {
 } from 'drizzle-orm/sqlite-core';
 import { sql } from 'drizzle-orm';
 import { secretCipher } from './secretCrypto.js';
+import type { Currency } from '../utils/currency.js';
 
 /** TEXT column encrypted at rest when a key is configured (see secretCrypto.ts). Can't be queried by value. */
 const encryptedText = customType<{ data: string; driverData: string }>({
@@ -26,6 +27,8 @@ export const accounts = sqliteTable('accounts', {
   closedAt: text('closed_at'),
   /** Custom logo as a small image data URL; null = colored initials */
   logo: text('logo'),
+  /** 'UYU' (pesos) or 'USD' (dollars): see utils/currency.ts. Every amount in the account is in it */
+  currency: text('currency').$type<Currency>().notNull().default('UYU'),
   createdAt: text('created_at')
     .notNull()
     .default(sql`(datetime('now'))`),

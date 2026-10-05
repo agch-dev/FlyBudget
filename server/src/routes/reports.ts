@@ -6,7 +6,8 @@ import type { Request, Response } from 'express';
 import { monthBounds } from '../utils/date.js';
 import { isLiabilityType } from '../utils/accountTypes.js';
 import { isMonth, isRealDate } from '../utils/validation.js';
-import { inAccountBalance, isIncomeOrSpending } from '../services/balances.js';
+import { inAccountBalance, inHomeCurrency, isIncomeOrSpending } from '../services/balances.js';
+import { HOME_CURRENCY } from '../utils/currency.js';
 
 export const reportsRouter = Router();
 
@@ -111,7 +112,8 @@ reportsRouter.get('/net-worth', (req, res) => {
 
   const periods = isDaily ? dayRange(from, to) : monthRange(from, to);
 
-  const allAccounts = db.select().from(accounts).all();
+  // Pesos accounts only: a dollar balance can't be added to a pesos one without converting it
+  const allAccounts = db.select().from(accounts).where(eq(accounts.currency, HOME_CURRENCY)).all();
 
   const upperBound = isDaily ? to : monthBounds(to).to;
   const groupExpr = isDaily
@@ -168,6 +170,7 @@ reportsRouter.get('/spending-by-category', (req, res) => {
     eq(transactions.isParent, 0),
     isNull(transactions.transferTransactionId),
     isIncomeOrSpending,
+    inHomeCurrency,
     sql`coalesce(${categoryGroups.isIncome}, 0) = 0`,
   ];
   if (from) conditions.push(gte(transactions.date, monthBounds(from).from));
@@ -221,6 +224,7 @@ reportsRouter.get('/income-vs-expenses', (req, res) => {
         eq(transactions.isParent, 0),
         isNull(transactions.transferTransactionId),
         isIncomeOrSpending,
+        inHomeCurrency,
       ),
     )
     .groupBy(sql`strftime('%Y-%m', ${transactions.date})`, isIncome)
@@ -275,6 +279,7 @@ reportsRouter.get('/cash-flow', (req, res) => {
         eq(accounts.isOffBudget, 0),
         inAccountBalance,
         isIncomeOrSpending,
+        eq(accounts.currency, HOME_CURRENCY),
       ),
     )
     .groupBy(sql`strftime('%Y-%m', ${transactions.date})`)
@@ -307,6 +312,7 @@ reportsRouter.get('/daily-flow', (req, res) => {
         eq(transactions.isParent, 0),
         isNull(transactions.transferTransactionId),
         isIncomeOrSpending,
+        eq(accounts.currency, HOME_CURRENCY),
       ),
     )
     .groupBy(transactions.date)
@@ -319,7 +325,7 @@ reportsRouter.get('/income-by-category', (req, res) => {
   const range = optionalMonthParams(req, res);
   if (!range) return;
   const { from, to } = range;
-  const conditions = [eq(categoryGroups.isIncome, 1)];
+  const conditions = [eq(categoryGroups.isIncome, 1), inHomeCurrency];
   if (from) conditions.push(gte(transactions.date, monthBounds(from).from));
   if (to) conditions.push(lte(transactions.date, monthBounds(to).to));
 
@@ -350,7 +356,7 @@ reportsRouter.get('/spending-trends', (req, res) => {
   if (typeof category_ids !== 'string' || !category_ids) return res.json([]);
 
   const ids = category_ids.split(',');
-  const conditions = [];
+  const conditions = [inHomeCurrency];
   if (from) conditions.push(gte(transactions.date, monthBounds(from).from));
   if (to) conditions.push(lte(transactions.date, monthBounds(to).to));
   // Daily totals (for short ranges) put the date (yyyy-MM-dd) in `month`
@@ -369,7 +375,7 @@ reportsRouter.get('/spending-trends', (req, res) => {
     })
     .from(transactions)
     .leftJoin(categories, eq(transactions.categoryId, categories.id))
-    .where(conditions.length ? and(...conditions) : undefined)
+    .where(and(...conditions))
     .groupBy(transactions.categoryId, period)
     .all();
 
@@ -408,6 +414,7 @@ reportsRouter.get('/spending-comparison', (req, res) => {
           isNull(transactions.transferTransactionId),
           isIncomeOrSpending,
           eq(accounts.isOffBudget, 0),
+          eq(accounts.currency, HOME_CURRENCY),
         ),
       )
       .groupBy(transactions.date)
@@ -656,6 +663,8 @@ reportsRouter.get('/custom', (req, res) => {
     eq(transactions.isParent, 0),
     isNull(transactions.transferTransactionId),
     isIncomeOrSpending,
+    // Also when dollar accounts are picked in the filter: rows are summed across accounts
+    inHomeCurrency,
   ];
 
   if (balance_type === 'expense') conditions.push(lt(transactions.amount, 0));

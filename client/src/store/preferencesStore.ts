@@ -9,7 +9,6 @@ export type SidebarMode = 'persistent' | 'auto-hide';
 
 interface PreferencesState {
   theme: Theme;
-  currencySymbol: string;
   dateFormat: DateFormatOption;
   savingsGoal: number;
   sidebarMode: SidebarMode;
@@ -27,7 +26,6 @@ interface PreferencesState {
   /** CSV import choices (date order, decimal mark) last used for each account, by account id */
   csvImportConventions: Record<string, ImportConventions>;
   setTheme: (theme: Theme) => void;
-  setCurrencySymbol: (symbol: string) => void;
   setDateFormat: (format: DateFormatOption) => void;
   setSavingsGoal: (goal: number) => void;
   setSidebarMode: (mode: SidebarMode) => void;
@@ -43,11 +41,20 @@ interface PreferencesState {
 
 const PREFERENCES_KEY = 'budget-preferences';
 
+/**
+ * Brings preferences saved by an earlier version up to date. Version 1 removed the currency
+ * symbol: each account now has its own currency (pesos `$` or dollars `US$`).
+ */
+export function migratePreferences(saved: unknown): Partial<PreferencesState> {
+  if (!saved || typeof saved !== 'object') return {};
+  const { currencySymbol: _removed, ...rest } = saved as Record<string, unknown>;
+  return rest as Partial<PreferencesState>;
+}
+
 export const usePreferencesStore = create<PreferencesState>()(
   persist(
     (set) => ({
       theme: 'light',
-      currencySymbol: '$',
       dateFormat: 'MMM d, yyyy',
       savingsGoal: 20,
       sidebarMode: 'persistent',
@@ -60,7 +67,6 @@ export const usePreferencesStore = create<PreferencesState>()(
       gettingStartedHidden: false,
       csvImportConventions: {},
       setTheme: (theme) => set({ theme }),
-      setCurrencySymbol: (currencySymbol) => set({ currencySymbol }),
       setDateFormat: (dateFormat) => set({ dateFormat }),
       setSavingsGoal: (savingsGoal) => set({ savingsGoal }),
       setSidebarMode: (sidebarMode) => set({ sidebarMode }),
@@ -78,6 +84,8 @@ export const usePreferencesStore = create<PreferencesState>()(
     }),
     {
       name: PREFERENCES_KEY,
+      version: 1,
+      migrate: migratePreferences,
       // The demo (website "Try the demo") shares the website's storage: keep its preferences
       // in this tab only, so they're gone with the demo budget when the tab closes
       storage: createJSONStorage(() => (IS_DEMO ? sessionStorage : localStorage)),

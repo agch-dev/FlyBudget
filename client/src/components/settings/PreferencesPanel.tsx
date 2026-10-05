@@ -29,14 +29,12 @@ const dateFormats: { value: DateFormatOption; label: string; example: string }[]
 export function PreferencesPanel() {
   const {
     theme,
-    currencySymbol,
     dateFormat,
     sidebarMode,
     showMerchantIcons,
     showCategoryIcons,
     showAccountIcons,
     setTheme,
-    setCurrencySymbol,
     setDateFormat,
     setSidebarMode,
     setShowMerchantIcons,
@@ -48,7 +46,6 @@ export function PreferencesPanel() {
   function handleReset() {
     setTheme('light');
     setSidebarMode('persistent');
-    setCurrencySymbol('$');
     setDateFormat('MMM d, yyyy');
     setShowMerchantIcons(true);
     setShowCategoryIcons(true);
@@ -175,20 +172,6 @@ export function PreferencesPanel() {
             </div>
           </div>
         ))}
-      </div>
-
-      <div className="bg-surface-alt rounded-lg p-5 space-y-4">
-        <h3 className="text-sm font-medium text-text">Currency Symbol</h3>
-        <div className="flex items-center gap-3">
-          <input
-            type="text"
-            value={currencySymbol}
-            onChange={(e) => setCurrencySymbol(e.target.value.slice(0, 3))}
-            maxLength={3}
-            className="w-20 text-center text-sm border border-border rounded-md px-3 py-1.5 bg-surface text-text focus:outline-none focus:ring-1 focus:ring-brand-600 focus:border-brand-600"
-          />
-          <span className="text-xs text-text-tertiary">Max 3 characters (e.g. $, EUR, &#163;)</span>
-        </div>
       </div>
 
       <div className="bg-surface-alt rounded-lg p-5 space-y-4">
