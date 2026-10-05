@@ -6,6 +6,7 @@ import {
   backfillRange,
   parseRatesResponse,
   rateLookup,
+  rateLookupOrEstimate,
   refreshRange,
   type RatePoint,
 } from './exchangeRates.js';
@@ -225,5 +226,46 @@ describe('backfillRange', () => {
 
   it('does nothing for a future date', () => {
     expect(backfillRange({ from: '2027-01-01', earliestFetched: null, today })).toBeNull();
+  });
+});
+
+describe('rateLookupOrEstimate', () => {
+  const rates: RatePoint[] = [
+    { date: '2024-03-04', rate: 39.1 },
+    { date: '2024-03-01', rate: 38.9 },
+    { date: '2024-03-08', rate: 39.4 },
+  ];
+
+  it('falls back to the earliest rate, marked estimated, for a date before every rate', () => {
+    expect(rateLookupOrEstimate(rates)('2021-06-15')).toEqual({
+      date: '2024-03-01',
+      rate: 38.9,
+      estimated: true,
+    });
+  });
+
+  it('answers like rateLookup, not estimated, wherever rateLookup has an answer', () => {
+    fc.assert(
+      fc.property(rateTable, isoDay, (table, date) => {
+        const plain = rateLookup(table)(date);
+        fc.pre(plain !== null);
+        expect(rateLookupOrEstimate(table)(date)).toEqual({ ...plain, estimated: false });
+      }),
+    );
+  });
+
+  it('is estimated exactly when no rate is dated on or before the date', () => {
+    fc.assert(
+      fc.property(rateTable, isoDay, (table, date) => {
+        fc.pre(table.length > 0);
+        const found = rateLookupOrEstimate(table)(date)!;
+        expect(found.estimated).toBe(table.every((r) => r.date > date));
+        expect(table).toContainEqual({ date: found.date, rate: found.rate });
+      }),
+    );
+  });
+
+  it('has nothing to estimate from when no rate is stored at all', () => {
+    expect(rateLookupOrEstimate([])('2024-03-01')).toBeNull();
   });
 });

@@ -42,6 +42,32 @@ export function rateLookup<T extends RatePoint>(rates: readonly T[]): (date: str
   };
 }
 
+export interface RateOrEstimate extends RatePoint {
+  /**
+   * No rate is dated on or before the date asked for, so this is the closest one there is:
+   * the earliest stored rate. The app tells the user which dates are estimated.
+   */
+  estimated: boolean;
+}
+
+/**
+ * `rateLookup` that always has an answer when any rate is stored: a date before every rate
+ * gets the earliest one, flagged `estimated`. Null only when there are no rates at all.
+ * Use it to convert amounts; `date` is the date of the rate used, not the date asked for.
+ */
+export function rateLookupOrEstimate(
+  rates: readonly RatePoint[],
+): (date: string) => RateOrEstimate | null {
+  const lookup = rateLookup(rates);
+  let earliest: RatePoint | null = null;
+  for (const r of rates) if (!earliest || r.date < earliest.date) earliest = r;
+  return (date) => {
+    const found = lookup(date);
+    if (found) return { date: found.date, rate: found.rate, estimated: false };
+    return earliest && { date: earliest.date, rate: earliest.rate, estimated: true };
+  };
+}
+
 const sourceRate = z
   .union([z.string().regex(/^\d{1,9}(\.\d{1,9})?$/), z.number()])
   .transform(Number)

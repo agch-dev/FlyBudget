@@ -1,7 +1,8 @@
-import { asc, desc, eq, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, lt, min, ne, sql } from 'drizzle-orm';
 import { format } from 'date-fns';
 import { db } from '../db/index.js';
-import { exchangeRates } from '../db/schema.js';
+import { accounts, exchangeRates, transactions } from '../db/schema.js';
+import { HOME_CURRENCY } from '../utils/currency.js';
 import {
   backfillRange,
   rateLookup,
@@ -178,6 +179,77 @@ export function backfillRatesFrom(
   });
   backfilling = run.catch(() => {});
   return run;
+}
+
+/** The date of the earliest stored rate, fetched or entered by hand. */
+function earliestRateDate(): string | null {
+  return (
+    db
+      .select({ date: min(exchangeRates.date) })
+      .from(exchangeRates)
+      .get()?.date ?? null
+  );
+}
+
+const inDollarAccount = ne(accounts.currency, HOME_CURRENCY);
+
+/**
+ * The dates of dollar transactions with no rate on or before them, oldest first. Converting
+ * them uses the earliest stored rate instead (`rateLookupOrEstimate`), or nothing at all
+ * while no rate is stored. Empty for a budget in pesos only.
+ */
+export function estimatedRateDates(): string[] {
+  const earliest = earliestRateDate();
+  return db
+    .selectDistinct({ date: transactions.date })
+    .from(transactions)
+    .innerJoin(accounts, eq(transactions.accountId, accounts.id))
+    .where(earliest ? and(inDollarAccount, lt(transactions.date, earliest)) : inDollarAccount)
+    .orderBy(asc(transactions.date))
+    .all()
+    .map((row) => row.date);
+}
+
+/**
+ * Asking from a few days before a date gets the rate in effect on it when it falls on a
+ * weekend or a run of holidays (the source publishes business days only).
+ */
+const BACKFILL_MARGIN_DAYS = 7;
+
+const daysBefore = (date: string, days: number) =>
+  new Date(Date.parse(`${date}T00:00:00Z`) - days * 86_400_000).toISOString().slice(0, 10);
+
+/**
+ * Makes sure a dollar transaction dated `date` has a rate: fetches the missing history when
+ * no stored rate (fetched or entered by hand) is on or before it, and asks nothing
+ * otherwise. Call it once per save or import, with the earliest dollar date. Rejects when
+ * the source fails: catch it and save the transaction anyway.
+ */
+export function backfillRatesForDate(
+  date: string,
+  source: RateSource,
+  now = new Date(),
+): Promise<FetchResult> {
+  const earliest = earliestRateDate();
+  if (earliest && earliest <= date) return Promise.resolve(NOT_FETCHED);
+  return backfillRatesFrom(daysBefore(date, BACKFILL_MARGIN_DAYS), source, now);
+}
+
+/**
+ * The same for every dollar transaction already stored (server start, after a bank sync):
+ * one request at most, none for a budget in pesos only.
+ */
+export function backfillRatesForDollarTransactions(
+  source: RateSource,
+  now = new Date(),
+): Promise<FetchResult> {
+  const earliest = db
+    .select({ date: min(transactions.date) })
+    .from(transactions)
+    .innerJoin(accounts, eq(transactions.accountId, accounts.id))
+    .where(inDollarAccount)
+    .get()?.date;
+  return earliest ? backfillRatesForDate(earliest, source, now) : Promise.resolve(NOT_FETCHED);
 }
 
 /** Tests only: forget what was fetched in this process. */
