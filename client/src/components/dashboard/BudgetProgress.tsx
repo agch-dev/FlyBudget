@@ -98,7 +98,7 @@ export default function BudgetProgress({ currentMonth }: Props) {
               <div key={g.id} className="py-4 first:pt-0 last:pb-0">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-medium text-text">
-                    {t(`home.budget.type.${g.id}`)}
+                    {t(`budgetType.${g.id}`, { ns: 'budget' })}
                   </span>
                   <span className="text-sm text-text-tertiary tabular-nums">
                     {t('home.budget.planned', { amount: formatCurrency(g.planned) })}

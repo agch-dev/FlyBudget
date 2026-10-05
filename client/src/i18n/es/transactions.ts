@@ -112,11 +112,6 @@ const es: Translation<typeof en> = {
     create: 'Crear',
     creating: 'Creando...',
     createCategory: 'Crear categoría nueva',
-    budgetType: {
-      fixed: 'Fijo',
-      flexible: 'Flexible',
-      non_monthly: 'No mensual',
-    },
     searchMerchants: 'Buscar comercios...',
     yourMerchants: 'Tus comercios',
     noMerchants: 'No se encontraron comercios',

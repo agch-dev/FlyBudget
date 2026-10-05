@@ -1,5 +1,4 @@
 import type { DatePreset } from '../../components/transactions/TransactionFilters';
-import type { BudgetType } from '../../types';
 
 // The register, transaction forms and details, transfers and transfer suggestions.
 export default {
@@ -120,11 +119,6 @@ export default {
     create: 'Create',
     creating: 'Creating...',
     createCategory: 'Create new category',
-    budgetType: {
-      fixed: 'Fixed',
-      flexible: 'Flexible',
-      non_monthly: 'Non-Monthly',
-    } satisfies Partial<Record<BudgetType, string>>,
     searchMerchants: 'Search merchants...',
     yourMerchants: 'Your merchants',
     noMerchants: 'No merchants found',

@@ -19,6 +19,7 @@ export default {
     totalExpenses: 'Total Expenses',
   },
   /** The sections expenses are listed in, keyed by `BudgetType` */
+  /** The one label of each budget type, wherever it shows (budget, dashboard, category picker) */
   budgetType: {
     fixed: 'Fixed',
     flexible: 'Flexible',

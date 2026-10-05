@@ -1,6 +1,5 @@
 import type {
   BalanceType,
-  BudgetType,
   BuiltinWidgetType,
   ChartType,
   DatePresetCustom,
@@ -125,11 +124,6 @@ export default {
   home: {
     budget: {
       title: 'Budget',
-      type: {
-        fixed: 'Fixed',
-        flexible: 'Flexible',
-        non_monthly: 'Non-Monthly',
-      } satisfies Record<Exclude<BudgetType, 'savings'>, string>,
       planned: '{{amount}} planned',
       spent: '{{amount}} spent',
       remaining: '{{amount}} remaining',

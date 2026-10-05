@@ -198,7 +198,7 @@ export function CategoryPicker({
                         : 'bg-surface text-text-secondary border-border hover:border-brand-400'
                     }`}
                   >
-                    {t(`picker.budgetType.${key}`)}
+                    {t(`budgetType.${key}`, { ns: 'budget' })}
                   </button>
                 ))}
               </div>

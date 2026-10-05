@@ -121,11 +121,6 @@ const es: Translation<typeof en> = {
   home: {
     budget: {
       title: 'Presupuesto',
-      type: {
-        fixed: 'Fijos',
-        flexible: 'Flexibles',
-        non_monthly: 'No mensuales',
-      },
       planned: '{{amount}} planificado',
       spent: '{{amount}} gastado',
       remaining: '{{amount}} restante',
