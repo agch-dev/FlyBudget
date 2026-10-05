@@ -219,8 +219,10 @@ test.describe('estimated exchange rates', () => {
   test('a budget in pesos only never shows the banner', async ({ page, api }) => {
     const checking = await api.createAccount('Checking', 0);
     await api.createTransaction({ accountId: checking.id, date: isoDay(-900), amount: -1_500 });
-    await open(page, '/dashboard');
-    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
+    const answered = page.waitForResponse((r) => r.url().endsWith('/exchange-rates/estimated'));
+    await open(page, '/accounts');
+    expect(await (await answered).json()).toEqual({ dates: [] });
+    await expect(page.getByRole('heading', { level: 1, name: 'Accounts' })).toBeVisible();
     await expect(page.getByRole('status', { name: 'Estimated exchange rates' })).toBeHidden();
   });
 

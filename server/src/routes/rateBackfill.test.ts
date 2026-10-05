@@ -136,16 +136,69 @@ describe('adding a dollar transaction older than every stored rate', () => {
     expect(await estimated()).toEqual({ dates: [] });
   });
 
-  it('fetches for the dollar side of a transfer', async () => {
+  it('fetches once for a transfer into a dollar account', async () => {
     storeFetched(march);
     const res = await send('POST', '/transactions/transfer', {
       fromAccountId: pesosId,
       toAccountId: dollarsId,
       date: '2023-12-20',
-      amount: 4_000,
+      amount: 400_000,
+      toAmount: 10_000,
     });
     expect(res.status).toBe(201);
     expect(asked).toEqual([{ start: '2023-12-13', end: '2024-03-01' }]);
+  });
+
+  it('fetches once for a transfer out of a dollar account, or between two of them', async () => {
+    storeFetched(march);
+    const out = await send('POST', '/transactions/transfer', {
+      fromAccountId: dollarsId,
+      toAccountId: pesosId,
+      date: '2023-12-20',
+      amount: 10_000,
+      toAmount: 400_000,
+    });
+    expect(out.status).toBe(201);
+    expect(asked).toEqual([{ start: '2023-12-13', end: '2024-03-01' }]);
+    const between = await send('POST', '/transactions/transfer', {
+      fromAccountId: dollarsId,
+      toAccountId: otherDollarsId,
+      date: '2023-10-02',
+      amount: 5_000,
+    });
+    expect(between.status).toBe(201);
+    expect(asked).toEqual([
+      { start: '2023-12-13', end: '2024-03-01' },
+      { start: '2023-09-25', end: '2024-03-01' },
+    ]);
+  });
+
+  it('saves a transfer when the source cannot be reached', async () => {
+    storeFetched(march);
+    answer = unreachable;
+    const res = await send('POST', '/transactions/transfer', {
+      fromAccountId: pesosId,
+      toAccountId: dollarsId,
+      date: '2023-12-20',
+      amount: 400_000,
+      toAmount: 10_000,
+    });
+    expect(res.status).toBe(201);
+    expect(asked).toHaveLength(1);
+    expect(await estimated()).toEqual({ dates: ['2023-12-20'] });
+  });
+
+  it('never fetches for a transfer between pesos accounts', async () => {
+    storeFetched(march);
+    const other = (await send('POST', '/accounts', { name: 'Savings', type: 'savings' })).body.id;
+    const res = await send('POST', '/transactions/transfer', {
+      fromAccountId: pesosId,
+      toAccountId: other,
+      date: '2019-12-20',
+      amount: 4_000,
+    });
+    expect(res.status).toBe(201);
+    expect(asked).toEqual([]);
   });
 
   it('does not keep the save waiting for a slow source', async () => {
