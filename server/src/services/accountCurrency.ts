@@ -11,16 +11,19 @@ type AccountId = string | null | undefined;
 
 const orHome = (currency: unknown): Currency => (isCurrency(currency) ? currency : HOME_CURRENCY);
 
+/** The currency of an account that must exist: undefined when there is no such account. */
+export function existingAccountCurrency(accountId: string): Currency | undefined {
+  const account = db
+    .select({ currency: accounts.currency })
+    .from(accounts)
+    .where(eq(accounts.id, accountId))
+    .get();
+  return account && orHome(account.currency);
+}
+
 /** One account's currency. Use `accountCurrencyLookup` when asking for many. */
 export function accountCurrency(accountId: AccountId): Currency {
-  if (!accountId) return HOME_CURRENCY;
-  return orHome(
-    db
-      .select({ currency: accounts.currency })
-      .from(accounts)
-      .where(eq(accounts.id, accountId))
-      .get()?.currency,
-  );
+  return (accountId && existingAccountCurrency(accountId)) || HOME_CURRENCY;
 }
 
 /** Every account's currency, loaded once: returns a function from account id to currency. */

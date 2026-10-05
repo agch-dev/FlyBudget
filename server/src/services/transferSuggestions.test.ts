@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
+import type { Currency } from '../utils/currency.js';
 import type { LinkSide } from './transferLink.js';
 import { pairKey, suggestTransfers } from './transferSuggestions.js';
 
@@ -219,14 +220,14 @@ describe('one suggestion per transaction', () => {
     accountId: fc.constantFrom('one', 'two', 'usd'),
     date: fc.integer({ min: 1, max: 12 }).map(day),
     amount: fc.constantFrom(-4_000_000, -5000, -100_000, 0, 5000, 100_000, 4_100_000),
-    currency: fc.constant(''),
+    currency: fc.constant<Currency>('UYU'),
     reconciled: fc.constantFrom(0, 0, 0, 1),
     isParent: fc.constantFrom(0, 0, 0, 1),
     parentTransactionId: fc.constantFrom(null, null, null, 'p'),
     transferTransactionId: fc.constantFrom(null, null, null, 't'),
   });
   const register = fc.array(anyTransaction, { maxLength: 14 }).map((list) =>
-    list.map((t, i) => ({
+    list.map((t, i): LinkSide => ({
       ...t,
       id: `t${i}`,
       currency: t.accountId === 'usd' ? 'USD' : 'UYU',

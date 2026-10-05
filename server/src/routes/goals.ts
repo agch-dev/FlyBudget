@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { db } from '../db/index.js';
-import { accounts, goals } from '../db/schema.js';
+import { goals } from '../db/schema.js';
 import { eq } from 'drizzle-orm';
 import { format } from 'date-fns';
 import { nanoid } from 'nanoid';
@@ -10,6 +10,7 @@ import { currencySchema, HOME_CURRENCY } from '../utils/currency.js';
 import { converter } from '../services/currencyConversion.js';
 import { listRates } from '../services/exchangeRateService.js';
 import { goalCurrency, goalInPesos } from '../services/goalAmounts.js';
+import { accountCurrencyLookup, existingAccountCurrency } from '../services/accountCurrency.js';
 
 export const goalsRouter = Router();
 
@@ -31,32 +32,18 @@ const createSchema = z.object({
 
 type GoalRow = typeof goals.$inferSelect;
 
-/** The currency of an account a goal can be linked to; undefined when there is no such account. */
-function accountCurrency(accountId: string): string | undefined {
-  return db
-    .select({ currency: accounts.currency })
-    .from(accounts)
-    .where(eq(accounts.id, accountId))
-    .get()?.currency;
-}
-
 /**
  * Goals as the API sends them: `currency` is the linked account's when there is one, and
  * `inPesos` holds the amounts in pesos at today's rate (null when they can't be converted),
  * which is what the Goals page adds up.
  */
 function present(rows: GoalRow[]) {
-  const currencies = new Map(
-    db
-      .select({ id: accounts.id, currency: accounts.currency })
-      .from(accounts)
-      .all()
-      .map((a) => [a.id, a]),
-  );
+  const currencyOf = accountCurrencyLookup();
   const convert = converter(listRates());
   const today = format(new Date(), 'yyyy-MM-dd');
   return rows.map((row) => {
-    const currency = goalCurrency(row, row.accountId ? currencies.get(row.accountId) : null);
+    const linked = row.accountId ? { currency: currencyOf(row.accountId) } : null;
+    const currency = goalCurrency(row, linked);
     return { ...row, currency, inPesos: goalInPesos(row, currency, convert, today) };
   });
 }
@@ -71,7 +58,7 @@ goalsRouter.post('/', (req, res) => {
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
 
   const accountId = parsed.data.accountId ?? null;
-  const linked = accountId ? accountCurrency(accountId) : undefined;
+  const linked = accountId ? existingAccountCurrency(accountId) : undefined;
   if (accountId && !linked) return res.status(400).json({ error: 'Account not found' });
 
   const now = new Date().toISOString();
@@ -113,9 +100,9 @@ goalsRouter.put('/:id', (req, res) => {
   // one it had (its account's, when this update unlinks it), so its amounts keep their meaning.
   const accountId =
     parsed.data.accountId !== undefined ? parsed.data.accountId : existing.accountId;
-  const linked = accountId ? accountCurrency(accountId) : undefined;
+  const linked = accountId ? existingAccountCurrency(accountId) : undefined;
   if (parsed.data.accountId && !linked) return res.status(400).json({ error: 'Account not found' });
-  const before = existing.accountId ? accountCurrency(existing.accountId) : undefined;
+  const before = existing.accountId ? existingAccountCurrency(existing.accountId) : undefined;
   update.currency =
     linked ?? parsed.data.currency ?? goalCurrency(existing, before ? { currency: before } : null);
 

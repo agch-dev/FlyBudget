@@ -1,3 +1,5 @@
+import type { Currency } from '../utils/currency.js';
+
 // Which two existing transactions can be linked as a transfer. Pure: the database side is in
 // transferLinkService.ts.
 
@@ -7,7 +9,7 @@ export interface LinkSide {
   accountId: string;
   date: string;
   amount: number;
-  currency: string;
+  currency: Currency;
   reconciled: number;
   isParent: number;
   parentTransactionId: string | null;

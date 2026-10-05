@@ -9,7 +9,11 @@ import { buildRuleContext, insertNewTransaction, loadRules } from '../services/r
 import { isoDate } from '../utils/validation.js';
 import { converter } from '../services/currencyConversion.js';
 import { listRates } from '../services/exchangeRateService.js';
-import { accountCurrency, accountCurrencyLookup } from '../services/accountCurrency.js';
+import {
+  accountCurrency,
+  accountCurrencyLookup,
+  existingAccountCurrency,
+} from '../services/accountCurrency.js';
 import { impliedRate, otherCurrency } from '../utils/currency.js';
 import {
   linkAsTransfer,
@@ -517,13 +521,9 @@ transactionsRouter.put('/:id', (req, res) => {
   // An amount is a native amount in its account's currency: in an account of the other
   // currency the same number would be a different sum of money
   if (data.accountId !== undefined && changes('accountId')) {
-    const target = db
-      .select({ currency: accounts.currency })
-      .from(accounts)
-      .where(eq(accounts.id, data.accountId))
-      .get();
+    const target = existingAccountCurrency(data.accountId);
     if (!target) return res.status(400).json({ error: 'Account not found' });
-    if (target.currency !== accountCurrency(existing.accountId)) {
+    if (target !== accountCurrency(existing.accountId)) {
       return res.status(400).json({
         error:
           'A transaction cannot move to an account of another currency: its amount would change meaning. Delete it and add it in the other account instead',

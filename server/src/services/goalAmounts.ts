@@ -11,8 +11,8 @@ import type { Convert } from './currencyConversion.js';
  * user chose.
  */
 export function goalCurrency(
-  goal: { currency: string },
-  linkedAccount: { currency: string } | null | undefined,
+  goal: { currency: Currency },
+  linkedAccount: { currency: Currency } | null | undefined,
 ): Currency {
   const currency = linkedAccount?.currency ?? goal.currency;
   return isCurrency(currency) ? currency : HOME_CURRENCY;

@@ -32,7 +32,7 @@ export function targetCurrencyParam(value: unknown): Currency | null {
 /** An amount in integer cents and the currency it is in (its account's) */
 export interface NativeAmount {
   amount: number;
-  currency: string;
+  currency: Currency;
 }
 
 /**
