@@ -268,10 +268,13 @@ export interface BudgetSummary {
 }
 
 // Keep in sync with CURRENCIES in server/src/utils/currency.ts
-/** The currencies an account can hold: Uruguayan pesos and US dollars. No others exist. */
+/**
+ * The currencies an account can hold: Uruguayan pesos and US dollars. No others exist. Their
+ * names are `currency` in the common catalog.
+ */
 export const CURRENCIES = [
-  { value: 'UYU', label: 'Pesos', symbol: '$' },
-  { value: 'USD', label: 'Dollars', symbol: 'US$' },
+  { value: 'UYU', symbol: '$' },
+  { value: 'USD', symbol: 'US$' },
 ] as const;
 
 export type Currency = (typeof CURRENCIES)[number]['value'];
@@ -555,15 +558,16 @@ export type RecurrenceRule =
   | { type: 'semiannually'; anchorDay: number }
   | { type: 'yearly'; anchorMonth: number; anchorDay: number };
 
-export const RECURRENCE_TYPE_LABELS: { value: RecurrenceType; label: string }[] = [
-  { value: 'once', label: 'One Time' },
-  { value: 'weekly', label: 'Weekly' },
-  { value: 'biweekly', label: 'Every 2 Weeks' },
-  { value: 'semimonthly', label: 'Twice a Month' },
-  { value: 'monthly', label: 'Monthly' },
-  { value: 'quarterly', label: 'Quarterly' },
-  { value: 'semiannually', label: 'Every 6 Months' },
-  { value: 'yearly', label: 'Yearly' },
+/** Every frequency, in the order the form lists them (their names: `frequencyLabel`) */
+export const RECURRENCE_TYPES: RecurrenceType[] = [
+  'once',
+  'weekly',
+  'biweekly',
+  'semimonthly',
+  'monthly',
+  'quarterly',
+  'semiannually',
+  'yearly',
 ];
 
 export interface Schedule {

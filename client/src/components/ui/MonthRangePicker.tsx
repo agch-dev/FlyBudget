@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { format, parseISO } from 'date-fns';
 import { CalendarRange, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { t as translate } from '../../i18n';
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+/** Month indexes; their short names follow the App Language (the date-fns locale) */
+const MONTHS = Array.from({ length: 12 }, (_, i) => i);
 
 interface Props {
   /** 'yyyy-MM' */
@@ -17,7 +20,8 @@ interface Props {
 }
 
 const ym = (year: number, monthIdx: number) => `${year}-${String(monthIdx + 1).padStart(2, '0')}`;
-const label = (v: string) => format(parseISO(`${v}-01`), 'MMM yyyy');
+// Called while rendering, so it follows the App Language
+const label = (v: string) => format(parseISO(`${v}-01`), translate('monthRange.monthPattern'));
 
 function MonthGrid({
   title,
@@ -30,6 +34,7 @@ function MonthGrid({
   onPick: (v: string) => void;
   isDisabled: (v: string) => boolean;
 }) {
+  const { t } = useTranslation();
   const [year, setYear] = useState(() => parseInt(value.slice(0, 4), 10));
   const navBtn =
     'p-1 rounded text-text-tertiary hover:text-text-secondary hover:bg-hover transition-colors cursor-pointer';
@@ -42,7 +47,7 @@ function MonthGrid({
           type="button"
           className={navBtn}
           onClick={() => setYear(year - 1)}
-          aria-label="Previous year"
+          aria-label={t('monthRange.previousYear')}
         >
           <ChevronLeft size={14} />
         </button>
@@ -51,19 +56,19 @@ function MonthGrid({
           type="button"
           className={navBtn}
           onClick={() => setYear(year + 1)}
-          aria-label="Next year"
+          aria-label={t('monthRange.nextYear')}
         >
           <ChevronRight size={14} />
         </button>
       </div>
       <div className="grid grid-cols-3 gap-1">
-        {MONTHS.map((m, i) => {
+        {MONTHS.map((i) => {
           const v = ym(year, i);
           const selected = v === value;
           const disabled = isDisabled(v);
           return (
             <button
-              key={m}
+              key={i}
               type="button"
               disabled={disabled}
               onClick={() => onPick(v)}
@@ -75,7 +80,7 @@ function MonthGrid({
                     : 'text-text-secondary hover:bg-hover cursor-pointer'
               }`}
             >
-              {m}
+              {format(new Date(2000, i, 1), 'MMM')}
             </button>
           );
         })}
@@ -92,6 +97,7 @@ export function MonthRangePicker({
   max = format(new Date(), 'yyyy-MM'),
   defaultOpen = false,
 }: Props) {
+  const { t } = useTranslation();
   const [open, setOpen] = useState(defaultOpen);
   // Picks are a draft until Done; closing any other way discards them
   const [draftFrom, setDraftFrom] = useState(from);
@@ -148,7 +154,7 @@ export function MonthRangePicker({
         <div className="absolute right-0 top-full mt-1.5 z-50 bg-surface border border-border rounded-lg shadow-hover p-4 origin-top-right animate-menu-in">
           <div className="flex gap-5">
             <MonthGrid
-              title="From"
+              title={t('monthRange.from')}
               value={draftFrom}
               onPick={(v) => {
                 setDraftFrom(v);
@@ -158,7 +164,7 @@ export function MonthRangePicker({
             />
             <div className="w-px bg-border-light" />
             <MonthGrid
-              title="To"
+              title={t('monthRange.to')}
               value={draftTo}
               onPick={setDraftTo}
               isDisabled={(v) => v < draftFrom || v > max}
@@ -174,14 +180,14 @@ export function MonthRangePicker({
                 onClick={() => setOpen(false)}
                 className="px-3 py-1 text-xs font-medium text-text-secondary border border-border rounded-md hover:bg-hover transition-colors cursor-pointer"
               >
-                Cancel
+                {t('ui.cancel')}
               </button>
               <button
                 type="button"
                 onClick={apply}
                 className="px-3 py-1 text-xs font-medium text-white bg-brand-600 rounded-md hover:bg-brand-700 transition-colors cursor-pointer"
               >
-                Done
+                {t('ui.done')}
               </button>
             </div>
           </div>

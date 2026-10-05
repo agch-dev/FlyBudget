@@ -4,6 +4,7 @@ import { deleteTransaction } from '../api/transactions';
 import { useUndoStore } from '../store/undoStore';
 import type { CreateScheduleData } from '../api/schedules';
 import type { Schedule } from '../types';
+import { t } from '../i18n';
 
 const SKK = ['schedules'];
 const OQK = ['schedule-occurrences'];
@@ -48,7 +49,7 @@ export function useCreateSchedule() {
     onSuccess: (created) => {
       invalidateAll(qc);
       useUndoStore.getState().push({
-        description: `Create schedule "${created.name}"`,
+        description: t('undo.action.createSchedule', { name: created.name }),
         undo: async () => {
           await api.deleteSchedule(created.id, true);
           invalidateAll(qc);
@@ -92,7 +93,7 @@ export function useUpdateSchedule() {
       if (!ctx?.old) return;
       const snapshot = ctx.old;
       useUndoStore.getState().push({
-        description: `Edit schedule`,
+        description: t('undo.action.editSchedule'),
         undo: async () => {
           await api.updateSchedule(id, {
             name: snapshot.name,
@@ -134,7 +135,7 @@ export function useDeleteSchedule() {
       if (!snapshot) return;
       if (!hard) {
         useUndoStore.getState().push({
-          description: `Cancel schedule "${snapshot.name}"`,
+          description: t('undo.action.cancelSchedule', { name: snapshot.name }),
           undo: async () => {
             await api.updateSchedule(snapshot.id, { status: 'active' });
             invalidateAll(qc);
@@ -166,7 +167,7 @@ export function useMarkOccurrencePaid() {
     onSuccess: (createdTx) => {
       invalidateAll(qc);
       useUndoStore.getState().push({
-        description: `Mark as paid`,
+        description: t('undo.action.markPaid'),
         undo: async () => {
           await deleteTransaction(createdTx.id);
           invalidateAll(qc);

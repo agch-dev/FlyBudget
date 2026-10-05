@@ -11,7 +11,7 @@ import {
 import { t } from '../../i18n';
 import {
   HOME_CURRENCY,
-  RECURRENCE_TYPE_LABELS,
+  RECURRENCE_TYPES,
   type AmountType,
   type Currency,
   type DiscoveredSchedule,
@@ -21,8 +21,7 @@ import {
 } from '../../types';
 import type { RecurringBadgeStatus } from './StatusBadge';
 
-/** Every frequency, in the order the form lists them */
-export const RECURRENCE_TYPES: RecurrenceType[] = RECURRENCE_TYPE_LABELS.map((f) => f.value);
+export { RECURRENCE_TYPES };
 
 /** How often an item repeats: "Monthly", "Cada 2 semanas" */
 export const frequencyLabel = (type: RecurrenceType): string => t(`recurring:frequency.${type}`);

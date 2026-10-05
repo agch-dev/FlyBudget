@@ -24,7 +24,8 @@ import { LinkTransferModal } from './LinkTransferModal';
 import { canLinkAsTransfer } from '../../utils/transferLink';
 import { useCanSave } from '../../hooks/useConnection';
 import { SavingPausedHint } from '../connection/SavingPausedHint';
-import { HOME_CURRENCY, RECURRENCE_TYPE_LABELS } from '../../types';
+import { HOME_CURRENCY } from '../../types';
+import { frequencyLabel } from '../recurring/scheduleFormat';
 import type {
   Transaction,
   CategoryGroup,
@@ -69,7 +70,6 @@ export function TransactionDetailPanel({
   const { data: schedules = [] } = useSchedules();
   const unmatchByTx = useUnmatchByTransaction();
   const linkedSchedule = tx.scheduleId ? schedules.find((s) => s.id === tx.scheduleId) : null;
-  const freqMap = new Map(RECURRENCE_TYPE_LABELS.map((f) => [f.value, f.label]));
 
   const [localDate, setLocalDate] = useState(tx.date);
   const [localNotes, setLocalNotes] = useState(tx.notes ?? '');
@@ -398,7 +398,7 @@ export function TransactionDetailPanel({
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-text truncate">{linkedSchedule.name}</p>
                 <p className="text-xs text-text-tertiary">
-                  {freqMap.get(linkedSchedule.recurrenceType) || linkedSchedule.recurrenceType}
+                  {frequencyLabel(linkedSchedule.recurrenceType)}
                 </p>
               </div>
               {!isReconciled && (

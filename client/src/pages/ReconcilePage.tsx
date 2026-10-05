@@ -217,7 +217,7 @@ export default function ReconcilePage() {
                       className={`border-b border-border-light cursor-pointer transition-colors ${checked ? 'bg-positive-subtle hover:bg-positive-subtle' : 'hover:bg-hover'}`}
                     >
                       <td className="px-4 py-2 text-xs text-text-tertiary whitespace-nowrap">
-                        {format(parseISO(tx.date), 'MMM d, yyyy')}
+                        {format(parseISO(tx.date), t('datePattern.medium', { ns: 'common' }))}
                       </td>
                       <td className="px-4 py-2 text-sm text-text">
                         {tx.payeeName ?? <span className="text-text-disabled italic">—</span>}
