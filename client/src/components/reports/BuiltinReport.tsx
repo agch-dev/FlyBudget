@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   TOP_TREND_CATEGORIES,
   useIncomeVsExpenses,
@@ -17,22 +18,18 @@ import { ChartSkeleton } from './ChartHelpers';
 import type { StatCard } from './ChartHelpers';
 import type { BuiltinWidgetType } from '../../types';
 
-export const BUILTIN_REPORTS: Record<BuiltinWidgetType, { label: string; description: string }> = {
-  summary: { label: 'Summary', description: 'Income, expenses and monthly averages' },
-  'net-worth': { label: 'Net Worth', description: 'Assets, liabilities and net worth over time' },
-  'income-expenses': {
-    label: 'Income & Expenses',
-    description: 'Money in vs. money out each month',
-  },
-  spending: { label: 'Spending by Category', description: 'Where your money went, by category' },
-  'spending-trends': {
-    label: 'Spending Trends',
-    description: 'How spending in your biggest categories changes over time',
-  },
-  calendar: { label: 'Transaction Calendar', description: 'Money in and out on each day' },
-};
-
-export const BUILTIN_TYPES = Object.keys(BUILTIN_REPORTS) as BuiltinWidgetType[];
+/**
+ * The built-in reports, in the order "Add widget" lists them. Their names and descriptions are
+ * in the catalog (`reports:builtin.<type>.label` and `.description`).
+ */
+export const BUILTIN_TYPES: BuiltinWidgetType[] = [
+  'summary',
+  'net-worth',
+  'income-expenses',
+  'spending',
+  'spending-trends',
+  'calendar',
+];
 
 /**
  * Totals for the range. Expenses show what was spent (red), or "+$X" in green when refunds
@@ -40,6 +37,7 @@ export const BUILTIN_TYPES = Object.keys(BUILTIN_REPORTS) as BuiltinWidgetType[]
  * activity in the range.
  */
 export function useSummaryCards(from: string, to: string): StatCard[] {
+  const { t } = useTranslation('reports');
   const { data: ieData = [] } = useIncomeVsExpenses(from, to);
   const money = useViewingMoney();
   return useMemo(() => {
@@ -47,12 +45,18 @@ export function useSummaryCards(from: string, to: string): StatCard[] {
     const expNet = ieData.reduce((s, d) => s + d.expenseNet, 0);
     const txCount = ieData.reduce((s, d) => s + d.expenseCount, 0);
     return [
-      { label: 'Total Income', ...incomeFigure(totalInc, money) },
-      { label: 'Total Expenses', ...expenseFigure(expNet, money) },
-      { label: 'Avg Monthly Expenses', ...expenseFigure(expNet / monthsToAverage(ieData), money) },
-      { label: 'Avg Per Transaction', ...expenseFigure(txCount > 0 ? expNet / txCount : 0, money) },
+      { label: t('summary.totalIncome'), ...incomeFigure(totalInc, money) },
+      { label: t('summary.totalExpenses'), ...expenseFigure(expNet, money) },
+      {
+        label: t('summary.avgMonthlyExpenses'),
+        ...expenseFigure(expNet / monthsToAverage(ieData), money),
+      },
+      {
+        label: t('summary.avgPerTransaction'),
+        ...expenseFigure(txCount > 0 ? expNet / txCount : 0, money),
+      },
     ];
-  }, [ieData, money]);
+  }, [ieData, money, t]);
 }
 
 const TONE_CLASS = {
@@ -97,14 +101,11 @@ function DashboardSpendingTrends({
   to: string;
   categoryIds?: string[];
 }) {
+  const { t } = useTranslation('reports');
   const top = useTopSpendingCategories(from, to, TOP_TREND_CATEGORIES);
   const ids = categoryIds ?? top.ids;
   if (!categoryIds && top.isLoading) return <ChartSkeleton />;
-  const caption = categoryIds
-    ? undefined
-    : ids.length === 1
-      ? 'Biggest spending category'
-      : `${ids.length} biggest spending categories`;
+  const caption = categoryIds ? undefined : t('chart.biggestCategories', { count: ids.length });
   return <SpendingTrendsChart from={from} to={to} categoryIds={ids} caption={caption} />;
 }
 

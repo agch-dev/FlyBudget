@@ -1,5 +1,7 @@
+import { useTranslation } from 'react-i18next';
 import { useViewingMoney } from '../../hooks/useViewingCurrency';
 import { monthLabel } from './ChartHelpers';
+import { groupName } from '../../utils/reportText';
 import type { CustomReportData } from '../../types';
 
 interface Props {
@@ -7,6 +9,7 @@ interface Props {
 }
 
 export default function ReportTable({ data }: Props) {
+  const { t } = useTranslation('reports');
   const money = useViewingMoney();
   if (data.mode === 'total') {
     return (
@@ -14,14 +17,16 @@ export default function ReportTable({ data }: Props) {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border">
-              <th className="text-left py-2 px-3 font-semibold text-text-secondary">Name</th>
-              <th className="text-right py-2 px-3 font-semibold text-text-secondary">Amount</th>
+              <th className="text-left py-2 px-3 font-semibold text-text-secondary">{t('name')}</th>
+              <th className="text-right py-2 px-3 font-semibold text-text-secondary">
+                {t('amount')}
+              </th>
             </tr>
           </thead>
           <tbody>
             {data.data.map((row, i) => (
               <tr key={i} className="border-b border-border-light hover:bg-hover">
-                <td className="py-2 px-3 text-text-secondary">{row.name}</td>
+                <td className="py-2 px-3 text-text-secondary">{groupName(row.name)}</td>
                 <td
                   className={`py-2 px-3 text-right tabular-nums font-medium ${row.value < 0 ? 'text-negative' : 'text-text'}`}
                 >
@@ -32,7 +37,7 @@ export default function ReportTable({ data }: Props) {
           </tbody>
           <tfoot>
             <tr className="border-t border-border">
-              <td className="py-2 px-3 font-semibold text-text">Total</td>
+              <td className="py-2 px-3 font-semibold text-text">{t('total')}</td>
               <td className="py-2 px-3 text-right tabular-nums font-semibold text-text">
                 {money.format(data.data.reduce((s, r) => s + r.value, 0))}
               </td>
@@ -49,14 +54,14 @@ export default function ReportTable({ data }: Props) {
         <thead>
           <tr className="border-b border-border">
             <th className="text-left py-2 px-3 font-semibold text-text-secondary sticky left-0 bg-surface">
-              Month
+              {t('month')}
             </th>
             {data.groups.map((g) => (
               <th
                 key={g}
                 className="text-right py-2 px-3 font-semibold text-text-secondary whitespace-nowrap"
               >
-                {g}
+                {groupName(g)}
               </th>
             ))}
           </tr>

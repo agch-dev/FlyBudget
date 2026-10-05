@@ -46,6 +46,7 @@ const es: Translation<typeof en> = {
     confirm: 'Confirmar',
     actions: 'Acciones',
     learnMore: 'Más información',
+    opensInNewTab: '(se abre en una pestaña nueva)',
   },
   undo: {
     undid: 'Se deshizo: {{message}}',

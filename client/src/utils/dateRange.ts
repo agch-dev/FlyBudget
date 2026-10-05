@@ -8,18 +8,22 @@ import {
   subMonths,
   subYears,
 } from 'date-fns';
+import { t } from '../i18n';
 import type { DatePresetCustom, ReportDateRange } from '../types';
 
-/** Live presets roll forward with today; 'custom' is a frozen range with fixed dates. */
-export const DATE_PRESETS: { id: DatePresetCustom; label: string; long: string }[] = [
-  { id: '1m', label: '1M', long: 'This month' },
-  { id: '3m', label: '3M', long: 'Last 3 months' },
-  { id: '6m', label: '6M', long: 'Last 6 months' },
-  { id: '12m', label: '12M', long: 'Last 12 months' },
-  { id: 'ytd', label: 'YTD', long: 'Year to date' },
-  { id: 'last-year', label: 'Last Year', long: 'Last year' },
-  { id: 'all', label: 'All', long: 'All time' },
-  { id: 'custom', label: 'Custom', long: 'Custom' },
+/**
+ * Live presets roll forward with today; 'custom' is a frozen range with fixed dates. Their
+ * names are in the catalog: `reports:datePreset.short` and `.long`.
+ */
+export const DATE_PRESETS: { id: DatePresetCustom }[] = [
+  { id: '1m' },
+  { id: '3m' },
+  { id: '6m' },
+  { id: '12m' },
+  { id: 'ytd' },
+  { id: 'last-year' },
+  { id: 'all' },
+  { id: 'custom' },
 ];
 
 export function computeDateRange(
@@ -105,7 +109,7 @@ export function decodeRangeParam(param: string | null): ReportDateRange | undefi
 const fmtMonth = (m: string) => format(parseISO(`${m}-01`), 'MMM yyyy');
 
 export function formatDateRange(range: ReportDateRange): string {
-  if (!isFrozen(range)) return DATE_PRESETS.find((p) => p.id === range.preset)?.long ?? '';
+  if (!isFrozen(range)) return t(`reports:datePreset.long.${range.preset}`);
   return range.from === range.to
     ? fmtMonth(range.from)
     : `${fmtMonth(range.from)} – ${fmtMonth(range.to)}`;

@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as api from '../api/customReports';
 import { useUndoStore } from '../store/undoStore';
+import { t } from '../i18n';
 import { useViewingCurrency } from './useViewingCurrency';
 import type { CustomReportConfig, SavedCustomReport } from '../types';
 
@@ -36,7 +37,7 @@ export function useCreateSavedReport() {
       };
       refresh();
       useUndoStore.getState().push({
-        description: `Create report "${created.name}"`,
+        description: t('reports:undo.createReport', { name: created.name }),
         undo: async () => {
           await api.deleteSavedReport(created.id);
           refresh();
@@ -73,7 +74,7 @@ export function useUpdateSavedReport() {
       if (!ctx?.old) return;
       const snapshot = ctx.old;
       useUndoStore.getState().push({
-        description: `Edit report`,
+        description: t('reports:undo.editReport'),
         undo: async () => {
           await api.updateSavedReport(id, { name: snapshot.name, config: snapshot.config });
           qc.invalidateQueries({ queryKey: ['custom-reports'] });
@@ -101,7 +102,7 @@ export function useDeleteSavedReport() {
       qc.invalidateQueries({ queryKey: ['dashboards'] });
       if (!snapshot) return;
       useUndoStore.getState().push({
-        description: `Delete report "${snapshot.name}"`,
+        description: t('reports:undo.deleteReport', { name: snapshot.name }),
         undo: async () => {
           await api.createSavedReport({ name: snapshot.name, config: snapshot.config });
           qc.invalidateQueries({ queryKey: ['custom-reports'] });

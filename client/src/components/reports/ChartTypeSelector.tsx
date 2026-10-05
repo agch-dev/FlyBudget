@@ -1,20 +1,16 @@
+import { useTranslation } from 'react-i18next';
 import { BarChart3, LineChart, AreaChart, PieChart, Table2, Layers } from 'lucide-react';
 import type { ChartType, ReportMode } from '../../types';
 
-const MODE_LABELS: Record<ReportMode, string> = {
-  total: 'Total',
-  time: 'Over Time',
-};
-
-const CHART_TYPES: { id: ChartType; icon: typeof BarChart3; label: string; modes: ReportMode[] }[] =
-  [
-    { id: 'bar', icon: BarChart3, label: 'Bar', modes: ['total', 'time'] },
-    { id: 'stacked-bar', icon: Layers, label: 'Stacked', modes: ['time'] },
-    { id: 'line', icon: LineChart, label: 'Line', modes: ['total', 'time'] },
-    { id: 'area', icon: AreaChart, label: 'Area', modes: ['total', 'time'] },
-    { id: 'donut', icon: PieChart, label: 'Donut', modes: ['total'] },
-    { id: 'table', icon: Table2, label: 'Table', modes: ['total', 'time'] },
-  ];
+// Labels are in the catalog (`reports:builder.chartType`). A chart is in both modes or in one
+const CHART_TYPES: { id: ChartType; icon: typeof BarChart3; modes: ReportMode[] }[] = [
+  { id: 'bar', icon: BarChart3, modes: ['total', 'time'] },
+  { id: 'stacked-bar', icon: Layers, modes: ['time'] },
+  { id: 'line', icon: LineChart, modes: ['total', 'time'] },
+  { id: 'area', icon: AreaChart, modes: ['total', 'time'] },
+  { id: 'donut', icon: PieChart, modes: ['total'] },
+  { id: 'table', icon: Table2, modes: ['total', 'time'] },
+];
 
 interface Props {
   value: ChartType;
@@ -23,20 +19,25 @@ interface Props {
 }
 
 export default function ChartTypeSelector({ value, mode, onChange }: Props) {
+  const { t } = useTranslation('reports');
   return (
     <div className="flex flex-wrap gap-1">
-      {CHART_TYPES.map((t) => {
-        const disabled = !t.modes.includes(mode);
-        const active = t.id === value;
+      {CHART_TYPES.map((type) => {
+        const disabled = !type.modes.includes(mode);
+        const active = type.id === value;
+        const label = t(`builder.chartType.${type.id}`);
         return (
           <button
-            key={t.id}
+            key={type.id}
             disabled={disabled}
-            onClick={() => onChange(t.id)}
+            onClick={() => onChange(type.id)}
             title={
               disabled
-                ? `${t.label} is only available in '${t.modes.map((m) => MODE_LABELS[m]).join("' and '")}' mode`
-                : t.label
+                ? t('builder.onlyInMode', {
+                    chart: label,
+                    mode: t(`builder.mode.${type.modes[0]}`),
+                  })
+                : label
             }
             className={`flex items-center gap-1 px-2 py-1.5 text-xs font-medium rounded-md transition-colors ${
               active
@@ -46,8 +47,8 @@ export default function ChartTypeSelector({ value, mode, onChange }: Props) {
                   : 'text-text-secondary hover:bg-hover border border-transparent'
             }`}
           >
-            <t.icon className="w-3.5 h-3.5" />
-            {t.label}
+            <type.icon className="w-3.5 h-3.5" />
+            {label}
           </button>
         );
       })}

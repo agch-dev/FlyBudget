@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useSpendingByCategory } from '../../hooks/useReports';
 import { useViewingMoney } from '../../hooks/useViewingCurrency';
 import { usePreferencesStore } from '../../store/preferencesStore';
@@ -13,6 +14,7 @@ interface Props {
 }
 
 export default function SpendingBreakdown({ currentMonth }: Props) {
+  const { t } = useTranslation('reports');
   const money = useViewingMoney();
   const showCategoryIcons = usePreferencesStore((s) => s.showCategoryIcons);
   const { data = [], isLoading } = useSpendingByCategory(currentMonth, currentMonth);
@@ -46,9 +48,9 @@ export default function SpendingBreakdown({ currentMonth }: Props) {
   return (
     <Card className="h-full flex flex-col">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-semibold text-text">Spending by Category</h3>
+        <h3 className="text-sm font-semibold text-text">{t('home.spending.title')}</h3>
         <Link to="/reports" className="text-xs text-brand-600 hover:text-brand-700 font-medium">
-          View all
+          {t('viewAll')}
         </Link>
       </div>
 
@@ -57,8 +59,8 @@ export default function SpendingBreakdown({ currentMonth }: Props) {
           compact
           className="flex-1 justify-center"
           icon={<PieChart size={20} />}
-          title="No spending this month"
-          description="As you spend, your biggest categories show up here."
+          title={t('home.spending.emptyTitle')}
+          description={t('home.spending.emptyDescription')}
         />
       ) : (
         <div className="space-y-2.5">
@@ -70,7 +72,7 @@ export default function SpendingBreakdown({ currentMonth }: Props) {
                 <div className="flex items-center justify-between mb-0.5">
                   <span className="text-sm text-text-secondary truncate mr-2">
                     {showCategoryIcons && cat.categoryIcon ? `${cat.categoryIcon} ` : ''}
-                    {cat.categoryName || 'Uncategorized'}
+                    {cat.categoryName || t('uncategorized')}
                   </span>
                   <span className="text-xs text-text-tertiary tabular-nums whitespace-nowrap">
                     {money.format(cat.amount)}

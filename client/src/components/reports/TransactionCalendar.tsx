@@ -1,5 +1,6 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { format, parseISO } from 'date-fns';
+import { useTranslation } from 'react-i18next';
 import { ArrowDown, ArrowUp } from 'lucide-react';
 import { useDailyFlow } from '../../hooks/useReports';
 import { useViewingMoney } from '../../hooks/useViewingCurrency';
@@ -20,7 +21,8 @@ import type { DailyFlowPoint } from '../../types';
 // day with a green bar (money in, from the left) and a red one (money out, from the right).
 // Longer ranges show as a heatmap, a square per day colored by that day's net.
 
-const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+// Columns are laid out Sunday first in every App Language; their letters are in the catalog
+const WEEKDAYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
 // Heatmap intensity per level (1-4), as a share of the positive/negative color
 const LEVEL_MIX = [0, 28, 48, 72, 100];
 const mix = (color: 'positive' | 'negative', pct: number) =>
@@ -63,6 +65,7 @@ interface Hover {
 }
 
 export function TransactionCalendar({ from, to, fit, selected, onSelect }: Props) {
+  const { t } = useTranslation('reports');
   const money = useViewingMoney();
   const { data = [], isLoading } = useDailyFlow(from, to);
   const { ref, width, height } = useSize<HTMLDivElement>();
@@ -92,7 +95,11 @@ export function TransactionCalendar({ from, to, fit, selected, onSelect }: Props
 
   const dayProps = (day: string) => {
     const flow = byDay.get(day) ?? EMPTY;
-    const label = `${format(parseISO(day), 'EEEE, MMMM d')}: ${money.format(flow.income)} in, ${money.format(flow.expenses)} out`;
+    const label = t('calendar.dayLabel', {
+      day: format(parseISO(day), t('datePattern.weekdayDayMonth')),
+      moneyIn: money.format(flow.income),
+      moneyOut: money.format(flow.expenses),
+    });
     return {
       onMouseEnter: (e: React.MouseEvent<HTMLElement>) => showTooltip(day, e.currentTarget),
       onMouseLeave: () => setHover(null),
@@ -178,6 +185,7 @@ function MonthGrids({
   selected,
   dayProps,
 }: GridProps & { months: string[]; width: number; height?: number }) {
+  const { t } = useTranslation('reports');
   const gap = 16;
   const cellGap = 4;
   // Month name and weekday letters above each grid
@@ -230,9 +238,9 @@ function MonthGrids({
               {format(parseISO(`${month}-01`), 'MMMM yyyy')}
             </p>
             <div className="grid grid-cols-7 gap-1 shrink-0 pb-1">
-              {WEEKDAYS.map((d, i) => (
-                <span key={i} className="text-center text-[10px] font-medium text-text-tertiary">
-                  {d}
+              {WEEKDAYS.map((d) => (
+                <span key={d} className="text-center text-[10px] font-medium text-text-tertiary">
+                  {t(`weekdayLetter.${d}`)}
                 </span>
               ))}
             </div>
@@ -334,6 +342,7 @@ function Heatmap({
   selected,
   dayProps,
 }: GridProps & { from: string; to: string; width: number; height?: number }) {
+  const { t } = useTranslation('reports');
   const labelWidth = 22;
   const monthLabel = 16;
   const rowGap = 12;
@@ -425,8 +434,8 @@ function Heatmap({
               style={{ width: labelWidth, gap }}
             >
               {WEEKDAYS.map((d, i) => (
-                <span key={i} className="leading-none flex items-center" style={{ height: size }}>
-                  {i % 2 === 1 && size >= 7 ? d : ''}
+                <span key={d} className="leading-none flex items-center" style={{ height: size }}>
+                  {i % 2 === 1 && size >= 7 ? t(`weekdayLetter.${d}`) : ''}
                 </span>
               ))}
             </div>
@@ -488,16 +497,17 @@ function HeatCell({
 }
 
 function HeatmapLegend() {
+  const { t } = useTranslation('reports');
   const swatch = (background?: string) => (
     <span className="w-2.5 h-2.5 rounded-[2px] bg-surface-alt" style={{ background }} />
   );
   return (
     <span className="inline-flex items-center gap-1 text-[10px] text-text-tertiary">
-      More out
+      {t('calendar.moreOut')}
       {[4, 3, 2, 1].map((l) => swatch(mix('negative', LEVEL_MIX[l])))}
       {swatch()}
       {[1, 2, 3, 4].map((l) => swatch(mix('positive', LEVEL_MIX[l])))}
-      More in
+      {t('calendar.moreIn')}
     </span>
   );
 }
@@ -515,6 +525,7 @@ function DayTooltip({
   width: number;
   height: number;
 }) {
+  const { t } = useTranslation('reports');
   const money = useViewingMoney();
   const w = 190;
   const gap = 6;
@@ -538,21 +549,25 @@ function DayTooltip({
       style={{ left, top, width: w }}
     >
       <p className="text-xs text-text-tertiary mb-1">
-        {format(parseISO(hover.day), 'EEE, MMM d, yyyy')}
+        {format(parseISO(hover.day), t('datePattern.weekdayDate'))}
       </p>
       {flow && flow.count > 0 ? (
         <>
-          <p className="text-xs font-medium text-positive">In: {money.format(flow.income)}</p>
-          <p className="text-xs font-medium text-negative">Out: {money.format(flow.expenses)}</p>
+          <p className="text-xs font-medium text-positive">
+            {t('calendar.in')}: {money.format(flow.income)}
+          </p>
+          <p className="text-xs font-medium text-negative">
+            {t('calendar.out')}: {money.format(flow.expenses)}
+          </p>
           <p className="text-xs font-semibold text-text mt-1 pt-1 border-t border-border-light">
-            Net: {money.format(net)}
+            {t('net')}: {money.format(net)}
           </p>
           <p className="text-[11px] text-text-tertiary mt-0.5">
-            {flow.count} {flow.count === 1 ? 'transaction' : 'transactions'}
+            {t('transactionCount', { count: flow.count })}
           </p>
         </>
       ) : (
-        <p className="text-xs text-text-secondary">No transactions</p>
+        <p className="text-xs text-text-secondary">{t('calendar.noTransactions')}</p>
       )}
     </div>
   );

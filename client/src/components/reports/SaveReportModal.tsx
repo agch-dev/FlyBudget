@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Modal } from '../ui/Modal';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
@@ -18,6 +19,7 @@ export default function SaveReportModal({
   initialName = '',
   isUpdating,
 }: Props) {
+  const { t } = useTranslation('reports');
   const [name, setName] = useState(initialName);
 
   function handleSubmit(e: React.FormEvent) {
@@ -29,25 +31,27 @@ export default function SaveReportModal({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={isUpdating ? 'Update Report' : 'Save Report'}
+      title={isUpdating ? t('builder.updateTitle') : t('builder.saveTitle')}
       size="sm"
     >
       <form onSubmit={handleSubmit}>
-        <label className="block text-sm font-medium text-text-secondary mb-1">Report Name</label>
+        <label className="block text-sm font-medium text-text-secondary mb-1">
+          {t('builder.reportName')}
+        </label>
         <Input
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="e.g. Monthly Spending by Payee"
-          aria-label="Report name"
+          placeholder={t('builder.reportNamePlaceholder')}
+          aria-label={t('builder.reportNameLabel')}
           autoFocus
         />
         <div className="flex justify-end gap-2 mt-4">
           <Button type="button" variant="secondary" onClick={onClose}>
-            Cancel
+            {t('ui.cancel', { ns: 'common' })}
           </Button>
           <Button type="submit" disabled={!name.trim()}>
-            {isUpdating ? 'Update' : 'Save'}
+            {isUpdating ? t('update') : t('save')}
           </Button>
         </div>
       </form>

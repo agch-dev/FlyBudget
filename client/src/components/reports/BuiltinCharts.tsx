@@ -1,4 +1,6 @@
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
+import { t as translate } from '../../i18n';
 import {
   AreaChart,
   Area,
@@ -67,6 +69,7 @@ export function formatChange(change: number, percent: number | null, money: Mone
 }
 
 function NetWorthTooltip({ active, payload, label }: any) {
+  const { t } = useTranslation('reports');
   const money = useViewingMoney();
   if (!active || !payload?.length) return null;
   const d: NetWorthPoint = payload[0].payload;
@@ -74,13 +77,13 @@ function NetWorthTooltip({ active, payload, label }: any) {
     <div className={TOOLTIP_CLASS}>
       <p className="text-xs text-text-tertiary mb-1">{formatDateLabel(label)}</p>
       <p className="text-xs font-semibold" style={{ color: chartColors.brand }}>
-        Net worth: {money.format(d.netWorth)}
+        {t('netWorth')}: {money.format(d.netWorth)}
       </p>
       <p className="text-xs font-medium mt-1" style={{ color: chartColors.positive }}>
-        Assets: {money.format(d.assets)}
+        {t('assets')}: {money.format(d.assets)}
       </p>
       <p className="text-xs font-medium" style={{ color: chartColors.negative }}>
-        Liabilities: {money.format(d.liabilities)}
+        {t('liabilities')}: {money.format(d.liabilities)}
       </p>
       {breakdownLine(d.native, money.currency, d.leftOut) && (
         <p className="text-xs text-text-tertiary mt-1">
@@ -118,9 +121,15 @@ export function NetWorthChart({
   to: string;
   headline?: boolean;
 }) {
+  const { t, i18n } = useTranslation('reports');
+  const language = i18n.language;
   const money = useViewingMoney();
   const { data = [], isLoading } = useNetWorthSeries(from, to);
-  const dateLabels = useMemo(() => formatDateAxisLabels(data.map((d) => d.month)), [data]);
+  // Month names follow the App Language
+  const dateLabels = useMemo(
+    () => formatDateAxisLabels(data.map((d) => d.month)),
+    [data, language],
+  );
   const xAxis = useXAxisLayout({
     labels: dateLabels,
     kind: 'point',
@@ -179,9 +188,9 @@ export function NetWorthChart({
         </div>
       )}
       <div className="flex items-center gap-3 flex-wrap px-1 pb-1 text-[11px] text-text-secondary">
-        <LegendKey color={chartColors.brand} label="Net worth" line />
-        <LegendKey color={chartColors.positiveLight} label="Assets" line />
-        {showDebt && <LegendKey color={chartColors.negativeLight} label="Liabilities" />}
+        <LegendKey color={chartColors.brand} label={t('netWorth')} line />
+        <LegendKey color={chartColors.positiveLight} label={t('assets')} line />
+        {showDebt && <LegendKey color={chartColors.negativeLight} label={t('liabilities')} />}
       </div>
 
       <div className="flex-[3] min-h-0">
@@ -206,7 +215,7 @@ export function NetWorthChart({
             <Line
               type="monotone"
               dataKey="assets"
-              name="Assets"
+              name={t('assets')}
               stroke={chartColors.positiveLight}
               strokeWidth={2}
               dot={false}
@@ -215,7 +224,7 @@ export function NetWorthChart({
             <Area
               type="monotone"
               dataKey="netWorth"
-              name="Net Worth"
+              name={t('netWorth')}
               stroke={chartColors.brand}
               strokeWidth={2.5}
               fill="url(#gNet)"
@@ -241,7 +250,7 @@ export function NetWorthChart({
               <Area
                 type="monotone"
                 dataKey="liabilities"
-                name="Liabilities"
+                name={t('liabilities')}
                 stroke={chartColors.negativeLight}
                 strokeWidth={2}
                 fill={chartColors.negativeLight}
@@ -259,9 +268,14 @@ export function NetWorthChart({
 }
 
 export function IncomeExpensesChart({ from, to }: { from: string; to: string }) {
+  const { t, i18n } = useTranslation('reports');
+  const language = i18n.language;
   const money = useViewingMoney();
   const { data = [], isLoading } = useIncomeVsExpenses(from, to);
-  const chartData = useMemo(() => data.map((d) => ({ ...d, month: monthLabel(d.month) })), [data]);
+  const chartData = useMemo(
+    () => data.map((d) => ({ ...d, month: monthLabel(d.month) })),
+    [data, language],
+  );
   const monthLabels = useMemo(() => chartData.map((d) => d.month), [chartData]);
   const xAxis = useXAxisLayout({ labels: monthLabels, kind: 'band', ordered: true, inset: INSET });
 
@@ -285,20 +299,20 @@ export function IncomeExpensesChart({ from, to }: { from: string; to: string }) 
           <Tooltip
             content={
               <CurrencyTooltip
-                summary={(payload: any[]) => ({ label: 'Net', value: payload[0].payload.net })}
+                summary={(payload: any[]) => ({ label: t('net'), value: payload[0].payload.net })}
               />
             }
           />
           <Bar
             dataKey="income"
-            name="Income"
+            name={t('income')}
             fill={chartColors.positive}
             radius={[3, 3, 0, 0]}
             maxBarSize={32}
           />
           <Bar
             dataKey="expenses"
-            name="Expenses"
+            name={t('expenses')}
             fill={chartColors.negativeLight}
             radius={[3, 3, 0, 0]}
             maxBarSize={32}
@@ -310,6 +324,7 @@ export function IncomeExpensesChart({ from, to }: { from: string; to: string }) 
 }
 
 export function SpendingChart({ from, to }: { from: string; to: string }) {
+  const { t } = useTranslation('reports');
   const money = useViewingMoney();
   const showCategoryIcons = usePreferencesStore((s) => s.showCategoryIcons);
   const { data = [], isLoading } = useSpendingByCategory(from, to);
@@ -319,7 +334,7 @@ export function SpendingChart({ from, to }: { from: string; to: string }) {
         .sort((a, b) => b.totalSpent - a.totalSpent)
         .slice(0, 10)
         .map((d, i) => {
-          const full = `${showCategoryIcons && d.categoryIcon ? d.categoryIcon + ' ' : ''}${d.categoryName ?? 'Uncategorized'}`;
+          const full = `${showCategoryIcons && d.categoryIcon ? d.categoryIcon + ' ' : ''}${d.categoryName ?? t('uncategorized')}`;
           return {
             name: full.length > 22 ? full.slice(0, 21) + '…' : full,
             fullName: full,
@@ -327,7 +342,7 @@ export function SpendingChart({ from, to }: { from: string; to: string }) {
             color: CATEGORY_COLORS[i % CATEGORY_COLORS.length],
           };
         }),
-    [data, showCategoryIcons],
+    [data, showCategoryIcons, t],
   );
   // Shares are of all spending, not just the ten categories drawn
   const total = useMemo(() => data.reduce((s, d) => s + d.totalSpent, 0), [data]);
@@ -360,7 +375,7 @@ export function SpendingChart({ from, to }: { from: string; to: string }) {
           interval={0}
         />
         <Tooltip content={<ShareTooltip total={total} />} />
-        <Bar dataKey="value" name="Spent" radius={[0, 3, 3, 0]} maxBarSize={20}>
+        <Bar dataKey="value" name={t('spent')} radius={[0, 3, 3, 0]} maxBarSize={20}>
           {chartData.map((d, i) => (
             <Cell key={i} fill={d.color} />
           ))}
@@ -372,11 +387,13 @@ export function SpendingChart({ from, to }: { from: string; to: string }) {
 
 /** Summary's full view: expenses (net of refunds) per month against the monthly average. */
 export function MonthlySpendingChart({ from, to }: { from: string; to: string }) {
+  const { t, i18n } = useTranslation('reports');
+  const language = i18n.language;
   const money = useViewingMoney();
   const { data = [], isLoading } = useIncomeVsExpenses(from, to);
   const chartData = useMemo(
     () => data.map((d) => ({ month: monthLabel(d.month), spending: -d.expenseNet })),
-    [data],
+    [data, language],
   );
   const monthLabels = useMemo(() => chartData.map((d) => d.month), [chartData]);
   const xAxis = useXAxisLayout({ labels: monthLabels, kind: 'band', ordered: true, inset: INSET });
@@ -402,12 +419,12 @@ export function MonthlySpendingChart({ from, to }: { from: string; to: string })
           />
           <Tooltip
             content={
-              <CurrencyTooltip summary={() => ({ label: 'Monthly average', value: average })} />
+              <CurrencyTooltip summary={() => ({ label: t('monthlyAverage'), value: average })} />
             }
           />
           <Bar
             dataKey="spending"
-            name="Expenses"
+            name={t('expenses')}
             fill={chartColors.negativeLight}
             radius={[3, 3, 0, 0]}
             maxBarSize={40}
@@ -418,7 +435,7 @@ export function MonthlySpendingChart({ from, to }: { from: string; to: string })
               stroke={chartColors.label}
               strokeDasharray="4 4"
               label={{
-                value: `Avg ${money.format(Math.round(average))}`,
+                value: t('chart.average', { amount: money.format(Math.round(average)) }),
                 position: 'insideTopRight',
                 fontSize: 11,
                 fill: chartColors.label,
@@ -431,11 +448,14 @@ export function MonthlySpendingChart({ from, to }: { from: string; to: string })
   );
 }
 
-/** How a category is named in charts and tables: its icon (when shown) and name. */
+/**
+ * How a category is named in charts and tables: its icon (when shown) and name. `fallback`
+ * names one that has no name: "Uncategorized" in the App Language unless given.
+ */
 export function categoryLabel(
   c: { name?: string | null; icon?: string | null } | undefined,
   showIcons: boolean,
-  fallback = 'Uncategorized',
+  fallback: string = translate('reports:uncategorized'),
 ) {
   if (!c?.name) return fallback;
   return `${showIcons && c.icon ? c.icon + ' ' : ''}${c.name}`;
@@ -458,6 +478,8 @@ export function SpendingTrendsChart({
   /** A short note above the chart (e.g. which categories these are) */
   caption?: string;
 }) {
+  const { t, i18n } = useTranslation('reports');
+  const language = i18n.language;
   const money = useViewingMoney();
   const showCategoryIcons = usePreferencesStore((s) => s.showCategoryIcons);
   const { data: groups = [] } = useCategories();
@@ -473,9 +495,9 @@ export function SpendingTrendsChart({
   const names = useMemo(() => {
     const byId = new Map(groups.flatMap((g) => g.categories).map((c) => [c.id, c]));
     return categoryIds.map((id) =>
-      categoryLabel(byId.get(id), showCategoryIcons, 'Deleted category'),
+      categoryLabel(byId.get(id), showCategoryIcons, t('deletedCategory')),
     );
-  }, [groups, categoryIds, showCategoryIcons]);
+  }, [groups, categoryIds, showCategoryIcons, t]);
 
   const chartData = useMemo(() => {
     if (!trendData.length) return [];
@@ -504,7 +526,7 @@ export function SpendingTrendsChart({
       ...zero(),
       ...byPeriod.get(month),
     }));
-  }, [trendData, categoryIds, daily, from, to]);
+  }, [trendData, categoryIds, daily, from, to, language]);
 
   const single = chartData.length === 1;
   const monthLabels = useMemo(
@@ -512,7 +534,7 @@ export function SpendingTrendsChart({
       daily
         ? formatDateAxisLabels(chartData.map((d) => String(d.month)))
         : chartData.map((d) => String(d.month)),
-    [chartData, daily],
+    [chartData, daily, language],
   );
   const xAxis = useXAxisLayout({
     labels: monthLabels,
@@ -534,9 +556,11 @@ export function SpendingTrendsChart({
         <div className="h-full flex flex-col">
           {(caption || daily) && (
             <p className="text-[11px] text-text-tertiary px-1 pb-1 shrink-0">
-              {caption
-                ? `${caption}${daily ? ' · running total' : ''}`
-                : 'Running total this month'}
+              {!caption
+                ? t('chart.runningTotal')
+                : daily
+                  ? t('chart.captionRunningTotal', { caption })
+                  : caption}
             </p>
           )}
           <div className="flex-1 min-h-0">

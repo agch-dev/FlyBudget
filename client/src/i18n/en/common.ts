@@ -47,6 +47,7 @@ export default {
     confirm: 'Confirm',
     actions: 'Actions',
     learnMore: 'Learn more',
+    opensInNewTab: '(opens in a new tab)',
   },
   undo: {
     undid: 'Undid: {{message}}',

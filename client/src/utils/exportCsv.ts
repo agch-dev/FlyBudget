@@ -1,6 +1,11 @@
 import type { Currency } from '../types';
 import { currencySymbol } from './currency';
 
+// Exported files read the same in every App Language: their header row and the names the app
+// supplies are English (the table on screen is translated).
+export const CSV_UNCATEGORIZED = 'Uncategorized';
+export const CSV_DELETED_CATEGORY = 'Deleted category';
+
 /**
  * Rows of amounts in one currency (a report in the viewing currency), each saying which: a
  * last `currency` column holding its sign (`$` or `US$`). The amounts stay plain numbers.

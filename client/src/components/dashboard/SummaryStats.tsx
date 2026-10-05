@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { format, subMonths } from 'date-fns';
 import { useBudget } from '../../hooks/useBudget';
 import { useIncomeVsExpenses } from '../../hooks/useReports';
@@ -18,6 +19,7 @@ interface Props {
 const GOAL_OPTIONS = [10, 15, 20, 25, 30];
 
 export default function SummaryStats({ currentMonth }: Props) {
+  const { t } = useTranslation('reports');
   const twelveMonthsAgo = useMemo(() => format(subMonths(new Date(), 11), 'yyyy-MM'), []);
   // Income and expenses follow the viewing currency; Left to Spend is the Budget's, in pesos
   const money = useViewingMoney();
@@ -63,34 +65,35 @@ export default function SummaryStats({ currentMonth }: Props) {
       {totalBudgeted > 0 ? (
         // A Budget figure: always pesos, whatever the viewing currency
         <StatCard
-          label="Left to Spend"
+          label={t('home.stats.leftToSpend')}
           value={formatNative(leftToSpend, HOME_CURRENCY)}
           valueColor={ltsColor}
         />
       ) : (
-        <StatCard label="Left to Spend" value="—" sub="No budget set this month" />
+        <StatCard label={t('home.stats.leftToSpend')} value="—" sub={t('home.stats.noBudget')} />
       )}
       <StatCard
-        label="Avg Monthly Income"
+        label={t('home.stats.avgIncome')}
         value={money.format(avgIncome)}
         valueColor={avgIncome > 0 ? 'text-positive' : undefined}
       />
       <StatCard
-        label="Avg Monthly Expenses"
+        label={t('home.stats.avgExpenses')}
         value={money.format(avgExpenses)}
         valueColor={avgExpenses > 0 ? 'text-negative' : undefined}
       />
       <div className="bg-surface-alt rounded-lg px-4 py-3 border border-border-light">
         <div className="flex items-center justify-between">
-          <p className="text-xs font-medium text-text-tertiary">Savings Rate</p>
+          <p className="text-xs font-medium text-text-tertiary">{t('home.stats.savingsRate')}</p>
           <select
+            aria-label={t('home.stats.savingsGoal')}
             value={savingsGoal}
             onChange={(e) => setSavingsGoal(Number(e.target.value))}
             className="text-[10px] border border-border rounded px-1 py-0.5 bg-surface text-text-secondary cursor-pointer focus:outline-none"
           >
             {GOAL_OPTIONS.map((g) => (
               <option key={g} value={g}>
-                {g}% goal
+                {t('home.stats.goal', { percent: g })}
               </option>
             ))}
           </select>
@@ -104,7 +107,7 @@ export default function SummaryStats({ currentMonth }: Props) {
         ) : (
           <>
             <p className="text-lg font-semibold tabular-nums mt-0.5 text-text">—</p>
-            <p className="text-xs text-text-tertiary mt-0.5">Shown once you have income</p>
+            <p className="text-xs text-text-tertiary mt-0.5">{t('home.stats.needsIncome')}</p>
           </>
         )}
       </div>

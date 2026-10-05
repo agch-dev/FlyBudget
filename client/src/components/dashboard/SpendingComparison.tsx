@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import {
   AreaChart,
   Area,
@@ -18,21 +19,7 @@ import { Card } from '../ui/Card';
 import { EmptyState } from '../ui/EmptyState';
 import { chartColors } from '../../utils/chartColors';
 import { useXAxisLayout } from '../../hooks/useXAxisLayout';
-
-type Mode =
-  | 'week_vs_last_week'
-  | 'month_vs_last_month'
-  | 'month_vs_last_year'
-  | 'month_vs_average'
-  | 'year_vs_last_year';
-
-const MODES: { value: Mode; label: string }[] = [
-  { value: 'week_vs_last_week', label: 'This week vs. last week' },
-  { value: 'month_vs_last_month', label: 'This month vs. last month' },
-  { value: 'month_vs_last_year', label: 'This month vs. last year' },
-  { value: 'month_vs_average', label: 'This month vs. average month' },
-  { value: 'year_vs_last_year', label: 'This year vs. last year' },
-];
+import { COMPARISON_MODES, comparisonLabels, type ComparisonMode } from '../../utils/reportText';
 
 /** Compact axis label with the currency's sign: "$950", "US$1.5K" */
 function formatYAxis(value: number, sign: string): string {
@@ -67,9 +54,13 @@ function ComparisonTooltip({ active, payload, label }: any) {
 }
 
 export default function SpendingComparison() {
+  const { t, i18n } = useTranslation('reports');
   const money = useViewingMoney();
-  const [mode, setMode] = useState<Mode>('month_vs_last_month');
+  const [mode, setMode] = useState<ComparisonMode>('month_vs_last_month');
   const { data, isLoading } = useSpendingComparison(mode);
+  // The periods' names in the App Language (the server's own are English)
+  const labels = comparisonLabels(mode);
+  const language = i18n.language;
 
   const chartData = useMemo(() => {
     if (!data) return [];
@@ -79,7 +70,7 @@ export default function SpendingComparison() {
     > = {};
 
     for (let day = 1; day <= data.maxDays; day++) {
-      merged[day] = { day, label: `Day ${day}` };
+      merged[day] = { day, label: t('home.comparison.day', { day }) };
     }
 
     for (const pt of data.current) {
@@ -90,19 +81,19 @@ export default function SpendingComparison() {
     }
 
     return Object.values(merged).sort((a, b) => a.day - b.day);
-  }, [data]);
+  }, [data, t, language]);
 
   const hasData =
     !!data &&
     (data.current.some((p) => p.cumulative !== 0) ||
       data.comparison.some((p) => p.cumulative !== 0));
 
-  const labels = useMemo(() => chartData.map((d) => d.label), [chartData]);
+  const dayLabels = useMemo(() => chartData.map((d) => d.label), [chartData]);
   // "US$1.5K" is wider than "$1.5K"
   const axisWidth = money.currency === HOME_CURRENCY ? 50 : 64;
   // Inset: y-axis width on the left, chart margin (8) on the right
   const xAxis = useXAxisLayout({
-    labels,
+    labels: dayLabels,
     kind: 'point',
     ordered: true,
     fontSize: 11,
@@ -127,20 +118,25 @@ export default function SpendingComparison() {
       <div className="flex items-start justify-between mb-1">
         <div>
           <h3 className="text-sm font-semibold text-text">
-            Spending{' '}
-            <span className="text-text-secondary font-normal tabular-nums">
-              {money.format(data.currentTotal)} {data.periodLabel}
-            </span>
+            <Trans
+              t={t}
+              i18nKey={`home.comparison.heading.${labels.period}`}
+              values={{ amount: money.format(data.currentTotal) }}
+              components={{
+                figure: <span className="text-text-secondary font-normal tabular-nums" />,
+              }}
+            />
           </h3>
         </div>
         <select
+          aria-label={t('home.comparison.modeLabel')}
           value={mode}
-          onChange={(e) => setMode(e.target.value as Mode)}
+          onChange={(e) => setMode(e.target.value as ComparisonMode)}
           className="text-xs border border-border rounded-lg px-2 py-1.5 bg-surface text-text cursor-pointer focus:outline-none focus:ring-1 focus:ring-brand-600 min-w-0 max-w-[200px]"
         >
-          {MODES.map((m) => (
-            <option key={m.value} value={m.value}>
-              {m.label}
+          {COMPARISON_MODES.map((m) => (
+            <option key={m} value={m}>
+              {t(`home.comparison.mode.${m}`)}
             </option>
           ))}
         </select>
@@ -171,7 +167,7 @@ export default function SpendingComparison() {
               <Line
                 type="monotone"
                 dataKey="comparison"
-                name={data.comparisonLabel}
+                name={labels.comparison}
                 stroke="#9CA3AF"
                 strokeWidth={1.5}
                 dot={false}
@@ -181,7 +177,7 @@ export default function SpendingComparison() {
               <Area
                 type="monotone"
                 dataKey="current"
-                name={data.currentLabel}
+                name={labels.current}
                 stroke={chartColors.brand}
                 strokeWidth={2}
                 fill="url(#gSpendingCur)"
@@ -194,8 +190,8 @@ export default function SpendingComparison() {
         <EmptyState
           compact
           icon={<TrendingDown size={20} />}
-          title="Nothing to compare yet"
-          description="Once you have some spending, this shows how this period compares with the last one."
+          title={t('home.comparison.emptyTitle')}
+          description={t('home.comparison.emptyDescription')}
         />
       )}
     </Card>

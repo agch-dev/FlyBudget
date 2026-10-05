@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { Navigate, useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Pin, Save, Snowflake } from 'lucide-react';
 import { NetworkError } from '../api/client';
 import { Button } from '../components/ui/Button';
 import { PageHeader } from '../components/ui/PageHeader';
 import { DateRangeControl } from '../components/reports/DateRangeControl';
 import { ViewingCurrencySwitch } from '../components/ui/ViewingCurrencySwitch';
-import { BUILTIN_REPORTS } from '../components/reports/BuiltinReport';
 import { ReportDetail } from '../components/reports/ReportDetail';
 import { ChartSkeleton } from '../components/reports/ChartHelpers';
 import { useDashboards, useDashboardWidget, useUpdateWidget } from '../hooks/useDashboards';
@@ -66,6 +66,7 @@ function BuiltinView({
   page: DashboardPage | undefined;
   dashboardRange: ReportDateRange;
 }) {
+  const { t } = useTranslation('reports');
   const updateWidget = useUpdateWidget();
   const saved = widgetDateRange(widget.meta.dateRange, dashboardRange);
   // Exploring here changes nothing on the dashboard until "Save to widget"
@@ -96,17 +97,16 @@ function BuiltinView({
     setRange(dashboardRange);
   }
 
-  const report = BUILTIN_REPORTS[widget.type];
   const dashboardPath = `/reports?dashboard=${widget.pageId}`;
 
   return (
     <div className="flex flex-col h-full">
       <PageHeader
-        title={widget.meta.name || report.label}
-        subtitle={report.description}
+        title={widget.meta.name || t(`builtin.${widget.type}.label`)}
+        subtitle={t(`builtin.${widget.type}.description`)}
         breadcrumbs={[
-          { label: 'Reports', to: '/reports' },
-          { label: page?.name ?? 'Dashboard', to: dashboardPath },
+          { label: t('page.title'), to: '/reports' },
+          { label: page?.name ?? t('detail.dashboard'), to: dashboardPath },
         ]}
         actions={
           <>
@@ -114,10 +114,10 @@ function BuiltinView({
             <Button
               size="sm"
               disabled={!changed || updateWidget.isPending}
-              title="Show these settings on the dashboard widget"
+              title={t('detail.saveToWidgetHint')}
               onClick={save}
             >
-              <Save size={13} /> Save to widget
+              <Save size={13} /> {t('detail.saveToWidget')}
             </Button>
           </>
         }
@@ -126,7 +126,7 @@ function BuiltinView({
       <div className="flex-1 overflow-y-auto bg-page">
         <div className="max-w-[1400px] mx-auto px-6 py-6 space-y-4">
           <div className="flex items-center gap-x-3 gap-y-1 flex-wrap">
-            <span className="text-xs font-medium text-text-secondary">Date range</span>
+            <span className="text-xs font-medium text-text-secondary">{t('dateRange')}</span>
             <DateRangeControl value={range} onChange={setRange} />
             <RangeNote
               source={saved.source}
@@ -164,26 +164,25 @@ function RangeNote({
   changed: boolean;
   onFollowDashboard?: () => void;
 }) {
+  const { t } = useTranslation('reports');
   if (changed) {
-    return (
-      <span className="text-xs text-caution">Not saved: the dashboard widget is unchanged</span>
-    );
+    return <span className="text-xs text-caution">{t('detail.notSaved')}</span>;
   }
   return (
     <span className="flex items-center gap-1.5 text-xs text-text-tertiary">
       {source === 'frozen' && <Snowflake size={11} className="text-brand-500" />}
       {source === 'own' && <Pin size={11} className="text-brand-500" />}
       {source === 'dashboard'
-        ? `Following the dashboard (${formatDateRange(dashboardRange)})`
+        ? t('detail.following', { range: formatDateRange(dashboardRange) })
         : source === 'frozen'
-          ? 'This widget keeps these dates'
-          : 'This widget has its own date range'}
+          ? t('detail.keepsDates')
+          : t('detail.hasOwnRange')}
       {onFollowDashboard && (
         <button
           onClick={onFollowDashboard}
           className="text-brand-600 hover:text-brand-700 font-medium cursor-pointer"
         >
-          Use dashboard range
+          {t('widget.useDashboardRange')}
         </button>
       )}
     </span>
