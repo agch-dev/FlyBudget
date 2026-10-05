@@ -20,7 +20,22 @@ const side = fc.record<LinkSide>({
   transferTransactionId: fc.constantFrom(null, null, 't'),
 });
 
+/** Two different transactions: ids are primary keys, so two rows never share one */
+const pair = fc.tuple(side, side).filter(([a, b]) => a.id !== b.id);
+
 describe('linking rules', () => {
+  it('never pair a transaction with itself, whatever its account is said to be', () => {
+    fc.assert(
+      fc.property(side, side, (a, b) => {
+        const same = { ...b, id: a.id };
+        expect(linkRefusal(a, same)).not.toBeNull();
+        expect(isTransferCandidate(a, same)).toBe(false);
+      }),
+      // A clean outflow and inflow under one id is rare among generated pairs
+      { numRuns: 5000 },
+    );
+  });
+
   it('do not depend on which side is named first', () => {
     fc.assert(
       fc.property(side, side, (a, b) => {
@@ -49,7 +64,7 @@ describe('linking rules', () => {
 
   it('refuse a candidate only because same-currency amounts differ', () => {
     fc.assert(
-      fc.property(side, side, (a, b) => {
+      fc.property(pair, ([a, b]) => {
         if (linkRefusal(a, b) === null) expect(isTransferCandidate(a, b)).toBe(true);
         if (isTransferCandidate(a, b) && linkRefusal(a, b) !== null) {
           expect(a.currency).toBe(b.currency);
