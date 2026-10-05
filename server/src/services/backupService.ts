@@ -10,6 +10,7 @@ import {
   customReports,
   dashboardPages,
   dashboardWidgets,
+  exchangeRates,
   goals,
   payees,
   plaidAccountMappings,
@@ -48,6 +49,7 @@ const TABLES = {
   dashboardPages,
   dashboardWidgets,
   goals,
+  exchangeRates,
 } satisfies Record<string, SQLiteTable>;
 
 export type BackupTable = keyof typeof TABLES;
@@ -113,7 +115,9 @@ export function parseBackup(input: unknown): Record<BackupTable, Row[]> {
         const ok =
           column.columnType === 'SQLiteInteger'
             ? Number.isSafeInteger(value)
-            : typeof value === 'string' && value.length <= 1_000_000;
+            : column.columnType === 'SQLiteReal'
+              ? typeof value === 'number' && Number.isFinite(value)
+              : typeof value === 'string' && value.length <= 1_000_000;
         if (!ok) throw new InvalidBackupError(`Row ${i + 1} of "${name}" has an invalid "${key}"`);
         row[key] = value;
       }

@@ -148,6 +148,13 @@
       "when": 1790850000000,
       "tag": "0020_adjustment_transactions",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "6",
+      "when": 1790950000000,
+      "tag": "0022_exchange_rates",
+      "breakpoints": true
     }
   ]
 }

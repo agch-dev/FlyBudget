@@ -2,6 +2,7 @@ import {
   sqliteTable,
   text,
   integer,
+  real,
   uniqueIndex,
   index,
   customType,
@@ -394,4 +395,20 @@ export const sessions = sqliteTable('sessions', {
   userAgent: text('user_agent'),
   /** Roughly when the session was last used (updated at most every few minutes) */
   lastUsedAt: text('last_used_at'),
+});
+
+// --- Multi-currency ---
+
+/**
+ * Daily exchange rates: pesos per dollar (interbank, no spread). The date is the key, so
+ * every device stores the same row for the same day. A date with no row uses the closest
+ * earlier one (`rateLookup` in services/exchangeRates.ts).
+ */
+export const exchangeRates = sqliteTable('exchange_rates', {
+  date: text('date').primaryKey(),
+  rate: real('rate').notNull(),
+  /** When the rate was fetched from the source, or typed in */
+  fetchedAt: text('fetched_at').notNull(),
+  /** Entered by hand: a fetch never overwrites it */
+  isManual: integer('is_manual').notNull().default(0),
 });
