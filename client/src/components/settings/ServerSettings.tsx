@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Trans, useTranslation } from 'react-i18next';
-import type { TFunction } from 'i18next';
 import { formatDistanceToNow } from 'date-fns';
 import {
   AlertTriangle,
@@ -33,6 +32,7 @@ import { SELF_HOSTING_URL } from '../../utils/project';
 import { Button } from '../ui/Button';
 import { MIN_PASSWORD_LENGTH } from '../auth/passwordRules';
 import { IS_DEMO } from '../../demo/demoApi';
+import { t as translate } from '../../i18n';
 
 const inputClass =
   'w-full px-3 py-2 text-sm border border-border rounded-md bg-surface text-text focus:outline-none focus:ring-1 focus:ring-brand-600 focus:border-brand-600';
@@ -168,8 +168,8 @@ interface CheckText {
 /** A sentence of the catalog with env var names in it, as `<env>FLYBUDGET_…</env>` */
 type FixKey = `server.checks.${'https' | 'proxyUntrusted' | 'proxyUnused' | 'hosts' | 'key'}Fix`;
 
-const fixText = (t: TFunction<'settings'>, key: FixKey) => (
-  <Trans t={t} i18nKey={key} components={{ env: <Env /> }} />
+const fixText = (key: FixKey) => (
+  <Trans ns="settings" i18nKey={key} components={{ env: <Env /> }} />
 );
 
 const Env = ({ children }: { children?: React.ReactNode }) => (
@@ -178,35 +178,45 @@ const Env = ({ children }: { children?: React.ReactNode }) => (
   </code>
 );
 
-function describeCheck(t: TFunction<'settings'>, check: SecurityCheck): CheckText {
+function describeCheck(check: SecurityCheck): CheckText {
   switch (check.id) {
     case 'https':
-      if (check.reason === 'secure') return { label: t('server.checks.httpsSecure') };
-      if (check.ok) return { label: t('server.checks.httpsLocal') };
-      return { label: t('server.checks.httpsOff'), fix: fixText(t, 'server.checks.httpsFix') };
+      if (check.reason === 'secure')
+        return { label: translate('settings:server.checks.httpsSecure') };
+      if (check.ok) return { label: translate('settings:server.checks.httpsLocal') };
+      return {
+        label: translate('settings:server.checks.httpsOff'),
+        fix: fixText('server.checks.httpsFix'),
+      };
     case 'trustProxy':
-      if (check.ok) return { label: t('server.checks.proxyOk') };
+      if (check.ok) return { label: translate('settings:server.checks.proxyOk') };
       if (check.reason === 'untrusted-proxy')
         return {
-          label: t('server.checks.proxyUntrusted'),
-          fix: fixText(t, 'server.checks.proxyUntrustedFix'),
+          label: translate('settings:server.checks.proxyUntrusted'),
+          fix: fixText('server.checks.proxyUntrustedFix'),
         };
       return {
-        label: t('server.checks.proxyUnused'),
-        fix: fixText(t, 'server.checks.proxyUnusedFix'),
+        label: translate('settings:server.checks.proxyUnused'),
+        fix: fixText('server.checks.proxyUnusedFix'),
       };
     case 'allowedHosts':
       return check.ok
-        ? { label: t('server.checks.hostsOk') }
-        : { label: t('server.checks.hostsAny'), fix: fixText(t, 'server.checks.hostsFix') };
+        ? { label: translate('settings:server.checks.hostsOk') }
+        : {
+            label: translate('settings:server.checks.hostsAny'),
+            fix: fixText('server.checks.hostsFix'),
+          };
     case 'encryptionKey':
       return check.ok
-        ? { label: t('server.checks.keyOk') }
-        : { label: t('server.checks.keyMissing'), fix: fixText(t, 'server.checks.keyFix') };
+        ? { label: translate('settings:server.checks.keyOk') }
+        : {
+            label: translate('settings:server.checks.keyMissing'),
+            fix: fixText('server.checks.keyFix'),
+          };
     case 'password':
       return check.ok
-        ? { label: t('server.checks.passwordOk') }
-        : { label: t('server.checks.passwordMissing') };
+        ? { label: translate('settings:server.checks.passwordOk') }
+        : { label: translate('settings:server.checks.passwordMissing') };
   }
 }
 
@@ -228,7 +238,7 @@ function SecurityChecks() {
       </p>
       <ul aria-label={t('server.checks.title')} className="mt-3 space-y-2">
         {checks.map((check) => {
-          const text = describeCheck(t, check);
+          const text = describeCheck(check);
           return (
             <li
               key={check.id}
@@ -261,14 +271,14 @@ function SecurityChecks() {
   );
 }
 
-function deviceTimes(t: TFunction<'settings'>, d: SignedInDevice) {
+function deviceTimes(d: SignedInDevice) {
   const ago = (iso: string) => formatDistanceToNow(new Date(iso), { addSuffix: true });
   return d.lastUsedAt
-    ? t('server.devices.activeAndSignedIn', {
+    ? translate('settings:server.devices.activeAndSignedIn', {
         active: ago(d.lastUsedAt),
         signedIn: ago(d.createdAt),
       })
-    : t('server.devices.signedIn', { signedIn: ago(d.createdAt) });
+    : translate('settings:server.devices.signedIn', { signedIn: ago(d.createdAt) });
 }
 
 function SignedInDevices() {
@@ -299,7 +309,7 @@ function SignedInDevices() {
                     </span>
                   )}
                 </p>
-                <p className="text-xs text-text-tertiary truncate">{deviceTimes(t, d)}</p>
+                <p className="text-xs text-text-tertiary truncate">{deviceTimes(d)}</p>
               </div>
               {!d.current && (
                 <Button
