@@ -64,13 +64,13 @@ test('month names follow the language, and a chosen date format is kept', async 
     page.evaluate(() => JSON.parse(localStorage.getItem('budget-preferences')!).state);
   expect(await stored()).toMatchObject({ language: 'es', dateFormat: 'yyyy-MM-dd' });
 
-  // Dates on the pages still in English get Spanish month names too
+  // The register writes its days the Spanish way, whatever the date format above
   await open(page, `/accounts/${checking.id}`);
-  await page.getByRole('button', { name: 'All Time' }).click();
+  await page.getByRole('button', { name: 'Todo' }).click();
   await expect(
     page
       .getByRole('main')
-      .getByText(/\benero 5, \d{4}/)
+      .getByText(/^5 de enero de \d{4}$/)
       .first(),
   ).toBeVisible();
 });

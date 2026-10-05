@@ -208,7 +208,7 @@ export function TransactionFormRow({
       aria-label={t('form.splitTransaction')}
     >
       <Split size={16} />
-      {sheet && t('term.split')}
+      {sheet && t('form.split')}
     </button>
   );
   const cancelButton = (

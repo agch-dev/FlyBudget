@@ -83,6 +83,8 @@ export default {
     saveOnDevice: 'Save on device',
     cancel: 'Cancel',
     delete: 'Delete',
+    /** The button that splits the transaction being entered */
+    split: 'Split',
     splitTransaction: 'Split transaction',
     addSplit: 'Add split',
     splitCategory: 'Split {{number}} category',

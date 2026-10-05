@@ -78,6 +78,7 @@ const es: Translation<typeof en> = {
     saveOnDevice: 'Guardar en el dispositivo',
     cancel: 'Cancelar',
     delete: 'Eliminar',
+    split: 'Dividir',
     splitTransaction: 'Dividir transacción',
     addSplit: 'Agregar parte',
     splitCategory: 'Categoría de la parte {{number}}',
