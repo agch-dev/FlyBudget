@@ -1,4 +1,5 @@
 import { useId } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { useAccounts } from '../../hooks/useAccounts';
 import { accountGroupNames } from '../../utils/accountGroups';
 
@@ -14,6 +15,7 @@ interface Props {
  * account leaves it.
  */
 export function AccountGroupField({ value, onChange }: Props) {
+  const { t } = useTranslation('accounts');
   const { data: accounts } = useAccounts();
   const id = useId();
   const names = accountGroupNames(accounts ?? []);
@@ -21,7 +23,11 @@ export function AccountGroupField({ value, onChange }: Props) {
   return (
     <div>
       <label htmlFor={id} className="block text-sm font-medium text-text-secondary mb-1">
-        Group <span className="font-normal text-text-tertiary">(optional)</span>
+        <Trans
+          t={t}
+          i18nKey="form.group"
+          components={{ hint: <span className="font-normal text-text-tertiary" /> }}
+        />
       </label>
       <input
         id={id}
@@ -31,10 +37,10 @@ export function AccountGroupField({ value, onChange }: Props) {
         list={`${id}-groups`}
         maxLength={200}
         autoComplete="off"
-        placeholder={names.length ? 'Choose a group or type a new name' : 'e.g. Visa Itaú'}
+        placeholder={names.length ? t('form.groupPlaceholder') : t('form.groupPlaceholderFirst')}
         className="block w-full rounded-lg border border-border px-3 py-2 text-sm bg-surface text-text placeholder-text-tertiary focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
       />
-      <datalist id={`${id}-groups`} aria-label="Groups in use">
+      <datalist id={`${id}-groups`} aria-label={t('form.groupsInUse')}>
         {names.map((name) => (
           // The name as text too: a value alone leaves the option without a label
           <option key={name} value={name}>
@@ -42,10 +48,7 @@ export function AccountGroupField({ value, onChange }: Props) {
           </option>
         ))}
       </datalist>
-      <p className="mt-1 text-xs text-text-tertiary">
-        Accounts of the same product, like the pesos and dollars sides of one card, show together
-        under this name. Leave empty for no group.
-      </p>
+      <p className="mt-1 text-xs text-text-tertiary">{t('form.groupHint')}</p>
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Modal } from '../ui/Modal';
 import { useCanSave } from '../../hooks/useConnection';
 import { SavingPausedHint } from '../connection/SavingPausedHint';
@@ -16,6 +17,7 @@ interface Props {
 }
 
 export function AddAccountModal({ isOpen, onClose }: Props) {
+  const { t } = useTranslation('accounts');
   const [name, setName] = useState('');
   const [type, setType] = useState<AccountType>('checking');
   const [currency, setCurrency] = useState<Currency>(HOME_CURRENCY);
@@ -57,28 +59,32 @@ export function AddAccountModal({ isOpen, onClose }: Props) {
   }
 
   const amountLabel = info.liability
-    ? 'Amount Owed'
+    ? t('form.amountOwed')
     : info.group === 'property'
-      ? 'Current Value'
-      : 'Current Balance';
+      ? t('form.currentValue')
+      : t('form.currentBalance');
   const amountHint = info.liability
-    ? 'What you owe as of today.'
+    ? t('form.amountOwedHint')
     : info.group === 'property'
-      ? "What it's worth today. You can update it any time from the account page."
-      : 'Enter your balance as of today.';
+      ? t('form.currentValueHint')
+      : t('form.currentBalanceHint');
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} title="Add Account" size="sm">
+    <Modal isOpen={isOpen} onClose={handleClose} title={t('form.addTitle')} size="sm">
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-text-secondary mb-1">Account Name</label>
+          <label className="block text-sm font-medium text-text-secondary mb-1">
+            {t('form.name')}
+          </label>
           <input
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            aria-label="Account name"
+            aria-label={t('form.nameLabel')}
             placeholder={
-              info.group === 'property' ? 'e.g. 2021 Honda Civic' : 'e.g. Chase Checking'
+              info.group === 'property'
+                ? t('form.namePlaceholderProperty')
+                : t('form.namePlaceholder')
             }
             autoFocus
             className="block w-full rounded-lg border border-border px-3 py-2 text-sm bg-surface text-text placeholder-text-tertiary focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
@@ -114,11 +120,8 @@ export function AddAccountModal({ isOpen, onClose }: Props) {
             className="mt-0.5 h-4 w-4 rounded border-border text-brand-600 focus:ring-brand-500"
           />
           <span className="text-sm text-text-secondary">
-            Off budget
-            <span className="block text-xs text-text-tertiary">
-              Counts toward net worth but not your budget. Recommended for investments, property and
-              loans.
-            </span>
+            {t('form.offBudget')}
+            <span className="block text-xs text-text-tertiary">{t('form.offBudgetHint')}</span>
           </span>
         </label>
 
@@ -129,14 +132,14 @@ export function AddAccountModal({ isOpen, onClose }: Props) {
             onClick={handleClose}
             className="px-4 py-2 text-sm font-medium text-text-secondary bg-surface border border-border rounded-lg hover:bg-hover transition-colors"
           >
-            Cancel
+            {t('ui.cancel', { ns: 'common' })}
           </button>
           <button
             type="submit"
             disabled={!name.trim() || createAccount.isPending || !canSave}
             className="px-4 py-2 text-sm font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            {createAccount.isPending ? 'Adding…' : 'Add Account'}
+            {createAccount.isPending ? t('form.adding') : t('form.add')}
           </button>
         </div>
       </form>
