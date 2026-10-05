@@ -137,9 +137,10 @@ The desktop app and `npm run dev` have no login, so `server/src/middleware/secur
 - **Electron window** (`electron/main.ts`): sandboxed, no Node in the page, DevTools only in dev, and every permission request denied. The window can't navigate away from the app, and `shell.openExternal` is only ever called with `https:` URLs (never pass it arbitrary URLs).
 - **Credentials at rest**: `plaid_config.secret`, `plaid_items.access_token` and `simplefin_connections.access_url` use the `encryptedText` column type (`server/src/db/schema.ts` → `secretCrypto.ts`, AES-256-GCM, stored as `enc:v1:…`). The desktop app keeps the key in `userData/credentials.key`, itself encrypted with Electron `safeStorage` (DPAPI/Keychain/libsecret), and passes it in as `FLYBUDGET_DATA_KEY`. Plaintext rows are encrypted on startup (`encryptStoredCredentials`). Plain `npm run dev` has no key and stores them unencrypted. Encrypted columns can't be used in `WHERE` clauses.
 - **Outbound requests to user-supplied URLs** (SimpleFIN setup tokens and access URLs) must go through `safeFetch` (`server/src/services/safeFetch.ts`): https only, public IPs only (checked at connect time, so DNS rebinding can't bypass it), manual redirects re-validated on every hop with `Authorization` dropped across origins, a 30s timeout, and capped response sizes. Never call `fetch` directly on such URLs.
+- **Exchange rates** come from one fixed address (`services/exchangeRateSource.ts`, a personal API: pesos per dollar by date). Only the server contacts it, never the browser (the CSP stays `'self'`) and never the in-browser demo. The request goes through `safeFetch` with a 15s timeout and a 2 MB cap, and the answer is validated row by row (`parseRatesResponse`): one bad row rejects it all, so nothing malformed is stored. **Never fetch it more than the rules in "Exchange rates" below allow, and never from tests** (stub the `RateSource`). `FLYBUDGET_EXCHANGE_RATES=off` (`exchangeRateFetching` in `config.ts`) switches fetching off; the e2e servers and CI set it.
 - **Bank data is untrusted input**: SimpleFIN responses are validated with Zod (`parseSimplefinResponse`), amounts are converted to cents exactly (no `parseFloat`), and payee text is stripped of control characters and capped at 200 chars.
 - **Plaid**: access tokens never leave the server. Disconnecting calls `/item/remove` to revoke the token at Plaid _before_ deleting it locally; if Plaid can't be reached, the connection is kept so the user can retry. Plaid calls time out after 30s. Only `sandbox` and `production` are valid environments (legacy `development` configs map to Sandbox).
-- **Rate limiting**: mutating `/api/plaid` and `/api/simplefin` requests are limited to 20/minute (`bankRateLimit`); GETs are not limited.
+- **Rate limiting**: mutating `/api/plaid` and `/api/simplefin` requests are limited to 20/minute (`bankRateLimit`); GETs are not limited. `POST /api/exchange-rates/refresh` is limited to 10/hour (`exchangeRateRefreshLimit`).
 - **Errors**: `errorHandler` (registered last in `startServer`) returns generic JSON errors and logs details server-side; never send `err.stack` or raw exception messages to the client. Unknown `/api` routes get a JSON 404. Request bodies are capped at 10 MB.
 - **Backup / restore**: `services/backupService.ts`. `GET /api/export/backup` includes every data table (`BACKUP_TABLES`; add new tables there) but never bank credentials, the password or sessions. `POST /api/export/restore` validates every column's type against the schema, saves `budget-before-restore-<time>.db` next to the database, then replaces everything in one transaction (foreign keys deferred to commit) and re-links bank connections to their accounts. It parses its own body (250 MB) after the login check; `index.ts` skips the 10 MB parser for that path.
 - **CSV export**: `escapeCsv` prefixes cells starting with `=`, `+`, `-`, `@`, tab or CR with `'` (CSV formula injection: payee names come from banks and merchants). Use it for every text cell. Amounts are native, with the account's currency in the `Currency` column.
@@ -214,26 +215,26 @@ The website serves the real app at `/demo/` with a sample budget and no server: 
 
 ### Pages and routes
 
-| Route                     | Page                                                                         |
-| ------------------------- | ---------------------------------------------------------------------------- |
-| `/welcome`                | First-run setup (shown while there are no accounts, until "Skip for now")    |
-| `/dashboard`              | Dashboard (at-a-glance financial overview — default landing page)            |
-| `/budget`                 | Budget (zero-based envelope view)                                            |
-| `/budget/category/:id`    | One category: budget history and its transactions                            |
-| `/transactions`           | All transactions across all accounts                                         |
-| `/accounts`               | Account overview cards                                                       |
-| `/accounts/:id`           | Single account transaction list                                              |
-| `/accounts/:id/reconcile` | Account reconciliation flow                                                  |
-| `/reports`                | Report dashboards (`?dashboard=<id>` picks the tab): movable grid of widgets |
-| `/reports/widget/:id`     | Full view of a built-in report widget (stats, chart, breakdown table, save)  |
-| `/reports/custom`         | Custom Report Builder (configurable chart type, grouping, filtering)         |
-| `/reports/custom/:id`     | Saved custom report (loads saved config by ID)                               |
-| `/recurring`              | Recurring transactions (bills, subscriptions, recurring income)              |
-| `/cash-flow`              | Cash flow diagram (income sources to spending)                               |
-| `/goals`                  | Savings goals                                                                |
-| `/payees`                 | Payees management                                                            |
-| `/rules`                  | Auto-categorization rules                                                    |
-| `/settings`               | Settings (Categories, Account reorder, Data export/backup, Preferences)      |
+| Route                     | Page                                                                                    |
+| ------------------------- | --------------------------------------------------------------------------------------- |
+| `/welcome`                | First-run setup (shown while there are no accounts, until "Skip for now")               |
+| `/dashboard`              | Dashboard (at-a-glance financial overview — default landing page)                       |
+| `/budget`                 | Budget (zero-based envelope view)                                                       |
+| `/budget/category/:id`    | One category: budget history and its transactions                                       |
+| `/transactions`           | All transactions across all accounts                                                    |
+| `/accounts`               | Account overview cards                                                                  |
+| `/accounts/:id`           | Single account transaction list                                                         |
+| `/accounts/:id/reconcile` | Account reconciliation flow                                                             |
+| `/reports`                | Report dashboards (`?dashboard=<id>` picks the tab): movable grid of widgets            |
+| `/reports/widget/:id`     | Full view of a built-in report widget (stats, chart, breakdown table, save)             |
+| `/reports/custom`         | Custom Report Builder (configurable chart type, grouping, filtering)                    |
+| `/reports/custom/:id`     | Saved custom report (loads saved config by ID)                                          |
+| `/recurring`              | Recurring transactions (bills, subscriptions, recurring income)                         |
+| `/cash-flow`              | Cash flow diagram (income sources to spending)                                          |
+| `/goals`                  | Savings goals                                                                           |
+| `/payees`                 | Payees management                                                                       |
+| `/rules`                  | Auto-categorization rules                                                               |
+| `/settings`               | Settings (Categories, Account reorder, Data export/backup, Preferences, Exchange rates) |
 
 ### DB schema summary
 
@@ -247,6 +248,7 @@ The website serves the real app at `/demo/` with a sample budget and no server: 
 - `rules` — `conditions` and `actions` stored as JSON strings, `conditions_op` (`and`/`or`), `enabled`; ordered by `sortOrder`. `transactions.imported_payee` keeps the raw bank/CSV payee text for rules (migration `0017`)
 - `auth_config` / `sessions` — server mode only: the scrypt password hash (single row, `id='server'`) and hashed session tokens (plus `user_agent` / `last_used_at` for the signed-in devices list, migration `0019`, hand-written like `0014`/`0015`)
 - `payees` — `defaultCategoryId` auto-applied when a payee is selected on a new transaction; `logo` (same format as account logos) replaces the colored initial in `PayeeIcon`. Pass `onLogoChange` to make the icon editable (hover shows a pencil, click uploads, × removes), as on the Payees page and transaction detail panel. Merging keeps a merged payee's logo if the kept one has none
+- `exchange_rates` — one row per `date` (the primary key): `rate` (pesos per dollar, a `real`: the only non-integer column, which backup restore checks as a finite number), `fetched_at` (when it was fetched or typed in) and `is_manual` (entered by hand; a fetch never overwrites it). Migration `0022`, hand-written
 - `custom_reports` — `name` + `config` (JSON string of `CustomReportConfig`); stores saved custom report configurations
 - `dashboard_pages` / `dashboard_widgets` — report dashboards and their widgets (`type`, grid `x`/`y`/`width`/`height`, `meta` JSON). Pages have a `date_range` (null = last 6 months; the auto-created Overview starts on a live `1m`, this month). Custom report widgets reference `custom_report_id` (cascade delete). Migrations `0014`/`0015` were hand-written because `db:generate` prompts about the pending legacy cleanup above
 - `recurring_transactions` — `frequency` (`weekly|biweekly|semimonthly|monthly|quarterly|semiannually|yearly`); `status` (`active|paused|canceled`); `autoCreate` auto-creates transactions on server startup; linked to transactions via `recurringTransactionId` FK
@@ -310,6 +312,16 @@ The dashboard at `/dashboard` (default landing page) is built from the component
 - `RecentTransactions` — the latest transactions
 
 Every card has an empty state with a button to where its data comes from.
+
+### Exchange rates
+
+Accounts will hold pesos or dollars (`GLOSSARY.md`, `docs/adr/0001-convert-currencies-when-reading.md`); the app stores one exchange rate per date (pesos per dollar, interbank, no spread) and converts when reading. Nothing converts yet: this is the rate table and its lookup rule.
+
+- **Pure rules** (`server/src/services/exchangeRates.ts`): `rateLookup(rates)(date)` returns the rate of that date or the closest earlier one (weekends and holidays use the previous business day), `null` before the first rate. `parseRatesResponse` reads the source's `{ chart_data: [{ date, rate }] }`. `refreshRange` and `backfillRange` decide what to ask the source for, if anything.
+- **Service** (`exchangeRateService.ts`): `listRates`, `ratesOverview`, `saveManualRate`, `refreshRates(source, { force })` and `backfillRatesFrom(date, source)`. The source is a parameter (`RateSource`), so the service and the router have no network code: `index.ts` passes `fetchRatesFromSource` (`exchangeRateSource.ts`), the demo passes one that always fails, tests pass a stub.
+- **Fetch policy** (the source is a personal API, so over-fetching is a bug): on server start, only when the newest fetched rate was fetched more than 24 hours ago, from that rate's date (inclusive: the day may not have been final) through today; a first run starts at `FIRST_RATE_DATE`. Refresh in Settings does the same without the 24-hour wait. `backfillRatesFrom` asks only for dates before the earliest fetched rate, once per start date. Overlapping refreshes share one request. Hand-entered rates don't count as fetched and are never overwritten. A failure is logged and stores nothing; it never stops the server.
+- **API** (`routes/exchangeRates.ts`, `createExchangeRatesRouter(source)`): `GET /api/exchange-rates` (`{ rates, current, lastFetchedAt }`, never contacts the source), `POST /api/exchange-rates/refresh` (a failure is a JSON 500, not 502-504, which the page would read as "server unreachable"), `PUT /api/exchange-rates/:date` with `{ rate }` (by hand; dates up to today).
+- **UI**: Settings → Exchange rates (`?tab=rates`, `components/settings/ExchangeRates.tsx`, helpers in `utils/exchangeRates.ts`): today's rate, when rates were last fetched, rates by month, Refresh (hidden in the demo) and entering or correcting one date.
 
 ### Bank Sync (Plaid, SimpleFin)
 
