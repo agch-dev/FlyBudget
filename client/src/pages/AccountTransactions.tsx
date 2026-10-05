@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { CheckSquare, ChevronRight, Landmark, Pencil, RefreshCw } from 'lucide-react';
 import { useAccounts } from '../hooks/useAccounts';
 import { Badge } from '../components/ui/Badge';
@@ -13,6 +14,7 @@ import { UpdateValueModal } from '../components/accounts/UpdateValueModal';
 import { accountTypeInfo } from '../utils/accountTypes';
 
 export default function AccountTransactionsPage() {
+  const { t } = useTranslation('accounts');
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { data: accounts = [], isLoading } = useAccounts();
@@ -25,9 +27,9 @@ export default function AccountTransactionsPage() {
     return (
       <EmptyState
         icon={<Landmark size={26} />}
-        title="Account not found"
-        description="It may have been closed or deleted, or the link is out of date."
-        actions={<ButtonLink to="/accounts">Go to Accounts</ButtonLink>}
+        title={t('detail.notFoundTitle')}
+        description={t('detail.notFoundDescription')}
+        actions={<ButtonLink to="/accounts">{t('detail.goToAccounts')}</ButtonLink>}
       />
     );
   }
@@ -38,7 +40,7 @@ export default function AccountTransactionsPage() {
       <div className="px-6 py-3 border-b border-border bg-surface shrink-0">
         <div className="flex items-center gap-1.5 text-xs text-text-tertiary mb-1">
           <Link to="/accounts" className="hover:text-brand-600 transition-colors">
-            Accounts
+            {t('nav.accounts', { ns: 'common' })}
           </Link>
           <ChevronRight size={11} />
           <span className="text-text-secondary">{account.name}</span>
@@ -56,12 +58,13 @@ export default function AccountTransactionsPage() {
           </div>
           <div className="flex items-center gap-2">
             <Button variant="secondary" size="sm" onClick={() => setEditOpen(true)}>
-              <Pencil size={13} /> Edit
+              <Pencil size={13} /> {t('detail.edit')}
             </Button>
             {/* Investments, property and loans are usually tracked by value, not transactions */}
             {!typeInfo.onBudget && (
               <Button variant="secondary" size="sm" onClick={() => setUpdateValueOpen(true)}>
-                <RefreshCw size={13} /> {typeInfo.liability ? 'Update balance' : 'Update value'}
+                <RefreshCw size={13} />{' '}
+                {typeInfo.liability ? t('detail.updateBalance') : t('detail.updateValue')}
               </Button>
             )}
             {typeInfo.group !== 'property' && (
@@ -70,7 +73,7 @@ export default function AccountTransactionsPage() {
                 size="sm"
                 onClick={() => navigate(`/accounts/${account.id}/reconcile`)}
               >
-                <CheckSquare size={13} /> Reconcile
+                <CheckSquare size={13} /> {t('detail.reconcile')}
               </Button>
             )}
           </div>

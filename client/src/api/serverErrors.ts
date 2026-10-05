@@ -19,8 +19,21 @@ interface TranslatedError {
   /** Matched against the path without its query string */
   path: RegExp;
   status: number;
-  /** The sentence in the current language */
-  text: () => string;
+  /**
+   * The sentence in the current language. A route that refuses with one of several sentences
+   * picks by the server's message, and answers null for one it doesn't know.
+   */
+  text: (message: string) => string | null;
+}
+
+/** The locks on an account's currency (`CURRENCY_LOCK_MESSAGE` on the server) */
+const CURRENCY_LOCKS = ['transactions', 'recurring', 'goal'] as const;
+
+function currencyLocked(message: string): string | null {
+  const lock = CURRENCY_LOCKS.find(
+    (l) => t(`accounts:errors.currencyLocked.${l}`, { lng: 'en' }) === message,
+  );
+  return lock ? t(`accounts:errors.currencyLocked.${lock}`) : null;
 }
 
 /**
@@ -48,6 +61,8 @@ const TRANSLATED: TranslatedError[] = [
   },
   // The limit on failed attempts (login, setup, password changes)
   { path: /^\/auth\//, status: 429, text: () => t('auth:errors.tooManyAttempts') },
+  // Changing the currency of an account something depends on
+  { method: 'PUT', path: /^\/accounts\/[^/]+$/, status: 409, text: currencyLocked },
 ];
 
 /**
@@ -63,5 +78,5 @@ export function serverErrorMessage(refusal: ServerRefusal): string {
       (!e.method || e.method === refusal.method) &&
       e.path.test(path),
   );
-  return known ? known.text() : refusal.message;
+  return known?.text(refusal.message) ?? refusal.message;
 }

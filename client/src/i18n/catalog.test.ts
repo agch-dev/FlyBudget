@@ -9,7 +9,6 @@ import { CATALOGS, NAMESPACES, catalogKeys, type Namespace } from './catalog';
 const STILL_TO_TRANSLATE: Namespace[] = [
   'transactions',
   'import',
-  'budget',
   'reports',
   'settings',
 ];
@@ -55,6 +54,13 @@ describe.each(NAMESPACES)('the %s catalog', (ns) => {
       const other = keys.filter((k) => k.endsWith('_other')).map((k) => k.replace(/_other$/, ''));
       expect(one).toEqual(other);
     }
+  });
+
+  // `Trans` reads a sentence as HTML, where these elements have no content: the words inside
+  // `<link>Add account</link>` would land outside the link. Name the tag something else.
+  it('names no tag after an HTML element that cannot have content', () => {
+    const empty = /<(area|base|br|col|embed|hr|img|input|link|meta|source|track|wbr)>/;
+    expect(english.filter((key) => empty.test(text(CATALOGS.en[ns], key)))).toEqual([]);
   });
 });
 

@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { format, parseISO } from 'date-fns';
 import { ChevronRight } from 'lucide-react';
 import {
@@ -51,8 +52,10 @@ function HistoryChart({
   selectedBarMonth,
   onBarClick,
 }: HistoryChartProps) {
+  const { t, i18n } = useTranslation('budget');
   const { data } = useCategoryHistory(categoryId, month);
 
+  // Month names follow the App Language, so they are worked out again when it changes
   const chartData = useMemo(
     () =>
       (data?.history ?? []).map((h) => ({
@@ -60,7 +63,7 @@ function HistoryChart({
         rawMonth: h.month,
         amount: h.amount / 100,
       })),
-    [data],
+    [data, i18n.language],
   );
 
   const hasData = chartData.some((d) => d.amount > 0);
@@ -78,7 +81,7 @@ function HistoryChart({
       className="bg-surface rounded-lg shadow-card border border-border-light p-4"
       onClick={() => onBarClick(null)}
     >
-      <h2 className="text-sm font-semibold text-text mb-3">Spending History</h2>
+      <h2 className="text-sm font-semibold text-text mb-3">{t('category.spendingHistory')}</h2>
       {hasData ? (
         <div ref={xAxis.ref}>
           <ResponsiveContainer width="100%" height={200}>
@@ -125,7 +128,7 @@ function HistoryChart({
         </div>
       ) : (
         <div className="h-[200px] flex items-center justify-center">
-          <p className="text-sm text-text-disabled">No history available</p>
+          <p className="text-sm text-text-disabled">{t('history.none')}</p>
         </div>
       )}
     </div>
@@ -145,25 +148,26 @@ function BudgetWidget({
   month: string;
   isIncome: boolean;
 }) {
+  const { t } = useTranslation('budget');
   const remColor = remaining > 0 ? 'text-positive' : remaining < 0 ? 'text-negative' : 'text-text';
 
   return (
     <div className="bg-surface rounded-lg shadow-card border border-border-light p-4">
-      <h2 className="text-sm font-semibold text-text">Budget</h2>
-      <p className="text-xs text-text-tertiary mt-0.5">
+      <h2 className="text-sm font-semibold text-text">{t('category.budget')}</h2>
+      <p className="text-xs text-text-tertiary mt-0.5 first-letter:uppercase">
         {format(parseISO(`${month}-01`), 'MMMM yyyy')}
       </p>
       <div className="mt-3 border-t border-border-light pt-3 space-y-2.5">
         <div className="flex items-center justify-between">
-          <span className="text-sm text-text-secondary">Planned</span>
+          <span className="text-sm text-text-secondary">{t('columns.planned')}</span>
           <span className="text-sm tabular-nums text-text">{formatCurrency(budgeted)}</span>
         </div>
         <div className="flex items-center justify-between">
-          <span className="text-sm text-text-secondary">Actual</span>
+          <span className="text-sm text-text-secondary">{t('columns.actual')}</span>
           <span className="text-sm tabular-nums text-text">{formatCurrency(actual)}</span>
         </div>
         <div className="flex items-center justify-between">
-          <span className="text-sm text-text-secondary">Remaining</span>
+          <span className="text-sm text-text-secondary">{t('columns.remaining')}</span>
           <span className={`text-sm tabular-nums font-medium ${remColor}`}>
             {formatCurrency(remaining)}
           </span>
@@ -194,9 +198,10 @@ function SummaryWidget({
   categoryId: string;
   isIncome: boolean;
 }) {
+  const { t } = useTranslation('budget');
   const stats = useMemo(() => {
     const amounts = transactions
-      .map((t) => amountInCategory(t, categoryId))
+      .map((tx) => amountInCategory(tx, categoryId))
       .filter((a) => a !== null)
       .map(Math.abs);
     if (amounts.length === 0) return null;
@@ -204,7 +209,7 @@ function SummaryWidget({
     const total = amounts.reduce((s, a) => s + a, 0);
     const largest = Math.max(...amounts);
     const average = Math.round(total / amounts.length);
-    const dates = transactions.map((t) => t.date).sort();
+    const dates = transactions.map((tx) => tx.date).sort();
 
     return {
       count: amounts.length,
@@ -218,22 +223,30 @@ function SummaryWidget({
 
   const rows = stats
     ? [
-        { label: 'Total transactions', value: String(stats.count), isAmount: false },
-        { label: 'Largest transaction', value: formatCurrency(stats.largest), isAmount: true },
-        { label: 'Average transaction', value: formatCurrency(stats.average), isAmount: true },
+        { label: t('category.summary.count'), value: String(stats.count), isAmount: false },
         {
-          label: `Total ${isIncome ? 'income' : 'spending'}`,
+          label: t('category.summary.largest'),
+          value: formatCurrency(stats.largest),
+          isAmount: true,
+        },
+        {
+          label: t('category.summary.average'),
+          value: formatCurrency(stats.average),
+          isAmount: true,
+        },
+        {
+          label: isIncome ? t('category.summary.totalIncome') : t('category.summary.totalSpending'),
           value: formatCurrency(stats.total),
           isAmount: true,
         },
         {
-          label: 'First transaction',
-          value: format(parseISO(stats.firstDate), 'MMM d, yyyy'),
+          label: t('category.summary.first'),
+          value: format(parseISO(stats.firstDate), 'PP'),
           isAmount: false,
         },
         {
-          label: 'Last transaction',
-          value: format(parseISO(stats.lastDate), 'MMM d, yyyy'),
+          label: t('category.summary.last'),
+          value: format(parseISO(stats.lastDate), 'PP'),
           isAmount: false,
         },
       ]
@@ -241,9 +254,11 @@ function SummaryWidget({
 
   return (
     <div className="bg-surface rounded-lg shadow-card border border-border-light p-4">
-      <h2 className="text-sm font-semibold text-text mb-3">Summary</h2>
+      <h2 className="text-sm font-semibold text-text mb-3">{t('category.summary.title')}</h2>
       {!stats ? (
-        <p className="text-sm text-text-disabled py-6 text-center">No data</p>
+        <p className="text-sm text-text-disabled py-6 text-center">
+          {t('category.summary.noData')}
+        </p>
       ) : (
         <div className="border-t border-border-light pt-3 space-y-2.5">
           {rows.map((row) => (
@@ -259,6 +274,7 @@ function SummaryWidget({
 }
 
 export default function CategoryDetailPage() {
+  const { t } = useTranslation('budget');
   const { id } = useParams<{ id: string }>();
   const selectedMonth = useAppStore((s) => s.selectedMonth);
   const [selectedBarMonth, setSelectedBarMonth] = useState<string | null>(selectedMonth);
@@ -282,7 +298,7 @@ export default function CategoryDetailPage() {
   }, [budgetData, id]);
 
   const isIncome = historyData?.isIncome ?? cat?.isIncome ?? false;
-  const categoryName = cat?.name ?? 'Category';
+  const categoryName = cat?.name ?? t('category.fallbackName');
 
   const actual = cat ? (isIncome ? cat.balance : cat.spent) : 0;
   const rawRemaining = cat ? cat.budgeted - actual : 0;
@@ -296,7 +312,7 @@ export default function CategoryDetailPage() {
             to="/budget"
             className="font-semibold text-text hover:text-brand-600 transition-colors"
           >
-            Budget
+            {t('nav.budget', { ns: 'common' })}
           </Link>
           <ChevronRight size={14} className="text-text-tertiary" />
           <span className="font-semibold text-text">

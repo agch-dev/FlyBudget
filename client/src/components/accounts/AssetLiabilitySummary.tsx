@@ -1,30 +1,31 @@
 import { useMemo } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { formatCurrency } from '../../utils/currency';
 import { balancesTotal } from '../../utils/balanceConversion';
 import { useBalanceRates } from '../../hooks/useExchangeRates';
 import { useViewingCurrency } from '../../hooks/useViewingCurrency';
 import { chartColors } from '../../utils/chartColors';
-import { accountTypeInfo } from '../../utils/accountTypes';
+import { accountTypeGroupLabel, accountTypeInfo } from '../../utils/accountTypes';
 import type { Account, AccountTypeGroup, Currency } from '../../types';
 
+/** A group of account types on one side of the balance sheet, named by `accountTypeGroupLabel` */
 interface Bucket {
   group: AccountTypeGroup;
-  label: string;
   color: string;
 }
 
 const ASSET_BUCKETS: Bucket[] = [
-  { group: 'investments', label: 'Investments', color: '#7C3AED' },
-  { group: 'cash', label: 'Cash', color: chartColors.positive },
-  { group: 'property', label: 'Property', color: '#0891B2' },
-  { group: 'other', label: 'Other', color: '#78716C' },
+  { group: 'investments', color: '#7C3AED' },
+  { group: 'cash', color: chartColors.positive },
+  { group: 'property', color: '#0891B2' },
+  { group: 'other', color: '#78716C' },
 ];
 
 const LIABILITY_BUCKETS: Bucket[] = [
-  { group: 'credit', label: 'Credit', color: chartColors.negative },
-  { group: 'loans', label: 'Loans', color: '#EA580C' },
-  { group: 'other', label: 'Other', color: '#9F1239' },
+  { group: 'credit', color: chartColors.negative },
+  { group: 'loans', color: '#EA580C' },
+  { group: 'other', color: '#9F1239' },
 ];
 
 interface Props {
@@ -36,6 +37,7 @@ interface Props {
  * rate is stored)
  */
 export function AssetLiabilitySummary({ accounts }: Props) {
+  const { t } = useTranslation('accounts');
   const viewing = useViewingCurrency();
   const { rates, today } = useBalanceRates();
   const { assets, liabilities } = useMemo(() => {
@@ -57,19 +59,19 @@ export function AssetLiabilitySummary({ accounts }: Props) {
   return (
     <div>
       <Section
-        title="Assets"
+        title={t('summary.assets')}
         buckets={ASSET_BUCKETS}
         sums={assets}
         currency={viewing}
-        emptyText="No bank accounts, investments or property yet."
+        emptyKey="summary.noAssets"
       />
       <div className="border-t border-border-light my-4" />
       <Section
-        title="Liabilities"
+        title={t('summary.liabilities')}
         buckets={LIABILITY_BUCKETS}
         sums={liabilities}
         currency={viewing}
-        emptyText="No credit cards or loans yet."
+        emptyKey="summary.noLiabilities"
         owed
       />
     </div>
@@ -82,8 +84,8 @@ interface SectionProps {
   sums: Map<AccountTypeGroup, number>;
   /** The currency the sums are in */
   currency: Currency;
-  /** Shown when there are no accounts on this side at all */
-  emptyText: string;
+  /** The sentence shown when there are no accounts on this side at all, with its link */
+  emptyKey: 'summary.noAssets' | 'summary.noLiabilities';
   /** Liabilities: balances are negative */
   owed?: boolean;
 }
@@ -92,7 +94,8 @@ interface SectionProps {
  * One side of the balance sheet. Only groups with accounts are listed: a "$0" row for a
  * group you haven't added would read as "you have none", not "not tracked yet".
  */
-function Section({ title, buckets, sums, currency, emptyText, owed = false }: SectionProps) {
+function Section({ title, buckets, sums, currency, emptyKey, owed = false }: SectionProps) {
+  const { t } = useTranslation('accounts');
   const rows = buckets.filter((b) => sums.has(b.group));
   const total = rows.reduce((s, b) => s + (sums.get(b.group) ?? 0), 0);
   // Bar widths use magnitudes; a bucket on the "wrong" side (overpaid card) gets no width
@@ -126,13 +129,18 @@ function Section({ title, buckets, sums, currency, emptyText, owed = false }: Se
 
       {rows.length === 0 && (
         <p className="mt-2 text-sm text-text-tertiary">
-          {emptyText}{' '}
-          <Link
-            to="/accounts?add=1"
-            className="font-medium text-brand-600 hover:text-brand-700 whitespace-nowrap"
-          >
-            Add account
-          </Link>
+          <Trans
+            t={t}
+            i18nKey={emptyKey}
+            components={{
+              add: (
+                <Link
+                  to="/accounts?add=1"
+                  className="font-medium text-brand-600 hover:text-brand-700 whitespace-nowrap"
+                />
+              ),
+            }}
+          />
         </p>
       )}
 
@@ -144,7 +152,7 @@ function Section({ title, buckets, sums, currency, emptyText, owed = false }: Se
                 className="inline-block w-2.5 h-2.5 rounded-full"
                 style={{ backgroundColor: b.color }}
               />
-              <span className="text-sm text-text-secondary">{b.label}</span>
+              <span className="text-sm text-text-secondary">{accountTypeGroupLabel(b.group)}</span>
             </div>
             <span className="text-sm tabular-nums text-text">
               {formatCurrency(sums.get(b.group) ?? 0, currency)}

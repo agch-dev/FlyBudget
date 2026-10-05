@@ -1,5 +1,6 @@
 import { CURRENCIES, HOME_CURRENCY, type Currency } from '../types';
 import { formatCurrency } from './currency';
+import { t } from '../i18n';
 
 // Balances across currencies (docs/adr/0001). A balance converts at the exchange rate of the
 // day it is shown for (today, for the sidebar totals), unlike a transaction, which the server
@@ -101,7 +102,8 @@ export function totalAndChange(
  * The currency the total is shown in comes first. Null when there is nothing in any other
  * currency (the total already says it all). A currency in `leftOut` could not be converted
  * (no exchange rate stored), so the total above the line does not include it: the line says
- * so instead of looking like a sum that doesn't add up.
+ * so instead of looking like a sum that doesn't add up (in the App Language: the component
+ * showing the line calls `useTranslation()`).
  */
 export function breakdownLine(
   native: Partial<Record<Currency, number>> | undefined,
@@ -114,8 +116,9 @@ export function breakdownLine(
   return others.reduce(
     (line, c) => {
       const cents = native[c] ?? 0;
-      const note = leftOut.includes(c) ? ' not counted (no exchange rate)' : '';
-      return `${line} ${cents < 0 ? '−' : '+'} ${formatCurrency(Math.abs(cents), c)}${note}`;
+      const amount = formatCurrency(Math.abs(cents), c);
+      const part = leftOut.includes(c) ? t('accounts:breakdown.notCounted', { amount }) : amount;
+      return `${line} ${cents < 0 ? '−' : '+'} ${part}`;
     },
     formatCurrency(native[shownIn] ?? 0, shownIn),
   );
