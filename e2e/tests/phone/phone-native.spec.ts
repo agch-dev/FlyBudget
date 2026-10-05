@@ -316,6 +316,22 @@ test.describe('dialogs and touch targets', () => {
       expect(height, name).toBeGreaterThanOrEqual(TOUCH);
     }
   });
+
+  test('an account group row in the menu is a full-size control', async ({ page, api }) => {
+    await api.createAccount('Visa pesos', 150_000, 'checking', { groupName: 'Visa Itaú' });
+    await api.createAccount('Visa dolares', 0, 'checking', { groupName: 'Visa Itaú' });
+    await open(page, '/accounts');
+    await page.getByRole('button', { name: 'Open menu' }).click();
+    const nav = page.getByRole('complementary');
+    await nav.getByRole('button', { name: /^For budget/ }).click();
+    const group = nav.getByRole('button', { name: 'Visa Itaú $1,500' });
+    const { height } = await size(group);
+    expect(height).toBeGreaterThanOrEqual(TOUCH);
+
+    await group.click();
+    await expect(group).toHaveAttribute('aria-expanded', 'true');
+    await expect(nav.getByRole('link', { name: 'Visa pesos $1,500' })).toBeVisible();
+  });
 });
 
 test('report summary figures fit their card', async ({ page, api }) => {

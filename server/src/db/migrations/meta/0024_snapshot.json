@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "7436bed7-0f5d-440c-b073-4cc973e71e86",
-  "prevId": "6e6b90e7-9b3e-4795-96ee-0b33806446e1",
+  "id": "6e6b90e7-9b3e-4795-96ee-0b33806446e1",
+  "prevId": "e3475c70-4717-4217-bd69-94e4e5beace7",
   "tables": {
     "accounts": {
       "name": "accounts",
@@ -589,21 +589,13 @@
           "notNull": false,
           "autoincrement": false
         },
-        "currency": {
-          "name": "currency",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "'UYU'"
-        },
         "icon": {
           "name": "icon",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": "'ðŸŽ¯'"
+          "default": "'\u00f0\u0178\u017d\u00af'"
         },
         "color": {
           "name": "color",

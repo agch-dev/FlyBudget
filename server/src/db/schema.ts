@@ -30,6 +30,12 @@ export const accounts = sqliteTable('accounts', {
   logo: text('logo'),
   /** 'UYU' (pesos) or 'USD' (dollars): see utils/currency.ts. Every amount in the account is in it */
   currency: text('currency').$type<Currency>().notNull().default('UYU'),
+  /**
+   * Its Account Group: accounts with the same name are shown together. Null = no group.
+   * A group is only this shared name (no table, nothing unique), so it is gone when no
+   * account names it, and two devices typing the same name end up in the same group
+   */
+  groupName: text('group_name'),
   createdAt: text('created_at')
     .notNull()
     .default(sql`(datetime('now'))`),
