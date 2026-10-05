@@ -324,6 +324,8 @@ async function take(browser: Browser, shot: Shot) {
     isMobile: shot.phone,
     hasTouch: shot.phone,
     colorScheme: shot.dark ? 'dark' : 'light',
+    // The website is in English: the app follows the browser's language otherwise
+    locale: 'en-US',
   });
   try {
     const page = await context.newPage();

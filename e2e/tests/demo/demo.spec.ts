@@ -1,12 +1,18 @@
 import { test as base, expect, type Page } from '@playwright/test';
 import fs from 'fs';
+import { pinLanguage } from '../language';
 
 // The website's "Try the demo" (client built with `--mode demo`, served under /demo/): the
 // real app, with the server's routes running in a Web Worker on a sample budget. Nothing
 // here talks to a FlyBudget server.
 
-// Like the other suites: a test fails if the page throws or logs a console error
+// Like the other suites: a test fails if the page throws or logs a console error, and the app
+// is in English whatever the browser's language
 const test = base.extend<{ consoleGuard: void }>({
+  context: async ({ context }, use) => {
+    await pinLanguage(context, 'en', 'sessionStorage');
+    await use(context);
+  },
   consoleGuard: [
     async ({ page }, use, testInfo) => {
       const errors: string[] = [];
@@ -242,6 +248,30 @@ test("the demo's preferences stay in the tab, and Start over resets them", async
   await page.getByRole('button', { name: 'Start over' }).click();
   await expect(page.getByText('Left to Spend')).toBeVisible();
   await expect(page.locator('html')).not.toHaveClass(/dark/);
+});
+
+test('the demo can be read in Spanish, and Start over goes back to the browser language', async ({
+  page,
+}) => {
+  await openDemo(page, '/settings?tab=preferences');
+  await page
+    .getByRole('radiogroup', { name: 'App language' })
+    .getByRole('radio', { name: 'Español' })
+    .click();
+
+  const banner = page.getByRole('region', { name: 'Demo' });
+  await expect(banner).toContainText('Este es un presupuesto de demostración.');
+  await expect(page.locator('html')).toHaveAttribute('lang', 'es');
+  await expect(
+    page.getByRole('complementary').getByRole('link', { name: 'Cuentas', exact: true }),
+  ).toBeVisible();
+  // In this tab only, like the other preferences
+  expect(await page.evaluate(() => localStorage.getItem('budget-preferences'))).toBeNull();
+
+  await banner.getByRole('button', { name: 'Empezar de nuevo' }).click();
+  await expect(page.getByText('Left to Spend')).toBeVisible();
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+  await expect(banner).toContainText('This is a demo budget.');
 });
 
 test('the demo runs under a strict Content Security Policy', async ({ page }) => {

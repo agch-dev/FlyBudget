@@ -1,9 +1,11 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type BrowserContext, type Page } from '@playwright/test';
 import { SERVER_PORT } from '../../ports';
+import { pinLanguage } from '../language';
 
 // Self-hosted server mode (Docker): the first visitor sets a password with the setup
 // code from the server log, and everything else needs a login. These tests share one
-// server and run in order, like a real first week with FlyBudget.
+// server and run in order, like a real first week with FlyBudget. The app is in English
+// whatever the browser's language (each context pins it).
 
 test.describe.configure({ mode: 'serial' });
 
@@ -14,9 +16,18 @@ const NEW_PASSWORD = 'even better passphrase';
 let owner: Page;
 
 test.beforeAll(async ({ browser }) => {
-  owner = await (await browser.newContext()).newPage();
+  owner = await (await english(await browser.newContext())).newPage();
 });
 test.afterAll(async () => owner.context().close());
+
+async function english(context: BrowserContext) {
+  await pinLanguage(context, 'en');
+  return context;
+}
+
+test.beforeEach(async ({ context }) => {
+  await english(context);
+});
 
 async function signIn(page: Page, password: string) {
   await page.getByLabel('Password', { exact: true }).fill(password);
@@ -73,15 +84,27 @@ test('another browser sees only the login screen', async ({ page, baseURL }) => 
   await page.goto(`${baseURL}/accounts`);
   await expect(page.getByText('Sign in to FlyBudget')).toBeVisible();
   await expect(page.getByText('Credit Union')).toBeHidden();
-  await signIn(page, 'not the password');
-  await expect(page.getByText('Incorrect password')).toBeVisible();
+
+  // The sign-in screen comes before Settings, so the language switch is on it
+  const language = page.getByRole('radiogroup', { name: /^(App language|Idioma de la app)$/ });
+  await language.getByRole('radio', { name: 'Español' }).click();
+  await expect(page.getByRole('heading', { name: 'Iniciar sesión en FlyBudget' })).toBeVisible();
+  await expect(page.getByLabel('Dirección del servidor')).toHaveText(`localhost:${SERVER_PORT}`);
+  await page.getByLabel('Contraseña', { exact: true }).fill('not the password');
+  await page.getByRole('button', { name: 'Iniciar sesión' }).click();
+  // The server answers in English; the app translates the errors of signing in
+  await expect(page.getByText('Contraseña incorrecta')).toBeVisible();
+  await expect(page.getByText('Incorrect password')).toBeHidden();
+
+  await language.getByRole('radio', { name: 'English' }).click();
+  await expect(page.getByText('Sign in to FlyBudget')).toBeVisible();
   await signIn(page, PASSWORD);
   await expect(page.getByRole('heading', { level: 1, name: 'Accounts' })).toBeVisible();
   await expect(page.getByRole('main')).toContainText('Credit Union');
 });
 
 test('changing the password signs out other browsers', async ({ browser, baseURL }) => {
-  const other = await (await browser.newContext()).newPage();
+  const other = await (await english(await browser.newContext())).newPage();
   await other.goto(`${baseURL}/`);
   await signIn(other, PASSWORD);
   await expect(other.getByRole('complementary')).toBeVisible();
@@ -131,7 +154,7 @@ test('Settings → Server shows the security check and signed-in devices', async
   browser,
   baseURL,
 }) => {
-  const phone = await (await browser.newContext()).newPage();
+  const phone = await (await english(await browser.newContext())).newPage();
   await phone.goto(`${baseURL}/`);
   await signIn(phone, NEW_PASSWORD);
   await expect(phone.getByRole('complementary')).toBeVisible();
@@ -294,7 +317,7 @@ test('warns before sending the password over plain HTTP to another machine', asy
     ],
   });
   try {
-    const page = await browser.newPage();
+    const page = await browser.newPage({ locale: 'en-US' });
     await page.goto(`http://flybudget.test:${SERVER_PORT}/`);
     await expect(page.getByText('Sign in to FlyBudget')).toBeVisible();
     await expect(page.getByLabel('Server address')).toHaveText(`flybudget.test:${SERVER_PORT}`);

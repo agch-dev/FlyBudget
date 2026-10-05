@@ -6,6 +6,7 @@ import {
   type Locator,
   type Page,
 } from '@playwright/test';
+import { pinLanguage, type AppLanguage } from './language';
 
 // Fixtures for the desktop-app suite.
 //
@@ -15,6 +16,8 @@ import {
 //   switches the app to hash routing) and the per-launch API token cookie.
 // - `api` seeds data through the HTTP API with the same token.
 // - A test fails if the page throws or logs a console error.
+// - The app is in English whatever the browser's language (the `language` option; `null`
+//   leaves it to the browser, like a device that has never chosen).
 
 const token = () => process.env.E2E_API_TOKEN!;
 
@@ -90,9 +93,17 @@ let fresh: unknown;
 const freshSnapshot = () =>
   (fresh ??= JSON.parse(gunzipSync(Buffer.from(process.env.E2E_SNAPSHOT!, 'base64')).toString()));
 
-type Fixtures = { api: Api; resetDatabase: void; consoleGuard: void };
+type Fixtures = {
+  api: Api;
+  resetDatabase: void;
+  consoleGuard: void;
+  /** The App Language preference the pages start with; null = never chosen */
+  language: AppLanguage | null;
+};
 
 export const test = base.extend<Fixtures>({
+  language: ['en', { option: true }],
+
   resetDatabase: [
     async ({ playwright, baseURL }, use) => {
       const request = await playwright.request.newContext({
@@ -109,7 +120,8 @@ export const test = base.extend<Fixtures>({
     { auto: true },
   ],
 
-  context: async ({ context, baseURL }, use) => {
+  context: async ({ context, baseURL, language }, use) => {
+    if (language) await pinLanguage(context, language);
     await context.addInitScript((apiBase) => {
       (window as unknown as { __API_BASE__: string }).__API_BASE__ = apiBase;
     }, `${baseURL}/api`);
