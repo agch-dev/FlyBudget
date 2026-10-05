@@ -1,9 +1,12 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import { format } from 'date-fns';
 import { formatCurrency } from '../../utils/currency';
+import { balancesTotal, type DatedRate } from '../../utils/balanceConversion';
+import { useExchangeRates } from '../../hooks/useExchangeRates';
 import { chartColors } from '../../utils/chartColors';
 import { accountTypeInfo } from '../../utils/accountTypes';
-import type { Account, AccountGroup } from '../../types';
+import { HOME_CURRENCY, type Account, type AccountGroup } from '../../types';
 
 interface Bucket {
   group: AccountGroup;
@@ -24,22 +27,31 @@ const LIABILITY_BUCKETS: Bucket[] = [
   { group: 'other', label: 'Other', color: '#9F1239' },
 ];
 
+const NO_RATES: DatedRate[] = [];
+
 interface Props {
   accounts: Account[];
 }
 
+/** In pesos: dollar balances count at today's rate (left out while no rate is stored) */
 export function AssetLiabilitySummary({ accounts }: Props) {
+  const rates = useExchangeRates().data?.rates ?? NO_RATES;
+  const today = format(new Date(), 'yyyy-MM-dd');
   const { assets, liabilities } = useMemo(() => {
-    // Sums per group, and which groups have any accounts at all
-    const assetSums = new Map<AccountGroup, number>();
-    const liabilitySums = new Map<AccountGroup, number>();
+    // Accounts per group (which also says which groups have any accounts at all), then summed
+    const assetAccounts = new Map<AccountGroup, Account[]>();
+    const liabilityAccounts = new Map<AccountGroup, Account[]>();
     for (const a of accounts) {
       const info = accountTypeInfo(a.type);
-      const sums = info.liability ? liabilitySums : assetSums;
-      sums.set(info.group, (sums.get(info.group) ?? 0) + a.balance);
+      const side = info.liability ? liabilityAccounts : assetAccounts;
+      side.set(info.group, [...(side.get(info.group) ?? []), a]);
     }
-    return { assets: assetSums, liabilities: liabilitySums };
-  }, [accounts]);
+    const sums = (side: Map<AccountGroup, Account[]>) =>
+      new Map(
+        [...side].map(([group, list]) => [group, balancesTotal(list, HOME_CURRENCY, today, rates)]),
+      );
+    return { assets: sums(assetAccounts), liabilities: sums(liabilityAccounts) };
+  }, [accounts, rates, today]);
 
   return (
     <div>

@@ -1,4 +1,5 @@
 import { HOME_CURRENCY, type Currency } from '../types';
+import { balanceIn } from './balanceConversion';
 
 // Account Groups (GLOSSARY.md): accounts of the same real-world product, such as the pesos and
 // dollars sides of one credit card, shown together. A group is only the name its accounts
@@ -60,30 +61,26 @@ export interface GroupTotal {
 }
 
 /**
- * A group's combined balance: every account's native balance, the ones in another currency
+ * A group's combined balance in pesos: every account's balance, the ones in another currency
  * converted at `todayRate` (pesos per dollar; null when no rate is stored). The one place a
- * group's total is worked out. It is in pesos; to follow a viewing currency, or to share the
- * net worth's balance conversion, change this function only.
+ * group's total is worked out, and the conversion itself is the shared balance rule
+ * (`balanceIn`, utils/balanceConversion.ts). To follow a viewing currency, change this
+ * function only.
  */
 export function groupTotal(
   accounts: readonly GroupableAccount[],
   todayRate: number | null,
 ): GroupTotal {
+  // A single rate is the rate of every day, so the day it is asked for doesn't matter
+  const rates = todayRate === null ? [] : [{ date: '', rate: todayRate }];
   let total = 0;
   let complete = true;
   for (const account of accounts) {
-    if (account.currency === HOME_CURRENCY) total += account.balance;
-    else if (todayRate === null) complete = false;
-    else total += dollarsToPesos(account.balance, todayRate);
+    const converted = balanceIn(account.balance, account.currency, HOME_CURRENCY, '', rates);
+    if (converted === null) complete = false;
+    else total += converted;
   }
   return { currency: HOME_CURRENCY, total, complete };
-}
-
-/** Whole cents, halves away from zero: the server's `convertCents` rule for dollars → pesos */
-function dollarsToPesos(cents: number, rate: number): number {
-  const exact = cents * rate;
-  const rounded = Math.sign(exact) * Math.floor(Math.abs(exact) + 0.5);
-  return rounded === 0 ? 0 : rounded;
 }
 
 /** The open groups after clicking `name`'s row: opened if it was closed, closed if open */

@@ -17,7 +17,7 @@ import { Card } from '../components/ui/Card';
 import { EmptyState } from '../components/ui/EmptyState';
 import { useOpenFromLink } from '../hooks/useOpenFromLink';
 import { docsUrl } from '../utils/project';
-import { formatCurrency, homeCurrencyTotal, inHomeCurrency } from '../utils/currency';
+import { formatCurrency, homeCurrencyTotal } from '../utils/currency';
 import NetWorthMini from '../components/dashboard/NetWorthMini';
 import { ACCOUNT_GROUPS, HOME_CURRENCY, type Account, type AccountGroup } from '../types';
 import { AccountIcon } from '../components/accounts/AccountIcon';
@@ -219,17 +219,17 @@ export default function AccountsPage() {
                 <NetWorthMini />
               </Card>
               <Card>
-                <AssetLiabilitySummary accounts={inHomeCurrency(accounts)} />
+                <AssetLiabilitySummary accounts={accounts} />
               </Card>
             </div>
           </div>
 
           <div className="px-6 pb-6 space-y-4">
-            {accounts.some((a) => a.currency !== HOME_CURRENCY) && (
+            {byType.some((g) => g.accounts.some((a) => a.currency !== HOME_CURRENCY)) && (
               <p className="text-xs text-text-tertiary">
-                The totals below are in pesos and don&apos;t include dollar accounts yet. Each
-                dollar account shows its own balance; net worth counts it at the day&apos;s rate.
-                {groups.length > 0 && " A group's total does too, at today's exchange rate."}
+                The totals by account type below are in pesos and don&apos;t include dollar accounts
+                yet; each dollar account shows its own balance. Net worth, assets and liabilities
+                count them at the exchange rate.
               </p>
             )}
             {groups.map((g) => (
