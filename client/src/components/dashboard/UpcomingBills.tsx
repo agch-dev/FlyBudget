@@ -105,7 +105,7 @@ export default function UpcomingBills() {
                     occ.expectedAmount > 0 ? 'text-positive' : 'text-text'
                   }`}
                 >
-                  {formatCurrency(occ.expectedAmount)}
+                  {formatCurrency(occ.expectedAmount, occ.currency)}
                 </span>
               </div>
             );

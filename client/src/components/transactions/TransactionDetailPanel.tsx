@@ -14,6 +14,7 @@ import { usePreferencesStore } from '../../store/preferencesStore';
 import { AccountIcon } from '../accounts/AccountIcon';
 import { formatCurrency } from '../../utils/currency';
 import { convertedNote } from '../../utils/conversion';
+import { TransferRate } from './TransferRate';
 import { HOME_CURRENCY, RECURRENCE_TYPE_LABELS } from '../../types';
 import type {
   Transaction,
@@ -254,6 +255,18 @@ export function TransactionDetailPanel({
           ) : isTransfer ? (
             <div className="text-sm text-brand-500 px-3 py-2 border border-border rounded-lg bg-surface-alt">
               Transfer
+              {/* Between a pesos and a dollars account: the other side's own amount and the rate */}
+              {tx.transfer && tx.transfer.rate !== null && (
+                <div className="mt-1 text-xs text-text-secondary tabular-nums">
+                  <p>
+                    {formatCurrency(Math.abs(tx.transfer.amount), tx.transfer.currency)}{' '}
+                    {tx.transfer.amount > 0 ? 'arrived in' : 'left'}{' '}
+                    {accounts.find((a) => a.id === tx.transfer!.accountId)?.name ??
+                      'the other account'}
+                  </p>
+                  <TransferRate rate={tx.transfer.rate} />
+                </div>
+              )}
             </div>
           ) : (
             <div className="relative">

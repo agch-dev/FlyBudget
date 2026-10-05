@@ -29,6 +29,7 @@ const arbDate = fc
 
 const arbTx: fc.Arbitrary<TxState> = fc.record({
   accountId: fc.constantFrom('a1', 'a2'),
+  currency: fc.constantFrom('UYU', 'USD'),
   date: arbDate,
   amount: fc.integer({ min: -1_000_000_00, max: 1_000_000_00 }),
   payeeId: fc.option(fc.constantFrom('p1', 'p2', 'p3')),
@@ -80,6 +81,11 @@ const arbStableCondition: fc.Arbitrary<Condition> = fc.oneof(
     field: fc.constant('account' as const),
     op: fc.constantFrom('is', 'is_not'),
     value: fc.constantFrom('a1', 'a2'),
+  }),
+  fc.record({
+    field: fc.constant('currency' as const),
+    op: fc.constant('is' as const),
+    value: fc.constantFrom('UYU', 'USD'),
   }),
 );
 
@@ -178,7 +184,14 @@ describe('rule conditions (property-based)', () => {
     fc.assert(
       fc.property(arbTx, arbCondition, (tx, c) => {
         const neg = opposite[c.op as keyof typeof opposite];
-        if (!neg || c.field === 'amount' || c.field === 'date' || c.field === 'direction') return;
+        if (
+          !neg ||
+          c.field === 'amount' ||
+          c.field === 'date' ||
+          c.field === 'direction' ||
+          c.field === 'currency'
+        )
+          return;
         expect(evalCondition({ ...c, op: neg } as Condition, tx)).toBe(!evalCondition(c, tx));
       }),
     );
@@ -264,6 +277,71 @@ describe('rule conditions (property-based)', () => {
         const far = { ...tx, amount: Math.round(target * 1.2) };
         expect(evalCondition({ field: 'amount', op: 'approx', value: target }, near)).toBe(true);
         expect(evalCondition({ field: 'amount', op: 'approx', value: target }, far)).toBe(false);
+      }),
+    );
+  });
+});
+
+describe('currency condition (property-based)', () => {
+  const pesos: Condition = { field: 'currency', op: 'is', value: 'UYU' };
+  const dollars: Condition = { field: 'currency', op: 'is', value: 'USD' };
+
+  it('matches exactly the transactions of that currency: every transaction is pesos or dollars, never both', () => {
+    fc.assert(
+      fc.property(arbTx, (tx) => {
+        expect(evalCondition(pesos, { ...tx, currency: 'UYU' })).toBe(true);
+        expect(evalCondition(pesos, { ...tx, currency: 'USD' })).toBe(false);
+        expect(evalCondition(dollars, { ...tx, currency: 'USD' })).toBe(true);
+        expect(evalCondition(dollars, { ...tx, currency: 'UYU' })).toBe(false);
+        expect(evalCondition(pesos, tx)).toBe(!evalCondition(dollars, tx));
+      }),
+    );
+  });
+
+  it('"over 100 in dollars" matches only dollar transactions over 100, and "any" also takes every dollar one', () => {
+    fc.assert(
+      fc.property(arbTx, arbCents, (tx, limit) => {
+        const over: Condition = { field: 'amount', op: 'gt', value: limit };
+        const big = Math.abs(tx.amount) > limit;
+        const usd = tx.currency === 'USD';
+        expect(matchesRule({ conditionsOp: 'and', conditions: [over, dollars] }, tx)).toBe(
+          big && usd,
+        );
+        expect(matchesRule({ conditionsOp: 'or', conditions: [over, dollars] }, tx)).toBe(
+          big || usd,
+        );
+      }),
+    );
+  });
+
+  it('amount conditions compare the native amount: the same cents match in pesos and in dollars', () => {
+    fc.assert(
+      fc.property(arbTx, arbCondition, (tx, c) => {
+        if (c.field !== 'amount') return;
+        expect(evalCondition(c, { ...tx, currency: 'UYU' })).toBe(
+          evalCondition(c, { ...tx, currency: 'USD' }),
+        );
+      }),
+    );
+  });
+
+  it('rules without a currency condition do the same in either currency', () => {
+    const noCurrency = arbRule(arbCondition.filter((c) => c.field !== 'currency'));
+    fc.assert(
+      fc.property(arbTx, fc.array(noCurrency, { maxLength: 5 }), (tx, rules) => {
+        const inPesos = runRules({ ...tx, currency: 'UYU' }, rules, ctx);
+        const inDollars = runRules({ ...tx, currency: 'USD' }, rules, ctx);
+        expect({ ...inDollars.tx, currency: 'UYU' }).toEqual(inPesos.tx);
+        expect(inDollars.split).toEqual(inPesos.split);
+        expect(inDollars.matchedRuleIds).toEqual(inPesos.matchedRuleIds);
+      }),
+    );
+  });
+
+  it('never lets a rule change the currency', () => {
+    fc.assert(
+      fc.property(arbTx, fc.array(arbRule(), { maxLength: 5 }), (tx, rules) => {
+        expect(runRules(tx, rules, ctx).tx.currency).toBe(tx.currency);
       }),
     );
   });

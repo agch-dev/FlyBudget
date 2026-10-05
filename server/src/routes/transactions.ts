@@ -9,7 +9,7 @@ import { buildRuleContext, insertNewTransaction, loadRules } from '../services/r
 import { isoDate } from '../utils/validation.js';
 import { converter } from '../services/currencyConversion.js';
 import { listRates } from '../services/exchangeRateService.js';
-import { HOME_CURRENCY, otherCurrency } from '../utils/currency.js';
+import { HOME_CURRENCY, impliedRate, otherCurrency } from '../utils/currency.js';
 
 export const transactionsRouter = Router();
 
@@ -53,7 +53,13 @@ const transferSchema = z
     fromAccountId: id,
     toAccountId: id,
     date: isoDate,
+    /** Leaving `fromAccountId`, in that account's currency */
     amount: cents.positive(),
+    /**
+     * Arriving in `toAccountId`, in that account's currency. Needed when the two accounts have
+     * different currencies; between accounts of the same currency it is `amount`.
+     */
+    toAmount: cents.positive().optional(),
     notes: z.string().max(5_000).nullable().optional(),
   })
   .refine((t) => t.fromAccountId !== t.toAccountId, 'Choose two different accounts');
@@ -177,8 +183,37 @@ transactionsRouter.get('/', (req, res) => {
     };
   };
 
+  // A transfer's row also says what happened in the other account: its native amount there
+  // and, between a pesos and a dollars account, the rate the two amounts imply
+  const otherSideIds = rows.flatMap((r) => r.transferTransactionId ?? []);
+  const otherSides = new Map(
+    (otherSideIds.length
+      ? db
+          .select({
+            id: transactions.id,
+            accountId: transactions.accountId,
+            amount: transactions.amount,
+          })
+          .from(transactions)
+          .where(inArray(transactions.id, otherSideIds))
+          .all()
+      : []
+    ).map((t) => [t.id, t]),
+  );
+  const withTransfer = (r: (typeof rows)[number]) => {
+    const row = withCurrency(r);
+    const other = r.transferTransactionId ? otherSides.get(r.transferTransactionId) : undefined;
+    if (!other) return row;
+    const side = {
+      accountId: other.accountId,
+      amount: other.amount,
+      currency: currencyOf.get(other.accountId) ?? HOME_CURRENCY,
+    };
+    return { ...row, transfer: { ...side, rate: impliedRate(row, side) } };
+  };
+
   const result = rows.map((r) => ({
-    ...withCurrency(r),
+    ...withTransfer(r),
     ...(r.isParent === 1 ? { children: (childrenMap.get(r.id) ?? []).map(withCurrency) } : {}),
   }));
 
@@ -288,12 +323,25 @@ transactionsRouter.post('/transfer', (req, res) => {
   const parsed = transferSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
 
-  const { id: txId, fromAccountId, toAccountId, date, amount, notes } = parsed.data;
+  const { id: txId, fromAccountId, toAccountId, date, amount, toAmount, notes } = parsed.data;
   const existing = txId && alreadyCreated(txId);
   if (existing) return res.status(200).json(existing);
   const fromAcct = db.select().from(accounts).where(eq(accounts.id, fromAccountId)).get();
   const toAcct = db.select().from(accounts).where(eq(accounts.id, toAccountId)).get();
   if (!fromAcct || !toAcct) return res.status(404).json({ error: 'Account not found' });
+
+  // Each side is stored in its own account's currency, as its statement shows it
+  if (fromAcct.currency !== toAcct.currency && toAmount === undefined) {
+    return res.status(400).json({
+      error: 'These accounts have different currencies: enter the amount arriving too',
+    });
+  }
+  if (fromAcct.currency === toAcct.currency && toAmount !== undefined && toAmount !== amount) {
+    return res.status(400).json({
+      error: 'Between accounts of the same currency the same amount leaves and arrives',
+    });
+  }
+  const arriving = toAmount ?? amount;
 
   const fromId = txId ?? nanoid();
   const toId = nanoid();
@@ -322,7 +370,7 @@ transactionsRouter.post('/transfer', (req, res) => {
     id: toId,
     accountId: toAccountId,
     date,
-    amount,
+    amount: arriving,
     payeeId: null,
     payeeName: `Transfer: ${fromAcct.name}`,
     categoryId: null,
@@ -440,6 +488,32 @@ transactionsRouter.put('/:id', (req, res) => {
     return res.status(400).json({ error: 'Transfers have no category and stay in their accounts' });
   }
 
+  // Between a pesos and a dollars account each side has its own native amount, so an edit to
+  // one says nothing about the other
+  const currencyOfTx = (txId: string) =>
+    db
+      .select({ currency: accounts.currency })
+      .from(transactions)
+      .innerJoin(accounts, eq(accounts.id, transactions.accountId))
+      .where(eq(transactions.id, txId))
+      .get()?.currency;
+  const crossCurrency =
+    !!existing.transferTransactionId &&
+    currencyOfTx(existing.transferTransactionId) !== undefined &&
+    currencyOfTx(existing.transferTransactionId) !== currencyOfTx(existing.id);
+  if (
+    crossCurrency &&
+    data.amount !== undefined &&
+    Math.sign(data.amount) !== Math.sign(existing.amount)
+  ) {
+    return res.status(400).json({
+      error:
+        existing.amount < 0
+          ? 'This side of the transfer is money leaving the account: enter an amount below zero'
+          : 'This side of the transfer is money arriving in the account: enter an amount above zero',
+    });
+  }
+
   db.transaction((tx) => {
     if (Object.keys(data).length) {
       tx.update(transactions).set(data).where(eq(transactions.id, existing.id)).run();
@@ -458,11 +532,17 @@ transactionsRouter.put('/:id', (req, res) => {
           .run();
       }
     }
-    if (existing.transferTransactionId && (data.date !== undefined || data.amount !== undefined)) {
-      tx.update(transactions)
-        .set({ date: data.date, amount: data.amount === undefined ? undefined : -data.amount })
-        .where(eq(transactions.id, existing.transferTransactionId))
-        .run();
+    if (existing.transferTransactionId) {
+      const mirrored = {
+        date: data.date,
+        amount: crossCurrency || data.amount === undefined ? undefined : -data.amount,
+      };
+      if (Object.values(mirrored).some((v) => v !== undefined)) {
+        tx.update(transactions)
+          .set(mirrored)
+          .where(eq(transactions.id, existing.transferTransactionId))
+          .run();
+      }
     }
   });
   const updated = db.select().from(transactions).where(eq(transactions.id, req.params.id)).get();

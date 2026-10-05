@@ -114,6 +114,17 @@ describe('waiting transactions (property-based)', () => {
     );
   });
 
+  it('shows a transfer between currencies with what leaves one account and what arrives in the other', () => {
+    fc.assert(
+      fc.property(transferItem, fc.integer({ min: 1, max: 1e9 }), (t, toAmount) => {
+        const fx = { ...t, data: { ...t.data, toAmount } };
+        expect(outboxEntryFor(fx, t.data.fromAccountId)!.amount).toBe(-t.data.amount);
+        expect(outboxEntryFor(fx, t.data.toAccountId)!.amount).toBe(toAmount);
+        expect(outboxEntryFor(fx, undefined)!.amount).toBe(-t.data.amount);
+      }),
+    );
+  });
+
   it('lists an item only in the accounts it touches, and always in "all accounts"', () => {
     fc.assert(
       fc.property(item, fc.constantFrom('a', 'b', 'c'), (i, account) => {

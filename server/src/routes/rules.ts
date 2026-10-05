@@ -14,6 +14,7 @@ import {
   TEXT_FIELDS,
   TEXT_OPS,
 } from '../services/rulesEngine.js';
+import { currencySchema } from '../utils/currency.js';
 import {
   applyRules,
   loadRules,
@@ -60,6 +61,7 @@ const conditionSchema = z.union([
     op: z.literal('is'),
     value: z.enum(['inflow', 'outflow']),
   }),
+  z.object({ field: z.literal('currency'), op: z.literal('is'), value: currencySchema }),
   z.object({ field: z.literal('date'), op: z.enum(DATE_OPS), value: date }),
   z.object({ field: z.literal('date'), op: z.literal('between'), value: z.tuple([date, date]) }),
 ]);

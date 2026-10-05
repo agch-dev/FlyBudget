@@ -5,6 +5,8 @@ import type { Currency } from '../../types';
 interface Props {
   value: number;
   onChange: (cents: number) => void;
+  /** Also called on every keystroke, for figures that follow the amount as it's typed */
+  onTyping?: (cents: number) => void;
   placeholder?: string;
   className?: string;
   allowNegative?: boolean;
@@ -16,6 +18,7 @@ interface Props {
 export function CurrencyInput({
   value,
   onChange,
+  onTyping,
   placeholder = '0.00',
   className = '',
   allowNegative = false,
@@ -51,7 +54,13 @@ export function CurrencyInput({
       value={focused ? raw : value === 0 ? '' : formatCurrency(value, currency)}
       onFocus={handleFocus}
       onBlur={handleBlur}
-      onChange={(e) => setRaw(e.target.value)}
+      onChange={(e) => {
+        setRaw(e.target.value);
+        if (onTyping) {
+          const cents = parseCents(e.target.value);
+          onTyping(allowNegative ? cents : Math.abs(cents));
+        }
+      }}
       placeholder={placeholder}
       aria-label={ariaLabel}
       step="0.01"

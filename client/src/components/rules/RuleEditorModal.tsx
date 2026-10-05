@@ -26,8 +26,10 @@ import {
   newCondition,
   newSplitPart,
   opLabel,
+  ruleCurrency,
 } from '../../utils/ruleFormat';
 import type {
+  Currency,
   RuleAction,
   RuleCondition,
   RuleConditionField,
@@ -70,6 +72,8 @@ export function RuleEditorModal({
 
   const rule: RuleInput = { ...initial, conditionsOp, conditions, actions };
   const complete = isRuleComplete(rule);
+  // A rule limited to one currency shows its amounts with that currency's sign
+  const currency = ruleCurrency(rule) ?? undefined;
 
   const setCondition = (i: number, c: RuleCondition) =>
     setConditions((cs) => cs.map((x, j) => (j === i ? c : x)));
@@ -99,6 +103,7 @@ export function RuleEditorModal({
                 key={i}
                 condition={c}
                 options={options}
+                currency={currency}
                 onChange={(next) => setCondition(i, next)}
                 onRemove={() => setConditions((cs) => cs.filter((_, j) => j !== i))}
               />
@@ -125,6 +130,7 @@ export function RuleEditorModal({
               <ActionRow
                 key={i}
                 action={a}
+                currency={currency}
                 canRemove={actions.length > 1}
                 onChange={(next) => setAction(i, next)}
                 onRemove={() => setActions((as) => as.filter((_, j) => j !== i))}
@@ -175,11 +181,13 @@ type Options = ReturnType<typeof useRuleLookups>;
 function ConditionRow({
   condition: c,
   options,
+  currency,
   onChange,
   onRemove,
 }: {
   condition: RuleCondition;
   options: Options;
+  currency?: Currency;
   onChange: (c: RuleCondition) => void;
   onRemove: () => void;
 }) {
@@ -205,7 +213,7 @@ function ConditionRow({
           </option>
         ))}
       </select>
-      {c.field !== 'direction' && (
+      {c.field !== 'direction' && c.field !== 'currency' && (
         <select
           value={c.op}
           onChange={(e) => onChange(makeCondition(c.field, e.target.value as RuleConditionOp, c))}
@@ -220,7 +228,7 @@ function ConditionRow({
         </select>
       )}
       <div className="flex-1 min-w-48 flex gap-2 items-center">
-        <ConditionValue condition={c} options={options} onChange={onChange} />
+        <ConditionValue condition={c} options={options} currency={currency} onChange={onChange} />
       </div>
       <button
         type="button"
@@ -237,10 +245,12 @@ function ConditionRow({
 function ConditionValue({
   condition: c,
   options,
+  currency,
   onChange,
 }: {
   condition: RuleCondition;
   options: Options;
+  currency?: Currency;
   onChange: (c: RuleCondition) => void;
 }) {
   if (!('value' in c)) return null;
@@ -258,17 +268,36 @@ function ConditionValue({
       </select>
     );
   }
+  if (c.field === 'currency') {
+    return (
+      <select
+        value={c.value}
+        onChange={(e) => set(e.target.value)}
+        className={`${fieldClass} w-40`}
+        aria-label="Currency"
+      >
+        <option value="UYU">Is in pesos</option>
+        <option value="USD">Is in dollars</option>
+      </select>
+    );
+  }
   if (c.field === 'amount') {
-    const money = (value: number, onValue: (n: number) => void) => (
-      <CurrencyInput value={value} onChange={onValue} className={`${fieldClass} w-full`} />
+    const money = (value: number, onValue: (n: number) => void, label = 'Amount') => (
+      <CurrencyInput
+        value={value}
+        onChange={onValue}
+        currency={currency}
+        aria-label={label}
+        className={`${fieldClass} w-full`}
+      />
     );
     if (Array.isArray(c.value)) {
       const [lo, hi] = c.value;
       return (
         <>
-          {money(lo, (n) => set([n, hi]))}
+          {money(lo, (n) => set([n, hi]), 'Lowest amount')}
           <span className="text-xs text-text-tertiary">and</span>
-          {money(hi, (n) => set([lo, n]))}
+          {money(hi, (n) => set([lo, n]), 'Highest amount')}
         </>
       );
     }
@@ -376,11 +405,13 @@ function TagInput({ value, onChange }: { value: string[]; onChange: (v: string[]
 
 function ActionRow({
   action: a,
+  currency,
   canRemove,
   onChange,
   onRemove,
 }: {
   action: RuleAction;
+  currency?: Currency;
   canRemove: boolean;
   onChange: (a: RuleAction) => void;
   onRemove: () => void;
@@ -445,7 +476,11 @@ function ActionRow({
         )}
       </div>
       {a.type === 'split' && (
-        <SplitEditor parts={a.parts} onChange={(parts) => onChange({ ...a, parts })} />
+        <SplitEditor
+          parts={a.parts}
+          currency={currency}
+          onChange={(parts) => onChange({ ...a, parts })}
+        />
       )}
     </div>
   );
@@ -453,9 +488,11 @@ function ActionRow({
 
 function SplitEditor({
   parts,
+  currency,
   onChange,
 }: {
   parts: RuleSplitPart[];
+  currency?: Currency;
   onChange: (p: RuleSplitPart[]) => void;
 }) {
   const set = (i: number, patch: Partial<RuleSplitPart>) =>
@@ -485,6 +522,7 @@ function SplitEditor({
               <CurrencyInput
                 value={p.value}
                 onChange={(n) => set(i, { value: n })}
+                currency={currency}
                 className={`${fieldClass} w-full`}
               />
             )}
@@ -607,7 +645,7 @@ function MatchPreview({
             <span
               className={`w-24 text-right tabular-nums ${tx.amount < 0 ? 'text-text' : 'text-positive'}`}
             >
-              {formatCurrency(tx.amount)}
+              {formatCurrency(tx.amount, tx.currency)}
             </span>
           </div>
         ))}

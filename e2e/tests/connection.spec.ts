@@ -116,6 +116,57 @@ test('mid-session the app keeps what it loaded, keeps new transactions, and reco
   expect(saved.filter((t) => t.payeeName === 'Coffee Cart')).toHaveLength(1);
 });
 
+test('a transfer between currencies added offline is sent with both amounts, once', async ({
+  page,
+  api,
+}) => {
+  const pesos = await api.createAccount('Cuenta pesos', 10_000_000);
+  const dollars = await api.createAccount('Caja dolares', 0, 'savings', { currency: 'USD' });
+  await open(page, `/accounts/${pesos.id}`);
+  await expect(page.getByRole('button', { name: 'Add Transaction' })).toBeEnabled();
+
+  await stopDesktopServer();
+  try {
+    // The next request finds the server gone
+    await page
+      .getByRole('complementary')
+      .getByRole('link', { name: 'Transactions', exact: true })
+      .click();
+    const banner = page.getByRole('status', { name: 'Connection' });
+    await expect(banner).toContainText("Can't reach FlyBudget.");
+    await page.evaluate((id) => (window.location.hash = `#/accounts/${id}`), pesos.id);
+
+    await page.getByRole('button', { name: 'Add Transaction' }).click();
+    const form = page.getByRole('form', { name: 'New transaction' });
+    await form
+      .getByRole('combobox', { name: 'Category' })
+      .selectOption({ label: 'Transfer: Caja dolares' });
+    await form.getByRole('spinbutton', { name: 'Outflow' }).fill('40000');
+    await form.getByRole('spinbutton', { name: 'Amount arriving (US$)' }).fill('1000');
+    await form.getByRole('button', { name: 'Save' }).click();
+    await expect(form).toBeHidden();
+    // Waiting on this device, as what leaves this account
+    const waiting = page
+      .getByRole('region', { name: 'Saved on this device' })
+      .getByTestId('waiting-transaction');
+    await expect(waiting).toContainText('Transfer: Caja dolares');
+    await expect(waiting).toContainText('-$40,000');
+  } finally {
+    await startDesktopServer();
+  }
+
+  await page
+    .getByRole('status', { name: 'Connection' })
+    .getByRole('button', { name: 'Retry now' })
+    .click({ timeout: 2_000 })
+    .catch(() => {});
+  await expect(page.getByRole('region', { name: 'Saved on this device' })).toBeHidden();
+  // Each side arrived with its own amount, and only once
+  await expect.poll(() => api.balance(pesos.id)).toBe(6_000_000);
+  expect(await api.balance(dollars.id)).toBe(100_000);
+  expect(await api.transactions(`?account_id=${dollars.id}`)).toHaveLength(1);
+});
+
 test('the sidebar shows where the data lives and links to Settings → Server', async ({
   page,
   api,
