@@ -38,7 +38,6 @@ const es: Translation<typeof en> = {
   datePattern: {
     dayMonth: 'd MMM',
     dayMonthShortYear: "d MMM ''yy",
-    dayMonthYear: 'd MMM yyyy',
     weekdayDayMonth: "EEEE d 'de' MMMM",
     weekdayDate: 'EEE d MMM yyyy',
     weekdayLongDate: "EEEE d 'de' MMMM 'de' yyyy",

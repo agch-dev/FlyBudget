@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ChevronRight, ChevronDown, ArrowRight, Lock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useUpdateTransaction } from '../../hooks/useTransactions';
@@ -52,6 +53,7 @@ export function TransactionRow({
   onFilterCategory,
   onFilterSearch,
 }: Props) {
+  const { t } = useTranslation('transactions');
   const [expanded, setExpanded] = useState(false);
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [showPayeePicker, setShowPayeePicker] = useState(false);
@@ -60,15 +62,15 @@ export function TransactionRow({
   const navigate = useNavigate();
   const showCategoryIcons = usePreferencesStore((s) => s.showCategoryIcons);
 
-  const converted = (t: Transaction) =>
-    (totalCurrency && convertedNote({ ...t, currency }, totalCurrency)) || undefined;
+  const converted = (row: Transaction) =>
+    (totalCurrency && convertedNote({ ...row, currency }, totalCurrency)) || undefined;
 
   const isTransfer = !!tx.transferTransactionId;
   const isSplitParent = tx.isParent === 1 && tx.children && tx.children.length > 0;
   const canEditCategory = !tx.reconciled && !isTransfer && !isSplitParent;
   const canEditPayee = !tx.reconciled && !isTransfer;
 
-  const payeeName = tx.payeeName || (isTransfer ? 'Transfer' : '—');
+  const payeeName = tx.payeeName || (isTransfer ? t('term.transfer') : '—');
   const payee = useMemo(
     () => (tx.payeeId ? payees.find((p) => p.id === tx.payeeId) : undefined),
     [payees, tx.payeeId],
@@ -137,7 +139,7 @@ export function TransactionRow({
                 e.stopPropagation();
                 onFilterSearch(tx.payeeName!);
               }}
-              title={`Show all "${tx.payeeName}" transactions`}
+              title={t('register.showAllFor', { name: tx.payeeName ?? '' })}
             >
               <ArrowRight size={12} />
             </button>
@@ -165,10 +167,10 @@ export function TransactionRow({
               className="flex items-center gap-1 text-brand-600 hover:text-brand-700"
             >
               {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-              <span className="text-sm">Split ({tx.children!.length})</span>
+              <span className="text-sm">{t('term.splitOf', { parts: tx.children!.length })}</span>
             </button>
           ) : isTransfer ? (
-            <span className="text-sm text-brand-500">Transfer</span>
+            <span className="text-sm text-brand-500">{t('term.transfer')}</span>
           ) : (
             <>
               <button
@@ -209,7 +211,7 @@ export function TransactionRow({
                     e.stopPropagation();
                     onFilterCategory(tx.categoryId!);
                   }}
-                  title={`Show all "${categoryEntry?.name}" transactions`}
+                  title={t('register.showAllFor', { name: categoryEntry?.name ?? '' })}
                 >
                   <ArrowRight size={12} />
                 </button>
@@ -240,7 +242,7 @@ export function TransactionRow({
                 e.stopPropagation();
                 navigate(`/accounts/${tx.accountId}`);
               }}
-              title={`Go to ${accountName}`}
+              title={t('register.goToAccount', { account: accountName ?? '' })}
             >
               <ArrowRight size={12} />
             </button>
@@ -250,7 +252,7 @@ export function TransactionRow({
         {/* Reconciled */}
         {tx.reconciled ? (
           <div className="w-8 flex justify-center shrink-0">
-            <Lock size={12} className="text-text-disabled" />
+            <Lock size={12} className="text-text-disabled" aria-label={t('term.reconciled')} />
           </div>
         ) : (
           <div className="w-8 shrink-0" />

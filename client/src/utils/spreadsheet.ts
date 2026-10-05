@@ -1,6 +1,7 @@
 import { SpreadsheetError, type Sheet } from './spreadsheetCells';
 import { readXls } from './xls';
 import { readXlsx } from './xlsx';
+import { t } from '../i18n';
 
 export { SpreadsheetError, sheetText, type Cell, type Sheet } from './spreadsheetCells';
 
@@ -26,7 +27,7 @@ export async function readSpreadsheet(bytes: Uint8Array): Promise<Sheet[]> {
   } catch (error) {
     if (error instanceof SpreadsheetError) throw error;
     // An offset past the end of a damaged file
-    throw new SpreadsheetError("This Excel file is damaged and can't be read.");
+    throw new SpreadsheetError(t('import:spreadsheet.damaged'));
   }
-  throw new SpreadsheetError("This file isn't an Excel workbook.");
+  throw new SpreadsheetError(t('import:spreadsheet.notWorkbook'));
 }

@@ -28,7 +28,7 @@ export function formatDateAxisLabels(values: string[]): string[] {
 /** Tooltip label for a date string: "Mar 5, 2026" or "March 2026". */
 export function formatDateLabel(dateStr: unknown): string {
   const s = String(dateStr ?? '');
-  if (s.length === 10) return format(parseISO(s), t('reports:datePattern.dayMonthYear'));
+  if (s.length === 10) return format(parseISO(s), t('datePattern.medium'));
   if (s.length === 7) return format(parseISO(`${s}-01`), 'MMMM yyyy');
   return s;
 }

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { X, Lock, Trash2, Repeat, Unlink, Wand2, ArrowLeftRight } from 'lucide-react';
 import {
   useUpdateTransaction,
@@ -56,6 +57,7 @@ export function TransactionDetailPanel({
   accountLogo,
   onClose,
 }: Props) {
+  const { t } = useTranslation('transactions');
   // Native amount: in the transaction's own account's currency
   const currency = tx.currency ?? accounts.find((a) => a.id === tx.accountId)?.currency;
   // A dollar transaction counts in the Budget, which is in pesos: say what it counts as
@@ -112,9 +114,13 @@ export function TransactionDetailPanel({
   const isSplitParent = tx.isParent === 1 && tx.children && tx.children.length > 0;
   const canEditCategory = !isReconciled && !isTransfer && !isSplitParent;
 
-  const payeeName = tx.payeeName || (isTransfer ? 'Transfer' : '—');
+  const payeeName = tx.payeeName || (isTransfer ? t('term.transfer') : '—');
   const payee = tx.payeeId ? payees.find((p) => p.id === tx.payeeId) : undefined;
   const categoryEntry = tx.categoryId ? (categoryMap.get(tx.categoryId) ?? null) : null;
+  /** The account on the other side of a transfer */
+  const otherAccountName = tx.transfer
+    ? (accounts.find((a) => a.id === tx.transfer!.accountId)?.name ?? t('term.otherAccount'))
+    : '';
 
   function saveDate() {
     if (localDate !== tx.date) {
@@ -172,15 +178,15 @@ export function TransactionDetailPanel({
 
   return (
     <aside
-      aria-label="Transaction details"
+      aria-label={t('detail.label')}
       // Phones: a full-screen sheet over the register (see TransactionTable)
       className="w-96 max-md:w-screen max-md:max-w-full max-md:border-l-0 shrink-0 border-l border-border bg-surface flex flex-col h-full max-md:pt-[env(safe-area-inset-top)] max-md:pb-[env(safe-area-inset-bottom)]"
     >
       <div className="px-5 py-3 border-b border-border flex items-center justify-between">
-        <span className="text-sm font-medium text-text-secondary">Transaction Details</span>
+        <span className="text-sm font-medium text-text-secondary">{t('detail.title')}</span>
         <button
           onClick={onClose}
-          aria-label="Close details"
+          aria-label={t('detail.close')}
           className="p-1 max-md:min-w-11 max-md:min-h-11 max-md:-mr-2 flex items-center justify-center rounded hover:bg-hover text-text-tertiary hover:text-text-secondary"
         >
           <X size={16} />
@@ -229,15 +235,17 @@ export function TransactionDetailPanel({
         {isReconciled && (
           <div className="flex items-center gap-2 px-3 py-2 bg-surface-alt rounded-lg text-text-tertiary text-xs">
             <Lock size={12} />
-            <span>This transaction is reconciled and cannot be edited.</span>
+            <span>{t('detail.reconciled')}</span>
           </div>
         )}
 
         <div>
-          <label className="text-xs font-medium text-text-secondary mb-1.5 block">Date</label>
+          <label className="text-xs font-medium text-text-secondary mb-1.5 block">
+            {t('field.date')}
+          </label>
           <input
             type="date"
-            aria-label="Date"
+            aria-label={t('field.date')}
             value={localDate}
             onChange={(e) => setLocalDate(e.target.value)}
             onBlur={saveDate}
@@ -247,11 +255,13 @@ export function TransactionDetailPanel({
         </div>
 
         <div>
-          <label className="text-xs font-medium text-text-secondary mb-1.5 block">Category</label>
+          <label className="text-xs font-medium text-text-secondary mb-1.5 block">
+            {t('field.category')}
+          </label>
           {isSplitParent ? (
             <div className="space-y-2">
               <div className="text-sm text-brand-600 font-medium">
-                Split ({tx.children!.length})
+                {t('term.splitOf', { parts: tx.children!.length })}
               </div>
               {tx.children!.map((child) => {
                 const childCat = child.categoryId ? categoryMap.get(child.categoryId) : null;
@@ -262,7 +272,7 @@ export function TransactionDetailPanel({
                         <span className="text-sm">{childCat.icon}</span>
                       )}
                       <span className="text-text-secondary">
-                        {childCat?.name ?? 'Uncategorized'}
+                        {childCat?.name ?? t('term.uncategorized')}
                       </span>
                     </div>
                     <span
@@ -277,24 +287,24 @@ export function TransactionDetailPanel({
             </div>
           ) : isTransfer ? (
             <div className="text-sm text-brand-500 px-3 py-2 border border-border rounded-lg bg-surface-alt">
-              Transfer
+              {t('term.transfer')}
               {/* Between a pesos and a dollars account: the other side's own amount and the rate */}
               {tx.transfer && tx.transfer.rate !== null && (
                 <div className="mt-1 text-xs text-text-secondary tabular-nums">
                   <p>
-                    {formatCurrency(Math.abs(tx.transfer.amount), tx.transfer.currency)}{' '}
-                    {tx.transfer.amount > 0 ? 'arrived in' : 'left'}{' '}
-                    {accounts.find((a) => a.id === tx.transfer!.accountId)?.name ??
-                      'the other account'}
+                    {t(tx.transfer.amount > 0 ? 'detail.arrivedIn' : 'detail.left', {
+                      amount: formatCurrency(Math.abs(tx.transfer.amount), tx.transfer.currency),
+                      account: otherAccountName,
+                    })}
                   </p>
                   <TransferRate rate={tx.transfer.rate} />
                 </div>
               )}
               {tx.transfer && tx.transfer.rate === null && (
                 <p className="mt-1 text-xs text-text-secondary">
-                  {tx.transfer.amount > 0 ? 'To' : 'From'}{' '}
-                  {accounts.find((a) => a.id === tx.transfer!.accountId)?.name ??
-                    'the other account'}
+                  {t(tx.transfer.amount > 0 ? 'detail.to' : 'detail.from', {
+                    account: otherAccountName,
+                  })}
                 </p>
               )}
               {/* Back to two ordinary transactions (e.g. the wrong two were linked) */}
@@ -307,14 +317,14 @@ export function TransactionDetailPanel({
                     onClick={() => unlinkTransfer.mutate(tx.id)}
                   >
                     <Unlink size={14} />
-                    Unlink transfer
+                    {t('detail.unlinkTransfer')}
                   </Button>
                   <SavingPausedHint className="mt-1" />
                   {unlinkTransfer.isError && (
                     <p role="alert" className="mt-1 text-xs text-negative">
                       {unlinkTransfer.error instanceof Error
                         ? unlinkTransfer.error.message
-                        : "Couldn't unlink this transfer"}
+                        : t('detail.unlinkFailed')}
                     </p>
                   )}
                 </div>
@@ -331,7 +341,7 @@ export function TransactionDetailPanel({
                   <span className="text-base">{categoryEntry.icon}</span>
                 )}
                 <span className={categoryEntry ? '' : 'text-text-tertiary'}>
-                  {categoryEntry?.name ?? 'Uncategorized'}
+                  {categoryEntry?.name ?? t('term.uncategorized')}
                 </span>
               </button>
               {showCategoryPicker && (
@@ -348,7 +358,9 @@ export function TransactionDetailPanel({
 
         {!isTransfer && (
           <div>
-            <label className="text-xs font-medium text-text-secondary mb-1.5 block">Payee</label>
+            <label className="text-xs font-medium text-text-secondary mb-1.5 block">
+              {t('field.payee')}
+            </label>
             <div onBlur={savePayeeOnBlur}>
               <PayeeCombobox
                 value={localPayee}
@@ -361,14 +373,16 @@ export function TransactionDetailPanel({
         )}
 
         <div>
-          <label className="text-xs font-medium text-text-secondary mb-1.5 block">Notes</label>
+          <label className="text-xs font-medium text-text-secondary mb-1.5 block">
+            {t('field.notes')}
+          </label>
           <textarea
             value={localNotes}
             onChange={(e) => setLocalNotes(e.target.value)}
             onBlur={saveNotes}
             disabled={isReconciled}
-            placeholder="Add notes to this transaction..."
-            aria-label="Notes"
+            placeholder={t('detail.notesPlaceholder')}
+            aria-label={t('field.notes')}
             rows={3}
             className={`${inputCls} resize-none`}
           />
@@ -377,7 +391,7 @@ export function TransactionDetailPanel({
         {linkedSchedule && (
           <div>
             <label className="text-xs font-medium text-text-secondary mb-1.5 block">
-              Recurring
+              {t('detail.recurring')}
             </label>
             <div className="flex items-center gap-3 px-3 py-2.5 bg-surface-alt rounded-lg border border-border-light">
               <Repeat size={14} className="text-brand-600 shrink-0" />
@@ -391,7 +405,8 @@ export function TransactionDetailPanel({
                 <button
                   onClick={() => unmatchByTx.mutate(tx.id)}
                   className="p-1 rounded text-text-tertiary hover:text-caution hover:bg-caution-subtle transition-colors"
-                  title="Unlink from recurring"
+                  title={t('detail.unlinkRecurring')}
+                  aria-label={t('detail.unlinkRecurring')}
                 >
                   <Unlink size={14} />
                 </button>
@@ -405,19 +420,19 @@ export function TransactionDetailPanel({
         {canLinkAsTransfer(tx) && (
           <Button variant="secondary" onClick={() => setShowLinkTransfer(true)} className="w-full">
             <ArrowLeftRight size={14} />
-            Link as transfer
+            {t('detail.linkAsTransfer')}
           </Button>
         )}
         {!isTransfer && (
           <Button variant="secondary" onClick={startRule} className="w-full">
             <Wand2 size={14} />
-            Create rule
+            {t('detail.createRule')}
           </Button>
         )}
         {!isReconciled && (
           <Button variant="danger" onClick={() => setShowDeleteConfirm(true)} className="w-full">
             <Trash2 size={14} />
-            Delete Transaction
+            {t('detail.delete')}
           </Button>
         )}
       </div>
@@ -427,7 +442,7 @@ export function TransactionDetailPanel({
           isOpen={ruleModal.isOpen}
           onClose={() => setRuleDraft(null)}
           initial={ruleModal.value}
-          title="New rule from transaction"
+          title={t('detail.ruleTitle')}
         />
       )}
 
@@ -440,9 +455,9 @@ export function TransactionDetailPanel({
 
       <ConfirmModal
         isOpen={showDeleteConfirm}
-        title="Delete Transaction"
-        message="Are you sure you want to delete this transaction? This action cannot be undone."
-        confirmLabel="Delete"
+        title={t('detail.delete')}
+        message={t('detail.deleteMessage')}
+        confirmLabel={t('detail.deleteConfirm')}
         danger
         onConfirm={handleDelete}
         onClose={() => setShowDeleteConfirm(false)}

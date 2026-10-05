@@ -48,7 +48,6 @@ export default {
   datePattern: {
     dayMonth: 'MMM d',
     dayMonthShortYear: "MMM d ''yy",
-    dayMonthYear: 'MMM d, yyyy',
     weekdayDayMonth: 'EEEE, MMMM d',
     weekdayDate: 'EEE, MMM d, yyyy',
     weekdayLongDate: 'EEEE, MMMM d, yyyy',

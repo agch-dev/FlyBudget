@@ -62,6 +62,10 @@ const es: Translation<typeof en> = {
   dateFormat: {
     title: 'Formato de fecha',
   },
+  datePattern: {
+    long: "d 'de' MMMM 'de' yyyy",
+    medium: 'd MMM yyyy',
+  },
   help: {
     newHere: '¿Recién empezás con FlyBudget?',
     guide: 'Leer la guía',

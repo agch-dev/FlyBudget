@@ -189,9 +189,9 @@ test.describe('account register', () => {
     await expect(page.getByRole('button', { name: 'Old Bookshop', exact: true })).toBeHidden();
 
     await page.getByRole('button', { name: 'All Time' }).click();
-    await expect(page.getByText('2 transactions')).toBeVisible();
+    await expect(page.getByText('2 transactions', { exact: true })).toBeVisible();
     await page.getByPlaceholder('Search payee or notes…').fill('book');
-    await expect(page.getByText('1 transactions')).toBeVisible();
+    await expect(page.getByText('1 transaction', { exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Old Bookshop', exact: true })).toBeVisible();
   });
 
