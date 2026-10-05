@@ -7,6 +7,9 @@ import { serverErrorMessage } from './serverErrors';
 import transactionRoutes from '../../../server/src/routes/transactions.ts?raw';
 import transferLink from '../../../server/src/services/transferLink.ts?raw';
 import transferLinkService from '../../../server/src/services/transferLinkService.ts?raw';
+import authRoutes from '../../../server/src/routes/auth.ts?raw';
+import security from '../../../server/src/middleware/security.ts?raw';
+import password from '../../../server/src/auth/password.ts?raw';
 
 const refusal = (method: string, path: string, status: number, message: string) =>
   serverErrorMessage({ method, path, status, message });
@@ -140,8 +143,44 @@ describe('serverErrorMessage', () => {
     );
     // The same status on another route
     expect(refusal('GET', '/accounts', 401, 'Login required')).toBe('Login required');
+    // The bank limit only means something on the bank routes
     expect(
-      refusal('POST', '/plaid/sync', 429, 'Too many bank requests. Wait a minute and try again.'),
+      refusal('POST', '/accounts', 429, 'Too many bank requests. Wait a minute and try again.'),
     ).toBe('Too many bank requests. Wait a minute and try again.');
+  });
+
+  it('translates the refusals of a password change', () => {
+    setLanguage('es');
+    expect(
+      refusal('POST', '/auth/change-password', 400, 'New password must be 8-256 characters'),
+    ).toBe('La contraseña nueva tiene que tener entre 8 y 256 caracteres');
+  });
+
+  it('translates the limits on bank requests and on refreshing exchange rates', () => {
+    setLanguage('es');
+    const bank = 'Too many bank requests. Wait a minute and try again.';
+    for (const path of ['/plaid/sync', '/plaid/items/i1/sync', '/simplefin/connect']) {
+      expect(refusal('POST', path, 429, bank)).toBe(
+        'Demasiados pedidos al banco. Esperá un minuto y probá de nuevo.',
+      );
+    }
+    expect(refusal('DELETE', '/simplefin/connections/c1', 429, bank)).toBe(
+      'Demasiados pedidos al banco. Esperá un minuto y probá de nuevo.',
+    );
+    expect(
+      refusal(
+        'POST',
+        '/exchange-rates/refresh',
+        429,
+        'Exchange rates were refreshed a lot just now. Try again in an hour.',
+      ),
+    ).toBe('Los tipos de cambio se actualizaron muchas veces recién. Probá de nuevo en una hora.');
+  });
+
+  it('knows the password and rate limit refusals by the sentences the server really sends', () => {
+    const server = [authRoutes, security, password].join('\n');
+    expect(server).toContain(en.settings.errors.bankRateLimit);
+    expect(server).toContain(en.settings.errors.ratesRefreshLimit);
+    expect(server).toContain('New password must be ${MIN_PASSWORD_LENGTH}-${MAX_PASSWORD_LENGTH}');
   });
 });

@@ -1,12 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CATALOGS, NAMESPACES, catalogKeys, type Namespace } from './catalog';
-
-/**
- * Namespaces whose Spanish is not written yet (they show in English meanwhile). Take a
- * namespace off this list when you translate it: from then on a key missing from either
- * language fails this test. The list is empty once the whole app is translated.
- */
-const STILL_TO_TRANSLATE: Namespace[] = ['settings'];
+import { CATALOGS, NAMESPACES, catalogKeys } from './catalog';
 
 const text = (catalog: object, key: string): string =>
   key.split('.').reduce((node, part) => (node as Record<string, object>)[part], catalog) as never;
@@ -22,16 +15,9 @@ describe.each(NAMESPACES)('the %s catalog', (ns) => {
     expect(spanish.filter((key) => !english.includes(key))).toEqual([]);
   });
 
-  if (STILL_TO_TRANSLATE.includes(ns)) {
-    it('comes off the still-to-translate list once Spanish has every key', () => {
-      const complete = english.length > 0 && english.every((key) => spanish.includes(key));
-      expect(complete, `remove '${ns}' from STILL_TO_TRANSLATE`).toBe(false);
-    });
-  } else {
-    it('has every English key in Spanish', () => {
-      expect(english.filter((key) => !spanish.includes(key))).toEqual([]);
-    });
-  }
+  it('has every English key in Spanish', () => {
+    expect(english.filter((key) => !spanish.includes(key))).toEqual([]);
+  });
 
   it('keeps the same placeholders and tags in both languages', () => {
     const different = spanish

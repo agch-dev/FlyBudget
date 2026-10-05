@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { formatDistanceToNow } from 'date-fns';
 import {
   AlertTriangle,
@@ -52,33 +54,35 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 // --- Desktop app / dev ---
 
 function LocalSettings({ onOpenTab }: { onOpenTab: (tab: 'data') => void }) {
+  const { t } = useTranslation('settings');
   const { data: info } = useServerInfo();
   return (
     <div className="max-w-xl space-y-8">
       <section>
-        <SectionTitle>Where your data lives</SectionTitle>
+        <SectionTitle>{t('server.local.title')}</SectionTitle>
         <div className="mt-3 flex items-start gap-3 p-4 rounded-lg border border-border-light bg-surface-alt">
           <HardDrive size={20} className="text-brand-600 shrink-0 mt-0.5" aria-hidden />
           <div className="text-sm">
             {IS_DEMO ? (
               <>
-                <p className="font-medium text-text">In this browser (demo)</p>
+                <p className="font-medium text-text">{t('server.local.demoTitle')}</p>
                 <p className="text-text-secondary mt-1 leading-relaxed">
-                  This demo runs entirely in your browser: nothing you change is sent anywhere or
-                  saved. In the app, your budget is a file on your computer or on a server you run.
+                  {t('server.local.demoDetail')}
                 </p>
               </>
             ) : (
               <>
-                <p className="font-medium text-text">On this computer</p>
+                <p className="font-medium text-text">{t('server.local.computerTitle')}</p>
                 <p className="text-text-secondary mt-1 leading-relaxed">
-                  Your budget is a file on this computer, and FlyBudget only talks to it through its
-                  own local server. Nothing is sent to FlyBudget or anyone else; bank sync contacts
-                  Plaid or SimpleFIN only when you connect a bank.
+                  {t('server.local.computerDetail')}
                 </p>
               </>
             )}
-            {info && <p className="text-xs text-text-tertiary mt-2">Version {info.version}</p>}
+            {info && (
+              <p className="text-xs text-text-tertiary mt-2">
+                {t('server.version', { version: info.version })}
+              </p>
+            )}
           </div>
         </div>
       </section>
@@ -89,12 +93,9 @@ function LocalSettings({ onOpenTab }: { onOpenTab: (tab: 'data') => void }) {
         <div className="flex items-start gap-3">
           <Smartphone size={20} className="text-brand-600 shrink-0 mt-0.5" aria-hidden />
           <div className="text-sm">
-            <h2 className="font-semibold text-text">
-              Use FlyBudget on your phone and other devices
-            </h2>
+            <h2 className="font-semibold text-text">{t('server.local.otherDevicesTitle')}</h2>
             <p className="text-text-secondary mt-1 leading-relaxed">
-              Run FlyBudget on a server you control, such as a home server or a small cloud machine,
-              and sign in from any browser. Your data moves to that server; nobody else hosts it.
+              {t('server.local.otherDevicesDetail')}
             </p>
             <div className="flex flex-wrap gap-2 mt-3">
               <a
@@ -103,10 +104,10 @@ function LocalSettings({ onOpenTab }: { onOpenTab: (tab: 'data') => void }) {
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md bg-brand-600 text-white hover:bg-brand-700 transition-colors"
               >
-                Read the self-hosting guide <ExternalLink size={12} aria-hidden />
+                {t('server.local.guide')} <ExternalLink size={12} aria-hidden />
               </a>
               <Button variant="secondary" size="sm" onClick={() => onOpenTab('data')}>
-                <Download size={13} /> Make a backup first
+                <Download size={13} /> {t('server.local.backupFirst')}
               </Button>
             </div>
           </div>
@@ -119,13 +120,14 @@ function LocalSettings({ onOpenTab }: { onOpenTab: (tab: 'data') => void }) {
 // --- Offline copy (dev and self-hosted; the desktop app's server is always there) ---
 
 function OfflineCopySettings() {
+  const { t } = useTranslation('settings');
   const keep = usePreferencesStore((s) => s.keepOfflineCopy);
   const setKeep = usePreferencesStore((s) => s.setKeepOfflineCopy);
   const waiting = useOutbox((s) => s.items.length);
   if (!offlineCopySupported()) return null;
   return (
     <section className="pt-6 border-t border-border-light">
-      <SectionTitle>Offline copy</SectionTitle>
+      <SectionTitle>{t('server.offline.title')}</SectionTitle>
       <label className="mt-3 flex items-start gap-3 cursor-pointer">
         <input
           type="checkbox"
@@ -139,19 +141,16 @@ function OfflineCopySettings() {
         <span className="text-sm">
           <span className="font-medium text-text flex items-center gap-1.5">
             <WifiOff size={14} className="text-text-tertiary" aria-hidden />
-            Keep a copy of my budget on this device
+            {t('server.offline.keep')}
           </span>
           <span className="block text-xs text-text-tertiary mt-1 leading-relaxed">
-            When FlyBudget can't reach its server, it opens with what this browser last loaded. You
-            can look through everything and add new transactions; they're sent when it reconnects.
-            The copy is deleted when you sign out. Turn this off on a shared computer.
+            {t('server.offline.detail')}
           </span>
         </span>
       </label>
       {waiting > 0 && (
         <p className="text-xs text-caution mt-3">
-          {waiting} transaction{waiting === 1 ? '' : 's'} saved on this device{' '}
-          {waiting === 1 ? 'is' : 'are'} waiting to be sent.
+          {t('server.offline.waiting', { count: waiting })}
         </p>
       )}
     </section>
@@ -166,96 +165,70 @@ interface CheckText {
   fix?: React.ReactNode;
 }
 
-const Env = ({ children }: { children: string }) => (
+/** A sentence of the catalog with env var names in it, as `<env>FLYBUDGET_…</env>` */
+type FixKey = `server.checks.${'https' | 'proxyUntrusted' | 'proxyUnused' | 'hosts' | 'key'}Fix`;
+
+const fixText = (t: TFunction<'settings'>, key: FixKey) => (
+  <Trans t={t} i18nKey={key} components={{ env: <Env /> }} />
+);
+
+const Env = ({ children }: { children?: React.ReactNode }) => (
   <code className="font-mono text-[11px] px-1 py-0.5 rounded bg-surface-alt text-text">
     {children}
   </code>
 );
 
-function describeCheck(check: SecurityCheck): CheckText {
+function describeCheck(t: TFunction<'settings'>, check: SecurityCheck): CheckText {
   switch (check.id) {
     case 'https':
-      if (check.reason === 'secure') return { label: 'Connection is encrypted (HTTPS)' };
-      if (check.ok) return { label: 'Connected on the same computer as the server' };
-      return {
-        label: 'Not using HTTPS: passwords and data travel unencrypted',
-        fix: (
-          <>
-            Put FlyBudget behind a reverse proxy with HTTPS (Caddy, Nginx, Traefik) or a VPN, and
-            set <Env>FLYBUDGET_TRUST_PROXY</Env>.
-          </>
-        ),
-      };
+      if (check.reason === 'secure') return { label: t('server.checks.httpsSecure') };
+      if (check.ok) return { label: t('server.checks.httpsLocal') };
+      return { label: t('server.checks.httpsOff'), fix: fixText(t, 'server.checks.httpsFix') };
     case 'trustProxy':
-      if (check.ok) return { label: 'Reverse proxy settings match how you connect' };
+      if (check.ok) return { label: t('server.checks.proxyOk') };
       if (check.reason === 'untrusted-proxy')
         return {
-          label: 'A reverse proxy is in front of FlyBudget, but not trusted',
-          fix: (
-            <>
-              Set <Env>FLYBUDGET_TRUST_PROXY=1</Env> (the number of proxies in front of FlyBudget)
-              so HTTPS and client addresses are detected.
-            </>
-          ),
+          label: t('server.checks.proxyUntrusted'),
+          fix: fixText(t, 'server.checks.proxyUntrustedFix'),
         };
       return {
-        label: 'FLYBUDGET_TRUST_PROXY is set, but this request came without a proxy',
-        fix: (
-          <>
-            If you connect directly, remove <Env>FLYBUDGET_TRUST_PROXY</Env>: otherwise clients can
-            fake their address and get around the login attempt limit.
-          </>
-        ),
+        label: t('server.checks.proxyUnused'),
+        fix: fixText(t, 'server.checks.proxyUnusedFix'),
       };
     case 'allowedHosts':
       return check.ok
-        ? { label: 'Only answers to the addresses you allowed' }
-        : {
-            label: 'Answers to any host name',
-            fix: (
-              <>
-                Set <Env>FLYBUDGET_ALLOWED_HOSTS</Env> to the address you use, e.g.{' '}
-                <Env>FLYBUDGET_ALLOWED_HOSTS=budget.example.com</Env>.
-              </>
-            ),
-          };
+        ? { label: t('server.checks.hostsOk') }
+        : { label: t('server.checks.hostsAny'), fix: fixText(t, 'server.checks.hostsFix') };
     case 'encryptionKey':
       return check.ok
-        ? { label: 'Bank credentials are encrypted at rest' }
-        : {
-            label: 'Bank credentials are not encrypted',
-            fix: (
-              <>
-                Set <Env>FLYBUDGET_DATA_KEY_FILE</Env> to a file with a random key (see the
-                self-hosting guide).
-              </>
-            ),
-          };
+        ? { label: t('server.checks.keyOk') }
+        : { label: t('server.checks.keyMissing'), fix: fixText(t, 'server.checks.keyFix') };
     case 'password':
       return check.ok
-        ? { label: 'A password protects this server' }
-        : { label: 'No password is set yet' };
+        ? { label: t('server.checks.passwordOk') }
+        : { label: t('server.checks.passwordMissing') };
   }
 }
 
 function SecurityChecks() {
+  const { t } = useTranslation('settings');
   const { data: info, isLoading } = useServerInfo();
   const checks = info?.checks ?? [];
   const warnings = checks.filter((c) => !c.ok).length;
   return (
     <section>
-      <SectionTitle>Security check</SectionTitle>
+      <SectionTitle>{t('server.checks.title')}</SectionTitle>
       <p className="text-xs text-text-tertiary mt-1">
         {isLoading
-          ? 'Checking your server…'
+          ? t('server.checks.checking')
           : warnings === 0
-            ? 'Everything looks good for how you connected just now.'
-            : `${warnings} thing${warnings === 1 ? '' : 's'} to look at. Each is fixed with a setting in your docker-compose.yml.`}
-        {info && <> Version {info.version}.</>}
+            ? t('server.checks.allGood')
+            : t('server.checks.warnings', { count: warnings })}
+        {info && <> {t('server.versionSentence', { version: info.version })}</>}
       </p>
-      <ul aria-label="Security check" className="mt-3 space-y-2">
+      <ul aria-label={t('server.checks.title')} className="mt-3 space-y-2">
         {checks.map((check) => {
-          const text = describeCheck(check);
+          const text = describeCheck(t, check);
           return (
             <li
               key={check.id}
@@ -265,13 +238,13 @@ function SecurityChecks() {
                 <CheckCircle2
                   size={16}
                   className="text-positive shrink-0 mt-0.5"
-                  aria-label="Passed"
+                  aria-label={t('server.checks.passed')}
                 />
               ) : (
                 <AlertTriangle
                   size={16}
                   className="text-caution shrink-0 mt-0.5"
-                  aria-label="Warning"
+                  aria-label={t('server.checks.warning')}
                 />
               )}
               <div>
@@ -288,14 +261,18 @@ function SecurityChecks() {
   );
 }
 
-function deviceTimes(d: SignedInDevice) {
+function deviceTimes(t: TFunction<'settings'>, d: SignedInDevice) {
   const ago = (iso: string) => formatDistanceToNow(new Date(iso), { addSuffix: true });
   return d.lastUsedAt
-    ? `Active ${ago(d.lastUsedAt)} · signed in ${ago(d.createdAt)}`
-    : `Signed in ${ago(d.createdAt)}`;
+    ? t('server.devices.activeAndSignedIn', {
+        active: ago(d.lastUsedAt),
+        signedIn: ago(d.createdAt),
+      })
+    : t('server.devices.signedIn', { signedIn: ago(d.createdAt) });
 }
 
 function SignedInDevices() {
+  const { t } = useTranslation('settings');
   const { data: devices = [], isLoading, isError } = useSessions(true);
   const signOutOne = useSignOutSession();
   const signOutOthers = useSignOutOtherSessions();
@@ -304,14 +281,11 @@ function SignedInDevices() {
 
   return (
     <section className="pt-6 border-t border-border-light">
-      <SectionTitle>Signed-in devices</SectionTitle>
-      <p className="text-xs text-text-tertiary mt-1">
-        Browsers signed in to this server. Sign out any you don't recognize, then change the
-        password.
-      </p>
+      <SectionTitle>{t('server.devices.title')}</SectionTitle>
+      <p className="text-xs text-text-tertiary mt-1">{t('server.devices.description')}</p>
       {isLoading && <Loader2 size={16} className="animate-spin text-text-tertiary mt-3" />}
-      {isError && <p className="text-xs text-negative mt-3">Couldn't load the devices.</p>}
-      <ul aria-label="Signed-in devices" className="mt-3 divide-y divide-border-light">
+      {isError && <p className="text-xs text-negative mt-3">{t('server.devices.loadError')}</p>}
+      <ul aria-label={t('server.devices.title')} className="mt-3 divide-y divide-border-light">
         {devices.map((d) => {
           const name = describeUserAgent(d.userAgent);
           return (
@@ -321,21 +295,21 @@ function SignedInDevices() {
                   {name}
                   {d.current && (
                     <span className="text-[11px] font-medium px-1.5 py-0.5 rounded-full bg-brand-50 text-brand-700">
-                      This device
+                      {t('server.devices.thisDevice')}
                     </span>
                   )}
                 </p>
-                <p className="text-xs text-text-tertiary truncate">{deviceTimes(d)}</p>
+                <p className="text-xs text-text-tertiary truncate">{deviceTimes(t, d)}</p>
               </div>
               {!d.current && (
                 <Button
                   variant="secondary"
                   size="sm"
-                  aria-label={`Sign out ${name}`}
+                  aria-label={t('server.devices.signOutNamed', { name })}
                   disabled={!canSave || signOutOne.isPending}
                   onClick={() => signOutOne.mutate(d.id)}
                 >
-                  Sign out
+                  {t('server.signOut.button')}
                 </Button>
               )}
             </li>
@@ -348,37 +322,45 @@ function SignedInDevices() {
         disabled={others === 0 || !canSave || signOutOthers.isPending}
         onClick={() => signOutOthers.mutate()}
       >
-        <LogOut size={14} /> Sign out all other devices
+        <LogOut size={14} /> {t('server.devices.signOutOthers')}
       </Button>
     </section>
   );
 }
 
 function SelfHostedSettings() {
+  const { t } = useTranslation(['settings', 'auth']);
   const signOut = useSignOut();
   const canSave = useCanSave();
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
   const [confirm, setConfirm] = useState('');
-  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  // The text is looked up while rendering, so it follows a language switch
+  const [message, setMessage] = useState<{ ok: boolean; text: () => string } | null>(null);
   const [busy, setBusy] = useState(false);
 
   async function changePassword(e: React.FormEvent) {
     e.preventDefault();
     setMessage(null);
     if (next.length < MIN_PASSWORD_LENGTH) {
-      return setMessage({ ok: false, text: `Use at least ${MIN_PASSWORD_LENGTH} characters.` });
+      return setMessage({
+        ok: false,
+        text: () => t('auth:errors.tooShort', { min: MIN_PASSWORD_LENGTH }),
+      });
     }
-    if (next !== confirm) return setMessage({ ok: false, text: "The new passwords don't match." });
+    if (next !== confirm) {
+      return setMessage({ ok: false, text: () => t('server.password.mismatch') });
+    }
     setBusy(true);
     try {
       await authApi.changePassword(current, next);
       setCurrent('');
       setNext('');
       setConfirm('');
-      setMessage({ ok: true, text: 'Password changed. Other devices have been signed out.' });
+      setMessage({ ok: true, text: () => t('server.password.changed') });
     } catch (err) {
-      setMessage({ ok: false, text: (err as Error).message });
+      const text = (err as Error).message;
+      setMessage({ ok: false, text: () => text });
     } finally {
       setBusy(false);
     }
@@ -391,19 +373,17 @@ function SelfHostedSettings() {
       <OfflineCopySettings />
 
       <section className="pt-6 border-t border-border-light max-w-md">
-        <SectionTitle>Change password</SectionTitle>
-        <p className="text-xs text-text-tertiary mt-1">
-          This password protects your FlyBudget server. Changing it signs out every other device.
-        </p>
+        <SectionTitle>{t('server.password.title')}</SectionTitle>
+        <p className="text-xs text-text-tertiary mt-1">{t('server.password.description')}</p>
         <form onSubmit={changePassword} className="space-y-3 mt-4">
           <div>
             <label className="block text-sm font-medium text-text-secondary mb-1">
-              Current password
+              {t('server.password.current')}
             </label>
             <input
               type="password"
               autoComplete="current-password"
-              aria-label="Current password"
+              aria-label={t('server.password.current')}
               value={current}
               onChange={(e) => setCurrent(e.target.value)}
               className={inputClass}
@@ -411,12 +391,12 @@ function SelfHostedSettings() {
           </div>
           <div>
             <label className="block text-sm font-medium text-text-secondary mb-1">
-              New password
+              {t('server.password.new')}
             </label>
             <input
               type="password"
               autoComplete="new-password"
-              aria-label="New password"
+              aria-label={t('server.password.new')}
               value={next}
               onChange={(e) => setNext(e.target.value)}
               className={inputClass}
@@ -424,12 +404,12 @@ function SelfHostedSettings() {
           </div>
           <div>
             <label className="block text-sm font-medium text-text-secondary mb-1">
-              Confirm new password
+              {t('server.password.confirm')}
             </label>
             <input
               type="password"
               autoComplete="new-password"
-              aria-label="Confirm new password"
+              aria-label={t('server.password.confirm')}
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
               className={inputClass}
@@ -437,20 +417,20 @@ function SelfHostedSettings() {
           </div>
           {message && (
             <p className={`text-xs ${message.ok ? 'text-positive' : 'text-negative'}`}>
-              {message.text}
+              {message.text()}
             </p>
           )}
           <Button type="submit" disabled={busy || !current || !next || !canSave}>
-            <KeyRound size={14} /> Change password
+            <KeyRound size={14} /> {t('server.password.title')}
           </Button>
         </form>
       </section>
 
       <section className="pt-6 border-t border-border-light">
-        <SectionTitle>Sign out</SectionTitle>
-        <p className="text-xs text-text-tertiary mt-1">Sign out of FlyBudget on this browser.</p>
+        <SectionTitle>{t('server.signOut.button')}</SectionTitle>
+        <p className="text-xs text-text-tertiary mt-1">{t('server.signOut.description')}</p>
         <Button variant="secondary" className="mt-4" onClick={signOut}>
-          <LogOut size={14} /> Sign out
+          <LogOut size={14} /> {t('server.signOut.button')}
         </Button>
       </section>
     </div>

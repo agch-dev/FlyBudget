@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 import { Download, Upload } from 'lucide-react';
 import { Button } from '../ui/Button';
@@ -13,12 +14,16 @@ const download = (url: string) =>
   IS_DEMO ? void downloadFromApi(url) : void (window.location.href = url);
 
 export function DataExport() {
+  const { t } = useTranslation('settings');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const fileInput = useRef<HTMLInputElement>(null);
   const [pending, setPending] = useState<{ name: string; data: unknown } | null>(null);
   const [restoring, setRestoring] = useState(false);
-  const [restoreMessage, setRestoreMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  // The text is looked up while rendering, so it follows a language switch
+  const [restoreMessage, setRestoreMessage] = useState<{ ok: boolean; text: () => string } | null>(
+    null,
+  );
   const queryClient = useQueryClient();
 
   async function chooseBackup(e: React.ChangeEvent<HTMLInputElement>) {
@@ -29,7 +34,10 @@ export function DataExport() {
     try {
       setPending({ name: file.name, data: JSON.parse(await file.text()) });
     } catch {
-      setRestoreMessage({ ok: false, text: `${file.name} is not a FlyBudget backup file.` });
+      setRestoreMessage({
+        ok: false,
+        text: () => t('data.restore.notBackup', { name: file.name }),
+      });
     }
   }
 
@@ -39,18 +47,25 @@ export function DataExport() {
     try {
       const result = await restoreBackup(pending.data);
       const count = result.restored.transactions ?? 0;
+      const name = pending.name;
+      const safetyCopy = result.safetyCopy;
       setRestoreMessage({
         ok: true,
-        text:
-          `Restored ${pending.name} (${count.toLocaleString()} transactions).` +
-          (result.safetyCopy
-            ? ` Your previous data was saved as ${result.safetyCopy} next to the database.`
-            : ''),
+        text: () =>
+          safetyCopy
+            ? t('data.restore.doneWithCopy', {
+                name,
+                count,
+                total: count.toLocaleString('en-US'),
+                file: safetyCopy,
+              })
+            : t('data.restore.done', { name, count, total: count.toLocaleString('en-US') }),
       });
       // Everything on screen is from before the restore
       await queryClient.invalidateQueries();
     } catch (err) {
-      setRestoreMessage({ ok: false, text: err instanceof Error ? err.message : 'Restore failed' });
+      const message = err instanceof Error ? err.message : null;
+      setRestoreMessage({ ok: false, text: () => message ?? t('data.restore.failed') });
     } finally {
       setRestoring(false);
       setPending(null);
@@ -68,66 +83,60 @@ export function DataExport() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-sm font-semibold text-text">Data Export</h2>
-        <p className="text-xs text-text-tertiary mt-0.5">
-          Download your data for backup or analysis.
-        </p>
+        <h2 className="text-sm font-semibold text-text">{t('data.title')}</h2>
+        <p className="text-xs text-text-tertiary mt-0.5">{t('data.description')}</p>
       </div>
 
       <div className="bg-surface-alt rounded-lg p-5 space-y-4">
         <div>
-          <h3 className="text-sm font-medium text-text">Export Transactions</h3>
-          <p className="text-xs text-text-tertiary mt-0.5">
-            Download all transactions as a CSV file, each with its account, Account Group and
-            currency. Optionally filter by date range.
-          </p>
+          <h3 className="text-sm font-medium text-text">{t('data.transactions.title')}</h3>
+          <p className="text-xs text-text-tertiary mt-0.5">{t('data.transactions.description')}</p>
         </div>
-        <div className="flex items-end gap-3">
+        <div className="flex items-end gap-3 max-md:flex-wrap">
           <div>
-            <label className="block text-xs font-medium text-text-tertiary mb-1">From</label>
+            <label className="block text-xs font-medium text-text-tertiary mb-1">
+              {t('data.transactions.from')}
+            </label>
             <input
               type="date"
+              aria-label={t('data.transactions.from')}
               value={from}
               onChange={(e) => setFrom(e.target.value)}
               className="text-sm border border-border rounded-md px-3 py-1.5 bg-surface text-text focus:outline-none focus:ring-1 focus:ring-brand-600 focus:border-brand-600"
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-text-tertiary mb-1">To</label>
+            <label className="block text-xs font-medium text-text-tertiary mb-1">
+              {t('data.transactions.to')}
+            </label>
             <input
               type="date"
+              aria-label={t('data.transactions.to')}
               value={to}
               onChange={(e) => setTo(e.target.value)}
               className="text-sm border border-border rounded-md px-3 py-1.5 bg-surface text-text focus:outline-none focus:ring-1 focus:ring-brand-600 focus:border-brand-600"
             />
           </div>
           <Button onClick={downloadCsv} size="sm">
-            <Download size={14} /> Download CSV
+            <Download size={14} /> {t('data.transactions.download')}
           </Button>
         </div>
       </div>
 
       <div className="bg-surface-alt rounded-lg p-5 space-y-4">
         <div>
-          <h3 className="text-sm font-medium text-text">Export Exchange Rates</h3>
-          <p className="text-xs text-text-tertiary mt-0.5">
-            Download every stored exchange rate (pesos per dollar, by date) as a CSV file. These are
-            the rates behind every converted total.
-          </p>
+          <h3 className="text-sm font-medium text-text">{t('data.rates.title')}</h3>
+          <p className="text-xs text-text-tertiary mt-0.5">{t('data.rates.description')}</p>
         </div>
         <Button onClick={() => download(`${API_BASE}/exchange-rates/csv`)} size="sm">
-          <Download size={14} /> Download rates CSV
+          <Download size={14} /> {t('data.rates.download')}
         </Button>
       </div>
 
       <div className="bg-surface-alt rounded-lg p-5 space-y-4">
         <div>
-          <h3 className="text-sm font-medium text-text">Full Backup</h3>
-          <p className="text-xs text-text-tertiary mt-0.5">
-            Download a complete JSON backup of all your data — accounts, transactions, budgets,
-            categories, payees, rules, recurring transactions, goals, reports and dashboards. Bank
-            connection credentials are not included.
-          </p>
+          <h3 className="text-sm font-medium text-text">{t('data.backup.title')}</h3>
+          <p className="text-xs text-text-tertiary mt-0.5">{t('data.backup.description')}</p>
         </div>
         <button
           onClick={() => {
@@ -135,23 +144,21 @@ export function DataExport() {
           }}
           className="flex items-center gap-1.5 px-4 py-1.5 text-sm font-medium text-white bg-text-secondary rounded-md hover:opacity-90 transition-colors"
         >
-          <Download size={14} /> Download Backup
+          <Download size={14} /> {t('data.backup.download')}
         </button>
       </div>
 
       <div className="bg-surface-alt rounded-lg p-5 space-y-4">
         <div>
-          <h3 className="text-sm font-medium text-text">Restore from Backup</h3>
-          <p className="text-xs text-text-tertiary mt-0.5">
-            Replace all of your data with a backup file. A copy of your current data is saved first.
-          </p>
+          <h3 className="text-sm font-medium text-text">{t('data.restore.title')}</h3>
+          <p className="text-xs text-text-tertiary mt-0.5">{t('data.restore.description')}</p>
         </div>
         <input
           ref={fileInput}
           type="file"
           accept="application/json,.json"
           className="hidden"
-          aria-label="Backup file"
+          aria-label={t('data.restore.file')}
           onChange={chooseBackup}
         />
         <Button
@@ -160,14 +167,14 @@ export function DataExport() {
           disabled={restoring}
           onClick={() => fileInput.current?.click()}
         >
-          <Upload size={14} /> {restoring ? 'Restoring…' : 'Restore Backup…'}
+          <Upload size={14} /> {restoring ? t('data.restore.restoring') : t('data.restore.choose')}
         </Button>
         {restoreMessage && (
           <p
             role="status"
             className={`text-xs ${restoreMessage.ok ? 'text-text-secondary' : 'text-red-600'}`}
           >
-            {restoreMessage.text}
+            {restoreMessage.text()}
           </p>
         )}
       </div>
@@ -176,9 +183,11 @@ export function DataExport() {
         isOpen={pending !== null}
         onClose={() => setPending(null)}
         onConfirm={confirmRestore}
-        title="Restore this backup?"
-        message={`All of your current data will be replaced with the contents of ${pending?.name ?? 'the backup'}. Bank connections stay connected.`}
-        confirmLabel="Replace my data"
+        title={t('data.restore.confirmTitle')}
+        message={t('data.restore.confirmMessage', {
+          name: pending?.name ?? t('data.restore.theBackup'),
+        })}
+        confirmLabel={t('data.restore.confirm')}
         danger
       />
     </div>

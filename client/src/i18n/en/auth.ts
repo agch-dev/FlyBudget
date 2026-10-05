@@ -21,6 +21,7 @@ export default {
     incorrectPassword: 'Incorrect password',
     incorrectCurrentPassword: 'Current password is incorrect',
     incorrectSetupCode: 'Incorrect setup code',
+    passwordLength: 'New password must be {{min}}-{{max}} characters',
     tooManyAttempts: 'Too many attempts. Wait 15 minutes and try again.',
   },
 } as const;

@@ -1,10 +1,12 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { KeyRound, ExternalLink } from 'lucide-react';
 import { useConfigurePlaid } from '../../hooks/usePlaid';
 import { PlaidEnvironmentSelect, type PlaidEnvironment } from './PlaidEnvironmentSelect';
 import { Button } from '../ui/Button';
 
 export function PlaidConfigForm() {
+  const { t } = useTranslation('settings');
   const [clientId, setClientId] = useState('');
   const [secret, setSecret] = useState('');
   const [environment, setEnvironment] = useState<PlaidEnvironment>('production');
@@ -28,10 +30,9 @@ export function PlaidConfigForm() {
             <KeyRound size={20} className="text-white" />
           </div>
           <div>
-            <h3 className="text-sm font-semibold text-text">Set Up Bank Sync</h3>
+            <h3 className="text-sm font-semibold text-text">{t('banks.plaid.setupTitle')}</h3>
             <p className="text-xs text-text-secondary mt-1 leading-relaxed">
-              Connect your bank accounts to automatically import transactions using Plaid. A
-              developer account is free and always includes up to 10 bank connections.
+              {t('banks.plaid.setupDetail')}
             </p>
             <a
               href="https://dashboard.plaid.com/signup"
@@ -39,7 +40,7 @@ export function PlaidConfigForm() {
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1 text-xs text-brand-600 hover:text-brand-700 font-medium mt-2"
             >
-              Get Plaid credentials <ExternalLink size={11} />
+              {t('banks.plaid.getCredentials')} <ExternalLink size={11} />
             </a>
           </div>
         </div>
@@ -47,34 +48,36 @@ export function PlaidConfigForm() {
 
       <form onSubmit={handleSubmit} className="bg-surface-alt rounded-lg p-5 space-y-4">
         <div>
-          <label className="block text-xs font-medium text-text-tertiary mb-1">Client ID</label>
+          <label className="block text-xs font-medium text-text-tertiary mb-1">
+            {t('banks.plaid.clientId')}
+          </label>
           <input
             type="text"
+            aria-label={t('banks.plaid.clientId')}
             value={clientId}
             onChange={(e) => setClientId(e.target.value)}
-            placeholder="Enter your Plaid Client ID"
+            placeholder={t('banks.plaid.clientIdPlaceholder')}
             className="w-full text-sm border border-border rounded-md px-3 py-2 bg-surface text-text focus:outline-none focus:ring-1 focus:ring-brand-600 focus:border-brand-600"
           />
         </div>
         <div>
-          <label className="block text-xs font-medium text-text-tertiary mb-1">Secret</label>
+          <label className="block text-xs font-medium text-text-tertiary mb-1">
+            {t('banks.plaid.secret')}
+          </label>
           <input
             type="password"
+            aria-label={t('banks.plaid.secret')}
             value={secret}
             onChange={(e) => setSecret(e.target.value)}
-            placeholder="Enter your Plaid Secret"
+            placeholder={t('banks.plaid.secretPlaceholder')}
             className="w-full text-sm border border-border rounded-md px-3 py-2 bg-surface text-text focus:outline-none focus:ring-1 focus:ring-brand-600 focus:border-brand-600"
           />
         </div>
         <PlaidEnvironmentSelect value={environment} onChange={setEnvironment} />
         <Button type="submit" disabled={!clientId.trim() || !secret.trim() || configure.isPending}>
-          {configure.isPending ? 'Saving...' : 'Save Credentials'}
+          {configure.isPending ? t('saving') : t('banks.plaid.save')}
         </Button>
-        {configure.isError && (
-          <p className="text-xs text-negative">
-            Failed to save credentials. Please check your input and try again.
-          </p>
-        )}
+        {configure.isError && <p className="text-xs text-negative">{t('banks.plaid.saveError')}</p>}
       </form>
     </div>
   );

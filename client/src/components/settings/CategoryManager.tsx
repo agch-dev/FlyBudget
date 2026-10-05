@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Check, X } from 'lucide-react';
 import EmojiPicker, { type EmojiClickData } from 'emoji-picker-react';
 import { usePreferencesStore } from '../../store/preferencesStore';
@@ -87,6 +88,7 @@ function EmojiPickerPopover({
   onSelect: (emoji: string) => void;
   onClose: () => void;
 }) {
+  const { t } = useTranslation('settings');
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -106,7 +108,7 @@ function EmojiPickerPopover({
         }}
         width={320}
         height={400}
-        searchPlaceholder="Search emoji..."
+        searchPlaceholder={t('categories.searchEmoji')}
         previewConfig={{ showPreview: false }}
       />
     </div>
@@ -120,6 +122,7 @@ function SortableCategoryRow({
   cat: Category;
   onOpenEditModal: (id: string) => void;
 }) {
+  const { t } = useTranslation('settings');
   const showCategoryIcons = usePreferencesStore((s) => s.showCategoryIcons);
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: cat.id,
@@ -142,7 +145,7 @@ function SortableCategoryRow({
         {...attributes}
         {...listeners}
         className="text-text-disabled hover:text-text-tertiary cursor-grab active:cursor-grabbing touch-none shrink-0 p-1"
-        aria-label={`Drag to reorder ${cat.name}`}
+        aria-label={t('categories.dragCategory', { name: cat.name })}
       >
         <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor" aria-hidden="true">
           <circle cx="4" cy="4" r="1.5" />
@@ -154,7 +157,7 @@ function SortableCategoryRow({
       <button
         type="button"
         onClick={() => onOpenEditModal(cat.id)}
-        aria-label={`Edit ${cat.name}`}
+        aria-label={t('categories.editNamed', { name: cat.name })}
         className="flex-1 min-w-0 flex items-center gap-3 pr-3 py-2.5 text-left cursor-pointer"
       >
         {showCategoryIcons && (
@@ -207,6 +210,7 @@ function GroupCard({
   dragAttributes?: Record<string, any>;
   dragListeners?: Record<string, any>;
 }) {
+  const { t } = useTranslation('settings');
   const [localCats, setLocalCats] = useState(group.categories);
   const showCategoryIcons = usePreferencesStore((s) => s.showCategoryIcons);
   const [showNewCatEmojiPicker, setShowNewCatEmojiPicker] = useState(false);
@@ -244,7 +248,7 @@ function GroupCard({
               {...dragAttributes}
               {...dragListeners}
               className="text-text-disabled hover:text-text-tertiary cursor-grab active:cursor-grabbing touch-none shrink-0 -ml-1"
-              aria-label="Drag to reorder group"
+              aria-label={t('categories.dragGroup')}
             >
               <svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
                 <circle cx="4" cy="4" r="1.5" />
@@ -270,14 +274,14 @@ function GroupCard({
               onClick={() => onStartEdit(group.id)}
               className="text-xs text-text-tertiary hover:text-brand-600 transition-colors"
             >
-              Edit
+              {t('categories.edit')}
             </button>
           )}
           <button
             onClick={() => onDeleteGroup(group.id)}
             className="text-xs text-text-tertiary hover:text-negative transition-colors"
           >
-            Delete
+            {t('categories.delete')}
           </button>
         </div>
       </div>
@@ -289,7 +293,7 @@ function GroupCard({
               <SortableCategoryRow key={cat.id} cat={cat} onOpenEditModal={onOpenEditModal} />
             ))}
             {localCats.length === 0 && !isAddingCategory && (
-              <p className="text-xs text-text-tertiary py-2 px-4">No categories yet.</p>
+              <p className="text-xs text-text-tertiary py-2 px-4">{t('categories.noCategories')}</p>
             )}
           </div>
         </SortableContext>
@@ -303,7 +307,7 @@ function GroupCard({
                 <button
                   onClick={() => setShowNewCatEmojiPicker(!showNewCatEmojiPicker)}
                   className="text-base w-8 h-8 flex items-center justify-center rounded border border-border-light hover:bg-hover transition-colors"
-                  title="Pick icon"
+                  title={t('categories.pickIcon')}
                 >
                   {newCategoryIcon || '📦'}
                 </button>
@@ -324,12 +328,12 @@ function GroupCard({
                 if (e.key === 'Enter') onAddCategorySubmit();
                 if (e.key === 'Escape') onAddCategoryCancel();
               }}
-              placeholder="Category name..."
+              placeholder={t('categories.categoryName')}
               className="text-sm border border-border rounded px-2.5 py-1.5 bg-surface text-text focus:outline-none focus:ring-1 focus:ring-brand-600 flex-1"
             />
             <button
               onClick={onAddCategorySubmit}
-              aria-label="Add category"
+              aria-label={t('categories.addCategory')}
               disabled={!newCategoryName.trim()}
               className="p-1.5 text-positive hover:bg-positive-subtle rounded disabled:opacity-40 transition-colors"
             >
@@ -337,7 +341,7 @@ function GroupCard({
             </button>
             <button
               onClick={onAddCategoryCancel}
-              aria-label="Cancel"
+              aria-label={t('ui.cancel', { ns: 'common' })}
               className="p-1.5 text-text-tertiary hover:bg-hover rounded transition-colors"
             >
               <X size={16} />
@@ -351,7 +355,7 @@ function GroupCard({
           onClick={() => onAddCategoryStart(group.id)}
           className="w-full px-4 py-2.5 text-xs text-brand-600 hover:text-brand-700 hover:bg-brand-50/50 transition-colors text-left border-t border-border-light"
         >
-          Create Category
+          {t('categories.createCategory')}
         </button>
       )}
     </div>
@@ -382,7 +386,7 @@ function SortableGroupCard(
 }
 
 function Section({
-  title,
+  section,
   groups,
   onCreateGroup,
   editingId,
@@ -408,7 +412,7 @@ function Section({
   onAddGroupSubmit,
   onAddGroupCancel,
 }: {
-  title: string;
+  section: 'income' | 'expense';
   groups: CategoryGroup[];
   onCreateGroup: () => void;
   editingId: string | null;
@@ -439,8 +443,8 @@ function Section({
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
-  const sectionKey = title === 'Income' ? 'income' : 'expense';
-  const isAddingGroup = addingGroupSection === sectionKey;
+  const { t } = useTranslation('settings');
+  const isAddingGroup = addingGroupSection === section;
 
   function handleGroupDragEnd(event: DragEndEvent) {
     const { active, over } = event;
@@ -454,12 +458,12 @@ function Section({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-base font-semibold text-text">{title}</h2>
+        <h2 className="text-base font-semibold text-text">{t(`categories.section.${section}`)}</h2>
         <button
           onClick={onAddGroupStart}
           className="text-sm text-brand-600 hover:text-brand-700 transition-colors"
         >
-          Create group
+          {t('categories.createGroup')}
         </button>
       </div>
 
@@ -473,12 +477,12 @@ function Section({
               if (e.key === 'Enter') onAddGroupSubmit();
               if (e.key === 'Escape') onAddGroupCancel();
             }}
-            placeholder="Group name..."
+            placeholder={t('categories.groupName')}
             className="text-sm border border-border rounded px-2.5 py-1.5 bg-surface text-text focus:outline-none focus:ring-1 focus:ring-brand-600 flex-1"
           />
           <button
             onClick={onAddGroupSubmit}
-            aria-label="Add group"
+            aria-label={t('categories.addGroup')}
             disabled={!addingGroupName.trim()}
             className="p-1.5 text-positive hover:bg-positive-subtle rounded disabled:opacity-40 transition-colors"
           >
@@ -486,7 +490,7 @@ function Section({
           </button>
           <button
             onClick={onAddGroupCancel}
-            aria-label="Cancel"
+            aria-label={t('ui.cancel', { ns: 'common' })}
             className="p-1.5 text-text-tertiary hover:bg-hover rounded transition-colors"
           >
             <X size={16} />
@@ -528,7 +532,7 @@ function Section({
       </DndContext>
 
       {groups.length === 0 && !isAddingGroup && (
-        <p className="text-sm text-text-tertiary py-4 text-center">No groups yet.</p>
+        <p className="text-sm text-text-tertiary py-4 text-center">{t('categories.noGroups')}</p>
       )}
     </div>
   );
@@ -538,6 +542,7 @@ function Section({
 const NO_GROUPS: CategoryGroup[] = [];
 
 export function CategoryManager() {
+  const { t } = useTranslation('settings');
   const { data: groups = NO_GROUPS, isLoading } = useCategories();
   const createGroup = useCreateGroup();
   const updateGroup = useUpdateGroup();
@@ -635,7 +640,7 @@ export function CategoryManager() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-32 text-sm text-text-tertiary">
-        Loading...
+        {t('loading')}
       </div>
     );
   }
@@ -673,7 +678,7 @@ export function CategoryManager() {
   return (
     <div className="space-y-10">
       <Section
-        title="Income"
+        section="income"
         groups={incomeGroups}
         onCreateGroup={() => setAddingGroupSection('income')}
         onReorderGroups={handleReorderGroups}
@@ -682,7 +687,7 @@ export function CategoryManager() {
       />
 
       <Section
-        title="Expenses"
+        section="expense"
         groups={expenseGroups}
         onCreateGroup={() => setAddingGroupSection('expense')}
         onReorderGroups={handleReorderGroups}
@@ -697,9 +702,9 @@ export function CategoryManager() {
           if (deleteGroupId) deleteGroup.mutate(deleteGroupId);
           setDeleteGroupId(null);
         }}
-        title="Delete Group"
-        message={`Delete "${deleteGroupTarget?.name ?? ''}" and all its categories? This cannot be undone.`}
-        confirmLabel="Delete"
+        title={t('categories.deleteGroupTitle')}
+        message={t('categories.deleteGroupMessage', { name: deleteGroupTarget?.name ?? '' })}
+        confirmLabel={t('categories.delete')}
         danger
       />
 
@@ -720,9 +725,9 @@ export function CategoryManager() {
         isOpen={deleteCatState !== null && deleteCatState.count === 0}
         onClose={() => setDeleteCatState(null)}
         onConfirm={() => handleConfirmDeleteCategory()}
-        title="Delete Category"
-        message={`Delete "${deleteCatState?.name ?? ''}"? This cannot be undone.`}
-        confirmLabel="Delete"
+        title={t('categories.deleteCategoryTitle')}
+        message={t('categories.deleteCategoryMessage', { name: deleteCatState?.name ?? '' })}
+        confirmLabel={t('categories.delete')}
         danger
       />
 

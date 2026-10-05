@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
+import { setLanguage } from '../i18n';
 import {
   FIRST_RETRY_MS,
   MAX_RETRY_MS,
@@ -124,6 +125,16 @@ describe('describeUserAgent', () => {
       ),
     ).toBe('Safari on iPhone');
     expect(describeUserAgent(null)).toBe('Unknown browser');
+  });
+
+  it('names them in the App Language', () => {
+    setLanguage('es');
+    expect(
+      describeUserAgent(
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36',
+      ),
+    ).toBe('Chrome en Windows');
+    expect(describeUserAgent(null)).toBe('Navegador desconocido');
   });
 
   it('always gives a short, non-empty name', () => {

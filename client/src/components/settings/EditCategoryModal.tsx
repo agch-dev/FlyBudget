@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useFormReset } from '../../hooks/useFormReset';
 import EmojiPicker, { type EmojiClickData } from 'emoji-picker-react';
 import { Modal } from '../ui/Modal';
@@ -7,20 +8,7 @@ import { useUpdateCategory } from '../../hooks/useCategories';
 import { usePreferencesStore } from '../../store/preferencesStore';
 import type { BudgetType, Category, CategoryGroup } from '../../types';
 
-const BUDGET_TYPE_OPTIONS: { value: BudgetType; label: string; description: string }[] = [
-  { value: 'fixed', label: 'Fixed', description: 'Consistent, predictable monthly amount' },
-  {
-    value: 'flexible',
-    label: 'Flexible',
-    description: 'Variable spending that changes each month',
-  },
-  { value: 'non_monthly', label: 'Non-Monthly', description: 'Periodic or irregular expenses' },
-  {
-    value: 'savings',
-    label: 'Savings/Investments',
-    description: 'Savings goals and investment contributions',
-  },
-];
+const BUDGET_TYPES: BudgetType[] = ['fixed', 'flexible', 'non_monthly', 'savings'];
 
 function EmojiPickerPopover({
   onSelect,
@@ -29,6 +17,7 @@ function EmojiPickerPopover({
   onSelect: (emoji: string) => void;
   onClose: () => void;
 }) {
+  const { t } = useTranslation('settings');
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -48,7 +37,7 @@ function EmojiPickerPopover({
         }}
         width={320}
         height={400}
-        searchPlaceholder="Search emoji..."
+        searchPlaceholder={t('categories.searchEmoji')}
         previewConfig={{ showPreview: false }}
       />
     </div>
@@ -64,6 +53,7 @@ interface Props {
 }
 
 export function EditCategoryModal({ category, groups, isIncome, onClose, onDelete }: Props) {
+  const { t } = useTranslation('settings');
   const showCategoryIcons = usePreferencesStore((s) => s.showCategoryIcons);
   const updateCategory = useUpdateCategory();
   const [name, setName] = useState('');
@@ -105,17 +95,19 @@ export function EditCategoryModal({ category, groups, isIncome, onClose, onDelet
   }
 
   return (
-    <Modal isOpen={!!category} onClose={onClose} title="Edit Category" size="sm">
+    <Modal isOpen={!!category} onClose={onClose} title={t('categories.editTitle')} size="sm">
       <form onSubmit={handleSubmit} className="space-y-5">
         <div>
-          <label className="block text-sm font-medium text-text mb-1.5">Icon & Name</label>
+          <label className="block text-sm font-medium text-text mb-1.5">
+            {t('categories.iconAndName')}
+          </label>
           <div className="flex items-center gap-3">
             {showCategoryIcons && (
               <div className="relative shrink-0">
                 <button
                   type="button"
                   onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                  aria-label="Change icon"
+                  aria-label={t('categories.changeIcon')}
                   className="text-xl w-10 h-10 flex items-center justify-center rounded-lg border border-border hover:bg-hover transition-colors"
                 >
                   {icon || '📦'}
@@ -132,16 +124,18 @@ export function EditCategoryModal({ category, groups, isIncome, onClose, onDelet
               value={name}
               onChange={(e) => setName(e.target.value)}
               className="block w-full rounded-lg border border-border px-3 py-2 text-sm bg-surface text-text focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
-              placeholder="Category name"
-              aria-label="Category name"
+              placeholder={t('categories.nameLabel')}
+              aria-label={t('categories.nameLabel')}
             />
           </div>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-text mb-1.5">Group</label>
+          <label className="block text-sm font-medium text-text mb-1.5">
+            {t('categories.group')}
+          </label>
           <select
-            aria-label="Group"
+            aria-label={t('categories.group')}
             value={groupId}
             onChange={(e) => setGroupId(e.target.value)}
             disabled={groupLocked}
@@ -159,13 +153,15 @@ export function EditCategoryModal({ category, groups, isIncome, onClose, onDelet
 
         {!isIncome && (
           <div>
-            <label className="block text-sm font-medium text-text mb-2">Budget Type</label>
+            <label className="block text-sm font-medium text-text mb-2">
+              {t('categories.budgetType')}
+            </label>
             <div className="space-y-2">
-              {BUDGET_TYPE_OPTIONS.map((opt) => (
+              {BUDGET_TYPES.map((type) => (
                 <label
-                  key={opt.value}
+                  key={type}
                   className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                    budgetType === opt.value
+                    budgetType === type
                       ? 'border-brand-500 bg-brand-50'
                       : 'border-border hover:bg-hover'
                   }`}
@@ -173,14 +169,18 @@ export function EditCategoryModal({ category, groups, isIncome, onClose, onDelet
                   <input
                     type="radio"
                     name="budgetType"
-                    value={opt.value}
-                    checked={budgetType === opt.value}
-                    onChange={() => setBudgetType(opt.value)}
+                    value={type}
+                    checked={budgetType === type}
+                    onChange={() => setBudgetType(type)}
                     className="mt-0.5 accent-brand-600"
                   />
                   <div>
-                    <div className="text-sm font-medium text-text">{opt.label}</div>
-                    <div className="text-xs text-text-tertiary">{opt.description}</div>
+                    <div className="text-sm font-medium text-text">
+                      {t(`budgetType.${type}`, { ns: 'budget' })}
+                    </div>
+                    <div className="text-xs text-text-tertiary">
+                      {t(`categories.budgetTypeHint.${type}`)}
+                    </div>
                   </div>
                 </label>
               ))}
@@ -197,14 +197,14 @@ export function EditCategoryModal({ category, groups, isIncome, onClose, onDelet
               onDelete(category!.id);
             }}
           >
-            Delete
+            {t('categories.delete')}
           </Button>
           <div className="flex gap-3">
             <Button type="button" variant="secondary" onClick={onClose}>
-              Cancel
+              {t('ui.cancel', { ns: 'common' })}
             </Button>
             <Button type="submit" disabled={!name.trim() || updateCategory.isPending}>
-              {updateCategory.isPending ? 'Saving...' : 'Save'}
+              {updateCategory.isPending ? t('saving') : t('save')}
             </Button>
           </div>
         </div>

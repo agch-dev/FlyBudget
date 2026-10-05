@@ -38,6 +38,12 @@ function currencyLocked(message: string): string | null {
   return lock ? t(`accounts:errors.currencyLocked.${lock}`) : null;
 }
 
+/** "New password must be 8-256 characters" (POST /auth/change-password) */
+function passwordLength(message: string): string | null {
+  const match = /^New password must be (\d+)-(\d+) characters$/.exec(message);
+  return match ? t('auth:errors.passwordLength', { min: match[1], max: match[2] }) : null;
+}
+
 const TRANSACTION = /^\/transactions\/[^/]+$/;
 const LINK_TRANSFER = /^\/transactions\/[^/]+\/link-transfer$/;
 const UNLINK_TRANSFER = /^\/transactions\/[^/]+\/unlink-transfer$/;
@@ -79,8 +85,22 @@ const TRANSLATED: TranslatedError[] = [
     status: 401,
     text: () => t('auth:errors.incorrectCurrentPassword'),
   },
+  {
+    method: 'POST',
+    path: /^\/auth\/change-password$/,
+    status: 400,
+    text: passwordLength,
+  },
   // The limit on failed attempts (login, setup, password changes)
   { path: /^\/auth\//, status: 429, text: () => t('auth:errors.tooManyAttempts') },
+  // The limits on bank requests (bankRateLimit) and on refreshing exchange rates
+  { path: /^\/(plaid|simplefin)\//, status: 429, text: () => t('settings:errors.bankRateLimit') },
+  {
+    method: 'POST',
+    path: /^\/exchange-rates\/refresh$/,
+    status: 429,
+    text: () => t('settings:errors.ratesRefreshLimit'),
+  },
   // Changing the currency of an account something depends on
   { method: 'PUT', path: /^\/accounts\/[^/]+$/, status: 409, text: currencyLocked },
   // Linking two transactions as a transfer (server: services/transferLink.ts), and unlinking
