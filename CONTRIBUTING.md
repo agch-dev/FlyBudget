@@ -57,6 +57,8 @@ CI runs all of these on every pull request.
 - **Never leave a blank screen.** When a page or card has nothing to show, use
   `EmptyState` (`client/src/components/ui/`): say what goes there and offer a
   button for the first step.
+- **UI text goes through the catalogs** in `client/src/i18n/` (English and
+  Spanish), never as a literal: see "Languages" in [CLAUDE.md](CLAUDE.md).
 - **Give controls accessible names** (labels, `aria-label`), so they work with
   screen readers and can be found by tests.
 - **Keep the security model intact.** [SECURITY.md](SECURITY.md) and
