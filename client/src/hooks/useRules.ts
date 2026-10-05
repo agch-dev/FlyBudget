@@ -26,7 +26,7 @@ export function useCreateRule() {
       qc.invalidateQueries({ queryKey: QK });
       let current = created;
       useUndoStore.getState().push({
-        description: t('undo.action.createRule'),
+        description: () => t('undo.action.createRule'),
         undo: async () => {
           await rulesApi.deleteRule(current.id);
           qc.invalidateQueries({ queryKey: QK });
@@ -54,7 +54,7 @@ export function useUpdateRule() {
       if (!ctx?.old) return;
       const snapshot = toInput(ctx.old);
       useUndoStore.getState().push({
-        description:
+        description: () =>
           data.enabled !== undefined && Object.keys(data).length === 1
             ? data.enabled
               ? t('undo.action.enableRule')
@@ -86,7 +86,7 @@ export function useDeleteRule() {
       if (!snapshot) return;
       let current = snapshot;
       useUndoStore.getState().push({
-        description: t('undo.action.deleteRule'),
+        description: () => t('undo.action.deleteRule'),
         undo: async () => {
           current = await rulesApi.createRule(toInput(snapshot));
           qc.invalidateQueries({ queryKey: QK });
@@ -111,7 +111,7 @@ export function useReorderRules() {
     onSuccess: (oldIds, newIds) => {
       qc.invalidateQueries({ queryKey: QK });
       useUndoStore.getState().push({
-        description: t('undo.action.reorderRules'),
+        description: () => t('undo.action.reorderRules'),
         undo: async () => {
           await rulesApi.reorderRules(oldIds);
           qc.invalidateQueries({ queryKey: QK });

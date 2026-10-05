@@ -53,7 +53,7 @@ export function useSetBudget() {
       qc.invalidateQueries({ queryKey: ['budget-summary', month] });
       const oldBudgeted = ctx?.oldBudgeted ?? 0;
       useUndoStore.getState().push({
-        description: t('undo.action.setBudget'),
+        description: () => t('undo.action.setBudget'),
         undo: async () => {
           await budgetApi.setBudget(month, categoryId, oldBudgeted);
           qc.invalidateQueries({ queryKey: ['budget', month] });

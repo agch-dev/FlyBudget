@@ -20,11 +20,12 @@ export function UndoToast() {
   if (!message) return null;
 
   const isUndo = action === 'undo';
+  const text = { message: message() };
 
   return (
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-text text-surface rounded-lg shadow-lg px-4 py-2.5 text-sm">
       {isUndo ? <Undo2 size={14} /> : <Redo2 size={14} />}
-      <span>{isUndo ? t('undo.undid', { message }) : t('undo.redid', { message })}</span>
+      <span>{isUndo ? t('undo.undid', text) : t('undo.redid', text)}</span>
       <button
         onClick={() => {
           clearToast();

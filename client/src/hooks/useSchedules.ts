@@ -49,7 +49,7 @@ export function useCreateSchedule() {
     onSuccess: (created) => {
       invalidateAll(qc);
       useUndoStore.getState().push({
-        description: t('undo.action.createSchedule', { name: created.name }),
+        description: () => t('undo.action.createSchedule', { name: created.name }),
         undo: async () => {
           await api.deleteSchedule(created.id, true);
           invalidateAll(qc);
@@ -93,7 +93,7 @@ export function useUpdateSchedule() {
       if (!ctx?.old) return;
       const snapshot = ctx.old;
       useUndoStore.getState().push({
-        description: t('undo.action.editSchedule'),
+        description: () => t('undo.action.editSchedule'),
         undo: async () => {
           await api.updateSchedule(id, {
             name: snapshot.name,
@@ -135,7 +135,7 @@ export function useDeleteSchedule() {
       if (!snapshot) return;
       if (!hard) {
         useUndoStore.getState().push({
-          description: t('undo.action.cancelSchedule', { name: snapshot.name }),
+          description: () => t('undo.action.cancelSchedule', { name: snapshot.name }),
           undo: async () => {
             await api.updateSchedule(snapshot.id, { status: 'active' });
             invalidateAll(qc);
@@ -167,7 +167,7 @@ export function useMarkOccurrencePaid() {
     onSuccess: (createdTx) => {
       invalidateAll(qc);
       useUndoStore.getState().push({
-        description: t('undo.action.markPaid'),
+        description: () => t('undo.action.markPaid'),
         undo: async () => {
           await deleteTransaction(createdTx.id);
           invalidateAll(qc);

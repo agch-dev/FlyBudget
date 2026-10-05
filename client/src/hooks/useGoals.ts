@@ -18,7 +18,7 @@ export function useCreateGoal() {
     onSuccess: (created) => {
       qc.invalidateQueries({ queryKey: ['goals'] });
       useUndoStore.getState().push({
-        description: t('undo.action.createGoal', { name: created.name }),
+        description: () => t('undo.action.createGoal', { name: created.name }),
         undo: async () => {
           await goalsApi.deleteGoal(created.id);
           qc.invalidateQueries({ queryKey: ['goals'] });
@@ -55,7 +55,7 @@ export function useUpdateGoal() {
       if (!ctx?.old) return;
       const snapshot = ctx.old;
       useUndoStore.getState().push({
-        description: t('undo.action.editGoal'),
+        description: () => t('undo.action.editGoal'),
         undo: async () => {
           await goalsApi.updateGoal(id, {
             name: snapshot.name,
@@ -90,7 +90,7 @@ export function useDeleteGoal() {
       qc.invalidateQueries({ queryKey: ['goals'] });
       if (!snapshot) return;
       useUndoStore.getState().push({
-        description: t('undo.action.deleteGoal', { name: snapshot.name }),
+        description: () => t('undo.action.deleteGoal', { name: snapshot.name }),
         undo: async () => {
           await goalsApi.createGoal({
             name: snapshot.name,

@@ -27,7 +27,7 @@ export function useCreateGroup() {
     onSuccess: (created) => {
       qc.invalidateQueries({ queryKey: ['categories'] });
       useUndoStore.getState().push({
-        description: t('undo.action.createGroup', { name: created.name }),
+        description: () => t('undo.action.createGroup', { name: created.name }),
         undo: async () => {
           await categoriesApi.deleteGroup(created.id);
           qc.invalidateQueries({ queryKey: ['categories'] });
@@ -55,7 +55,7 @@ export function useUpdateGroup() {
       if (!ctx?.old) return;
       const snapshot = ctx.old;
       useUndoStore.getState().push({
-        description: t('undo.action.renameGroup'),
+        description: () => t('undo.action.renameGroup'),
         undo: async () => {
           await categoriesApi.updateGroup(id, { name: snapshot.name });
           qc.invalidateQueries({ queryKey: ['categories'] });
@@ -82,7 +82,7 @@ export function useDeleteGroup() {
       qc.invalidateQueries({ queryKey: ['budget'] });
       if (!snapshot) return;
       useUndoStore.getState().push({
-        description: t('undo.action.deleteGroup', { name: snapshot.name }),
+        description: () => t('undo.action.deleteGroup', { name: snapshot.name }),
         undo: async () => {
           await categoriesApi.createGroup({ name: snapshot.name, isIncome: snapshot.isIncome });
           qc.invalidateQueries({ queryKey: ['categories'] });
@@ -107,7 +107,7 @@ export function useReorderGroups() {
     onSuccess: (oldIds, newIds) => {
       qc.invalidateQueries({ queryKey: ['categories'] });
       useUndoStore.getState().push({
-        description: t('undo.action.reorderGroups'),
+        description: () => t('undo.action.reorderGroups'),
         undo: async () => {
           await categoriesApi.reorderGroups(oldIds);
           qc.invalidateQueries({ queryKey: ['categories'] });
@@ -128,7 +128,7 @@ export function useCreateCategory() {
     onSuccess: (created) => {
       qc.invalidateQueries({ queryKey: ['categories'] });
       useUndoStore.getState().push({
-        description: t('undo.action.createCategory', { name: created.name }),
+        description: () => t('undo.action.createCategory', { name: created.name }),
         undo: async () => {
           await categoriesApi.deleteCategory(created.id);
           qc.invalidateQueries({ queryKey: ['categories'] });
@@ -166,7 +166,7 @@ export function useUpdateCategory() {
       if (!ctx?.old) return;
       const snapshot = ctx.old;
       useUndoStore.getState().push({
-        description: t('undo.action.editCategory'),
+        description: () => t('undo.action.editCategory'),
         undo: async () => {
           await categoriesApi.updateCategory(id, {
             name: snapshot.name,
@@ -209,7 +209,7 @@ export function useReorderCategories() {
     onSuccess: (oldIds, newIds) => {
       qc.invalidateQueries({ queryKey: ['categories'] });
       useUndoStore.getState().push({
-        description: t('undo.action.reorderCategories'),
+        description: () => t('undo.action.reorderCategories'),
         undo: async () => {
           await categoriesApi.reorderCategories(oldIds);
           qc.invalidateQueries({ queryKey: ['categories'] });

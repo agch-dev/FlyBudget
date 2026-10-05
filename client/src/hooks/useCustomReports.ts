@@ -37,7 +37,7 @@ export function useCreateSavedReport() {
       };
       refresh();
       useUndoStore.getState().push({
-        description: t('reports:undo.createReport', { name: created.name }),
+        description: () => t('reports:undo.createReport', { name: created.name }),
         undo: async () => {
           await api.deleteSavedReport(created.id);
           refresh();
@@ -74,7 +74,7 @@ export function useUpdateSavedReport() {
       if (!ctx?.old) return;
       const snapshot = ctx.old;
       useUndoStore.getState().push({
-        description: t('reports:undo.editReport'),
+        description: () => t('reports:undo.editReport'),
         undo: async () => {
           await api.updateSavedReport(id, { name: snapshot.name, config: snapshot.config });
           qc.invalidateQueries({ queryKey: ['custom-reports'] });
@@ -102,7 +102,7 @@ export function useDeleteSavedReport() {
       qc.invalidateQueries({ queryKey: ['dashboards'] });
       if (!snapshot) return;
       useUndoStore.getState().push({
-        description: t('reports:undo.deleteReport', { name: snapshot.name }),
+        description: () => t('reports:undo.deleteReport', { name: snapshot.name }),
         undo: async () => {
           await api.createSavedReport({ name: snapshot.name, config: snapshot.config });
           qc.invalidateQueries({ queryKey: ['custom-reports'] });

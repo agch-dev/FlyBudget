@@ -28,7 +28,7 @@ export function useCreateTransaction() {
       qc.invalidateQueries({ queryKey: ['transactions'] });
       qc.invalidateQueries({ queryKey: ['accounts'] });
       useUndoStore.getState().push({
-        description: t('undo.action.createTransaction'),
+        description: () => t('undo.action.createTransaction'),
         undo: async () => {
           await txApi.deleteTransaction(created.id);
           qc.invalidateQueries({ queryKey: ['transactions'] });
@@ -71,7 +71,7 @@ export function useUpdateTransaction() {
       if (!ctx?.old) return;
       const snapshot = ctx.old;
       useUndoStore.getState().push({
-        description: t('undo.action.editTransaction'),
+        description: () => t('undo.action.editTransaction'),
         undo: async () => {
           await txApi.updateTransaction(id, {
             accountId: snapshot.accountId,
@@ -107,7 +107,7 @@ export function useDeleteTransaction() {
       qc.invalidateQueries({ queryKey: ['accounts'] });
       if (!snapshot) return;
       useUndoStore.getState().push({
-        description: t('undo.action.deleteTransaction'),
+        description: () => t('undo.action.deleteTransaction'),
         undo: async () => {
           await txApi.createTransaction({
             accountId: snapshot.accountId,
@@ -152,7 +152,7 @@ export function useCreateTransfer() {
       qc.invalidateQueries({ queryKey: ['accounts'] });
       const ids = created.map((t) => t.id);
       useUndoStore.getState().push({
-        description: t('undo.action.createTransfer'),
+        description: () => t('undo.action.createTransfer'),
         undo: async () => {
           for (const id of ids) await txApi.deleteTransaction(id);
           qc.invalidateQueries({ queryKey: ['transactions'] });
@@ -189,7 +189,7 @@ export function useTransferCandidates(id: string, enabled = true) {
 
 /** Linking and unlinking, with undo */
 function useTransferLinkMutation<V>(
-  /** Looked up when the change is made, in the App Language of that moment */
+  /** Looked up whenever the toast shows it */
   description: () => string,
   run: (vars: V) => Promise<Transaction[]>,
   reverse: (sides: Transaction[], before: (Transaction | undefined)[]) => Promise<unknown>,
@@ -206,7 +206,7 @@ function useTransferLinkMutation<V>(
       const before = sides.map((t) => findTxInCache(qc, t.id));
       refresh();
       useUndoStore.getState().push({
-        description: description(),
+        description,
         undo: async () => {
           await reverse(sides, before);
           refresh();

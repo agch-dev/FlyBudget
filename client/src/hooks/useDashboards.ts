@@ -97,7 +97,7 @@ export function useUpdateWidget() {
       // Moves between dashboards aren't undoable; date range and name edits are
       if (!data.meta) return;
       useUndoStore.getState().push({
-        description: t('reports:undo.editWidget'),
+        description: () => t('reports:undo.editWidget'),
         undo: async () => {
           await api.updateWidget(widget.id, { meta: widget.meta });
           qc.invalidateQueries({ queryKey: ['dashboards'] });
@@ -119,7 +119,7 @@ export function useDeleteWidget() {
       qc.invalidateQueries({ queryKey: widgetsKey(widget.pageId) });
       let restoredId = widget.id;
       useUndoStore.getState().push({
-        description: t('reports:undo.removeWidget'),
+        description: () => t('reports:undo.removeWidget'),
         undo: async () => {
           const restored = await api.addWidget(widget.pageId, {
             type: widget.type,

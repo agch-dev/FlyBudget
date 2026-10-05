@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 
 export interface UndoCommand {
-  description: string;
+  /** What the change was, looked up whenever the toast shows it (so it follows the App Language) */
+  description: () => string;
   undo: () => Promise<void>;
   redo: () => Promise<void>;
 }
@@ -11,7 +12,7 @@ const MAX_STACK = 50;
 interface UndoState {
   undoStack: UndoCommand[];
   redoStack: UndoCommand[];
-  toastMessage: string | null;
+  toastMessage: (() => string) | null;
   toastAction: 'undo' | 'redo' | null;
 }
 
