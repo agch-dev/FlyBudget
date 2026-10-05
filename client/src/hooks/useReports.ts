@@ -3,11 +3,21 @@ import { useQuery } from '@tanstack/react-query';
 import { format, parseISO, subDays } from 'date-fns';
 import * as reportsApi from '../api/reports';
 import { DAILY_MAX_MONTHS, dayBounds, monthCount } from '../utils/dateRange';
+import { HOME_CURRENCY, type Currency } from '../types';
 
-export const useNetWorth = (from: string, to: string, granularity?: 'daily' | 'monthly') =>
+/**
+ * Net worth over time in `currency` (pesos unless told otherwise), dollar and pesos balances
+ * combined at the exchange rate of each point's day.
+ */
+export const useNetWorth = (
+  from: string,
+  to: string,
+  granularity?: 'daily' | 'monthly',
+  currency: Currency = HOME_CURRENCY,
+) =>
   useQuery({
-    queryKey: ['reports', 'net-worth', from, to, granularity],
-    queryFn: () => reportsApi.getNetWorth(from, to, granularity),
+    queryKey: ['reports', 'net-worth', from, to, granularity, currency],
+    queryFn: () => reportsApi.getNetWorth(from, to, granularity, currency),
   });
 
 /**
@@ -15,11 +25,16 @@ export const useNetWorth = (from: string, to: string, granularity?: 'daily' | 'm
  * DAILY_MAX_MONTHS), starting at the previous month's close so the change covers the whole
  * range; a point per month otherwise.
  */
-export function useNetWorthSeries(from: string, to: string) {
+export function useNetWorthSeries(from: string, to: string, currency: Currency = HOME_CURRENCY) {
   const daily = monthCount(from, to) <= DAILY_MAX_MONTHS;
   const days = dayBounds(from, to);
   const start = format(subDays(parseISO(days.from), 1), 'yyyy-MM-dd');
-  return useNetWorth(daily ? start : from, daily ? days.to : to, daily ? 'daily' : undefined);
+  return useNetWorth(
+    daily ? start : from,
+    daily ? days.to : to,
+    daily ? 'daily' : undefined,
+    currency,
+  );
 }
 
 export const useIncomeVsExpenses = (from: string, to: string) =>

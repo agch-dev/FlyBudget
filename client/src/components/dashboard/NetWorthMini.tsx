@@ -5,6 +5,7 @@ import { useNetWorth } from '../../hooks/useReports';
 import { useAccounts } from '../../hooks/useAccounts';
 import { ButtonLink } from '../ui/Button';
 import { formatCurrency } from '../../utils/currency';
+import { breakdownLine } from '../../utils/balanceConversion';
 import { chartColors } from '../../utils/chartColors';
 import { formatDateAxisLabels, formatDateLabel } from '../../utils/chartTicks';
 import { useXAxisLayout } from '../../hooks/useXAxisLayout';
@@ -105,6 +106,8 @@ export default function NetWorthMini() {
   }, [data]);
 
   const latest = data.length > 0 ? data[data.length - 1].netWorth : 0;
+  // What the total is made of, when part of it is in dollars: "$150,000 + US$3,200"
+  const breakdown = breakdownLine(data[data.length - 1]?.native);
   const first = data.length > 0 ? data[0].netWorth : latest;
   const change = latest - first;
   const pct = first !== 0 ? (change / Math.abs(first)) * 100 : 0;
@@ -133,6 +136,15 @@ export default function NetWorthMini() {
           >
             {formatCurrency(latest)}
           </p>
+          {breakdown && (
+            <p
+              className="text-sm text-text-secondary tabular-nums mt-0.5"
+              data-testid="net-worth-breakdown"
+              title="Dollars are counted at today's exchange rate"
+            >
+              {breakdown}
+            </p>
+          )}
           {noAccounts && (
             <p className="text-sm text-text-tertiary mt-1">
               What you own minus what you owe, across all your accounts.

@@ -42,6 +42,7 @@ import {
 } from './ChartHelpers';
 import { useXAxisLayout } from '../../hooks/useXAxisLayout';
 import type { NetWorthPoint } from '../../types';
+import { breakdownLine } from '../../utils/balanceConversion';
 
 // Plot insets for charts with 16px margins and a 60px y-axis
 const INSET = { left: 76, right: 16 };
@@ -79,6 +80,9 @@ function NetWorthTooltip({ active, payload, label }: any) {
       <p className="text-xs font-medium" style={{ color: chartColors.negative }}>
         Liabilities: {formatCurrency(d.liabilities)}
       </p>
+      {breakdownLine(d.native) && (
+        <p className="text-xs text-text-tertiary mt-1">{breakdownLine(d.native)}</p>
+      )}
     </div>
   );
 }
@@ -123,6 +127,7 @@ export function NetWorthChart({
   const debtTop =
     debtMax > 0 ? Math.ceil(debtMax / niceStep(debtMax, 2)) * niceStep(debtMax, 2) : 0;
   const summary = useMemo(() => netWorthChange(data), [data]);
+  const breakdown = breakdownLine(data[data.length - 1]?.native);
 
   if (isLoading) return <ChartSkeleton />;
   const hasData =
@@ -154,6 +159,14 @@ export function NetWorthChart({
           {data.length > 1 && (
             <span className="text-sm font-medium tabular-nums" style={{ color: trend }}>
               {summary.change >= 0 ? '▲' : '▼'} {formatChange(summary.change, summary.percent)}
+            </span>
+          )}
+          {breakdown && (
+            <span
+              className="text-xs text-text-tertiary tabular-nums"
+              data-testid="net-worth-breakdown"
+            >
+              {breakdown}
             </span>
           )}
         </div>

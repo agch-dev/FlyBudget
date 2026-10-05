@@ -22,6 +22,7 @@ import { usePayees } from '../../hooks/usePayees';
 import { useTransactions } from '../../hooks/useTransactions';
 import { usePreferencesStore } from '../../store/preferencesStore';
 import { formatCurrency } from '../../utils/currency';
+import { breakdownLine } from '../../utils/balanceConversion';
 import { downloadCsv } from '../../utils/exportCsv';
 import { dayBounds, monthCount } from '../../utils/dateRange';
 import { CALENDAR_MONTHS_MAX } from '../../utils/calendarLayout';
@@ -350,7 +351,11 @@ function NetWorthDetail({ from, to }: DetailProps) {
   const change = netWorthChange(series);
   const last = series[series.length - 1];
   const stats: StatCard[] = [
-    { label: 'Net Worth', value: formatCurrency(change?.latest ?? 0) },
+    {
+      label: 'Net Worth',
+      value: formatCurrency(change?.latest ?? 0),
+      sub: breakdownLine(last?.native) ?? undefined,
+    },
     {
       label: 'Change',
       value: change ? formatChange(change.change, change.percent) : formatCurrency(0),
@@ -363,6 +368,8 @@ function NetWorthDetail({ from, to }: DetailProps) {
     ...d,
     change: i > 0 ? d.netWorth - monthly[i - 1].netWorth : null,
   }));
+  // With money in dollars, the table also says what each month's total is made of
+  const hasDollars = [...series, ...monthly].some((d) => d.native?.USD);
 
   return (
     <DetailLayout
@@ -382,6 +389,9 @@ function NetWorthDetail({ from, to }: DetailProps) {
             liabilities_cents: r.liabilities,
             net_worth_cents: r.netWorth,
             change_cents: r.change ?? '',
+            ...(hasDollars
+              ? { pesos_cents: r.native?.UYU ?? '', dollars_cents: r.native?.USD ?? '' }
+              : {}),
           })),
         )
       }
@@ -411,6 +421,20 @@ function NetWorthDetail({ from, to }: DetailProps) {
                   </Signed>
                 ),
             },
+            ...(hasDollars
+              ? [
+                  {
+                    label: 'In pesos',
+                    align: 'right' as const,
+                    cell: (r: (typeof rows)[number]) => formatCurrency(r.native?.UYU ?? 0, 'UYU'),
+                  },
+                  {
+                    label: 'In dollars',
+                    align: 'right' as const,
+                    cell: (r: (typeof rows)[number]) => formatCurrency(r.native?.USD ?? 0, 'USD'),
+                  },
+                ]
+              : []),
           ]}
         />
       }

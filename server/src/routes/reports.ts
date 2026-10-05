@@ -4,10 +4,13 @@ import { transactions, accounts, categories, categoryGroups, payees } from '../d
 import { eq, and, gte, lte, sql, inArray, lt, isNull } from 'drizzle-orm';
 import type { Request, Response } from 'express';
 import { monthBounds } from '../utils/date.js';
-import { isLiabilityType } from '../utils/accountTypes.js';
 import { isMonth, isRealDate } from '../utils/validation.js';
 import { inAccountBalance, inHomeCurrency, isIncomeOrSpending } from '../services/balances.js';
-import { HOME_CURRENCY } from '../utils/currency.js';
+import { HOME_CURRENCY, currencySchema } from '../utils/currency.js';
+import { format } from 'date-fns';
+import { converter } from '../services/currencyConversion.js';
+import { listRates } from '../services/exchangeRateService.js';
+import { dayShown, netWorthSeries } from '../services/netWorth.js';
 
 export const reportsRouter = Router();
 
@@ -73,7 +76,13 @@ export function dayRange(from: string, to: string): string[] {
   return days;
 }
 
+// Net worth over time in `currency` (pesos unless asked for dollars: the viewing currency).
+// Each point converts its balances at the exchange rate of the day it is shown for.
 reportsRouter.get('/net-worth', (req, res) => {
+  const currency = currencySchema.default(HOME_CURRENCY).safeParse(req.query.currency);
+  if (!currency.success) {
+    return res.status(400).json({ error: 'Expected `currency` as UYU or USD' });
+  }
   const isDaily = req.query.granularity === 'daily';
   let from: string;
   let to: string;
@@ -112,15 +121,16 @@ reportsRouter.get('/net-worth', (req, res) => {
 
   const periods = isDaily ? dayRange(from, to) : monthRange(from, to);
 
-  // Pesos accounts only: a dollar balance can't be added to a pesos one without converting it
-  const allAccounts = db.select().from(accounts).where(eq(accounts.currency, HOME_CURRENCY)).all();
+  // Every account, whatever its currency: netWorthSeries converts each balance
+  const allAccounts = db.select().from(accounts).all();
 
   const upperBound = isDaily ? to : monthBounds(to).to;
   const groupExpr = isDaily
     ? sql<string>`${transactions.date}`
     : sql<string>`strftime('%Y-%m', ${transactions.date})`;
 
-  const txRows = db
+  // Native amounts per account: nothing here adds two accounts together
+  const changes = db
     .select({
       accountId: transactions.accountId,
       period: groupExpr,
@@ -131,30 +141,13 @@ reportsRouter.get('/net-worth', (req, res) => {
     .groupBy(transactions.accountId, groupExpr)
     .all();
 
-  const byAccount: Record<string, Array<{ period: string; total: number }>> = {};
-  for (const row of txRows) {
-    (byAccount[row.accountId] ??= []).push({ period: row.period, total: row.total });
-  }
-
-  // Walk each account's periods alongside the (ascending) report periods
-  const cursors = allAccounts.map((acct) => ({
-    acct,
-    entries: (byAccount[acct.id] ?? []).sort((a, b) => a.period.localeCompare(b.period)),
-    next: 0,
-    balance: acct.startingBalance,
-  }));
-
-  const result = periods.map((period) => {
-    let assets = 0,
-      liabilities = 0;
-    for (const c of cursors) {
-      while (c.next < c.entries.length && c.entries[c.next].period <= period) {
-        c.balance += c.entries[c.next++].total;
-      }
-      if (isLiabilityType(c.acct.type)) liabilities += Math.abs(Math.min(c.balance, 0));
-      else assets += Math.max(c.balance, 0);
-    }
-    return { month: period, assets, liabilities, netWorth: assets - liabilities };
+  const today = format(new Date(), 'yyyy-MM-dd');
+  const result = netWorthSeries({
+    accounts: allAccounts,
+    changes,
+    periods: periods.map((key) => ({ key, date: dayShown(key, today) })),
+    target: currency.data,
+    convert: converter(listRates()),
   });
 
   res.json(result);

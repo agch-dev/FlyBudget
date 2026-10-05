@@ -16,6 +16,7 @@ export const CONVERTED_QUERY_KEYS = [
   ['budget-summary'],
   ['category-history'],
   ['transactions'],
+  ['reports', 'net-worth'],
 ] as const;
 
 function ratesChanged(qc: QueryClient) {
