@@ -18,14 +18,14 @@ import {
   useUnmatchOccurrence,
 } from '../../hooks/useSchedules';
 import { useAccounts } from '../../hooks/useAccounts';
-import { inHomeCurrency } from '../../utils/currency';
 import { formatCurrency } from '../../utils/currency';
 import { Button } from '../ui/Button';
 import { EmptyState } from '../ui/EmptyState';
 import { docsUrl } from '../../utils/project';
 import { usePreferencesStore } from '../../store/preferencesStore';
 import { getUpcomingDays } from './scheduleFormat';
-import type { Schedule, ScheduleOccurrence } from '../../types';
+import { occurrenceTotals, type OccurrenceTotals } from '../../utils/recurringTotals';
+import { HOME_CURRENCY, type Schedule, type ScheduleOccurrence } from '../../types';
 
 interface Props {
   onEdit: (item: Schedule) => void;
@@ -37,24 +37,6 @@ interface Props {
 
 type View = 'list' | 'calendar';
 
-interface Totals {
-  total: number;
-  paid: number;
-  remaining: number;
-}
-
-/** Paid uses the actual matched amount; remaining uses the expected amount of unpaid items. */
-function computeTotals(occs: ScheduleOccurrence[]): Totals {
-  let paid = 0,
-    remaining = 0;
-  for (const o of occs) {
-    if (o.displayStatus === 'skipped' || o.displayStatus === 'cancelled') continue;
-    if (o.displayStatus === 'paid') paid += Math.abs(o.matchedAmount ?? o.expectedAmount);
-    else remaining += Math.abs(o.expectedAmount);
-  }
-  return { total: paid + remaining, paid, remaining };
-}
-
 function SummaryColumn({
   label,
   verb,
@@ -63,7 +45,7 @@ function SummaryColumn({
 }: {
   label: string;
   verb: string;
-  totals: Totals;
+  totals: OccurrenceTotals;
   barClass: string;
 }) {
   const pct = totals.total > 0 ? Math.min(100, (totals.paid / totals.total) * 100) : 0;
@@ -123,10 +105,10 @@ export default function MonthlyTab({
     };
   }, [occurrences]);
 
-  // The summary is in pesos: a recurring item is in its account's currency (each occurrence
-  // says which, closed accounts included), and dollar ones are listed below but not added in
-  const incomeTotals = useMemo(() => computeTotals(inHomeCurrency(income)), [income]);
-  const expenseTotals = useMemo(() => computeTotals(inHomeCurrency(expenses)), [expenses]);
+  // The summary is in pesos: a recurring item is in its account's currency, and dollar ones
+  // count at the exchange rate of their date (today's rate for dates still to come)
+  const incomeTotals = useMemo(() => occurrenceTotals(income, HOME_CURRENCY), [income]);
+  const expenseTotals = useMemo(() => occurrenceTotals(expenses, HOME_CURRENCY), [expenses]);
 
   // After a calendar day click, scroll the list to that day's first row
   useEffect(() => {

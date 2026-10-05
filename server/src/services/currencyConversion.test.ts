@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
-import { convertCents, conversionRates, converter } from './currencyConversion.js';
+import { convertCents, conversionRates, converter, rateDateFor } from './currencyConversion.js';
 import type { RatePoint } from './exchangeRates.js';
 import { CURRENCIES } from '../utils/currency.js';
 
@@ -128,5 +128,13 @@ describe('converter', () => {
 
   it('cannot convert between currencies without any rate', () => {
     expect(converter([])(100, 'USD', 'UYU', '2026-03-02')).toBeNull();
+  });
+});
+
+describe('rateDateFor', () => {
+  it("is the figure's own date up to today, and today for any later date", () => {
+    expect(rateDateFor('2026-03-01', '2026-03-10')).toBe('2026-03-01');
+    expect(rateDateFor('2026-03-10', '2026-03-10')).toBe('2026-03-10');
+    expect(rateDateFor('2026-04-02', '2026-03-10')).toBe('2026-03-10');
   });
 });

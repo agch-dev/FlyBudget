@@ -1,8 +1,10 @@
 import { Router } from 'express';
 import { db } from '../db/index.js';
 import { schedules, scheduleOccurrences, transactions, payees } from '../db/schema.js';
-import { eq, and, or, gte, lte, desc, inArray, isNull } from 'drizzle-orm';
-import { homeCurrencyAccountIds } from '../services/balances.js';
+import { eq, and, gte, lte, desc } from 'drizzle-orm';
+import { converter, rateDateFor } from '../services/currencyConversion.js';
+import { listRates } from '../services/exchangeRateService.js';
+import { otherCurrency, targetCurrencyParam } from '../utils/currency.js';
 import { accountCurrency, accountCurrencyLookup } from '../services/accountCurrency.js';
 import { nanoid } from 'nanoid';
 import { z } from 'zod';
@@ -202,9 +204,16 @@ schedulesRouter.get('/occurrences', (req, res) => {
     }
   }
 
+  // Like a transaction's `convertedAmount`: the amounts in the other currency, for totals that
+  // mix pesos and dollar items. The expected amount converts at the rate of its date, or
+  // today's while that date is still to come; what was paid, at the rate of the day it was paid.
   const currencyOf = accountCurrencyLookup();
+  const convert = converter(listRates());
+  const today = format(new Date(), 'yyyy-MM-dd');
   const result = rows.map(({ occ, schedule }) => {
     const matchedTx = occ.matchedTransactionId ? matchedTxMap.get(occ.matchedTransactionId) : null;
+    const currency = currencyOf(schedule.accountId);
+    const other = otherCurrency(currency);
     return {
       ...occ,
       displayStatus: deriveDisplayStatus(occ.status, occ.expectedDate),
@@ -212,11 +221,20 @@ schedulesRouter.get('/occurrences', (req, res) => {
       recurrenceType: schedule.recurrenceType,
       amountType: schedule.amountType,
       scheduleAccountId: schedule.accountId,
-      currency: currencyOf(schedule.accountId),
+      currency,
       scheduleCategoryId: schedule.categoryId,
       schedulePayeeId: schedule.payeeId,
       matchedAmount: matchedTx?.amount ?? null,
       matchedDate: matchedTx?.date ?? null,
+      convertedExpectedAmount: convert(
+        occ.expectedAmount,
+        currency,
+        other,
+        rateDateFor(occ.expectedDate, today),
+      ),
+      convertedMatchedAmount: matchedTx
+        ? convert(matchedTx.amount, currency, other, matchedTx.date)
+        : null,
     };
   });
 
@@ -230,12 +248,18 @@ schedulesRouter.get('/summary', (req, res) => {
   if (!isMonth(month))
     return res.status(400).json({ error: 'month query param required (YYYY-MM)' });
 
+  // Pesos unless asked otherwise
+  const target = targetCurrencyParam(req.query.currency);
+  if (!target) return res.status(400).json({ error: 'Expected `currency` as UYU or USD' });
+
   const from = `${month}-01`;
   const to = `${month}-31`;
 
   const rows = db
     .select({
       expectedAmount: scheduleOccurrences.expectedAmount,
+      expectedDate: scheduleOccurrences.expectedDate,
+      accountId: schedules.accountId,
     })
     .from(scheduleOccurrences)
     .innerJoin(schedules, eq(scheduleOccurrences.scheduleId, schedules.id))
@@ -244,17 +268,28 @@ schedulesRouter.get('/summary', (req, res) => {
         eq(schedules.status, 'active'),
         gte(scheduleOccurrences.expectedDate, from),
         lte(scheduleOccurrences.expectedDate, to),
-        // A recurring item is in its account's currency; one with no account counts as pesos
-        or(isNull(schedules.accountId), inArray(schedules.accountId, homeCurrencyAccountIds)),
       ),
     )
     .all();
 
+  // A recurring item is in its account's currency (pesos with no account). Each expected
+  // amount converts at the rate of its date, or today's while that date is still to come;
+  // one that can't be converted (no rate stored at all) is left out.
+  const currencyOf = accountCurrencyLookup();
+  const convert = converter(listRates());
+  const today = format(new Date(), 'yyyy-MM-dd');
   let income = 0;
   let expenses = 0;
   for (const row of rows) {
-    if (row.expectedAmount > 0) income += row.expectedAmount;
-    else expenses += row.expectedAmount;
+    const amount = convert(
+      row.expectedAmount,
+      currencyOf(row.accountId),
+      target,
+      rateDateFor(row.expectedDate, today),
+    );
+    if (amount === null) continue;
+    if (amount > 0) income += amount;
+    else expenses += amount;
   }
 
   res.json({ income, expenses });

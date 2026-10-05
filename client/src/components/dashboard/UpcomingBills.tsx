@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { format, addDays, parseISO, differenceInCalendarDays } from 'date-fns';
 import { useScheduleOccurrences } from '../../hooks/useSchedules';
 import { formatCurrency } from '../../utils/currency';
+import { expectedNote } from '../../utils/recurringTotals';
+import { HOME_CURRENCY } from '../../types';
 import { CalendarClock } from 'lucide-react';
 import { Card } from '../ui/Card';
 import { EmptyState } from '../ui/EmptyState';
@@ -104,6 +106,8 @@ export default function UpcomingBills() {
                   className={`text-sm font-medium tabular-nums whitespace-nowrap ${
                     occ.expectedAmount > 0 ? 'text-positive' : 'text-text'
                   }`}
+                  // A dollar bill: what it comes to in pesos, at today's rate until it is due
+                  title={expectedNote(occ, HOME_CURRENCY, today) ?? undefined}
                 >
                   {formatCurrency(occ.expectedAmount, occ.currency)}
                 </span>

@@ -16,7 +16,10 @@ export const CONVERTED_QUERY_KEYS = [
   ['budget-summary'],
   ['category-history'],
   ['transactions'],
-  ['reports', 'net-worth'],
+  // Every report, dashboard card and the cash flow diagram ('reports', …), custom reports included
+  ['reports'],
+  ['schedule-occurrences'],
+  ['schedule-summary'],
 ] as const;
 
 function ratesChanged(qc: QueryClient) {
