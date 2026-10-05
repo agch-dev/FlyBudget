@@ -178,9 +178,21 @@ test.describe('export, backup and restore', () => {
     const download = page.waitForEvent('download');
     await page.getByRole('button', { name: 'Download CSV' }).click();
     const csv = fs.readFileSync(await (await download).path(), 'utf8');
-    expect(csv.split('\n')[0]).toBe('Date,Account,Currency,Payee,Category,Notes,Amount,Reconciled');
+    expect(csv.split('\n')[0]).toBe(
+      'Date,Account,Group,Currency,Payee,Category,Notes,Amount,Reconciled',
+    );
     expect(csv).toContain(`"'=HYPERLINK(""http://evil.example"")"`);
     expect(csv).toContain('-10.00');
+  });
+
+  test('exports the stored exchange rates as CSV', async ({ page, api }) => {
+    await api.call('PUT', '/exchange-rates/2026-03-02', { rate: 40.25 });
+    await open(page, '/settings');
+    await page.getByRole('button', { name: 'Data' }).click();
+    const download = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Download rates CSV' }).click();
+    const csv = fs.readFileSync(await (await download).path(), 'utf8');
+    expect(csv).toBe('Date,Pesos per dollar,Source\n2026-03-02,40.25,Entered by hand');
   });
 
   test('a backup restores everything it contained', async ({ page, api }) => {

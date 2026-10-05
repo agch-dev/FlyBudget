@@ -78,7 +78,8 @@ export function DataExport() {
         <div>
           <h3 className="text-sm font-medium text-text">Export Transactions</h3>
           <p className="text-xs text-text-tertiary mt-0.5">
-            Download all transactions as a CSV file. Optionally filter by date range.
+            Download all transactions as a CSV file, each with its account, Account Group and
+            currency. Optionally filter by date range.
           </p>
         </div>
         <div className="flex items-end gap-3">
@@ -104,6 +105,19 @@ export function DataExport() {
             <Download size={14} /> Download CSV
           </Button>
         </div>
+      </div>
+
+      <div className="bg-surface-alt rounded-lg p-5 space-y-4">
+        <div>
+          <h3 className="text-sm font-medium text-text">Export Exchange Rates</h3>
+          <p className="text-xs text-text-tertiary mt-0.5">
+            Download every stored exchange rate (pesos per dollar, by date) as a CSV file. These are
+            the rates behind every converted total.
+          </p>
+        </div>
+        <Button onClick={() => download(`${API_BASE}/exchange-rates/csv`)} size="sm">
+          <Download size={14} /> Download rates CSV
+        </Button>
       </div>
 
       <div className="bg-surface-alt rounded-lg p-5 space-y-4">

@@ -4,6 +4,7 @@ import type { AddressInfo } from 'net';
 import type { Server } from 'http';
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
 import { db } from '../db/index.js';
+import { exchangeRates } from '../db/schema.js';
 import { errorHandler } from '../middleware/security.js';
 import { accountsRouter } from './accounts.js';
 import { exportRouter } from './export.js';
@@ -230,11 +231,53 @@ describe('export and backup', () => {
 
     const csv = await fetch(`${base}/export/transactions/csv`).then((r) => r.text());
     const [header, ...rows] = csv.split('\n');
-    expect(header).toBe('Date,Account,Currency,Payee,Category,Notes,Amount,Reconciled');
+    expect(header).toBe('Date,Account,Group,Currency,Payee,Category,Notes,Amount,Reconciled');
     expect(rows.sort()).toEqual([
-      '2026-05-10,Dollars,USD,,,,-19.99,No',
-      '2026-05-10,Pesos,UYU,,,,-450.00,No',
+      '2026-05-10,Dollars,,USD,,,,-19.99,No',
+      '2026-05-10,Pesos,,UYU,,,,-450.00,No',
     ]);
+  });
+
+  it("the CSV export names each row's Account Group, safely for a spreadsheet", async () => {
+    await freshStart();
+    const add = async (name: string, groupName: string | null, amount: number) => {
+      const { body: account } = await send('POST', '/accounts', {
+        name,
+        type: 'checking',
+        groupName,
+      });
+      await send('POST', '/transactions', { accountId: account.id, date: '2026-05-10', amount });
+    };
+    await add('Caja', 'Itaú, cuentas', -100);
+    await add('Tarjeta', '=SUM(A1)', -200);
+    await add('Efectivo', null, -300);
+
+    const csv = await fetch(`${base}/export/transactions/csv`).then((r) => r.text());
+    expect(csv.split('\n').slice(1).sort()).toEqual([
+      '2026-05-10,Caja,"Itaú, cuentas",UYU,,,,-1.00,No',
+      '2026-05-10,Efectivo,,UYU,,,,-3.00,No',
+      "2026-05-10,Tarjeta,'=SUM(A1),UYU,,,,-2.00,No",
+    ]);
+  });
+
+  it('exports the stored exchange rates as CSV, oldest first', async () => {
+    db.delete(exchangeRates).run();
+    const none = await fetch(`${base}/export/exchange-rates/csv`);
+    expect(none.headers.get('content-type')).toContain('text/csv');
+    expect(none.headers.get('content-disposition')).toContain('exchange-rates.csv');
+    expect(await none.text()).toBe('Date,Pesos per dollar,Source\n');
+
+    db.insert(exchangeRates)
+      .values([
+        { date: '2026-10-02', rate: 40.125, fetchedAt: '2026-10-02T12:00:00.000Z', isManual: 1 },
+        { date: '2026-10-01', rate: 40, fetchedAt: '2026-10-02T12:00:00.000Z', isManual: 0 },
+      ])
+      .run();
+    const csv = await fetch(`${base}/export/exchange-rates/csv`).then((r) => r.text());
+    expect(csv).toBe(
+      'Date,Pesos per dollar,Source\n2026-10-01,40,Fetched\n2026-10-02,40.125,Entered by hand',
+    );
+    db.delete(exchangeRates).run();
   });
 
   it("a backup carries each account's currency through a restore", async () => {
