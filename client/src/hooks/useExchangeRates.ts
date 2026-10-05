@@ -20,6 +20,7 @@ export const CONVERTED_QUERY_KEYS = [
   ['reports'],
   ['schedule-occurrences'],
   ['schedule-summary'],
+  ['goals'],
 ] as const;
 
 function ratesChanged(qc: QueryClient) {

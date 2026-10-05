@@ -120,8 +120,9 @@ export function parseBackup(input: unknown): Record<BackupTable, Row[]> {
             : column.columnType === 'SQLiteReal'
               ? typeof value === 'number' && Number.isFinite(value)
               : typeof value === 'string' && value.length <= 1_000_000;
-        // Amounts are read in the account's currency, so an unknown one can't be stored
-        const known = column !== accounts.currency || isCurrency(value);
+        // Amounts are read in the account's or goal's currency, so an unknown one can't be stored
+        const known =
+          (column !== accounts.currency && column !== goals.currency) || isCurrency(value);
         if (!ok || !known) {
           throw new InvalidBackupError(`Row ${i + 1} of "${name}" has an invalid "${key}"`);
         }

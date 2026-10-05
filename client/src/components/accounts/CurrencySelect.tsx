@@ -5,10 +5,12 @@ interface Props {
   onChange: (currency: Currency) => void;
   /** The account already has transactions: its currency is shown but can't change */
   locked?: boolean;
+  /** Why it is locked, when it isn't an account with transactions (a goal's linked account) */
+  lockedHint?: string;
 }
 
-/** Pesos or dollars, for the add and edit account dialogs. */
-export function CurrencySelect({ value, onChange, locked = false }: Props) {
+/** Pesos or dollars, for the add and edit account dialogs and the goal dialog. */
+export function CurrencySelect({ value, onChange, locked = false, lockedHint }: Props) {
   return (
     <div>
       <span
@@ -41,7 +43,7 @@ export function CurrencySelect({ value, onChange, locked = false }: Props) {
       </div>
       {locked && (
         <p className="mt-1 text-xs text-text-tertiary">
-          The currency can&apos;t change once the account has transactions.
+          {lockedHint ?? "The currency can't change once the account has transactions."}
         </p>
       )}
     </div>
