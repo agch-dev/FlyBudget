@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { IS_DEMO } from '../demo/isDemo';
+import type { ImportConventions } from '../utils/csv';
 
 export type Theme = 'light' | 'dark' | 'system';
 export type DateFormatOption = 'MMM d, yyyy' | 'MM/dd/yyyy' | 'dd/MM/yyyy' | 'yyyy-MM-dd';
@@ -22,6 +23,8 @@ interface PreferencesState {
   setupSkipped: boolean;
   /** The getting started checklist on the dashboard was hidden */
   gettingStartedHidden: boolean;
+  /** CSV import choices (date order, decimal mark) last used for each account, by account id */
+  csvImportConventions: Record<string, ImportConventions>;
   setTheme: (theme: Theme) => void;
   setDateFormat: (format: DateFormatOption) => void;
   setSavingsGoal: (goal: number) => void;
@@ -33,6 +36,7 @@ interface PreferencesState {
   setKeepOfflineCopy: (keep: boolean) => void;
   setSetupSkipped: (skipped: boolean) => void;
   setGettingStartedHidden: (hidden: boolean) => void;
+  setCsvImportConventions: (accountId: string, conventions: ImportConventions) => void;
 }
 
 const PREFERENCES_KEY = 'budget-preferences';
@@ -61,6 +65,7 @@ export const usePreferencesStore = create<PreferencesState>()(
       keepOfflineCopy: true,
       setupSkipped: false,
       gettingStartedHidden: false,
+      csvImportConventions: {},
       setTheme: (theme) => set({ theme }),
       setDateFormat: (dateFormat) => set({ dateFormat }),
       setSavingsGoal: (savingsGoal) => set({ savingsGoal }),
@@ -72,6 +77,10 @@ export const usePreferencesStore = create<PreferencesState>()(
       setKeepOfflineCopy: (keepOfflineCopy) => set({ keepOfflineCopy }),
       setSetupSkipped: (setupSkipped) => set({ setupSkipped }),
       setGettingStartedHidden: (gettingStartedHidden) => set({ gettingStartedHidden }),
+      setCsvImportConventions: (accountId, conventions) =>
+        set((state) => ({
+          csvImportConventions: { ...state.csvImportConventions, [accountId]: conventions },
+        })),
     }),
     {
       name: PREFERENCES_KEY,
