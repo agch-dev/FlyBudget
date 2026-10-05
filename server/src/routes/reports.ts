@@ -240,7 +240,7 @@ reportsRouter.get('/income-vs-expenses', (req, res) => {
         eq(transactions.isParent, 0),
         isNull(transactions.transferTransactionId),
         isIncomeOrSpending,
-          ),
+      ),
     )
     .groupBy(sql`strftime('%Y-%m', ${transactions.date})`, isIncome)
     .all();
@@ -439,7 +439,7 @@ reportsRouter.get('/spending-comparison', (req, res) => {
           isNull(transactions.transferTransactionId),
           isIncomeOrSpending,
           eq(accounts.isOffBudget, 0),
-          ),
+        ),
       )
       .groupBy(transactions.date)
       .all();

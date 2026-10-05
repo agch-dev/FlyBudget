@@ -10,7 +10,7 @@ import { Card } from '../ui/Card';
 import { EmptyState } from '../ui/EmptyState';
 import { ButtonLink } from '../ui/Button';
 import { docsUrl } from '../../utils/project';
-import type { CategoryGroup } from '../../types';
+import { HOME_CURRENCY, type CategoryGroup } from '../../types';
 
 export default function RecentTransactions() {
   const { data: transactions = [], isLoading } = useTransactions({ limit: 5 });
@@ -98,6 +98,7 @@ export default function RecentTransactions() {
               accountType={accountInfoMap.get(tx.accountId)?.type}
               accountLogo={accountInfoMap.get(tx.accountId)?.logo}
               isSelected={false}
+              totalCurrency={HOME_CURRENCY}
               onOpenDetail={() => navigate('/transactions')}
             />
           ))}

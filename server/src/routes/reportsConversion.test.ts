@@ -164,12 +164,12 @@ describe('reports with dollar accounts', () => {
 
   it('spending trends, by month and by day', async () => {
     const monthly = await get(`/reports/spending-trends?category_ids=food&${both}`);
-    expect(
-      monthly.map((r: { month: string; total: number }) => [r.month, r.total]).sort(),
-    ).toEqual([
-      ['2026-02', 39_000],
-      ['2026-03', 269_960],
-    ]);
+    expect(monthly.map((r: { month: string; total: number }) => [r.month, r.total]).sort()).toEqual(
+      [
+        ['2026-02', 39_000],
+        ['2026-03', 269_960],
+      ],
+    );
 
     const daily = await get(`/reports/spending-trends?category_ids=food&${mar}&granularity=daily`);
     expect(daily.map((r: { month: string; total: number }) => [r.month, r.total]).sort()).toEqual([

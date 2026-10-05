@@ -22,6 +22,7 @@ import { usePayees } from '../../hooks/usePayees';
 import { useTransactions } from '../../hooks/useTransactions';
 import { usePreferencesStore } from '../../store/preferencesStore';
 import { formatCurrency } from '../../utils/currency';
+import { convertedNote, totalIn } from '../../utils/conversion';
 import { downloadCsv } from '../../utils/exportCsv';
 import { dayBounds, monthCount } from '../../utils/dateRange';
 import { CALENDAR_MONTHS_MAX } from '../../utils/calendarLayout';
@@ -821,14 +822,12 @@ function DayTransactions({ day, onClose }: { day: string; onClose: () => void })
   );
   const logos = useMemo(() => new Map(payees.map((p) => [p.id, p.logo])), [payees]);
   const rows = data.filter(
-    (t) =>
-      !t.transferTransactionId &&
-      accountsById.get(t.accountId)?.isOffBudget === 0 &&
-      // Like the calendar's totals: pesos accounts only
-      accountsById.get(t.accountId)?.currency === HOME_CURRENCY,
+    (t) => !t.transferTransactionId && accountsById.get(t.accountId)?.isOffBudget === 0,
   );
-  const moneyIn = rows.reduce((s, t) => s + Math.max(t.amount, 0), 0);
-  const moneyOut = rows.reduce((s, t) => s - Math.min(t.amount, 0), 0);
+  // Like the calendar's totals: in pesos, dollar transactions at the rate of their date. Each
+  // row below keeps its native amount.
+  const moneyIn = totalIn(rows, HOME_CURRENCY, (cents) => Math.max(cents, 0));
+  const moneyOut = totalIn(rows, HOME_CURRENCY, (cents) => -Math.min(cents, 0));
 
   return (
     <Card padding="none" className="overflow-hidden">
@@ -901,12 +900,15 @@ function DayTransactions({ day, onClose }: { day: string; onClose: () => void })
             {
               label: 'Amount',
               align: 'right',
-              cell: (t) =>
-                t.amount > 0 ? (
-                  <span className="text-positive">+{formatCurrency(t.amount)}</span>
-                ) : (
-                  <span className="text-text">{formatCurrency(t.amount)}</span>
-                ),
+              cell: (t) => (
+                <span
+                  className={t.amount > 0 ? 'text-positive' : 'text-text'}
+                  title={convertedNote(t, HOME_CURRENCY) ?? undefined}
+                >
+                  {t.amount > 0 && '+'}
+                  {formatCurrency(t.amount, t.currency)}
+                </span>
+              ),
             },
           ]}
         />

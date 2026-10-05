@@ -631,6 +631,13 @@ export interface ScheduleOccurrence {
   matchedDate: string | null;
   /** The recurring item's currency: its account's, closed accounts included */
   currency?: Currency;
+  /**
+   * `expectedAmount` in the other currency, at the exchange rate of its date (today's while
+   * that date is still to come); null or missing when it could not be converted
+   */
+  convertedExpectedAmount?: number | null;
+  /** `matchedAmount` in the other currency, at the rate of the day it was paid */
+  convertedMatchedAmount?: number | null;
 }
 
 export interface ScheduleSummary {

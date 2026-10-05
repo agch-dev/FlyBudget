@@ -229,4 +229,30 @@ test.describe('recurring', () => {
     const [paid] = await api.transactions(`?account_id=${dollars.id}&from=2000-01-01`);
     expect(paid).toMatchObject({ amount: -1_599, currency: 'USD', accountId: dollars.id });
   });
+
+  test('the month summary counts a dollar item in pesos', async ({ page, api }) => {
+    const pesos = await api.createAccount('Caja pesos', 100_000);
+    const dollars = await api.createAccount('Caja dolares', 100_000, 'checking', {
+      currency: 'USD',
+    });
+    await api.call('PUT', `/exchange-rates/${isoDay()}`, { rate: 40 });
+    const item = (name: string, accountId: string, amount: number) =>
+      api.call('POST', '/schedules', {
+        name,
+        amount,
+        recurrenceType: 'monthly',
+        startDate: isoDay(),
+        accountId,
+      });
+    await item('Alquiler', pesos.id, -30_000);
+    await item('Streaming Plus', dollars.id, -1_599);
+
+    // $ 300 + US$ 15.99 at 40 pesos per dollar
+    await open(page, '/recurring');
+    await expect(page.getByRole('main')).toContainText('$939.60 remaining');
+
+    // The bill itself stays in dollars; hovering says what it comes to
+    await open(page, '/dashboard');
+    await expect(page.getByTitle(/^\$639\.60 at /)).toHaveText('-US$15.99');
+  });
 });
