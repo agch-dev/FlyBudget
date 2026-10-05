@@ -279,7 +279,7 @@ test.describe('importar', () => {
     await dialog.getByRole('checkbox', { name: 'Importar Sueldo del 2025-01-16' }).uncheck();
     await dialog.getByRole('button', { name: 'Importar 1 transacción' }).click();
     await expect(dialog).toContainText('Importación completa');
-    await expect(dialog).toContainText('1 importadas, 0 omitidas');
+    await expect(dialog).toContainText('1 importada, 0 omitidas');
     await dialog.getByRole('button', { name: 'Listo' }).click();
     expect(await api.balance(checking.id)).toBe(100_000 - 450);
   });

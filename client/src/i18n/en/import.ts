@@ -62,7 +62,11 @@ export default {
     notImported: 'Not imported',
     count_one: '{{count}} row of this file is in {{currency}}, and this account holds {{own}}.',
     count_other: '{{count}} rows of this file are in {{currency}}, and this account holds {{own}}.',
-    addAccount: 'Add an account in {{currency}} to import them.',
+    /** The same, when no account of that currency exists yet */
+    countAddAccount_one:
+      '{{count}} row of this file is in {{currency}}, and this account holds {{own}}. Add an account in {{currency}} to import them.',
+    countAddAccount_other:
+      '{{count}} rows of this file are in {{currency}}, and this account holds {{own}}. Add an account in {{currency}} to import them.',
   },
   problems: {
     summary_one:
@@ -76,6 +80,12 @@ export default {
     currency: 'Can\'t read the currency "{{cell}}"',
   },
   preview: {
+    /**
+     * The paragraph above the preview: its values are the counted sentences below (`found`,
+     * `duplicates`, `willImport`, and `leftOut` when rows of the other currency stay out)
+     */
+    summary: '{{found}} {{duplicates}} {{willImport}}',
+    summaryLeftOut: '{{found}} {{duplicates}} {{willImport}} {{leftOut}}',
     found_one: '{{count}} transaction found.',
     found_other: '{{count}} transactions found.',
     duplicates_one: '{{count}} duplicate detected.',
@@ -94,7 +104,12 @@ export default {
   },
   done: {
     title: 'Import complete',
-    summary: '{{imported}} imported, {{skipped}} skipped',
+    /** `imported` and `skipped` are the two counted pieces below */
+    summary: '{{imported}}, {{skipped}}',
+    imported_one: '{{count}} imported',
+    imported_other: '{{count}} imported',
+    skipped_one: '{{count}} skipped',
+    skipped_other: '{{count}} skipped',
     close: 'Done',
   },
   errors: {

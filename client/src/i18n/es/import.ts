@@ -58,7 +58,10 @@ const es: Translation<typeof en> = {
     count_one: '{{count}} fila de este archivo está en {{currency}}, y esta cuenta tiene {{own}}.',
     count_other:
       '{{count}} filas de este archivo están en {{currency}}, y esta cuenta tiene {{own}}.',
-    addAccount: 'Agregá una cuenta en {{currency}} para importarlas.',
+    countAddAccount_one:
+      '{{count}} fila de este archivo está en {{currency}}, y esta cuenta tiene {{own}}. Agregá una cuenta en {{currency}} para importarla.',
+    countAddAccount_other:
+      '{{count}} filas de este archivo están en {{currency}}, y esta cuenta tiene {{own}}. Agregá una cuenta en {{currency}} para importarlas.',
   },
   problems: {
     summary_one:
@@ -72,6 +75,8 @@ const es: Translation<typeof en> = {
     currency: 'No se puede leer la moneda "{{cell}}"',
   },
   preview: {
+    summary: '{{found}} {{duplicates}} {{willImport}}',
+    summaryLeftOut: '{{found}} {{duplicates}} {{willImport}} {{leftOut}}',
     found_one: 'Se encontró {{count}} transacción.',
     found_other: 'Se encontraron {{count}} transacciones.',
     duplicates_one: 'Se detectó {{count}} duplicado.',
@@ -89,7 +94,11 @@ const es: Translation<typeof en> = {
   },
   done: {
     title: 'Importación completa',
-    summary: '{{imported}} importadas, {{skipped}} omitidas',
+    summary: '{{imported}}, {{skipped}}',
+    imported_one: '{{count}} importada',
+    imported_other: '{{count}} importadas',
+    skipped_one: '{{count}} omitida',
+    skipped_other: '{{count}} omitidas',
     close: 'Listo',
   },
   errors: {

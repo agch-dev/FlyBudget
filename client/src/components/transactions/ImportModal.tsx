@@ -556,13 +556,16 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
                 </select>
               </label>
               <p className="text-xs text-text-tertiary">
-                {t('otherCurrency.count', {
-                  count: otherCount,
-                  currency: word(otherCurrency),
-                  own: word(currency ?? 'UYU'),
-                })}
-                {destinations.length === 0 &&
-                  ` ${t('otherCurrency.addAccount', { currency: word(otherCurrency) })}`}
+                {t(
+                  destinations.length === 0
+                    ? 'otherCurrency.countAddAccount'
+                    : 'otherCurrency.count',
+                  {
+                    count: otherCount,
+                    currency: word(otherCurrency),
+                    own: word(currency ?? 'UYU'),
+                  },
+                )}
               </p>
             </div>
           )}
@@ -601,14 +604,14 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
       {step === 'preview' && (
         <div className="space-y-4">
           <p className="text-sm text-text-secondary">
-            {t('preview.found', { count: previewRows.length })}{' '}
-            {t('preview.duplicates', {
-              count: previewRows.filter((r) => r.isDuplicate).length,
-            })}{' '}
-            {t('preview.willImport', { count: previewRows.length - excluded.size })}
-            {otherCount > 0 &&
-              !otherAccountId &&
-              ` ${t('preview.leftOut', { count: otherCount, currency: word(otherCurrency) })}`}
+            {t(otherCount > 0 && !otherAccountId ? 'preview.summaryLeftOut' : 'preview.summary', {
+              found: t('preview.found', { count: previewRows.length }),
+              duplicates: t('preview.duplicates', {
+                count: previewRows.filter((r) => r.isDuplicate).length,
+              }),
+              willImport: t('preview.willImport', { count: previewRows.length - excluded.size }),
+              leftOut: t('preview.leftOut', { count: otherCount, currency: word(otherCurrency) }),
+            })}
           </p>
           {conventionFields}
           {problemList}
@@ -710,7 +713,10 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
           <div className="text-center">
             <p className="text-sm font-medium text-text">{t('done.title')}</p>
             <p className="text-sm text-text-secondary mt-1">
-              {t('done.summary', { imported: result.imported, skipped: result.skipped })}
+              {t('done.summary', {
+                imported: t('done.imported', { count: result.imported }),
+                skipped: t('done.skipped', { count: result.skipped }),
+              })}
             </p>
           </div>
           <button
