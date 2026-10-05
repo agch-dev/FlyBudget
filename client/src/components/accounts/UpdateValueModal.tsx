@@ -39,8 +39,8 @@ export function UpdateValueModal({ account, onClose }: Props) {
         accountId: account.id,
         date: format(new Date(), 'yyyy-MM-dd'),
         amount: change,
-        // Written in the App Language of the moment, and stored as written
-        notes: liability ? t('updateValue.balanceNotes') : t('updateValue.valueNotes'),
+        // Stored data: English whatever the App Language
+        notes: liability ? 'Balance update' : 'Value update',
         adjustment: true,
       });
     }

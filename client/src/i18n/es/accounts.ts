@@ -145,8 +145,6 @@ const es: Translation<typeof en> = {
     currently: 'Actualmente {{amount}}.',
     currentlyAdds:
       'Actualmente {{amount}}. Agrega un ajuste de <change>{{change}}</change> con fecha de hoy.',
-    balanceNotes: 'Actualización de saldo',
-    valueNotes: 'Actualización de valor',
   },
   reconcile: {
     breadcrumb: 'Conciliar',
@@ -169,7 +167,6 @@ const es: Translation<typeof en> = {
     finish: 'Terminar',
     saving: 'Guardando...',
     createAdjustment: 'Crear ajuste',
-    adjustmentNotes: 'Ajuste de conciliación',
   },
   undo: {
     create: 'Crear la cuenta "{{name}}"',

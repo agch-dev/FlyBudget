@@ -76,8 +76,8 @@ export default function ReconcilePage() {
       accountId: id,
       date: format(new Date(), 'yyyy-MM-dd'),
       amount: adjustmentAmount,
-      // Written in the App Language of the moment, and stored as written
-      notes: t('reconcile.adjustmentNotes'),
+      // Stored data: English whatever the App Language
+      notes: 'Reconciliation adjustment',
       adjustment: true,
     });
     const idsToReconcile = [...checkedIds, created.id];

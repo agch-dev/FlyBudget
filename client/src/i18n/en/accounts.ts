@@ -148,9 +148,6 @@ export default {
     currently: 'Currently {{amount}}.',
     currentlyAdds:
       'Currently {{amount}}. Adds a <change>{{change}}</change> adjustment dated today.',
-    /** The notes of the adjustment transaction it adds (stored as written) */
-    balanceNotes: 'Balance update',
-    valueNotes: 'Value update',
   },
   reconcile: {
     breadcrumb: 'Reconcile',
@@ -174,8 +171,6 @@ export default {
     finish: 'Finish',
     saving: 'Saving...',
     createAdjustment: 'Create Adjustment',
-    /** The notes of the adjustment transaction (stored as written) */
-    adjustmentNotes: 'Reconciliation adjustment',
   },
   /** What the undo toast says was undone or redone */
   undo: {

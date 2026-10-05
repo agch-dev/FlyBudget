@@ -37,7 +37,7 @@ test('a statement that differs is settled with an adjustment, noted in Spanish',
   const adjustment = (await api.transactions(`?account_id=${sueldo.id}`)).find(
     (t) => t.amount === -1_000,
   );
-  expect(adjustment).toMatchObject({ notes: 'Ajuste de conciliación', isAdjustment: 1 });
+  expect(adjustment).toMatchObject({ notes: 'Reconciliation adjustment', isAdjustment: 1 });
 });
 
 test('updating the value of a property works in Spanish', async ({ page, api }) => {
@@ -58,7 +58,7 @@ test('updating the value of a property works in Spanish', async ({ page, api }) 
 
   await expect.poll(() => api.balance(casa.id)).toBe(10_500_000);
   const [adjustment] = await api.transactions(`?account_id=${casa.id}`);
-  expect(adjustment).toMatchObject({ amount: 500_000, notes: 'Actualización de valor' });
+  expect(adjustment).toMatchObject({ amount: 500_000, notes: 'Value update' });
 });
 
 test('the sidebar and the page name an account type the same way', async ({ page, api }) => {
