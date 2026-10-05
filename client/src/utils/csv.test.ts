@@ -4,13 +4,17 @@ import {
   decodeCsvBytes,
   detectDelimiter,
   generateImportId,
+  guessChargesPositive,
   guessColumnRoles,
   guessConventions,
+  guessRoles,
   parseCsv,
   parseImportAmount,
+  parseImportCurrency,
   parseImportDate,
   readCsvFile,
   readImportRows,
+  type ColumnRole,
   type DateOrder,
   type DecimalSeparator,
 } from './csv';
@@ -364,6 +368,7 @@ describe('readImportRows', () => {
           payeeName: 'Supermercado; sucursal 3',
           notes: null,
           importedId: '2026-03-05|-123456|supermercado; sucursal 3',
+          currency: null,
         },
         {
           date: '2026-03-25',
@@ -371,6 +376,7 @@ describe('readImportRows', () => {
           payeeName: 'Sueldo',
           notes: null,
           importedId: '2026-03-25|8000000|sueldo',
+          currency: null,
         },
       ],
       problems: [],
@@ -421,6 +427,160 @@ describe('readImportRows', () => {
       '2025-01-15|-450|cafe',
       '2025-01-15|-450|cafe|2',
     ]);
+  });
+});
+
+describe('card statements in pesos and dollars', () => {
+  const uruguayan = { dateOrder: 'day-first', decimal: 'comma' } as const;
+
+  // A Santander Uruguay card statement: the card's details and balances first, one column
+  // per currency, and purchases written as positive amounts
+  const santanderCard =
+    'Cliente,Número de tarjeta de crédito,Alias,Fecha de corte,Límite de crédito (US$),Límite de crédito ($),\r\n' +
+    '"Perez, Ana",XXXXX-0000,Visa,04/09/2026,"0,00","40.000,00",\r\n\r\n' +
+    'Período,\r\nDesde:,01/09/2026,Hasta:,30/09/2026\r\n\r\n' +
+    'Movimientos,\r\n' +
+    'Fecha,Número de tarjeta,Número de autorización,Descripción,Importe original,Pesos,Dólares,\r\n' +
+    '04/08/2026,XXXXX-0000,770,Streaming,"0,00","0,00","9,99",\r\n' +
+    '19/08/2026,XXXXX-0000,770,Supermercado,"0,00","1.343,28","0,00",\r\n' +
+    '20/08/2026,,770,Pago Automatico,"0,00","-13.821,26","0,00",\r\n' +
+    '21/08/2026,XXXXX-0000,770,Reembolso,"0,00","0,00","-4,99",\r\n';
+
+  it('finds the transactions under the card details, with a column for each currency', () => {
+    const { headers, rows, preamble } = readCsvFile(santanderCard);
+    expect(preamble).toHaveLength(5);
+    expect(guessRoles(headers, rows)).toEqual([
+      'date',
+      'skip',
+      'skip',
+      'payee',
+      'skip',
+      'amountUYU',
+      'amountUSD',
+      'skip',
+    ]);
+    expect(guessConventions([...preamble, ...rows])).toEqual(uruguayan);
+  });
+
+  it('gives each row the currency of the column its amount is in, signs turned around', () => {
+    const { headers, rows } = readCsvFile(santanderCard);
+    const read = readImportRows(rows, guessRoles(headers, rows), uruguayan, {
+      chargesPositive: true,
+    });
+    expect(read.problems).toEqual([]);
+    expect(read.rows.map((r) => [r.date, r.payeeName, r.amount, r.currency])).toEqual([
+      ['2026-08-04', 'Streaming', -999, 'USD'],
+      ['2026-08-19', 'Supermercado', -134328, 'UYU'],
+      ['2026-08-20', 'Pago Automatico', 1382126, 'UYU'],
+      ['2026-08-21', 'Reembolso', 499, 'USD'],
+    ]);
+  });
+
+  it('reads a currency column next to one amount column (Itaú card)', () => {
+    const headers = [
+      'Fecha',
+      'Concepto',
+      'Imp. cuota',
+      'Imp. total',
+      'Cuotas',
+      'Moneda',
+      'Categoría',
+    ];
+    const rows = [
+      ['2026-09-30', 'DLOPedidosYa', '666,89', '666,89', '1/1', 'Pesos', 'Gastronomía'],
+      ['2026-10-01', 'APPLECOMBILL', '3,03', '3,03', '1/1', 'Dolares', 'Otros'],
+      ['2026-10-02', 'Heladera', '1000', '12000', '1/12', 'Pesos', 'Otros'],
+      ['2026-10-03', 'Kiosco', '50', '50', '1/1', 'Euros', 'Otros'],
+    ];
+    const roles = guessColumnRoles(headers);
+    expect(roles).toEqual(['date', 'payee', 'amount', 'skip', 'skip', 'currency', 'skip']);
+    const read = readImportRows(rows, roles, uruguayan, { chargesPositive: true });
+    expect(read.rows.map((r) => [r.payeeName, r.amount, r.currency])).toEqual([
+      ['DLOPedidosYa', -66689, 'UYU'],
+      ['APPLECOMBILL', -303, 'USD'],
+      // The instalment charged this month, not the whole purchase
+      ['Heladera', -100000, 'UYU'],
+    ]);
+    // Never imported into an account of another currency
+    expect(read.problems).toEqual([{ row: 4, message: 'Can\'t read the currency "Euros"' }]);
+  });
+
+  it('only takes a "Currency" column that names pesos or dollars', () => {
+    const headers = ['Date', 'Description', 'Amount', 'Currency'];
+    expect(guessRoles(headers, [['2026-01-05', 'Cafe', '-4.50', 'USD']])[3]).toBe('currency');
+    // Another bank's export: importing it keeps working as it did
+    expect(guessRoles(headers, [['2026-01-05', 'Cafe', '-4.50', 'EUR']])[3]).toBe('skip');
+    expect(guessRoles(headers, [])[3]).toBe('skip');
+  });
+
+  it('reads the ways banks name the two currencies', () => {
+    for (const cell of ['Pesos', 'pesos uruguayos', 'UYU', '$', ' Peso ']) {
+      expect(parseImportCurrency(cell)).toBe('UYU');
+    }
+    for (const cell of ['Dólares', 'Dolares', 'USD', 'US$', 'U$S', 'dollars']) {
+      expect(parseImportCurrency(cell)).toBe('USD');
+    }
+    for (const cell of ['', 'EUR', 'Reales', '1.234,56'])
+      expect(parseImportCurrency(cell)).toBeNull();
+  });
+
+  it('counts identical rows apart in each currency, so each account numbers its own', () => {
+    const rows = [
+      ['01/02/2026', 'Cafe', '5,00', '0,00'],
+      ['01/02/2026', 'Cafe', '0,00', '5,00'],
+      ['01/02/2026', 'Cafe', '5,00', '5,00'],
+    ];
+    const read = readImportRows(rows, ['date', 'payee', 'amountUYU', 'amountUSD'], uruguayan);
+    expect(read.rows.map((r) => [r.currency, r.importedId])).toEqual([
+      ['UYU', '2026-02-01|500|cafe'],
+      ['USD', '2026-02-01|500|cafe'],
+      ['UYU', '2026-02-01|500|cafe|2'],
+      ['USD', '2026-02-01|500|cafe|2'],
+    ]);
+  });
+
+  it('turning signs around changes nothing but the signs (property-based)', () => {
+    const amount = fc.integer({ min: -9_999_999, max: 9_999_999 });
+    const text = (cents: number) =>
+      `${cents < 0 ? '-' : ''}${Math.floor(Math.abs(cents) / 100)},${String(Math.abs(cents) % 100).padStart(2, '0')}`;
+    fc.assert(
+      fc.property(fc.array(fc.tuple(amount, amount), { maxLength: 30 }), (amounts) => {
+        const rows = amounts.map(([pesos, dollars]) => [
+          '05/03/2026',
+          'Cafe',
+          text(pesos),
+          text(dollars),
+        ]);
+        const roles: ColumnRole[] = ['date', 'payee', 'amountUYU', 'amountUSD'];
+        const asWritten = readImportRows(rows, roles, uruguayan).rows;
+        const turned = readImportRows(rows, roles, uruguayan, { chargesPositive: true }).rows;
+        expect(turned.map((r) => [r.currency, -r.amount])).toEqual(
+          asWritten.map((r) => [r.currency, r.amount]),
+        );
+        // Every amount of the file is read once, in its own currency
+        for (const currency of ['UYU', 'USD'] as const) {
+          const column = currency === 'UYU' ? 0 : 1;
+          expect(asWritten.filter((r) => r.currency === currency).map((r) => r.amount)).toEqual(
+            amounts.map((pair) => pair[column]).filter((cents) => cents !== 0),
+          );
+        }
+      }),
+    );
+  });
+
+  it('inflow and outflow columns already say the direction: signs are left alone', () => {
+    const rows = [['05/03/2026', 'Cafe', '120,00', '']];
+    const roles: ColumnRole[] = ['date', 'payee', 'outflow', 'inflow'];
+    expect(readImportRows(rows, roles, uruguayan, { chargesPositive: true }).rows[0].amount).toBe(
+      -12000,
+    );
+  });
+
+  it('guesses that purchases are positive when most amounts are', () => {
+    expect(guessChargesPositive([100, 200, -50])).toBe(true);
+    expect(guessChargesPositive([-100, -200, 50])).toBe(false);
+    expect(guessChargesPositive([100, -100])).toBe(false);
+    expect(guessChargesPositive([])).toBe(false);
   });
 });
 

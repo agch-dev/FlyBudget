@@ -13,15 +13,77 @@ const BANK_CSV =
   '01/16/2025,"Acme, Inc. Payroll",2500.00,"Direct deposit\r\nJanuary"\r\n' +
   '01/17/2025,Hardware Store,-89.99,\r\n';
 
-async function importCsv(page: Page, csv: string) {
+async function importFile(page: Page, name: string, buffer: Buffer) {
   await page.getByRole('button', { name: 'Import CSV' }).click();
   const dialog = page.getByRole('dialog', { name: 'Import Transactions' });
-  await dialog.getByLabel('CSV file').setInputFiles({
-    name: 'bank-export.csv',
-    mimeType: 'text/csv',
-    buffer: Buffer.from(csv, 'utf8'),
-  });
+  await dialog
+    .getByLabel('CSV or Excel file')
+    .setInputFiles({ name, mimeType: 'text/csv', buffer });
   return dialog;
+}
+
+const importCsv = (page: Page, csv: string) =>
+  importFile(page, 'bank-export.csv', Buffer.from(csv, 'utf8'));
+
+// A Santander Uruguay card statement: the card's details first, a column for each
+// currency, and purchases written as positive amounts
+const CARD_CSV =
+  'Cliente,Alias,Fecha de corte,Límite de crédito ($),\r\n' +
+  '"Perez, Ana",Visa,04/09/2026,"40.000,00",\r\n\r\n' +
+  'Movimientos,\r\n' +
+  'Fecha,Número de tarjeta,Descripción,Importe original,Pesos,Dólares,\r\n' +
+  '04/08/2026,XXXXX-0000,Streaming,"0,00","0,00","9,99",\r\n' +
+  '19/08/2026,XXXXX-0000,Supermercado,"0,00","1.343,28","0,00",\r\n' +
+  '20/08/2026,,Pago Automatico,"0,00","-13.821,26","0,00",\r\n' +
+  '25/08/2026,XXXXX-0000,Farmacia,"0,00","610,00","0,00",\r\n';
+
+/** An .xlsx workbook with one sheet (a zip of XML files, stored uncompressed) */
+function xlsx(rows: (string | number)[][]): Buffer {
+  const cell = (value: string | number) =>
+    typeof value === 'number'
+      ? `<c><v>${value}</v></c>`
+      : `<c t="inlineStr"><is><t>${value}</t></is></c>`;
+  const files: Record<string, string> = {
+    'xl/workbook.xml':
+      '<workbook xmlns:r="r"><sheets><sheet name="Estado de Cuenta" sheetId="1" r:id="rId1"/></sheets></workbook>',
+    'xl/_rels/workbook.xml.rels':
+      '<Relationships><Relationship Id="rId1" Target="worksheets/sheet1.xml"/></Relationships>',
+    'xl/worksheets/sheet1.xml': `<worksheet><sheetData>${rows
+      .map((row) => `<row>${row.map(cell).join('')}</row>`)
+      .join('')}</sheetData></worksheet>`,
+  };
+  const parts: Buffer[] = [];
+  const directory: Buffer[] = [];
+  let at = 0;
+  for (const [name, text] of Object.entries(files)) {
+    const data = Buffer.from(text, 'utf8');
+    const entry = Buffer.alloc(26);
+    entry.writeUInt16LE(20, 0);
+    entry.writeUInt32LE(data.length, 14);
+    entry.writeUInt32LE(data.length, 18);
+    entry.writeUInt16LE(Buffer.byteLength(name), 22);
+    const local = Buffer.concat([
+      Buffer.from('PK\x03\x04', 'latin1'),
+      entry,
+      Buffer.from(name),
+      data,
+    ]);
+    const where = Buffer.alloc(14);
+    where.writeUInt32LE(at, 10);
+    directory.push(
+      Buffer.concat([Buffer.from('PK\x01\x02\x14\x00', 'latin1'), entry, where, Buffer.from(name)]),
+    );
+    parts.push(local);
+    at += local.length;
+  }
+  const central = Buffer.concat(directory);
+  const end = Buffer.alloc(22);
+  end.write('PK\x05\x06', 'latin1');
+  end.writeUInt16LE(directory.length, 8);
+  end.writeUInt16LE(directory.length, 10);
+  end.writeUInt32LE(central.length, 12);
+  end.writeUInt32LE(at, 16);
+  return Buffer.concat([...parts, central, end]);
 }
 
 test.describe('CSV import', () => {
@@ -54,6 +116,102 @@ test.describe('CSV import', () => {
       ['2025-01-17', 'Hardware Store', -8_999, null],
     ]);
     expect(await api.balance(checking.id)).toBe(240_101);
+  });
+
+  test('a card statement in pesos and dollars goes to the two sides of the card', async ({
+    page,
+    api,
+  }) => {
+    // The group is the whole bank: only the dollar card is the other side of this card
+    const bank = { groupName: 'Santander' };
+    const card = await api.createAccount('Visa pesos', 0, 'credit', bank);
+    const cardDollars = await api.createAccount('Visa dólares', 0, 'credit', {
+      ...bank,
+      currency: 'USD',
+    });
+    await api.createAccount('Ahorro dólares', 0, 'savings', { ...bank, currency: 'USD' });
+    await open(page, `/accounts/${card.id}`);
+    const dialog = await importCsv(page, CARD_CSV);
+
+    await expect(dialog.getByRole('combobox', { name: 'Column Pesos' })).toHaveValue('amountUYU');
+    await expect(dialog.getByRole('combobox', { name: 'Column Dólares' })).toHaveValue('amountUSD');
+    await expect(dialog.getByRole('combobox', { name: 'Decimals' })).toHaveValue('comma');
+    await expect(dialog.getByRole('checkbox', { name: /Purchases are positive/ })).toBeChecked();
+    await expect(dialog).toContainText('1 row of this file is in dollars');
+    await expect(dialog.getByRole('combobox', { name: 'Rows in dollars go to' })).toHaveValue(
+      cardDollars.id,
+    );
+
+    await dialog.getByRole('button', { name: 'Preview' }).click();
+    await expect(dialog).toContainText('4 transactions found.');
+    await expect(dialog.getByRole('row', { name: /Streaming/ })).toContainText('Visa dólares');
+    await expect(dialog.getByRole('row', { name: /Streaming/ })).toContainText('US$9.99');
+    await dialog.getByRole('button', { name: 'Import 4 Transactions' }).click();
+    await expect(dialog).toContainText('4 imported, 0 skipped');
+
+    const amounts = async (accountId: string) =>
+      (await api.transactions(`?account_id=${accountId}&from=2026-01-01`))
+        .map((t) => [t.payeeName, t.amount])
+        .sort((a, b) => String(a).localeCompare(String(b)));
+    // Purchases are money going out, the payment money coming in
+    expect(await amounts(card.id)).toEqual([
+      ['Farmacia', -61_000],
+      ['Pago Automatico', 1_382_126],
+      ['Supermercado', -134_328],
+    ]);
+    expect(await amounts(cardDollars.id)).toEqual([['Streaming', -999]]);
+
+    // The same file again, from the dollars side: everything is already there
+    await dialog.getByRole('button', { name: 'Done' }).click();
+    await open(page, `/accounts/${cardDollars.id}`);
+    const again = await importCsv(page, CARD_CSV);
+    await expect(again.getByRole('combobox', { name: 'Rows in pesos go to' })).toHaveValue(card.id);
+    await again.getByRole('button', { name: 'Preview' }).click();
+    await expect(again).toContainText('4 transactions found. 4 duplicates detected.');
+  });
+
+  test('rows of the other currency are left out unless an account is chosen', async ({
+    page,
+    api,
+  }) => {
+    const card = await api.createAccount('Visa pesos', 0, 'credit');
+    await api.createAccount('Visa dólares', 0, 'credit', { currency: 'USD' });
+    await open(page, `/accounts/${card.id}`);
+    const dialog = await importCsv(page, CARD_CSV);
+
+    // No Account Group says which dollar account is this card's: nothing is guessed
+    await expect(dialog.getByRole('combobox', { name: 'Rows in dollars go to' })).toHaveValue('');
+    await dialog.getByRole('button', { name: 'Preview' }).click();
+    await expect(dialog).toContainText(
+      "3 transactions found. 0 duplicates detected. 3 will be imported. 1 row in dollars won't be imported.",
+    );
+    await dialog.getByRole('button', { name: 'Import 3 Transactions' }).click();
+    await expect(dialog).toContainText('3 imported, 0 skipped');
+  });
+
+  test('imports an Excel statement', async ({ page, api }) => {
+    const savings = await api.createAccount('Caja de ahorro', 0, 'savings');
+    await open(page, `/accounts/${savings.id}`);
+    // Itaú's savings statement: the account's details first, real numbers as amounts
+    const dialog = await importFile(
+      page,
+      'Estado_De_Cuenta.xlsx',
+      xlsx([
+        ['Nombre', 'Tipo de cuenta', 'Moneda'],
+        ['Ana Perez', 'Caja de Ahorro', 'Pesos'],
+        ['Fecha', 'Concepto', 'Débito', 'Crédito', 'Saldo'],
+        ['07/05/2026', 'SALDO ANTERIOR', '', '', 26237.1],
+        ['13/05/2026', 'COMPRA FARMASHOP', 610, '', 25627.1],
+        ['17/05/2026', 'REDIVA FARMASHOP', '', 45.3, 25672.4],
+      ]),
+    );
+
+    await expect(dialog.getByRole('combobox', { name: 'Column Débito' })).toHaveValue('outflow');
+    await expect(dialog.getByRole('combobox', { name: 'Dates' })).toHaveValue('day-first');
+    await dialog.getByRole('button', { name: 'Preview' }).click();
+    await dialog.getByRole('button', { name: 'Import 2 Transactions' }).click();
+    await expect(dialog).toContainText('2 imported, 0 skipped');
+    expect(await api.balance(savings.id)).toBe(-61_000 + 4_530);
   });
 
   test('importing the same file again finds only duplicates', async ({ page, api }) => {

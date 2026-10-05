@@ -1,3 +1,5 @@
+import type { Currency } from '../types';
+
 export type Delimiter = ',' | ';';
 /** How a bank writes 5 March 2026 with numbers: 05/03/2026 (day first) or 03/05/2026 */
 export type DateOrder = 'day-first' | 'month-first';
@@ -8,6 +10,19 @@ export type DecimalSeparator = 'comma' | 'point';
 export interface ImportConventions {
   dateOrder: DateOrder;
   decimal: DecimalSeparator;
+}
+
+/**
+ * What the import dialog remembers for an account once an import succeeds, on this device:
+ * its conventions, how its columns were mapped, and the choices of a card statement.
+ */
+export interface ImportMemory extends ImportConventions {
+  /** The file's header line and the role chosen for each column; used when a file has the same headers */
+  columns?: { headers: string[]; roles: ColumnRole[] };
+  /** The file writes purchases as positive amounts, so every sign is turned around */
+  chargesPositive?: boolean;
+  /** Where rows of the other currency went: an account id, or null for "not imported" */
+  otherAccountId?: string | null;
 }
 
 /** What a file is read with when neither the file nor an earlier import says otherwise */
@@ -290,6 +305,19 @@ const COLUMN_HINTS: Record<string, string> = {
   'transaction amount': 'amount',
   importe: 'amount',
   monto: 'amount',
+  // Itaú's card statement: the instalment charged this month ("Imp. total" is the whole purchase)
+  'imp. cuota': 'amount',
+  // Card statements holding both currencies: a column each…
+  pesos: 'amountUYU',
+  'importe $': 'amountUYU',
+  'importe en pesos': 'amountUYU',
+  dolares: 'amountUSD',
+  'importe u$s': 'amountUSD',
+  'importe us$': 'amountUSD',
+  'importe en dolares': 'amountUSD',
+  // …or one amount column and one naming each row's currency
+  moneda: 'currency',
+  currency: 'currency',
   debit: 'outflow',
   withdrawal: 'outflow',
   outflow: 'outflow',
@@ -307,17 +335,55 @@ const COLUMN_HINTS: Record<string, string> = {
   referencia: 'notes',
 };
 
-export type ColumnRole = 'date' | 'payee' | 'amount' | 'inflow' | 'outflow' | 'notes' | 'skip';
+/**
+ * What a column of the file holds. `amountUYU` / `amountUSD` are the amount columns of a
+ * statement in both currencies (a row's amount is in whichever isn't zero), and `currency`
+ * names each row's currency next to a single amount column.
+ */
+export type ColumnRole =
+  | 'date'
+  | 'payee'
+  | 'amount'
+  | 'inflow'
+  | 'outflow'
+  | 'amountUYU'
+  | 'amountUSD'
+  | 'currency'
+  | 'notes'
+  | 'skip';
 
 export function guessColumnRoles(headers: string[]): ColumnRole[] {
   return headers.map((h) => {
-    const key = h.toLowerCase().normalize('NFD').replace(/\p{M}/gu, '');
+    const key = h.trim().toLowerCase().normalize('NFD').replace(/\p{M}/gu, '').replace(/\s+/g, ' ');
     return (COLUMN_HINTS[key] as ColumnRole) ?? 'skip';
   });
 }
 
+/**
+ * The roles a file's columns most likely have, from its headers. A "Currency" column only
+ * counts when its cells name pesos or dollars: other banks use it for currencies this app
+ * doesn't hold, and those files import as before.
+ */
+export function guessRoles(headers: string[], rows: string[][]): ColumnRole[] {
+  const roles = guessColumnRoles(headers);
+  const at = roles.indexOf('currency');
+  if (at === -1) return roles;
+  const cells = rows.slice(0, GUESS_SAMPLE_ROWS).map((row) => row[at] ?? '');
+  const named = cells.filter((cell) => cell !== '');
+  const known = named.length > 0 && named.every((cell) => parseImportCurrency(cell) !== null);
+  return roles.map((role) => (role === 'currency' && !known ? 'skip' : role));
+}
+
+/** Columns whose sign says which way the money went (unlike inflow and outflow columns) */
+const isSignedAmountRole = (role: ColumnRole) =>
+  role === 'amount' || role === 'amountUYU' || role === 'amountUSD';
 const isAmountRole = (role: ColumnRole) =>
-  role === 'amount' || role === 'inflow' || role === 'outflow';
+  isSignedAmountRole(role) || role === 'inflow' || role === 'outflow';
+
+/** Whether the mapping has a column to read amounts from */
+export const hasAmountColumn = (roles: ColumnRole[]) => roles.some(isAmountRole);
+/** Whether "charges are positive" means anything for this mapping */
+export const hasSignedAmountColumn = (roles: ColumnRole[]) => roles.some(isSignedAmountRole);
 
 /**
  * Where the column headers are: the first line naming a date column and an amount column.
@@ -325,11 +391,10 @@ const isAmountRole = (role: ColumnRole) =>
  * with no such line has its headers on the first one.
  */
 function headerRowIndex(records: string[][]): number {
-  const found = records.findIndex((record) => {
+  return records.findIndex((record) => {
     const roles = guessColumnRoles(record);
     return roles.includes('date') && roles.some(isAmountRole);
   });
-  return found === -1 ? 0 : found;
 }
 
 const readsAsDate = (cell: string | undefined) =>
@@ -366,22 +431,67 @@ function alignHeaders(headers: string[], rows: string[][]): string[] {
   return fits ? aligned : headers;
 }
 
+/** A file's lines as the import dialog needs them */
+export interface ImportTable {
+  /** The column headers, lined up with the data (`alignHeaders`) */
+  headers: string[];
+  /** The lines under the headers */
+  rows: string[][];
+  /** The lines above the headers: never imported, but they still show how the file writes dates */
+  preamble: string[][];
+  /** A line naming a date and an amount column was found (else the first line is the headers) */
+  recognized: boolean;
+}
+
 /**
- * A bank's CSV file as the import dialog needs it: the column headers wherever they are,
- * lined up with the data (`alignHeaders`), the rows under them, and the lines above them
- * (`preamble`), which are never imported but still show how the file writes dates.
+ * The table in a file's lines (a CSV file's records, or the rows of a sheet as text): the
+ * column headers wherever they are, the rows under them and the lines above them.
  */
+export function readTable(records: string[][]): ImportTable {
+  if (records.length === 0) return { headers: [], rows: [], preamble: [], recognized: false };
+  const found = headerRowIndex(records);
+  const at = Math.max(found, 0);
+  const rows = records.slice(at + 1);
+  return {
+    headers: alignHeaders(records[at], rows),
+    rows,
+    preamble: records.slice(0, at),
+    recognized: found !== -1,
+  };
+}
+
+/** A bank's CSV file as the import dialog needs it (`readTable`) */
 export function readCsvFile(text: string): {
   headers: string[];
   rows: string[][];
   preamble: string[][];
 } {
   const { headers: first, rows: rest } = parseCsv(text);
-  if (first.length === 0) return { headers: [], rows: [], preamble: [] };
-  const records = [first, ...rest];
-  const at = headerRowIndex(records);
-  const rows = records.slice(at + 1);
-  return { headers: alignHeaders(records[at], rows), rows, preamble: records.slice(0, at) };
+  const { headers, rows, preamble } = readTable(first.length === 0 ? [] : [first, ...rest]);
+  return { headers, rows, preamble };
+}
+
+/** The currency a cell names: "Pesos", "UYU", "$" / "Dólares", "USD", "US$", "U$S" */
+export function parseImportCurrency(raw: string | undefined): Currency | null {
+  const key = (raw ?? '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\p{M}\s.]/gu, '');
+  if (['pesos', 'peso', 'pesosuruguayos', 'uyu', '$', '$u'].includes(key)) return 'UYU';
+  if (['dolares', 'dolar', 'dollars', 'dollar', 'usd', 'us$', 'u$s', 'u$d'].includes(key)) {
+    return 'USD';
+  }
+  return null;
+}
+
+/**
+ * Whether a file writes purchases as positive amounts, as card statements often do: more
+ * of its amounts are positive than negative (a card has more purchases than payments).
+ * Only a guess for credit card accounts; a bank account's file is read as written.
+ */
+export function guessChargesPositive(amounts: number[]): boolean {
+  const charges = amounts.filter((amount) => amount > 0).length;
+  return charges > amounts.length - charges;
 }
 
 /** One transaction read from a file, ready for the import API */
@@ -391,6 +501,11 @@ export interface ReadImportRow {
   payeeName: string | null;
   notes: string | null;
   importedId: string;
+  /**
+   * The currency the file gives this amount (a pesos or dollars column, or a currency
+   * column); null when the file doesn't say, so it is in the currency of the account
+   */
+  currency: Currency | null;
 }
 
 /** A row of the file that holds an amount but can't be read, so it isn't imported */
@@ -402,21 +517,38 @@ export interface ImportProblem {
 
 /**
  * Turns a file's rows into transactions under the chosen conventions. Rows with no amount
- * (blank lines, pending rows, zeros) are left out quietly; a row whose date or amount
- * can't be read comes back in `problems`, never imported as zero or on a wrong day.
+ * (blank lines, pending rows, zeros) are left out quietly; a row whose date, amount or
+ * currency can't be read comes back in `problems`, never imported as zero, on a wrong day
+ * or in the wrong account.
+ *
+ * Amounts come from the pesos and dollars columns when the mapping has one (a row gives a
+ * transaction in each currency it has an amount in), else from the amount column, else
+ * from the inflow and outflow columns. `chargesPositive` turns the sign of signed amounts
+ * around, for statements that write purchases as positive numbers.
  */
 export function readImportRows(
   rawRows: string[][],
   roles: ColumnRole[],
   conventions: ImportConventions,
+  { chargesPositive = false }: { chargesPositive?: boolean } = {},
 ): { rows: ReadImportRow[]; problems: ImportProblem[] } {
   const dateIdx = roles.indexOf('date');
   const payeeIdx = roles.indexOf('payee');
   const amountIdx = roles.indexOf('amount');
   const inflowIdx = roles.indexOf('inflow');
   const outflowIdx = roles.indexOf('outflow');
+  const currencyIdx = roles.indexOf('currency');
   const notesIdx = roles.indexOf('notes');
-  const amountColumns = amountIdx !== -1 ? [amountIdx] : [inflowIdx, outflowIdx];
+  const byCurrency: { idx: number; currency: Currency }[] = [
+    { idx: roles.indexOf('amountUYU'), currency: 'UYU' as const },
+    { idx: roles.indexOf('amountUSD'), currency: 'USD' as const },
+  ].filter((column) => column.idx !== -1);
+  const signed = byCurrency.length > 0 || amountIdx !== -1;
+  const amountColumns = byCurrency.length
+    ? byCurrency.map((column) => column.idx)
+    : amountIdx !== -1
+      ? [amountIdx]
+      : [inflowIdx, outflowIdx];
 
   const rows: ReadImportRow[] = [];
   const problems: ImportProblem[] = [];
@@ -437,25 +569,42 @@ export function readImportRows(
     const unreadable = amounts.indexOf(null);
     if (unreadable !== -1) return problem('amount', amountCells[unreadable]);
 
-    let amount: number;
-    if (amountIdx !== -1) {
-      amount = amounts[0] ?? 0;
+    /** This row's amounts, each with the currency the file gives it */
+    let found: { amount: number; currency: Currency | null }[];
+    if (byCurrency.length) {
+      found = byCurrency.map(({ currency }, c) => ({ amount: amounts[c] ?? 0, currency }));
     } else {
-      // Some banks write debits in the outflow column as negative numbers
-      const inflow = Math.abs(amounts[0] ?? 0);
-      const outflow = Math.abs(amounts[1] ?? 0);
-      amount = inflow > 0 ? inflow : -outflow;
+      let amount: number;
+      if (amountIdx !== -1) {
+        amount = amounts[0] ?? 0;
+      } else {
+        // Some banks write debits in the outflow column as negative numbers
+        const inflow = Math.abs(amounts[0] ?? 0);
+        const outflow = Math.abs(amounts[1] ?? 0);
+        amount = inflow > 0 ? inflow : -outflow;
+      }
+      let currency: Currency | null = null;
+      if (currencyIdx !== -1 && amount !== 0) {
+        const currencyCell = raw[currencyIdx] ?? '';
+        currency = parseImportCurrency(currencyCell);
+        if (currency === null) return problem('currency', currencyCell);
+      }
+      found = [{ amount, currency }];
     }
-    if (amount === 0) return;
 
     // Same limits as the server, so one long memo can't fail the whole import
     const payeeName = payeeIdx !== -1 ? raw[payeeIdx]?.slice(0, 500) || null : null;
     const notes = notesIdx !== -1 ? raw[notesIdx]?.slice(0, 5000) || null : null;
-    const key = generateImportId(date, amount, payeeName ?? '');
-    const occurrence = (seen.get(key) ?? 0) + 1;
-    seen.set(key, occurrence);
-    const importedId = generateImportId(date, amount, payeeName ?? '', occurrence);
-    rows.push({ date, amount, payeeName, notes, importedId });
+    for (const { amount: read, currency } of found) {
+      if (read === 0) continue;
+      const amount = signed && chargesPositive ? -read : read;
+      // Each currency goes to its own account, so each counts its identical rows apart
+      const key = `${currency ?? ''}|${generateImportId(date, amount, payeeName ?? '')}`;
+      const occurrence = (seen.get(key) ?? 0) + 1;
+      seen.set(key, occurrence);
+      const importedId = generateImportId(date, amount, payeeName ?? '', occurrence);
+      rows.push({ date, amount, payeeName, notes, importedId, currency });
+    }
   });
 
   return { rows, problems };

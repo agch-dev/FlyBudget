@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { IS_DEMO } from '../demo/isDemo';
-import type { ImportConventions } from '../utils/csv';
+import type { ImportMemory } from '../utils/csv';
 import { toggleGroupOpen } from '../utils/accountGroups';
 import { HOME_CURRENCY, type Currency } from '../types';
 
@@ -25,8 +25,8 @@ interface PreferencesState {
   setupSkipped: boolean;
   /** The getting started checklist on the dashboard was hidden */
   gettingStartedHidden: boolean;
-  /** CSV import choices (date order, decimal mark) last used for each account, by account id */
-  csvImportConventions: Record<string, ImportConventions>;
+  /** Import choices (date order, decimal mark, columns, card choices) last used for each account, by account id */
+  csvImportConventions: Record<string, ImportMemory>;
   /** Account Groups expanded in the sidebar on this device, by name; the rest are closed */
   openAccountGroups: string[];
   /**
@@ -45,7 +45,7 @@ interface PreferencesState {
   setKeepOfflineCopy: (keep: boolean) => void;
   setSetupSkipped: (skipped: boolean) => void;
   setGettingStartedHidden: (hidden: boolean) => void;
-  setCsvImportConventions: (accountId: string, conventions: ImportConventions) => void;
+  setCsvImportConventions: (accountId: string, conventions: ImportMemory) => void;
   toggleAccountGroup: (name: string) => void;
   setViewingCurrency: (currency: Currency) => void;
 }

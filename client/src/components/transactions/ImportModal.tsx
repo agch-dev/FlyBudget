@@ -5,9 +5,13 @@ import { useCanSave } from '../../hooks/useConnection';
 import { SavingPausedHint } from '../connection/SavingPausedHint';
 import {
   decodeCsvBytes,
-  readCsvFile,
-  guessColumnRoles,
+  parseCsv,
+  readTable,
+  guessRoles,
   guessConventions,
+  guessChargesPositive,
+  hasAmountColumn,
+  hasSignedAmountColumn,
   readImportRows,
   DEFAULT_CONVENTIONS,
   type ColumnRole,
@@ -15,13 +19,23 @@ import {
   type DecimalSeparator,
   type ImportConventions,
   type ImportProblem,
+  type ReadImportRow,
 } from '../../utils/csv';
+import {
+  readSpreadsheet,
+  sheetText,
+  spreadsheetKind,
+  SpreadsheetError,
+  type Cell,
+  type Sheet,
+} from '../../utils/spreadsheet';
+import { defaultDestination, destinationAccounts, isCardType } from '../../utils/importDestination';
 import { usePreferencesStore } from '../../store/preferencesStore';
 import { importPreview } from '../../api/transactions';
 import { useImportConfirm } from '../../hooks/useTransactions';
 import { useAccounts } from '../../hooks/useAccounts';
 import { formatCurrency } from '../../utils/currency';
-import type { ImportPreviewRow } from '../../types';
+import type { Currency, ImportPreviewRow } from '../../types';
 import type { ImportRow } from '../../api/transactions';
 import { IS_DEMO } from '../../demo/demoApi';
 
@@ -33,24 +47,49 @@ interface Props {
 
 type Step = 'upload' | 'map' | 'preview' | 'done';
 
+/** A row of the preview: where it goes and in which currency */
+type PreviewRow = ImportPreviewRow & { accountId: string; currency: Currency };
+
 /** Unreadable rows listed before "and N more" */
 const PROBLEMS_SHOWN = 5;
 const NO_PROBLEMS: ImportProblem[] = [];
+const NO_CELLS: Cell[][] = [];
+
+const CURRENCY_WORD: Record<Currency, string> = { UYU: 'pesos', USD: 'dollars' };
+
+/** What the import API takes: a read row without what only the dialog needs */
+const toImportRow = ({ date, amount, payeeName, notes, importedId }: ReadImportRow): ImportRow => ({
+  date,
+  amount,
+  payeeName,
+  notes,
+  importedId,
+});
 
 export function ImportModal({ isOpen, onClose, accountId }: Props) {
   const [step, setStep] = useState<Step>('upload');
   const canSave = useCanSave();
-  // The file's amounts are in the currency of the account they're imported into
+  // The file's amounts are in the currency of the account they're imported into, unless
+  // the file itself says otherwise (a card statement in pesos and dollars)
   const { data: accounts } = useAccounts();
-  const currency = accounts?.find((a) => a.id === accountId)?.currency;
+  const account = accounts?.find((a) => a.id === accountId);
+  const currency = account?.currency;
+  const otherCurrency: Currency = currency === 'USD' ? 'UYU' : 'USD';
+  const [sheets, setSheets] = useState<Sheet[]>([]);
+  const [sheetIdx, setSheetIdx] = useState(0);
   const [headers, setHeaders] = useState<string[]>([]);
-  const [rawRows, setRawRows] = useState<string[][]>([]);
+  /** The lines under the headers, as the file holds them */
+  const [cells, setCells] = useState<Cell[][]>(NO_CELLS);
   const [roles, setRoles] = useState<ColumnRole[]>([]);
   const [conventions, setConventions] = useState<ImportConventions>(DEFAULT_CONVENTIONS);
-  const rememberConventions = usePreferencesStore((s) => s.setCsvImportConventions);
-  // Only the answer to the latest preview request is shown
+  const [chargesPositive, setChargesPositive] = useState(false);
+  /** Where rows of the other currency go; null = not imported */
+  const [otherAccountId, setOtherAccountId] = useState<string | null>(null);
+  const rememberChoices = usePreferencesStore((s) => s.setCsvImportConventions);
+  // Only the latest file, and the answer to the latest preview request, are shown
+  const fileRequest = useRef(0);
   const previewRequest = useRef(0);
-  const [previewRows, setPreviewRows] = useState<ImportPreviewRow[]>([]);
+  const [previewRows, setPreviewRows] = useState<PreviewRow[]>([]);
   const [excluded, setExcluded] = useState<Set<number>>(new Set());
   const [result, setResult] = useState<{ imported: number; skipped: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -60,10 +99,15 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
 
   function reset() {
     setStep('upload');
+    setSheets([]);
+    setSheetIdx(0);
     setHeaders([]);
-    setRawRows([]);
+    setCells(NO_CELLS);
     setRoles([]);
     setConventions(DEFAULT_CONVENTIONS);
+    setChargesPositive(false);
+    setOtherAccountId(null);
+    fileRequest.current++;
     previewRequest.current++;
     setPreviewRows([]);
     setExcluded(new Set());
@@ -77,39 +121,90 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
     onClose();
   }
 
-  function handleFile(file: File) {
+  /** Shows one sheet of the file with the choices remembered for this account, else guessed */
+  function showSheet(sheet: Cell[][]) {
+    const memory = usePreferencesStore.getState().csvImportConventions[accountId];
+    const table = readTable(sheetText(sheet, 'point'));
+    const body = sheet.slice(table.preamble.length + 1);
+    // What this account's files used last time, else what this file's text suggests (the
+    // lines above the headers too: a statement's period often has a day above 12)
+    const written = sheet.map((row) => row.map((cell) => (typeof cell === 'number' ? '' : cell)));
+    const using: ImportConventions = memory
+      ? { dateOrder: memory.dateOrder, decimal: memory.decimal }
+      : guessConventions(written);
+    const rows = sheetText(body, using.decimal);
+    const sameHeaders =
+      memory?.columns?.headers.length === table.headers.length &&
+      memory.columns.headers.every((h, i) => h === table.headers[i]);
+    const columns = sameHeaders ? memory!.columns!.roles : guessRoles(table.headers, rows);
+
+    setHeaders(table.headers);
+    setCells(body);
+    setRoles(columns);
+    setConventions(using);
+    setChargesPositive(
+      memory?.chargesPositive ??
+        (!!account &&
+          isCardType(account.type) &&
+          hasSignedAmountColumn(columns) &&
+          guessChargesPositive(readImportRows(rows, columns, using).rows.map((r) => r.amount))),
+    );
+    const destinations = account ? destinationAccounts(account, accounts ?? [], otherCurrency) : [];
+    setOtherAccountId(
+      memory?.otherAccountId === null
+        ? null
+        : (destinations.find((a) => a.id === memory?.otherAccountId)?.id ??
+            (account ? defaultDestination(account, accounts ?? [], otherCurrency) : null)),
+    );
+  }
+
+  async function handleFile(file: File) {
     setError(null);
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const text = decodeCsvBytes(e.target?.result as ArrayBuffer);
-      const { headers: h, rows: r, preamble } = readCsvFile(text);
-      if (h.length === 0) {
-        setError('Could not parse CSV file');
-        return;
+    const request = ++fileRequest.current;
+    let loaded: Sheet[];
+    try {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      if (spreadsheetKind(bytes)) {
+        loaded = await readSpreadsheet(bytes);
+      } else {
+        const { headers: first, rows: rest } = parseCsv(decodeCsvBytes(bytes));
+        loaded = [{ name: file.name, rows: first.length ? [first, ...rest] : [] }];
       }
-      setHeaders(h);
-      setRawRows(r);
-      setRoles(guessColumnRoles(h));
-      // What this account's files used last time, else what this file's data suggests
-      // (the lines above the headers too: a statement's period often has a day above 12)
-      setConventions(
-        usePreferencesStore.getState().csvImportConventions[accountId] ??
-          guessConventions([...preamble, ...r]),
-      );
-      setStep('map');
-    };
-    reader.readAsArrayBuffer(file);
+    } catch (e) {
+      if (request !== fileRequest.current) return;
+      setError(e instanceof SpreadsheetError ? e.message : 'Could not read the file');
+      return;
+    }
+    if (request !== fileRequest.current) return;
+    loaded = loaded.filter((sheet) => sheet.rows.length > 0);
+    if (loaded.length === 0) {
+      setError('Could not find any rows in the file');
+      return;
+    }
+    // A workbook's transactions aren't always on its first sheet (Itaú's card summary)
+    const withTable = loaded.findIndex((s) => readTable(sheetText(s.rows, 'point')).recognized);
+    const at = Math.max(withTable, 0);
+    setSheets(loaded);
+    setSheetIdx(at);
+    showSheet(loaded[at].rows);
+    setStep('map');
+  }
+
+  function changeSheet(idx: number) {
+    setSheetIdx(idx);
+    setError(null);
+    showSheet(sheets[idx].rows);
   }
 
   function handleDrop(e: React.DragEvent) {
     e.preventDefault();
     const file = e.dataTransfer.files[0];
-    if (file) handleFile(file);
+    if (file) void handleFile(file);
   }
 
   function handleFileInput(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    if (file) handleFile(file);
+    if (file) void handleFile(file);
   }
 
   function setRole(idx: number, role: ColumnRole) {
@@ -121,28 +216,57 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
   }
 
   const hasDate = roles.includes('date');
-  const hasAmount = roles.some((r) => r === 'amount' || r === 'inflow' || r === 'outflow');
+  const hasAmount = hasAmountColumn(roles);
+  const signedAmounts = hasSignedAmountColumn(roles);
+
+  /** The file's rows as text; number cells of a spreadsheet follow the Decimals choice */
+  const rawRows = useMemo(
+    () => sheetText(cells, conventions.decimal),
+    [cells, conventions.decimal],
+  );
 
   /** The file as it reads with the chosen columns and conventions */
   const read = useMemo(
-    () => (hasDate && hasAmount ? readImportRows(rawRows, roles, conventions) : null),
-    [hasDate, hasAmount, rawRows, roles, conventions],
+    () =>
+      hasDate && hasAmount
+        ? readImportRows(rawRows, roles, conventions, { chargesPositive })
+        : null,
+    [hasDate, hasAmount, rawRows, roles, conventions, chargesPositive],
   );
   const problems = read?.problems ?? NO_PROBLEMS;
+
+  /** A row the file gives the other currency: it can't go into this account */
+  const isOther = (row: { currency: Currency | null }) =>
+    row.currency !== null && row.currency !== currency;
+  const otherCount = read?.rows.filter(isOther).length ?? 0;
+  const destinations = account ? destinationAccounts(account, accounts ?? [], otherCurrency) : [];
+  const accountName = (id: string) => accounts?.find((a) => a.id === id)?.name ?? '';
 
   async function runPreview(using: ImportConventions) {
     setError(null);
     if (!hasDate) return setError('Date column is required');
     if (!hasAmount) return setError('At least one amount column is required');
 
-    const { rows, problems: unreadable } = readImportRows(rawRows, roles, using);
-    if (!rows.length) {
+    const { rows, problems: unreadable } = readImportRows(
+      sheetText(cells, using.decimal),
+      roles,
+      using,
+      { chargesPositive },
+    );
+    // Each row with the account it goes to; the other currency's rows may go nowhere
+    const placed = rows.flatMap((row) => {
+      const into = isOther(row) ? otherAccountId : accountId;
+      return into ? [{ row, into, currency: row.currency ?? currency ?? 'UYU' }] : [];
+    });
+    if (!placed.length) {
       previewRequest.current++;
       setStep('map');
       setError(
-        unreadable.length
-          ? `None of the ${unreadable.length} rows could be read. Check the Dates and Decimals choices.`
-          : 'No valid rows found',
+        rows.length
+          ? `Every row is in ${CURRENCY_WORD[otherCurrency]}. Choose the account they go to.`
+          : unreadable.length
+            ? `None of the ${unreadable.length} rows could be read. Check the Dates and Decimals choices.`
+            : 'No valid rows found',
       );
       return;
     }
@@ -150,8 +274,22 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
     const request = ++previewRequest.current;
     setLoading(true);
     try {
-      const preview = await importPreview(accountId, rows);
+      const intoAccounts = [...new Set(placed.map((p) => p.into))];
+      const answers = await Promise.all(
+        intoAccounts.map((into) =>
+          importPreview(
+            into,
+            placed.filter((p) => p.into === into).map((p) => toImportRow(p.row)),
+          ),
+        ),
+      );
       if (request !== previewRequest.current) return;
+      // Back in the file's order: each account's answer lists its rows in the order sent
+      const next = intoAccounts.map(() => 0);
+      const preview = placed.map(({ into, currency: rowCurrency }) => {
+        const a = intoAccounts.indexOf(into);
+        return { ...answers[a][next[a]++], accountId: into, currency: rowCurrency };
+      });
       setPreviewRows(preview);
       setExcluded(new Set(preview.map((r, i) => (r.isDuplicate ? i : -1)).filter((i) => i >= 0)));
       setStep('preview');
@@ -170,27 +308,49 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
     if (step === 'preview') void runPreview(next);
   }
 
-  function handleConfirm() {
-    const rows = previewRows
-      .filter((_, i) => !excluded.has(i))
-      .map(({ isDuplicate: _, ...row }) => row as ImportRow);
-
-    if (!rows.length) {
+  async function handleConfirm() {
+    const chosen = previewRows.filter((_, i) => !excluded.has(i));
+    if (!chosen.length) {
       setError('No rows selected');
       return;
     }
 
-    confirmMutation.mutate(
-      { accountId, rows },
-      {
-        onSuccess: (data) => {
-          rememberConventions(accountId, conventions);
-          setResult(data);
-          setStep('done');
-        },
-        onError: (e) => setError(e instanceof Error ? e.message : 'Import failed'),
-      },
+    // This account first, then the other currency's: one request each
+    const intoAccounts = [...new Set(chosen.map((r) => r.accountId))].sort(
+      (a, b) => Number(b === accountId) - Number(a === accountId),
     );
+    const total = { imported: 0, skipped: 0 };
+    const done: string[] = [];
+    for (const into of intoAccounts) {
+      try {
+        const answer = await confirmMutation.mutateAsync({
+          accountId: into,
+          rows: chosen.filter((r) => r.accountId === into).map(toImportRow),
+        });
+        total.imported += answer.imported;
+        total.skipped += answer.skipped;
+        done.push(into);
+      } catch (e) {
+        const reason = e instanceof Error ? e.message : 'Import failed';
+        setError(
+          done.length
+            ? `Imported into ${done.map(accountName).join(', ')}, but not into ${accountName(into)}: ${reason}. Import again to finish: rows already imported are skipped.`
+            : reason,
+        );
+        return;
+      }
+    }
+
+    const memory = usePreferencesStore.getState().csvImportConventions[accountId];
+    rememberChoices(accountId, {
+      ...memory,
+      ...conventions,
+      columns: { headers, roles },
+      ...(signedAmounts ? { chargesPositive } : {}),
+      ...(otherCount > 0 ? { otherAccountId } : {}),
+    });
+    setResult(total);
+    setStep('done');
   }
 
   function toggleExclude(idx: number) {
@@ -208,6 +368,9 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
     { value: 'amount', label: 'Amount' },
     { value: 'inflow', label: 'Inflow' },
     { value: 'outflow', label: 'Outflow' },
+    { value: 'amountUYU', label: 'Amount in pesos' },
+    { value: 'amountUSD', label: 'Amount in dollars' },
+    { value: 'currency', label: 'Currency' },
     { value: 'notes', label: 'Notes' },
     { value: 'skip', label: 'Skip' },
   ];
@@ -244,6 +407,8 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
       </label>
     </div>
   );
+
+  const twoAccounts = previewRows.some((row) => row.accountId !== accountId);
 
   const problemList = problems.length > 0 && (
     <div role="alert" className="px-3 py-2 text-sm bg-caution-subtle text-caution rounded-lg">
@@ -284,9 +449,9 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
         >
           <Upload size={32} className="text-text-tertiary" />
           <p className="text-sm text-text-secondary">
-            Drag and drop a CSV file, or click to browse
+            Drag and drop a CSV or Excel file, or click to browse
           </p>
-          <p className="text-xs text-text-tertiary">Supports .csv files</p>
+          <p className="text-xs text-text-tertiary">Supports .csv, .xlsx and .xls files</p>
           {IS_DEMO && (
             <p className="text-xs text-text-tertiary">
               Demo: your file stays in this browser tab and isn't saved.
@@ -295,8 +460,8 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
           <input
             id="csv-file-input"
             type="file"
-            accept=".csv"
-            aria-label="CSV file"
+            accept=".csv,.xlsx,.xltx,.xlsm,.xls"
+            aria-label="CSV or Excel file"
             className="hidden"
             onChange={handleFileInput}
           />
@@ -308,6 +473,22 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
           <p className="text-sm text-text-secondary">
             Map each column to a field. Found {rawRows.length} rows.
           </p>
+          {sheets.length > 1 && (
+            <label className="flex items-center gap-2 text-sm text-text-secondary">
+              Sheet
+              <select
+                value={sheetIdx}
+                onChange={(e) => changeSheet(Number(e.target.value))}
+                className={selectClass}
+              >
+                {sheets.map((sheet, i) => (
+                  <option key={i} value={i}>
+                    {sheet.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           <div className="overflow-x-auto">
             <table className="w-full text-sm border-collapse">
               <thead>
@@ -348,11 +529,56 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
             </table>
           </div>
           {conventionFields}
+          {signedAmounts && (
+            <label className="flex items-start gap-2 text-sm text-text-secondary max-md:min-h-11">
+              <input
+                type="checkbox"
+                checked={chargesPositive}
+                onChange={(e) => setChargesPositive(e.target.checked)}
+                className="mt-0.5 w-3.5 h-3.5 accent-brand-600"
+              />
+              <span>
+                Purchases are positive in this file
+                <span className="block text-xs text-text-tertiary">
+                  Card statements often are. Every sign is turned around: purchases become money
+                  going out, payments and refunds money coming in.
+                </span>
+              </span>
+            </label>
+          )}
+          {otherCount > 0 && (
+            <div className="space-y-1">
+              <label className="flex flex-wrap items-center gap-2 text-sm text-text-secondary">
+                Rows in {CURRENCY_WORD[otherCurrency]} go to
+                <select
+                  value={otherAccountId ?? ''}
+                  onChange={(e) => setOtherAccountId(e.target.value || null)}
+                  className={selectClass}
+                >
+                  <option value="">Not imported</option>
+                  {destinations.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.groupName ? `${a.groupName}: ${a.name}` : a.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <p className="text-xs text-text-tertiary">
+                {otherCount === 1
+                  ? `1 row of this file is in ${CURRENCY_WORD[otherCurrency]}`
+                  : `${otherCount} rows of this file are in ${CURRENCY_WORD[otherCurrency]}`}
+                , and this account holds {CURRENCY_WORD[currency ?? 'UYU']}.
+                {destinations.length === 0 &&
+                  ` Add an account in ${CURRENCY_WORD[otherCurrency]} to import them.`}
+              </p>
+            </div>
+          )}
           {read && read.rows.length > 0 && (
             <p className="text-xs text-text-secondary">
               First row reads as{' '}
               <span className="font-medium text-text">
-                {read.rows[0].date}, {formatCurrency(read.rows[0].amount, currency)}
+                {read.rows[0].date},{' '}
+                {formatCurrency(read.rows[0].amount, read.rows[0].currency ?? currency)}
               </span>
               .
             </p>
@@ -382,6 +608,9 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
             {previewRows.length} transactions found.{' '}
             {previewRows.filter((r) => r.isDuplicate).length} duplicates detected.{' '}
             {previewRows.length - excluded.size} will be imported.
+            {otherCount > 0 &&
+              !otherAccountId &&
+              ` ${otherCount === 1 ? '1 row' : `${otherCount} rows`} in ${CURRENCY_WORD[otherCurrency]} won't be imported.`}
           </p>
           {conventionFields}
           {problemList}
@@ -396,6 +625,11 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
                   <th className="px-2 py-1.5 text-left text-xs font-medium text-text-tertiary">
                     Payee
                   </th>
+                  {twoAccounts && (
+                    <th className="px-2 py-1.5 text-left text-xs font-medium text-text-tertiary">
+                      Account
+                    </th>
+                  )}
                   <th className="px-2 py-1.5 text-right text-xs font-medium text-text-tertiary">
                     Amount
                   </th>
@@ -425,10 +659,15 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
                         </span>
                       )}
                     </td>
+                    {twoAccounts && (
+                      <td className="px-2 py-1.5 text-xs text-text-secondary">
+                        {accountName(row.accountId)}
+                      </td>
+                    )}
                     <td
                       className={`px-2 py-1.5 text-xs text-right tabular-nums ${row.amount < 0 ? 'text-text' : 'text-positive'}`}
                     >
-                      {formatCurrency(row.amount, currency)}
+                      {formatCurrency(row.amount, row.currency)}
                     </td>
                   </tr>
                 ))}
@@ -444,7 +683,7 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
               Back
             </button>
             <button
-              onClick={handleConfirm}
+              onClick={() => void handleConfirm()}
               disabled={
                 confirmMutation.isPending ||
                 loading ||
