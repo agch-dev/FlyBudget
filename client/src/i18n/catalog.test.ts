@@ -9,7 +9,6 @@ import { CATALOGS, NAMESPACES, catalogKeys, type Namespace } from './catalog';
 const STILL_TO_TRANSLATE: Namespace[] = [
   'transactions',
   'import',
-  'budget',
   'reports',
   'recurring',
   'rules',
