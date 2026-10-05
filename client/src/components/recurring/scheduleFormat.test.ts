@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
-import { formatScheduleAmount } from './scheduleFormat';
+import { amountNeedsConfirming, formatScheduleAmount } from './scheduleFormat';
 import { formatCurrency } from '../../utils/currency';
 
 const arbAmount = fc.integer({ min: -1_000_000_00, max: 1_000_000_00 });
@@ -29,6 +29,38 @@ describe("a recurring item's amount", () => {
         const dollars = formatScheduleAmount(amount, type, 'USD');
         expect(dollars).toBe(pesos.replace('$', 'US$'));
         expect(dollars).toContain(formatCurrency(Math.abs(amount), 'USD'));
+      }),
+    );
+  });
+});
+
+describe('moving a recurring item to another account', () => {
+  const arbCurrency = fc.constantFrom('UYU' as const, 'USD' as const, undefined);
+
+  it('asks to confirm the amount when the account is in the other currency', () => {
+    expect(amountNeedsConfirming({ currency: 'USD' }, 'UYU')).toBe(true);
+    expect(amountNeedsConfirming({ currency: 'UYU' }, 'USD')).toBe(true);
+    // No account, or an item from before currencies existed, counts as pesos
+    expect(amountNeedsConfirming({ currency: 'USD' }, undefined)).toBe(true);
+    expect(amountNeedsConfirming({}, 'USD')).toBe(true);
+    expect(amountNeedsConfirming({}, undefined)).toBe(false);
+  });
+
+  it('asks exactly when the same number would mean a different sum of money', () => {
+    fc.assert(
+      fc.property(arbCurrency, arbCurrency, (was, now) => {
+        expect(amountNeedsConfirming({ currency: was }, now)).toBe(
+          (was ?? 'UYU') !== (now ?? 'UYU'),
+        );
+      }),
+    );
+  });
+
+  it('never asks about a new item: its amount was typed in the currency shown', () => {
+    fc.assert(
+      fc.property(arbCurrency, (now) => {
+        expect(amountNeedsConfirming(null, now)).toBe(false);
+        expect(amountNeedsConfirming(undefined, now)).toBe(false);
       }),
     );
   });

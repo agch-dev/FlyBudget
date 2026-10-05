@@ -5,6 +5,8 @@ import { CurrencyInput } from '../ui/CurrencyInput';
 import { CurrencySelect } from '../accounts/CurrencySelect';
 import { useAccounts } from '../../hooks/useAccounts';
 import { useFormReset } from '../../hooks/useFormReset';
+import { useCanSave } from '../../hooks/useConnection';
+import { SavingPausedHint } from '../connection/SavingPausedHint';
 import { formatCurrency } from '../../utils/currency';
 import { formCurrency, targetNeedsConfirming } from '../../utils/goals';
 import { CURRENCIES, HOME_CURRENCY, type Currency, type Goal } from '../../types';
@@ -39,6 +41,7 @@ interface Props {
 
 export function GoalFormModal({ isOpen, onClose, onSave, editGoal }: Props) {
   const { data: accounts = [] } = useAccounts();
+  const canSave = useCanSave();
 
   const [name, setName] = useState('');
   const [targetAmount, setTargetAmount] = useState(0);
@@ -126,11 +129,14 @@ export function GoalFormModal({ isOpen, onClose, onSave, editGoal }: Props) {
             </div>
           </dl>
           <p className="text-sm text-text-secondary">Is that the right target?</p>
+          <SavingPausedHint className="text-right" />
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="secondary" onClick={() => setConfirming(false)}>
               Change amounts
             </Button>
-            <Button onClick={save}>Yes, save</Button>
+            <Button onClick={save} disabled={!canSave}>
+              Yes, save
+            </Button>
           </div>
         </div>
       </Modal>
@@ -252,11 +258,12 @@ export function GoalFormModal({ isOpen, onClose, onSave, editGoal }: Props) {
           </div>
         </div>
 
+        <SavingPausedHint className="text-right" />
         <div className="flex justify-end gap-2 pt-2">
           <Button type="button" variant="secondary" onClick={onClose}>
             Cancel
           </Button>
-          <Button type="submit" disabled={!name.trim() || targetAmount <= 0}>
+          <Button type="submit" disabled={!name.trim() || targetAmount <= 0 || !canSave}>
             {editGoal ? 'Save' : 'Add Goal'}
           </Button>
         </div>

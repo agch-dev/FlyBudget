@@ -299,7 +299,7 @@ Occurrence status is computed by cross-referencing `recurringTransactionId` on t
 
 Mark-as-paid creates a real transaction linked via `recurringTransactionId`. Auto-create (on server startup) creates transactions for items with `autoCreate=1` that are due today or earlier.
 
-**Currency**: a recurring item has no currency column; its amounts are native amounts in its account's currency (pesos while it has no account). The schedule, occurrence, match-suggestion and discover responses carry a computed `currency` (closed accounts included), which the client formats with (`formatScheduleAmount(amount, type, currency)`). Match suggestions and `POST /occurrences/:occId/match` only pair an item with a transaction in the same currency.
+**Currency**: a recurring item has no currency column; its amounts are native amounts in its account's currency (pesos while it has no account). The schedule, occurrence, match-suggestion and discover responses carry a computed `currency` (closed accounts included), which the client formats with (`formatScheduleAmount(amount, type, currency)`). Match suggestions and `POST /occurrences/:occId/match` only pair an item with a transaction in the same currency. Moving an item to an account of the other currency keeps its number, so `RecurringFormModal` first shows a "Check the amount" step (`amountNeedsConfirming` in `scheduleFormat.ts`), like the goal form's "Check the target".
 
 UI components live in `client/src/components/recurring/`. Occurrence computation utility: `server/src/utils/recurrence.ts`.
 
