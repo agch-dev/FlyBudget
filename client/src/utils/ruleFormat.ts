@@ -200,7 +200,7 @@ export type RuleLookups = {
 
 const quote = (s: string) => `"${s}"`;
 const shortDate = (d: string) =>
-  /^\d{4}-\d{2}-\d{2}$/.test(d) ? format(parseISO(d), t('rules:dateFormat')) : d;
+  /^\d{4}-\d{2}-\d{2}$/.test(d) ? format(parseISO(d), t('datePattern.medium')) : d;
 
 function nameOf(field: RuleIdField, id: string, l: RuleLookups): string {
   const name =

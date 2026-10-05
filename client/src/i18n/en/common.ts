@@ -155,6 +155,15 @@ export default {
   dateFormat: {
     title: 'Date Format',
   },
+  /**
+   * How a day is written inside the app's own text, as date-fns patterns: `format(day,
+   * t('datePattern.long'))`. Month names follow the language on their own; the order of
+   * day and month is what differs.
+   */
+  datePattern: {
+    long: 'MMMM d, yyyy',
+    medium: 'MMM d, yyyy',
+  },
   help: {
     newHere: 'New to FlyBudget?',
     guide: 'Read the guide',

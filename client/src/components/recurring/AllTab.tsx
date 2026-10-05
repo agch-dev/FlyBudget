@@ -134,7 +134,7 @@ export default function AllTab({
         r.accountName,
         formatScheduleAmount(r.schedule.amount, r.schedule.amountType, r.schedule.currency),
         statusLabel(r.status),
-        r.nextDate ? format(parseISO(r.nextDate), t('dateFormat.full')) : '',
+        r.nextDate ? format(parseISO(r.nextDate), t('datePattern.medium', { ns: 'common' })) : '',
         frequencyLabel(r.schedule.recurrenceType),
       ].some((f) => f.toLowerCase().includes(q)),
     );
@@ -200,7 +200,9 @@ export default function AllTab({
         {formatScheduleAmount(s.amount, s.amountType, s.currency)}
       </span>
     );
-    const nextDate = r.nextDate ? format(parseISO(r.nextDate), t('dateFormat.full')) : '—';
+    const nextDate = r.nextDate
+      ? format(parseISO(r.nextDate), t('datePattern.medium', { ns: 'common' }))
+      : '—';
     const frequency = frequencyLabel(s.recurrenceType);
 
     // Phones: a card. Name and amount on top; payee, account and frequency, then the status

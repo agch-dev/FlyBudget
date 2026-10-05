@@ -75,7 +75,10 @@ export default function OccurrenceMatchModal({ isOpen, onClose, occurrence }: Pr
           <p className="text-sm font-medium text-text">{occurrence.scheduleName}</p>
           <p className="text-xs text-text-tertiary mt-0.5">
             {t('match.expected', {
-              date: format(parseISO(occurrence.expectedDate), t('dateFormat.full')),
+              date: format(
+                parseISO(occurrence.expectedDate),
+                t('datePattern.medium', { ns: 'common' }),
+              ),
               amount: formatCurrency(occurrence.expectedAmount, currency),
             })}
           </p>
@@ -101,7 +104,7 @@ export default function OccurrenceMatchModal({ isOpen, onClose, occurrence }: Pr
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-text truncate">{tx.payeeName || '—'}</p>
                     <p className="text-xs text-text-tertiary">
-                      {format(parseISO(tx.date), t('dateFormat.full'))}
+                      {format(parseISO(tx.date), t('datePattern.medium', { ns: 'common' }))}
                     </p>
                   </div>
                   <span

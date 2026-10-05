@@ -1,7 +1,9 @@
 import { currentLanguage, t } from '../i18n';
+import { en } from '../i18n/catalog';
 
 // The server's error text is English and stays English. The few errors a user realistically
-// hits are translated here, recognized by route and status (the server has no error codes).
+// hits are translated here, recognized by route and status (the server has no error codes),
+// and by the sentence itself where a route refuses for several reasons with one status.
 // Everything else is shown as the server sent it.
 
 export interface ServerRefusal {
@@ -36,6 +38,24 @@ function currencyLocked(message: string): string | null {
   return lock ? t(`accounts:errors.currencyLocked.${lock}`) : null;
 }
 
+const TRANSACTION = /^\/transactions\/[^/]+$/;
+const LINK_TRANSFER = /^\/transactions\/[^/]+\/link-transfer$/;
+const UNLINK_TRANSFER = /^\/transactions\/[^/]+\/unlink-transfer$/;
+const NEW_TRANSFER = /^\/transactions\/transfer$/;
+
+type TransactionError = keyof (typeof en)['transactions']['errors'];
+
+/**
+ * The refusals of a transactions route, recognized by their sentence: the English text of
+ * each key is the server's own (`serverErrors.test.ts` looks for each in the server's code).
+ */
+const transactionRefusal =
+  (...keys: TransactionError[]) =>
+  (message: string): string | null => {
+    const key = keys.find((k) => en.transactions.errors[k] === message);
+    return key ? t(`transactions:errors.${key}`) : null;
+  };
+
 /**
  * The first match wins. To translate another error, add a line: its route, its status, and
  * a catalog key whose English is the server's own sentence.
@@ -63,6 +83,49 @@ const TRANSLATED: TranslatedError[] = [
   { path: /^\/auth\//, status: 429, text: () => t('auth:errors.tooManyAttempts') },
   // Changing the currency of an account something depends on
   { method: 'PUT', path: /^\/accounts\/[^/]+$/, status: 409, text: currencyLocked },
+  // Linking two transactions as a transfer (server: services/transferLink.ts), and unlinking
+  {
+    method: 'POST',
+    path: LINK_TRANSFER,
+    status: 400,
+    text: transactionRefusal(
+      'splitCannotLink',
+      'alreadyTransfer',
+      'differentAccounts',
+      'outflowAndInflow',
+      'sameAmount',
+    ),
+  },
+  { method: 'POST', path: UNLINK_TRANSFER, status: 400, text: transactionRefusal('notTransfer') },
+  // A new transfer
+  {
+    method: 'POST',
+    path: NEW_TRANSFER,
+    status: 400,
+    text: transactionRefusal('arrivingAmountNeeded', 'sameAmountBothSides'),
+  },
+  // Editing a transaction (server: PUT /transactions/:id)
+  {
+    method: 'PUT',
+    path: TRANSACTION,
+    status: 400,
+    text: transactionRefusal(
+      'otherCurrencyAccount',
+      'transferSideLeaving',
+      'transferSideArriving',
+      'transferStays',
+      'editParts',
+      'editWholeSplit',
+    ),
+  },
+  {
+    method: 'POST',
+    path: /^\/transactions$/,
+    status: 400,
+    text: transactionRefusal('splitsMustAddUp'),
+  },
+  // A reconciled transaction can't be changed, whatever the request
+  { path: /^\/transactions\//, status: 403, text: transactionRefusal('reconciled') },
 ];
 
 /**

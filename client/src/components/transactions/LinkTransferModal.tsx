@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { format, parseISO } from 'date-fns';
 import { Modal } from '../ui/Modal';
 import { Input } from '../ui/Input';
@@ -23,6 +24,7 @@ interface Props {
  * other accounts, nearest in date first. Choosing one links the two.
  */
 export function LinkTransferModal({ isOpen, onClose, transaction: tx, accounts }: Props) {
+  const { t } = useTranslation('transactions');
   const [search, setSearch] = useState('');
   const { data: candidates, isLoading, isError } = useTransferCandidates(tx.id, isOpen);
   const link = useLinkTransfer();
@@ -32,22 +34,26 @@ export function LinkTransferModal({ isOpen, onClose, transaction: tx, accounts }
     link.reset();
   });
 
-  const accountName = (id: string) => accounts.find((a) => a.id === id)?.name ?? 'Closed account';
+  const medium = t('datePattern.medium', { ns: 'common' });
+  const accountName = (id: string) =>
+    accounts.find((a) => a.id === id)?.name ?? t('term.closedAccount');
   const shown = filterTransferCandidates(candidates ?? [], search, accountName);
   const outflow = tx.amount < 0;
   const currency = tx.currency ?? accounts.find((a) => a.id === tx.accountId)?.currency;
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Link as transfer" size="lg">
+    <Modal isOpen={isOpen} onClose={onClose} title={t('link.title')} size="lg">
       <div className="space-y-4">
         <div className="bg-surface-alt rounded-lg px-4 py-3 border border-border-light">
           <p className="text-sm font-medium text-text">
-            {formatCurrency(Math.abs(tx.amount), currency)} {outflow ? 'left' : 'arrived in'}{' '}
-            {accountName(tx.accountId)} on {format(parseISO(tx.date), 'MMM d, yyyy')}
+            {t(outflow ? 'link.left' : 'link.arrivedIn', {
+              amount: formatCurrency(Math.abs(tx.amount), currency),
+              account: accountName(tx.accountId),
+              date: format(parseISO(tx.date), medium),
+            })}
           </p>
           <p className="text-xs text-text-tertiary mt-0.5">
-            Choose the transaction where this money {outflow ? 'arrived' : 'came from'}. Both lose
-            their category and stop counting as spending or income.
+            {outflow ? t('link.chooseArrival') : t('link.chooseSource')}
           </p>
         </div>
 
@@ -55,32 +61,32 @@ export function LinkTransferModal({ isOpen, onClose, transaction: tx, accounts }
           type="search"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Filter by payee, account or notes…"
-          aria-label="Filter transactions"
+          placeholder={t('link.filter')}
+          aria-label={t('link.filterLabel')}
         />
 
         {link.isError && (
           <p role="alert" className="text-sm text-negative">
-            {link.error instanceof Error ? link.error.message : "Couldn't link these transactions"}
+            {link.error instanceof Error ? link.error.message : t('link.failed')}
           </p>
         )}
         <SavingPausedHint />
 
         <div className="max-h-80 overflow-y-auto">
           {isLoading ? (
-            <p className="text-sm text-text-tertiary text-center py-8">Loading…</p>
+            <p className="text-sm text-text-tertiary text-center py-8">{t('term.loading')}</p>
           ) : isError ? (
-            <p className="text-sm text-text-tertiary text-center py-8">
-              Couldn't load transactions. Close this and try again.
-            </p>
+            <p className="text-sm text-text-tertiary text-center py-8">{t('link.loadFailed')}</p>
           ) : shown.length === 0 ? (
             <p className="text-sm text-text-tertiary text-center py-8">
               {candidates?.length
-                ? 'No transactions match this filter.'
-                : `No ${outflow ? 'inflows' : 'outflows'} in other accounts to link. Import or add the other side first.`}
+                ? t('link.noMatch')
+                : outflow
+                  ? t('link.noInflows')
+                  : t('link.noOutflows')}
             </p>
           ) : (
-            <ul className="divide-y divide-border-light" aria-label="Transactions to link">
+            <ul className="divide-y divide-border-light" aria-label={t('link.listLabel')}>
               {shown.map((other) => (
                 <li key={other.id}>
                   <button
@@ -99,8 +105,7 @@ export function LinkTransferModal({ isOpen, onClose, transaction: tx, accounts }
                         {other.payeeName || '—'}
                       </span>
                       <span className="block text-xs text-text-tertiary truncate">
-                        {format(parseISO(other.date), 'MMM d, yyyy')} ·{' '}
-                        {accountName(other.accountId)}
+                        {format(parseISO(other.date), medium)} · {accountName(other.accountId)}
                       </span>
                     </span>
                     <span

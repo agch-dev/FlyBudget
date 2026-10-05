@@ -67,7 +67,8 @@ function GoalRow({
   const complete = remaining === 0 && goal.targetAmount > 0;
   const schedule = scheduleOf(goal, remaining);
   const details = [
-    schedule && t('card.target', { date: format(schedule.date, t('card.dateFormat')) }),
+    schedule &&
+      t('card.target', { date: format(schedule.date, t('datePattern.medium', { ns: 'common' })) }),
     accountName,
   ]
     .filter(Boolean)

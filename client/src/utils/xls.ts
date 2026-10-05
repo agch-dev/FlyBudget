@@ -8,13 +8,14 @@ import {
   type Sheet,
   type SparseRows,
 } from './spreadsheetCells';
+import { t } from '../i18n';
 
 // Reads Excel 97-2003 workbooks (.xls): an OLE compound file holding a "Workbook" stream
 // of BIFF8 records ([MS-CFB], [MS-XLS]). Only what an import needs: each sheet's cell
 // values. Files come from banks, so they are untrusted input: every offset is checked and
 // every chain of sectors is bounded.
 
-const corrupt = () => new SpreadsheetError("This Excel file is damaged and can't be read.");
+const corrupt = () => new SpreadsheetError(t('import:spreadsheet.damaged'));
 
 /** End of a sector chain; anything from here up is not a sector number */
 const LAST_SECTOR = 0xfffffffa;
@@ -87,7 +88,7 @@ function workbookStream(bytes: Uint8Array): Uint8Array {
     // Only streams of the top level are ever named Workbook
     else if (type === 2 && (name === 'Workbook' || (name === 'Book' && !book))) book = entry;
   }
-  if (!book) throw new SpreadsheetError("This file isn't an Excel workbook.");
+  if (!book) throw new SpreadsheetError(t('import:spreadsheet.notWorkbook'));
 
   if (book.size >= view.getUint32(56, true)) return readChain(book.start, book.size);
 
@@ -246,9 +247,7 @@ export function readXls(bytes: Uint8Array): Sheet[] {
   if (!first || first.type !== BOF || first.data.length < 4) throw corrupt();
   // 0x0600 is BIFF8 (Excel 97 and later); older ones store text in the PC's code page
   if (new DataView(first.data.buffer, first.data.byteOffset).getUint16(0, true) !== 0x0600) {
-    throw new SpreadsheetError(
-      'This Excel file is in a format from before 1997. Open it and save it as .xlsx or .csv.',
-    );
+    throw new SpreadsheetError(t('import:spreadsheet.tooOld'));
   }
 
   // The workbook's own records: sheet names and places, the text of every cell, formats
@@ -279,9 +278,7 @@ export function readXls(bytes: Uint8Array): Sheet[] {
     finishStrings();
     if (type === EOF) break;
     if (type === FILEPASS) {
-      throw new SpreadsheetError(
-        'This Excel file is protected with a password. Save a copy without one to import it.',
-      );
+      throw new SpreadsheetError(t('import:spreadsheet.passwordProtected'));
     }
     if (type === DATEMODE && data.length >= 2) date1904 = view.getUint16(0, true) === 1;
     else if (type === FORMAT && data.length >= 5) {

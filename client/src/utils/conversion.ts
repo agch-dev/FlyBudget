@@ -1,6 +1,7 @@
 import { format, parseISO } from 'date-fns';
 import { HOME_CURRENCY, type Currency } from '../types';
 import { formatCurrency } from './currency';
+import { t } from '../i18n';
 
 // Converted amounts on the client. The server converts (a transaction at the exchange rate of
 // its own date, docs/adr/0001) and sends the result with each transaction as `convertedAmount`:
@@ -70,6 +71,8 @@ export function convertedNote(
   if ((item.currency ?? HOME_CURRENCY) === totalCurrency) return null;
   const converted = amountIn(item, totalCurrency);
   if (converted === null) return null;
-  const day = format(parseISO(item.date), 'MMM d, yyyy');
-  return `${formatCurrency(Math.abs(converted), totalCurrency)} at the exchange rate of ${day}`;
+  return t('transactions:convertedNote', {
+    amount: formatCurrency(Math.abs(converted), totalCurrency),
+    date: format(parseISO(item.date), t('datePattern.medium')),
+  });
 }

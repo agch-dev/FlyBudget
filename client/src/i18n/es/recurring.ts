@@ -32,7 +32,6 @@ const es: Translation<typeof en> = {
   },
   dateFormat: {
     monthDay: 'd MMM',
-    full: 'd MMM yyyy',
     monthYear: "MMMM 'de' yyyy",
     shortMonthYear: 'MMM yyyy',
   },

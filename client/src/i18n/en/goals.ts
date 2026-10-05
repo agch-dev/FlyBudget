@@ -32,8 +32,6 @@ export default {
     count_other: '{{count}} goals',
   },
   card: {
-    /** A date as a date-fns pattern */
-    dateFormat: 'MMM d, yyyy',
     target: 'Target {{date}}',
     ofTarget: 'of {{amount}}',
     edit: 'Edit goal',

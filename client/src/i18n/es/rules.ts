@@ -235,7 +235,6 @@ const es: Translation<typeof en> = {
     account: '(eliminada)',
     category: '(eliminada)',
   },
-  dateFormat: 'd MMM yyyy',
   actionType: {
     set_category: 'Asignar categoría',
     set_payee: 'Renombrar beneficiario',

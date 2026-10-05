@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import { useTranslation } from 'react-i18next';
 import { format, parseISO } from 'date-fns';
 import { Plus, Receipt, SearchX, Upload, Link2 } from 'lucide-react';
 import { useTransactions } from '../../hooks/useTransactions';
@@ -50,6 +51,7 @@ export function TransactionTable({
   overlayDetail,
   onAddTransaction,
 }: Props) {
+  const { t } = useTranslation('transactions');
   const [filters, setFilters] = useState<FilterState>(() => ({
     ...DEFAULT_FILTERS,
     datePreset:
@@ -167,7 +169,7 @@ export function TransactionTable({
     // dollar rows converted at the day's rate
     const dayTotal = (txs: typeof transactions) =>
       listTotal(
-        txs.map((t) => ({ ...t, currency: currencyOf(t) })),
+        txs.map((tx) => ({ ...tx, currency: currencyOf(tx) })),
         Math.abs,
       );
     let currentDate = '';
@@ -239,25 +241,27 @@ export function TransactionTable({
         externalMonth={month}
       />
       <div className="px-4 py-2 border-b border-border-light bg-surface flex flex-wrap gap-2 justify-between items-center">
-        <span className="text-xs text-text-tertiary">{transactions.length} transactions</span>
+        <span className="text-xs text-text-tertiary">
+          {t('count', { count: transactions.length })}
+        </span>
         {accountId && (
           <div className="flex items-center gap-2">
             <Button variant="secondary" size="sm" onClick={() => setShowImport(true)}>
-              <Upload size={13} /> Import CSV
+              <Upload size={13} /> {t('register.importCsv')}
             </Button>
             <Button
               size="sm"
               disabled={!newTx.allowed}
               title={
                 !newTx.allowed
-                  ? 'Saving is paused until FlyBudget reconnects'
+                  ? t('register.savingPaused')
                   : newTx.onDevice
-                    ? 'Saved on this device and sent when FlyBudget reconnects'
+                    ? t('register.savedOnDevice')
                     : undefined
               }
               onClick={startAdd}
             >
-              <Plus size={13} /> Add Transaction
+              <Plus size={13} /> {t('register.addTransaction')}
             </Button>
           </div>
         )}
@@ -292,36 +296,34 @@ export function TransactionTable({
           )}
 
           {isLoading ? (
-            <div className="px-4 py-10 text-center text-sm text-text-tertiary">Loading...</div>
+            <div className="px-4 py-10 text-center text-sm text-text-tertiary">
+              {t('register.loading')}
+            </div>
           ) : transactions.length === 0 && (!showAdd || isPhone) ? (
             isFirstRun ? (
               <EmptyState
                 icon={<Receipt size={26} />}
-                title="No transactions yet"
-                description={
-                  accountId
-                    ? 'Import a CSV file downloaded from your bank, or add transactions by hand as you spend.'
-                    : 'Add transactions by hand, import a CSV file from an account page, or connect a bank to bring them in automatically.'
-                }
+                title={t('empty.noneYet')}
+                description={accountId ? t('empty.noneYetAccount') : t('empty.noneYetAll')}
                 learnMoreHref={docsUrl('transactions')}
                 actions={
                   accountId ? (
                     <>
                       <Button variant="secondary" onClick={() => setShowImport(true)}>
-                        <Upload size={14} /> Import a CSV file
+                        <Upload size={14} /> {t('empty.importFile')}
                       </Button>
                       <Button disabled={!newTx.allowed} onClick={startAdd}>
-                        <Plus size={14} /> Add a transaction
+                        <Plus size={14} /> {t('empty.addOne')}
                       </Button>
                     </>
                   ) : (
                     <>
                       <ButtonLink variant="secondary" to="/settings?tab=connections">
-                        <Link2 size={14} /> Connect a bank
+                        <Link2 size={14} /> {t('empty.connectBank')}
                       </ButtonLink>
                       {onAddTransaction && (
                         <Button disabled={!newTx.allowed} onClick={onAddTransaction}>
-                          <Plus size={14} /> Add a transaction
+                          <Plus size={14} /> {t('empty.addOne')}
                         </Button>
                       )}
                     </>
@@ -332,13 +334,13 @@ export function TransactionTable({
               <EmptyState
                 compact
                 icon={<SearchX size={20} />}
-                title="No transactions found"
+                title={t('empty.noneFound')}
                 description={
                   filtersChanged
-                    ? 'Nothing matches your search and filters.'
+                    ? t('empty.noMatch')
                     : filters.datePreset === 'all'
-                      ? 'There are no transactions here.'
-                      : 'There are no transactions in this date range.'
+                      ? t('empty.noneHere')
+                      : t('empty.noneInRange')
                 }
                 actions={
                   (filtersChanged || filters.datePreset !== 'all') && (
@@ -347,7 +349,7 @@ export function TransactionTable({
                       size="sm"
                       onClick={() => setFilters({ ...DEFAULT_FILTERS, datePreset: 'all' })}
                     >
-                      {filtersChanged ? 'Clear filters' : 'Show all dates'}
+                      {filtersChanged ? t('empty.clearFilters') : t('empty.showAllDates')}
                     </Button>
                   )
                 }
@@ -358,7 +360,7 @@ export function TransactionTable({
               <div key={group.date}>
                 <div className="flex items-center justify-between px-4 py-2 bg-surface-alt border-b border-border-light">
                   <span className="text-sm font-medium text-text-secondary">
-                    {format(parseISO(group.date), 'MMMM d, yyyy')}
+                    {format(parseISO(group.date), t('datePattern.long', { ns: 'common' }))}
                   </span>
                   <span className="text-sm font-medium text-text-secondary tabular-nums">
                     {formatCurrency(group.total, group.currency)}
@@ -443,7 +445,11 @@ export function TransactionTable({
 
       {/* Phones: the entry form in a sheet (splits and transfers included) */}
       {accountId && isPhone && (
-        <Modal isOpen={showAdd} onClose={() => setShowAdd(false)} title="New transaction">
+        <Modal
+          isOpen={showAdd}
+          onClose={() => setShowAdd(false)}
+          title={t('register.newTransaction')}
+        >
           <TransactionFormRow
             layout="sheet"
             accountId={accountId}

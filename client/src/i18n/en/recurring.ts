@@ -35,7 +35,6 @@ export default {
   /** Dates as date-fns patterns */
   dateFormat: {
     monthDay: 'MMM d',
-    full: 'MMM d, yyyy',
     monthYear: 'MMMM yyyy',
     shortMonthYear: 'MMM yyyy',
   },

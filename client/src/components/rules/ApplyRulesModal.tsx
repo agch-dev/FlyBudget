@@ -165,7 +165,7 @@ export function ApplyRulesModal({
                           />
                         </td>
                         <td className="px-2 py-2 text-text-tertiary whitespace-nowrap">
-                          {format(parseISO(item.date), t('dateFormat'))}
+                          {format(parseISO(item.date), t('datePattern.medium', { ns: 'common' }))}
                         </td>
                         <td className="px-2 py-2 text-text max-w-40 truncate">
                           {item.payeeName ?? '—'}

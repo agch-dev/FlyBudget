@@ -259,8 +259,6 @@ export default {
     account: '(deleted)',
     category: '(deleted)',
   } satisfies Record<RuleIdField, string>,
-  /** A date inside a sentence, as a date-fns pattern */
-  dateFormat: 'MMM d, yyyy',
   /** Action names, keyed by `RuleAction['type']` */
   actionType: {
     set_category: 'Set category',

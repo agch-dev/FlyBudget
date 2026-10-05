@@ -34,7 +34,6 @@ const es: Translation<typeof en> = {
     count_other: '{{count}} metas',
   },
   card: {
-    dateFormat: 'd MMM yyyy',
     target: 'Objetivo: {{date}}',
     ofTarget: 'de {{amount}}',
     edit: 'Editar meta',

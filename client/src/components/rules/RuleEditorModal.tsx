@@ -666,7 +666,7 @@ function MatchPreview({
             className="flex items-center gap-3 px-3 py-1.5 text-xs border-b last:border-b-0 border-border-light"
           >
             <span className="w-20 shrink-0 text-text-tertiary">
-              {format(parseISO(tx.date), t('dateFormat'))}
+              {format(parseISO(tx.date), t('datePattern.medium', { ns: 'common' }))}
             </span>
             <span className="flex-1 truncate text-text">{tx.payeeName ?? '—'}</span>
             <span className="hidden sm:block w-40 truncate text-text-tertiary">
