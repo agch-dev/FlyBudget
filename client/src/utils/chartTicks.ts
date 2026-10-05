@@ -18,7 +18,7 @@ export function formatDateAxisLabels(values: string[]): string[] {
   const daily = values.some((v) => v.length === 10);
   const crossesYear = dates[0].getFullYear() !== dates[dates.length - 1].getFullYear();
   const pattern = daily
-    ? t(crossesYear ? 'reports:datePattern.dayMonthShortYear' : 'reports:datePattern.dayMonth')
+    ? t(crossesYear ? 'datePattern.dayMonthShortYear' : 'datePattern.dayMonth')
     : crossesYear
       ? "MMM ''yy"
       : 'MMM';

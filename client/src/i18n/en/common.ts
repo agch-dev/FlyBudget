@@ -149,8 +149,6 @@ export default {
     nextYear: 'Next year',
     from: 'From',
     to: 'To',
-    /** date-fns pattern of a month in the picker's button ("Oct 2026") */
-    monthPattern: 'MMM yyyy',
   },
   undo: {
     undid: 'Undid: {{message}}',
@@ -200,13 +198,31 @@ export default {
     title: 'Date Format',
   },
   /**
-   * How a day is written inside the app's own text, as date-fns patterns: `format(day,
-   * t('datePattern.long'))`. Month names follow the language on their own; the order of
-   * day and month is what differs.
+   * Every date the app writes, as date-fns patterns: `format(day, t('datePattern.long'))`.
+   * Month and weekday names follow the language on their own; the order of day and month
+   * (and the Spanish "de") is what differs.
    */
   datePattern: {
+    /** "October 5, 2026": the register's day headings */
     long: 'MMMM d, yyyy',
+    /** "Oct 5, 2026": a day inside a sentence or a list */
     medium: 'MMM d, yyyy',
+    /** "Oct 5": a day of the current period */
+    dayMonth: 'MMM d',
+    /** "Oct 5 '26": a chart's day axis across years */
+    dayMonthShortYear: "MMM d ''yy",
+    /** "Monday, October 5" */
+    weekdayDayMonth: 'EEEE, MMMM d',
+    /** "Mon, Oct 5, 2026" */
+    weekdayDate: 'EEE, MMM d, yyyy',
+    /** "Monday, October 5, 2026" */
+    weekdayLongDate: 'EEEE, MMMM d, yyyy',
+    /** "Mon 5 Oct 2026": a day in Settings → Exchange rates */
+    ratesDay: 'EEE d MMM yyyy',
+    /** "October 2026": a month's heading */
+    monthYear: 'MMMM yyyy',
+    /** "Oct 2026": a month inside a sentence, a range or a picker */
+    shortMonthYear: 'MMM yyyy',
   },
   help: {
     newHere: 'New to FlyBudget?',

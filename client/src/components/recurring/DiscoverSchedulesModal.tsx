@@ -114,7 +114,10 @@ export default function DiscoverSchedulesModal({ isOpen, onClose }: Props) {
                     <p className="text-xs text-text-tertiary">
                       {t('discover.pastSince', {
                         count: item.transactionIds.length,
-                        date: format(parseISO(item.startDate), t('dateFormat.shortMonthYear')),
+                        date: format(
+                          parseISO(item.startDate),
+                          t('datePattern.shortMonthYear', { ns: 'common' }),
+                        ),
                       })}
                     </p>
                   </div>

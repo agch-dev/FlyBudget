@@ -38,7 +38,7 @@ export function comparisonLabels(
       return {
         period: 'month',
         current: t('reports:home.comparison.thisMonth'),
-        comparison: format(subYears(today, 1), 'MMM yyyy'),
+        comparison: format(subYears(today, 1), t('datePattern.shortMonthYear')),
       };
     case 'month_vs_average':
       return {

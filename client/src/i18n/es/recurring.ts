@@ -30,11 +30,6 @@ const es: Translation<typeof en> = {
     paused: 'En pausa',
     scheduled: 'Programado',
   },
-  dateFormat: {
-    monthDay: 'd MMM',
-    monthYear: "MMMM 'de' yyyy",
-    shortMonthYear: 'MMM yyyy',
-  },
   due: {
     overdue_one: '{{count}} día de atraso',
     overdue_other: '{{count}} días de atraso',

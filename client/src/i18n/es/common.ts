@@ -142,7 +142,6 @@ const es: Translation<typeof en> = {
     nextYear: 'Año siguiente',
     from: 'Desde',
     to: 'Hasta',
-    monthPattern: 'MMM yyyy',
   },
   undo: {
     undid: 'Se deshizo: {{message}}',
@@ -193,6 +192,14 @@ const es: Translation<typeof en> = {
   datePattern: {
     long: "d 'de' MMMM 'de' yyyy",
     medium: 'd MMM yyyy',
+    dayMonth: 'd MMM',
+    dayMonthShortYear: "d MMM ''yy",
+    weekdayDayMonth: "EEEE d 'de' MMMM",
+    weekdayDate: 'EEE d MMM yyyy',
+    weekdayLongDate: "EEEE d 'de' MMMM 'de' yyyy",
+    ratesDay: 'EEE d MMM yyyy',
+    monthYear: "MMMM 'de' yyyy",
+    shortMonthYear: 'MMM yyyy',
   },
   help: {
     newHere: '¿Recién empezás con FlyBudget?',

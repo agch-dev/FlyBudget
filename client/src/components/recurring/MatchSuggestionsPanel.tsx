@@ -36,7 +36,7 @@ export default function MatchSuggestionsPanel() {
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-sm font-medium text-text">{sg.scheduleName}</span>
                 <span className="text-xs text-text-tertiary">
-                  {format(parseISO(sg.expectedDate), t('dateFormat.monthDay'))} ·{' '}
+                  {format(parseISO(sg.expectedDate), t('datePattern.dayMonth', { ns: 'common' }))} ·{' '}
                   {formatCurrency(sg.expectedAmount, sg.currency)}
                 </span>
               </div>
@@ -47,7 +47,7 @@ export default function MatchSuggestionsPanel() {
                     <div className="flex-1 min-w-0">
                       <span className="text-text-secondary">{c.payeeName || '—'}</span>
                       <span className="text-text-tertiary ml-2 text-xs">
-                        {format(parseISO(c.date), t('dateFormat.monthDay'))} ·{' '}
+                        {format(parseISO(c.date), t('datePattern.dayMonth', { ns: 'common' }))} ·{' '}
                         {formatCurrency(c.amount, sg.currency)}
                       </span>
                       <span className="text-text-tertiary ml-2 text-xs">

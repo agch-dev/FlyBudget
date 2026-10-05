@@ -96,7 +96,7 @@ export function TransactionCalendar({ from, to, fit, selected, onSelect }: Props
   const dayProps = (day: string) => {
     const flow = byDay.get(day) ?? EMPTY;
     const label = t('calendar.dayLabel', {
-      day: format(parseISO(day), t('datePattern.weekdayDayMonth')),
+      day: format(parseISO(day), t('datePattern.weekdayDayMonth', { ns: 'common' })),
       moneyIn: money.format(flow.income),
       moneyOut: money.format(flow.expenses),
     });
@@ -235,7 +235,7 @@ function MonthGrids({
         return (
           <div key={month} className="flex flex-col min-h-0">
             <p className="text-xs font-medium text-text-secondary pb-1 shrink-0">
-              {format(parseISO(`${month}-01`), 'MMMM yyyy')}
+              {format(parseISO(`${month}-01`), t('datePattern.monthYear', { ns: 'common' }))}
             </p>
             <div className="grid grid-cols-7 gap-1 shrink-0 pb-1">
               {WEEKDAYS.map((d) => (
@@ -393,7 +393,9 @@ function Heatmap({
     return row.months.flatMap(({ month, column }, i) => {
       const text = format(
         parseISO(`${month}-01`),
-        i === 0 || month.endsWith('-01') ? 'MMM yyyy' : 'MMM',
+        i === 0 || month.endsWith('-01')
+          ? t('datePattern.shortMonthYear', { ns: 'common' })
+          : 'MMM',
       );
       const left = column * pitch;
       if (left < end + 6) return [];
@@ -549,7 +551,7 @@ function DayTooltip({
       style={{ left, top, width: w }}
     >
       <p className="text-xs text-text-tertiary mb-1">
-        {format(parseISO(hover.day), t('datePattern.weekdayDate'))}
+        {format(parseISO(hover.day), t('datePattern.weekdayDate', { ns: 'common' }))}
       </p>
       {flow && flow.count > 0 ? (
         <>

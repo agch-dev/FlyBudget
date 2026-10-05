@@ -35,14 +35,6 @@ const es: Translation<typeof en> = {
   transactionCount_one: '{{count}} transacción',
   transactionCount_other: '{{count}} transacciones',
 
-  datePattern: {
-    dayMonth: 'd MMM',
-    dayMonthShortYear: "d MMM ''yy",
-    weekdayDayMonth: "EEEE d 'de' MMMM",
-    weekdayDate: 'EEE d MMM yyyy',
-    weekdayLongDate: "EEEE d 'de' MMMM 'de' yyyy",
-  },
-
   weekdayLetter: {
     sun: 'D',
     mon: 'L',

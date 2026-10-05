@@ -32,12 +32,6 @@ export default {
     paused: 'Paused',
     scheduled: 'Scheduled',
   } satisfies Record<RecurringBadgeStatus, string>,
-  /** Dates as date-fns patterns */
-  dateFormat: {
-    monthDay: 'MMM d',
-    monthYear: 'MMMM yyyy',
-    shortMonthYear: 'MMM yyyy',
-  },
   /** How far a pending date is from today */
   due: {
     overdue_one: '{{count}} day overdue',

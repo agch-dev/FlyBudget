@@ -56,7 +56,7 @@ const NAMED_DATES_MAX = 3;
 export function estimatedDatesLabel(dates: readonly string[]): string {
   // ISO dates sort as text
   const sorted = [...new Set(dates)].sort();
-  const day = (date: string) => format(parseISO(date), 'd MMM yyyy');
+  const day = (date: string) => format(parseISO(date), t('datePattern.medium'));
   if (sorted.length > NAMED_DATES_MAX) {
     return t('rates.datesRange', {
       total: sorted.length,

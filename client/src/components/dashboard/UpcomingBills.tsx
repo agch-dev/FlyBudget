@@ -81,7 +81,10 @@ export default function UpcomingBills() {
             // Calendar days: tomorrow is 1 day away even late in the evening
             const daysUntil = differenceInCalendarDays(parseISO(occ.expectedDate), new Date());
             const isWaiting = occ.displayStatus === 'waiting';
-            const date = format(parseISO(occ.expectedDate), t('datePattern.dayMonth'));
+            const date = format(
+              parseISO(occ.expectedDate),
+              t('datePattern.dayMonth', { ns: 'common' }),
+            );
             return (
               <div
                 key={`${occ.scheduleId}-${occ.id}-${i}`}

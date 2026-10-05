@@ -21,7 +21,7 @@ interface Props {
 
 const ym = (year: number, monthIdx: number) => `${year}-${String(monthIdx + 1).padStart(2, '0')}`;
 // Called while rendering, so it follows the App Language
-const label = (v: string) => format(parseISO(`${v}-01`), translate('monthRange.monthPattern'));
+const label = (v: string) => format(parseISO(`${v}-01`), translate('datePattern.shortMonthYear'));
 
 function MonthGrid({
   title,

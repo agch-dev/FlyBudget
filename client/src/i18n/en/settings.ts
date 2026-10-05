@@ -158,9 +158,6 @@ export default {
     title: 'Exchange rates',
     description:
       'Pesos per dollar: the interbank rate, one per day. Weekends and holidays use the rate of the business day before.',
-    /** date-fns patterns: a day in the list ("Mon 5 Oct 2026") and a month's heading */
-    dayPattern: 'EEE d MMM yyyy',
-    monthPattern: 'MMMM yyyy',
     loadError: "Couldn't load the exchange rates.",
     today: "Today's rate",
     /** After the rate: "$ 40.35 per US$ 1" */

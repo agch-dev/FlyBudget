@@ -152,8 +152,6 @@ const es: Translation<typeof en> = {
     title: 'Tipos de cambio',
     description:
       'Pesos por dólar: el tipo de cambio interbancario, uno por día. Los fines de semana y feriados usan el del día hábil anterior.',
-    dayPattern: 'EEE d MMM yyyy',
-    monthPattern: "MMMM 'de' yyyy",
     loadError: 'No se pudieron cargar los tipos de cambio.',
     today: 'Tipo de cambio de hoy',
     perDollar: 'por US$ 1',

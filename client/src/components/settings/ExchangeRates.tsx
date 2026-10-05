@@ -25,9 +25,9 @@ const NO_RATES: ExchangeRate[] = [];
 
 const todayIso = () => format(new Date(), 'yyyy-MM-dd');
 // Called while rendering, so they follow the App Language
-const dayLabel = (date: string) => format(parseISO(date), translate('settings:rates.dayPattern'));
+const dayLabel = (date: string) => format(parseISO(date), translate('datePattern.ratesDay'));
 const monthLabel = (month: string) =>
-  format(parseISO(`${month}-01`), translate('settings:rates.monthPattern'));
+  format(parseISO(`${month}-01`), translate('datePattern.monthYear'));
 
 /**
  * Settings → Exchange rates: pesos per dollar, one rate per date. Shows today's rate, when

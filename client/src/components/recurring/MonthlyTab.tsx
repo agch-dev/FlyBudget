@@ -183,7 +183,7 @@ export default function MonthlyTab({
         {/* Card header: month + navigation + view toggle */}
         <div className="flex flex-wrap items-center justify-between gap-2 px-5 py-3 border-b border-border-light">
           <h2 className="text-base font-semibold text-text first-letter:uppercase">
-            {format(monthDate, t('dateFormat.monthYear'))}
+            {format(monthDate, t('datePattern.monthYear', { ns: 'common' }))}
           </h2>
           <div className="flex flex-wrap items-center gap-1.5 max-md:w-full">
             <button

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { t as translate } from '../../i18n';
 import { differenceInCalendarDays, format, parseISO } from 'date-fns';
 import { Check, ChevronDown, Download, X } from 'lucide-react';
 import { Button } from '../ui/Button';
@@ -64,7 +65,8 @@ const TONE_CLASS = {
 const toneOf = (cents: number): StatCard['tone'] =>
   cents > 0 ? 'positive' : cents < 0 ? 'negative' : 'neutral';
 
-const fullMonth = (month: string) => format(parseISO(`${month}-01`), 'MMM yyyy');
+const fullMonth = (month: string) =>
+  format(parseISO(`${month}-01`), translate('datePattern.shortMonthYear'));
 const percent = (part: number, whole: number) =>
   whole > 0 ? `${((part / whole) * 100).toFixed(1)}%` : '—';
 
@@ -909,7 +911,7 @@ function DayTransactions({ day, onClose }: { day: string; onClose: () => void })
       <div className="flex items-center justify-between gap-3 px-5 py-3">
         <div>
           <h3 className="text-sm font-semibold text-text">
-            {format(parseISO(day), t('datePattern.weekdayLongDate'))}
+            {format(parseISO(day), t('datePattern.weekdayLongDate', { ns: 'common' }))}
           </h3>
           <p className="text-xs text-text-tertiary mt-0.5 tabular-nums">
             {t('transactionCount', { count: rows.length })}
@@ -1083,7 +1085,7 @@ function CalendarDetail({ from, to }: DetailProps) {
           columns={[
             {
               label: t('detail.date'),
-              cell: (r) => format(parseISO(r.date), t('datePattern.weekdayDate')),
+              cell: (r) => format(parseISO(r.date), t('datePattern.weekdayDate', { ns: 'common' })),
             },
             { label: t('transactions'), align: 'right', cell: (r) => r.count },
             {

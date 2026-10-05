@@ -95,21 +95,26 @@ describe('parseRateInput', () => {
 
 describe('estimatedDatesLabel', () => {
   it('names up to three dates', () => {
-    expect(estimatedDatesLabel(['2023-11-10'])).toBe('10 Nov 2023');
-    expect(estimatedDatesLabel(['2023-02-01', '2023-11-10'])).toBe('1 Feb 2023 and 10 Nov 2023');
+    expect(estimatedDatesLabel(['2023-11-10'])).toBe('Nov 10, 2023');
+    expect(estimatedDatesLabel(['2023-02-01', '2023-11-10'])).toBe('Feb 1, 2023 and Nov 10, 2023');
     expect(estimatedDatesLabel(['2022-12-31', '2023-02-01', '2023-11-10'])).toBe(
-      '31 Dec 2022, 1 Feb 2023 and 10 Nov 2023',
+      'Dec 31, 2022, Feb 1, 2023 and Nov 10, 2023',
     );
+  });
+
+  it('writes each date the way the App Language does', () => {
+    setLanguage('es');
+    expect(estimatedDatesLabel(['2023-11-10'])).toBe('10 nov 2023');
   });
 
   it('gives the range for more, whatever order they come in', () => {
     expect(estimatedDatesLabel(['2023-02-01', '2021-03-12', '2022-07-04', '2023-11-10'])).toBe(
-      '4 dates from 12 Mar 2021 to 10 Nov 2023',
+      '4 dates from Mar 12, 2021 to Nov 10, 2023',
     );
   });
 
   it('counts a repeated date once', () => {
-    expect(estimatedDatesLabel(['2023-11-10', '2023-11-10'])).toBe('10 Nov 2023');
+    expect(estimatedDatesLabel(['2023-11-10', '2023-11-10'])).toBe('Nov 10, 2023');
   });
 
   it('always mentions the first and last date (property-based)', () => {
@@ -132,7 +137,7 @@ describe('ratesNotice', () => {
 
   it('says amounts are estimated when an earlier rate is missing but another one is stored', () => {
     expect(ratesNotice({ dates: ['2023-11-10'], notCounted: false })).toEqual({
-      title: 'No exchange rate for 10 Nov 2023.',
+      title: 'No exchange rate for Nov 10, 2023.',
       detail:
         'Dollar amounts on that date are converted at the closest rate available, so totals are estimated.',
     });

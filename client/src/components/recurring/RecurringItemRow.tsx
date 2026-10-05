@@ -86,7 +86,7 @@ export default function RecurringItemRow({
     </p>
   );
   const frequency = frequencyLabel(occ.recurrenceType);
-  const date = format(parseISO(occ.expectedDate), t('dateFormat.monthDay'));
+  const date = format(parseISO(occ.expectedDate), t('datePattern.dayMonth', { ns: 'common' }));
 
   // Phones: a card. Name and amount on top; date, account and status below
   if (isPhone) {

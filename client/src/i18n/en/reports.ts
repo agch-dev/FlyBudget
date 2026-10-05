@@ -44,15 +44,6 @@ export default {
   transactionCount_one: '{{count}} transaction',
   transactionCount_other: '{{count}} transactions',
 
-  /** date-fns patterns: the order of day, month and year differs between languages */
-  datePattern: {
-    dayMonth: 'MMM d',
-    dayMonthShortYear: "MMM d ''yy",
-    weekdayDayMonth: 'EEEE, MMMM d',
-    weekdayDate: 'EEE, MMM d, yyyy',
-    weekdayLongDate: 'EEEE, MMMM d, yyyy',
-  },
-
   /** Calendar column headers */
   weekdayLetter: {
     sun: 'S',

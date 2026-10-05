@@ -106,7 +106,7 @@ export function decodeRangeParam(param: string | null): ReportDateRange | undefi
   return preset && { preset: preset.id, ...computeDateRange(preset.id) };
 }
 
-const fmtMonth = (m: string) => format(parseISO(`${m}-01`), 'MMM yyyy');
+const fmtMonth = (m: string) => format(parseISO(`${m}-01`), t('datePattern.shortMonthYear'));
 
 export function formatDateRange(range: ReportDateRange): string {
   if (!isFrozen(range)) return t(`reports:datePreset.long.${range.preset}`);
