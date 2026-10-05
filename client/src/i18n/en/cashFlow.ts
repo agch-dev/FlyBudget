@@ -1,0 +1,45 @@
+// The Cash Flow page.
+export default {
+  title: 'Cash Flow',
+  preset: {
+    '1m': '1M',
+    '3m': '3M',
+    '6m': '6M',
+    ytd: 'This Year',
+    'last-year': 'Last Year',
+    custom: 'Custom',
+  },
+  exportCsv: 'Export CSV',
+  totalIncome: 'Total income',
+  totalExpenses: 'Total expenses',
+  netIncome: 'Total net income',
+  savingsRate: 'Savings rate',
+  showAs: 'Show as',
+  list: 'List',
+  diagram: 'Diagram',
+  swipe: 'Swipe to see it all',
+  transactionsOf: 'Transactions: {{name}}',
+  clear: 'Clear',
+  /** The names the diagram gives to what has no name of its own */
+  node: {
+    income: 'Income',
+    totalIncome: 'Total Income',
+    savings: 'Savings',
+    uncategorized: 'Uncategorized',
+  },
+  emptyMessage: 'No data for this period',
+  emptyHint: 'Add transactions, or pick a longer date range.',
+  negativeFlows:
+    'Some flows excluded — Sankey diagrams cannot represent negative values (e.g. refunds). Summary totals may differ slightly.',
+  ofTotalIncome: '{{percent}}% of total income',
+  ofTotalSpending: '{{percent}}% of total spending',
+  ofGroup: '{{percent}}% of {{group}}',
+  savingsRatePercent: '{{percent}}% savings rate',
+  moneyIn: 'Money in',
+  whereItWent: 'Where it went',
+  saved: 'Saved',
+  /** `share` is a percentage with its sign; the rest is for screen readers */
+  shareOfIncome: '{{share}}<hidden> of income</hidden>',
+  hideTransactions: 'Hide transactions',
+  allGroupTransactions: 'All {{group}} transactions',
+} as const;

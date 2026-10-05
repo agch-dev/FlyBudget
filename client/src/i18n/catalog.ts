@@ -2,10 +2,12 @@ import type { Language } from './language';
 import enAccounts from './en/accounts';
 import enAuth from './en/auth';
 import enBudget from './en/budget';
+import enCashFlow from './en/cashFlow';
 import enCommon from './en/common';
 import enConnection from './en/connection';
 import enGoals from './en/goals';
 import enImport from './en/import';
+import enPayees from './en/payees';
 import enRecurring from './en/recurring';
 import enReports from './en/reports';
 import enRules from './en/rules';
@@ -14,10 +16,12 @@ import enTransactions from './en/transactions';
 import esAccounts from './es/accounts';
 import esAuth from './es/auth';
 import esBudget from './es/budget';
+import esCashFlow from './es/cashFlow';
 import esCommon from './es/common';
 import esConnection from './es/connection';
 import esGoals from './es/goals';
 import esImport from './es/import';
+import esPayees from './es/payees';
 import esRecurring from './es/recurring';
 import esReports from './es/reports';
 import esRules from './es/rules';
@@ -42,9 +46,11 @@ export const en = {
   connection: enConnection,
   accounts: enAccounts,
   transactions: enTransactions,
+  payees: enPayees,
   import: enImport,
   budget: enBudget,
   reports: enReports,
+  cashFlow: enCashFlow,
   recurring: enRecurring,
   rules: enRules,
   goals: enGoals,
@@ -59,9 +65,11 @@ const es: { [N in Namespace]: Translation<(typeof en)[N]> } = {
   connection: esConnection,
   accounts: esAccounts,
   transactions: esTransactions,
+  payees: esPayees,
   import: esImport,
   budget: esBudget,
   reports: esReports,
+  cashFlow: esCashFlow,
   recurring: esRecurring,
   rules: esRules,
   goals: esGoals,

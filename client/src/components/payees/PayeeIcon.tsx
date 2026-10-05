@@ -35,7 +35,7 @@ export function PayeeIcon({
   force = false,
   onLogoChange,
 }: Props) {
-  const { t } = useTranslation();
+  const { t } = useTranslation('payees');
   const show = usePreferencesStore((s) => s.showMerchantIcons);
   const fileRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
@@ -68,11 +68,11 @@ export function PayeeIcon({
       onLogoChange!(await fileToSquareDataUrl(file));
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('payees.imageError'));
+      setError(err instanceof Error ? err.message : t('imageError'));
     }
   }
 
-  const changeLabel = logo ? t('payees.changeImage', { name }) : t('payees.uploadImage', { name });
+  const changeLabel = logo ? t('changeImage', { name }) : t('uploadImage', { name });
 
   return (
     <div className="group/logo relative shrink-0" onClick={(e) => e.stopPropagation()}>
@@ -93,8 +93,8 @@ export function PayeeIcon({
         <button
           type="button"
           onClick={() => onLogoChange(null)}
-          title={t('payees.useInitial')}
-          aria-label={t('payees.removeImage', { name })}
+          title={t('useInitial')}
+          aria-label={t('removeImage', { name })}
           className="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center bg-surface border border-border text-text-tertiary hover:text-negative opacity-0 group-hover/logo:opacity-100 group-focus-within/logo:opacity-100 transition-opacity cursor-pointer"
         >
           <X size={10} />

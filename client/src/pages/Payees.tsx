@@ -25,14 +25,14 @@ function MergeModal({
   onMerge: (keepId: string, mergeIds: string[]) => void;
   onClose: () => void;
 }) {
-  const { t } = useTranslation();
+  const { t } = useTranslation('payees');
   const [keepId, setKeepId] = useState(selected[0]);
   const selectedPayees = payees.filter((p) => selected.includes(p.id));
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={t('payees.mergeTitle')} size="sm">
+    <Modal isOpen={isOpen} onClose={onClose} title={t('mergeTitle')} size="sm">
       <div className="space-y-4">
-        <p className="text-sm text-text-secondary">{t('payees.mergeIntro')}</p>
+        <p className="text-sm text-text-secondary">{t('mergeIntro')}</p>
         <div className="space-y-2">
           {selectedPayees.map((p) => (
             <label
@@ -51,7 +51,7 @@ function MergeModal({
               <div>
                 <p className="text-sm font-medium text-text">{p.name}</p>
                 <p className="text-xs text-text-tertiary">
-                  {t('payees.transactionCount', { count: p.transactionCount })}
+                  {t('transactionCount', { count: p.transactionCount })}
                 </p>
               </div>
             </label>
@@ -59,7 +59,7 @@ function MergeModal({
         </div>
         <div className="flex justify-end gap-3 pt-1">
           <Button variant="secondary" onClick={onClose}>
-            {t('ui.cancel')}
+            {t('ui.cancel', { ns: 'common' })}
           </Button>
           <Button
             onClick={() => {
@@ -70,7 +70,7 @@ function MergeModal({
               onClose();
             }}
           >
-            {t('payees.merge')}
+            {t('merge')}
           </Button>
         </div>
       </div>
@@ -79,7 +79,7 @@ function MergeModal({
 }
 
 export default function PayeesPage() {
-  const { t } = useTranslation();
+  const { t } = useTranslation('payees');
   const { data: payees = [], isLoading } = usePayees();
   const { data: groups = [] } = useCategories();
   const updatePayee = useUpdatePayee();
@@ -140,7 +140,7 @@ export default function PayeesPage() {
     <div className="flex flex-col h-full bg-surface">
       <div className="px-6 py-4 border-b border-border shrink-0">
         <div className="flex items-center justify-between gap-4">
-          <h1 className="text-lg font-semibold text-text">{t('payees.title')}</h1>
+          <h1 className="text-lg font-semibold text-text">{t('title')}</h1>
           <div className="flex items-center gap-2">
             {selected.size >= 2 && (
               <button
@@ -148,7 +148,7 @@ export default function PayeesPage() {
                 className="flex items-center gap-1.5 px-3 py-1.5 max-md:min-h-11 text-xs font-medium text-brand-700 bg-brand-50 border border-brand-200 rounded-md hover:bg-brand-100 transition-colors"
               >
                 <GitMerge size={13} />
-                {t('payees.mergeSelected', { total: selected.size })}
+                {t('mergeSelected', { total: selected.size })}
               </button>
             )}
             <div className="relative">
@@ -159,8 +159,8 @@ export default function PayeesPage() {
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder={t('payees.search')}
-                aria-label={t('payees.search')}
+                placeholder={t('search')}
+                aria-label={t('search')}
                 className="pl-8 pr-3 py-1.5 text-sm border border-border rounded-full bg-surface text-text focus:outline-none focus:ring-1 focus:ring-brand-600 focus:border-brand-600"
               />
             </div>
@@ -171,21 +171,21 @@ export default function PayeesPage() {
       <div className="flex-1 overflow-y-auto">
         {isLoading ? (
           <div className="flex items-center justify-center h-32 text-sm text-text-tertiary">
-            {t('payees.loading')}
+            {t('loading')}
           </div>
         ) : filtered.length === 0 ? (
           search ? (
             <div className="flex items-center justify-center h-32 text-sm text-text-tertiary">
-              {t('payees.noMatch')}
+              {t('noMatch')}
             </div>
           ) : (
             <EmptyState
               icon={<Store size={26} />}
-              title={t('payees.emptyTitle')}
-              description={t('payees.emptyDescription')}
+              title={t('emptyTitle')}
+              description={t('emptyDescription')}
               actions={
                 <ButtonLink variant="secondary" to="/transactions?add=1">
-                  {t('payees.addTransaction')}
+                  {t('addTransaction')}
                 </ButtonLink>
               }
             />
@@ -193,19 +193,19 @@ export default function PayeesPage() {
         ) : isPhone ? (
           // Phones: a card per payee. Renaming and deleting are in the ⋮ menu (no hover or
           // double-click on a touch screen), and ticking two or more offers "Merge"
-          <ul aria-label={t('payees.list')}>
+          <ul aria-label={t('list')}>
             <li className="flex items-center min-h-11 px-4 border-b border-border-light bg-surface-alt">
               <label className="flex items-center gap-3 min-h-11 text-sm text-text-secondary">
                 <input
                   type="checkbox"
-                  aria-label={t('payees.selectAllPayees')}
+                  aria-label={t('selectAllPayees')}
                   checked={selected.size === filtered.length && filtered.length > 0}
                   onChange={(e) =>
                     setSelected(e.target.checked ? new Set(filtered.map((p) => p.id)) : new Set())
                   }
                   className="h-5 w-5 accent-brand-600"
                 />
-                {t('payees.selectAll')}
+                {t('selectAll')}
               </label>
             </li>
             {filtered.map((p) => (
@@ -218,7 +218,7 @@ export default function PayeesPage() {
                   <label className="flex items-center justify-center min-w-11 min-h-11 -ml-3">
                     <input
                       type="checkbox"
-                      aria-label={t('payees.select', { name: p.name })}
+                      aria-label={t('select', { name: p.name })}
                       checked={selected.has(p.id)}
                       onChange={() => toggleSelect(p.id)}
                       className="h-5 w-5 accent-brand-600"
@@ -234,7 +234,7 @@ export default function PayeesPage() {
                   {editingId === p.id ? (
                     <input
                       autoFocus
-                      aria-label={t('payees.renameNamed', { name: p.name })}
+                      aria-label={t('renameNamed', { name: p.name })}
                       value={editingName}
                       onChange={(e) => setEditingName(e.target.value)}
                       onBlur={() => commitEditName(p.id)}
@@ -248,16 +248,16 @@ export default function PayeesPage() {
                     <span className="flex-1 min-w-0 grid">
                       <span className="truncate text-[15px] font-medium text-text">{p.name}</span>
                       <span className="text-xs text-text-tertiary">
-                        {t('payees.transactionCount', { count: p.transactionCount })}
+                        {t('transactionCount', { count: p.transactionCount })}
                       </span>
                     </span>
                   )}
                   <RowMenu
-                    label={t('payees.actionsFor', { name: p.name })}
+                    label={t('actionsFor', { name: p.name })}
                     items={[
-                      { label: t('payees.rename'), onClick: () => startEditName(p) },
+                      { label: t('rename'), onClick: () => startEditName(p) },
                       {
-                        label: t('payees.delete'),
+                        label: t('delete'),
                         danger: true,
                         onClick: () => setDeleteId(p.id),
                       },
@@ -265,12 +265,12 @@ export default function PayeesPage() {
                   />
                 </div>
                 <select
-                  aria-label={t('payees.defaultCategoryFor', { name: p.name })}
+                  aria-label={t('defaultCategoryFor', { name: p.name })}
                   value={p.defaultCategoryId ?? ''}
                   onChange={(e) => handleCategoryChange(p.id, e.target.value)}
                   className="w-full min-h-11 border border-border rounded-md px-3 bg-surface text-text focus:outline-none focus:ring-1 focus:ring-brand-600"
                 >
-                  <option value="">{t('payees.noDefaultCategory')}</option>
+                  <option value="">{t('noDefaultCategory')}</option>
                   {allCategories.map((c: any) => (
                     <option key={c.id} value={c.id}>
                       {c.groupName} → {c.name}
@@ -288,7 +288,7 @@ export default function PayeesPage() {
                   <th className="w-10 px-4 py-2">
                     <input
                       type="checkbox"
-                      aria-label={t('payees.selectAllPayees')}
+                      aria-label={t('selectAllPayees')}
                       checked={selected.size === filtered.length && filtered.length > 0}
                       onChange={(e) =>
                         setSelected(
@@ -299,13 +299,13 @@ export default function PayeesPage() {
                     />
                   </th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-text-tertiary">
-                    {t('payees.name')}
+                    {t('name')}
                   </th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-text-tertiary">
-                    {t('payees.defaultCategory')}
+                    {t('defaultCategory')}
                   </th>
                   <th className="px-4 py-2 text-right text-xs font-medium text-text-tertiary">
-                    {t('payees.transactions')}
+                    {t('transactions')}
                   </th>
                   <th className="w-12 px-4 py-2" />
                 </tr>
@@ -319,7 +319,7 @@ export default function PayeesPage() {
                     <td className="px-4 py-2">
                       <input
                         type="checkbox"
-                        aria-label={t('payees.select', { name: p.name })}
+                        aria-label={t('select', { name: p.name })}
                         checked={selected.has(p.id)}
                         onChange={() => toggleSelect(p.id)}
                         className="accent-brand-600"
@@ -337,7 +337,7 @@ export default function PayeesPage() {
                         {editingId === p.id ? (
                           <input
                             autoFocus
-                            aria-label={t('payees.renameNamed', { name: p.name })}
+                            aria-label={t('renameNamed', { name: p.name })}
                             value={editingName}
                             onChange={(e) => setEditingName(e.target.value)}
                             onBlur={() => commitEditName(p.id)}
@@ -351,7 +351,7 @@ export default function PayeesPage() {
                           <span
                             className="text-sm font-medium text-text cursor-text hover:text-brand-600 transition-colors"
                             onDoubleClick={() => startEditName(p)}
-                            title={t('payees.doubleClickRename')}
+                            title={t('doubleClickRename')}
                           >
                             {p.name}
                           </span>
@@ -360,12 +360,12 @@ export default function PayeesPage() {
                     </td>
                     <td className="px-4 py-2">
                       <select
-                        aria-label={t('payees.defaultCategoryFor', { name: p.name })}
+                        aria-label={t('defaultCategoryFor', { name: p.name })}
                         value={p.defaultCategoryId ?? ''}
                         onChange={(e) => handleCategoryChange(p.id, e.target.value)}
                         className="text-sm border border-border rounded-md px-2 py-1 bg-surface text-text focus:outline-none focus:ring-1 focus:ring-brand-600 max-w-[220px]"
                       >
-                        <option value="">{t('payees.noDefault')}</option>
+                        <option value="">{t('noDefault')}</option>
                         {allCategories.map((c: any) => (
                           <option key={c.id} value={c.id}>
                             {c.groupName} → {c.name}
@@ -379,7 +379,7 @@ export default function PayeesPage() {
                     <td className="px-4 py-2">
                       <button
                         onClick={() => setDeleteId(p.id)}
-                        aria-label={t('payees.deleteNamed', { name: p.name })}
+                        aria-label={t('deleteNamed', { name: p.name })}
                         className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 p-1 text-text-tertiary hover:text-negative transition-all"
                       >
                         <Trash2 size={14} />
@@ -409,9 +409,9 @@ export default function PayeesPage() {
         onConfirm={() => {
           if (deleteId) deletePayee.mutate(deleteId);
         }}
-        title={t('payees.deleteTitle')}
-        message={t('payees.deleteMessage', { name: deleteTarget?.name ?? '' })}
-        confirmLabel={t('payees.delete')}
+        title={t('deleteTitle')}
+        message={t('deleteMessage', { name: deleteTarget?.name ?? '' })}
+        confirmLabel={t('delete')}
         danger
       />
     </div>
