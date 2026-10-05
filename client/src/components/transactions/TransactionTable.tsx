@@ -192,17 +192,23 @@ export function TransactionTable({
     return result;
   }, [transactions, currencyOf]);
 
-  function handleCreate(data: CreateTransactionData) {
+  function handleCreate(data: CreateTransactionData, otherSideAmount?: number) {
     if (data.categoryId?.startsWith('transfer:') && accountId) {
-      const toAccountId = data.categoryId.slice('transfer:'.length);
+      const otherAccountId = data.categoryId.slice('transfer:'.length);
+      // An outflow leaves this account for the other one; an inflow arrives from it
+      const out = data.amount <= 0;
+      const here = Math.abs(data.amount);
+      // Between currencies the other account's side is its own amount (see TransactionFormRow)
+      const there = otherSideAmount ?? here;
       newTx.add(
         {
           kind: 'transfer',
           data: {
-            fromAccountId: accountId,
-            toAccountId,
+            fromAccountId: out ? accountId : otherAccountId,
+            toAccountId: out ? otherAccountId : accountId,
             date: data.date,
-            amount: Math.abs(data.amount),
+            amount: out ? here : there,
+            ...(otherSideAmount === undefined ? {} : { toAmount: out ? there : here }),
             notes: data.notes,
           },
         },

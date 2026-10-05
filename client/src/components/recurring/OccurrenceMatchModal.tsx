@@ -5,7 +5,7 @@ import { Input } from '../ui/Input';
 import { useTransactions } from '../../hooks/useTransactions';
 import { useMatchOccurrence } from '../../hooks/useSchedules';
 import { formatCurrency } from '../../utils/currency';
-import type { ScheduleOccurrence } from '../../types';
+import { HOME_CURRENCY, type ScheduleOccurrence } from '../../types';
 
 interface Props {
   isOpen: boolean;
@@ -33,8 +33,13 @@ export default function OccurrenceMatchModal({ isOpen, onClose, occurrence }: Pr
     limit: 100,
   });
 
+  // Amounts are native: only a transaction in the item's own currency can pay it
+  const currency = occurrence?.currency ?? HOME_CURRENCY;
   const filtered = useMemo(() => {
-    let list = transactions.filter((tx) => !tx.transferTransactionId && !tx.scheduleId);
+    let list = transactions.filter(
+      (tx) =>
+        !tx.transferTransactionId && !tx.scheduleId && (tx.currency ?? HOME_CURRENCY) === currency,
+    );
     if (search) {
       const q = search.toLowerCase();
       list = list.filter(
@@ -44,7 +49,7 @@ export default function OccurrenceMatchModal({ isOpen, onClose, occurrence }: Pr
       );
     }
     return list;
-  }, [transactions, search]);
+  }, [transactions, search, currency]);
 
   function handleMatch(transactionId: string) {
     if (!occurrence) return;
@@ -68,7 +73,7 @@ export default function OccurrenceMatchModal({ isOpen, onClose, occurrence }: Pr
           <p className="text-sm font-medium text-text">{occurrence.scheduleName}</p>
           <p className="text-xs text-text-tertiary mt-0.5">
             Expected: {format(parseISO(occurrence.expectedDate), 'MMM d, yyyy')} ·{' '}
-            {formatCurrency(occurrence.expectedAmount)}
+            {formatCurrency(occurrence.expectedAmount, currency)}
           </p>
         </div>
 
@@ -100,7 +105,7 @@ export default function OccurrenceMatchModal({ isOpen, onClose, occurrence }: Pr
                   <span
                     className={`text-sm font-medium tabular-nums ${tx.amount > 0 ? 'text-positive' : 'text-text'}`}
                   >
-                    {formatCurrency(tx.amount)}
+                    {formatCurrency(tx.amount, currency)}
                   </span>
                   <button
                     onClick={() => handleMatch(tx.id)}

@@ -8,6 +8,8 @@ import {
 import { eq, and, gte, lte, isNull } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import { format, parseISO, addDays, subDays } from 'date-fns';
+import { accountCurrencyLookup } from './accountCurrency.js';
+import type { Currency } from '../utils/currency.js';
 
 export function linkOccurrenceToTransaction(
   occurrenceId: string,
@@ -167,6 +169,8 @@ export interface MatchSuggestion {
   scheduledDate: string;
   expectedDate: string;
   expectedAmount: number;
+  /** The recurring item's currency; every candidate is in it too */
+  currency: Currency;
   candidates: {
     transactionId: string;
     date: string;
@@ -198,6 +202,7 @@ export function getMatchSuggestions(): MatchSuggestion[] {
     .all();
 
   const suggestions: MatchSuggestion[] = [];
+  const currencyOf = accountCurrencyLookup();
 
   for (const { occ, schedule } of pendingOccs) {
     const nearbyTxns = db
@@ -221,7 +226,11 @@ export function getMatchSuggestions(): MatchSuggestion[] {
 
     const candidateTxns: MatchSuggestion['candidates'] = [];
 
+    const currency = currencyOf(schedule.accountId);
+
     for (const tx of nearbyTxns) {
+      // Amounts are native: a pesos payment never pays a dollar item, whatever the number
+      if (currencyOf(tx.accountId) !== currency) continue;
       if (schedule.amount < 0 && tx.amount > 0) continue;
       if (schedule.amount > 0 && tx.amount < 0) continue;
 
@@ -258,6 +267,7 @@ export function getMatchSuggestions(): MatchSuggestion[] {
         scheduledDate: occ.scheduledDate,
         expectedDate: occ.expectedDate,
         expectedAmount: occ.expectedAmount,
+        currency,
         candidates: candidateTxns,
       });
     }

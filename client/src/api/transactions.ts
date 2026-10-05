@@ -27,7 +27,13 @@ export interface CreateTransferData {
   fromAccountId: string;
   toAccountId: string;
   date: string;
+  /** Leaving `fromAccountId`, in that account's currency (positive cents) */
   amount: number;
+  /**
+   * Arriving in `toAccountId`, in that account's currency. Needed when the two accounts have
+   * different currencies; leave it out between accounts of the same currency.
+   */
+  toAmount?: number;
   notes?: string | null;
 }
 

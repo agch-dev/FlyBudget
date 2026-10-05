@@ -62,6 +62,12 @@ export default function RecurringFormModal({ isOpen, onClose, onSave, editItem }
   const [autoCreate, setAutoCreate] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
 
+  // The amount is a native amount in the chosen account's currency. An item still on a closed
+  // account (not in the list) keeps the currency it came with.
+  const currency =
+    accounts.find((a) => a.id === accountId)?.currency ??
+    (editItem && accountId === (editItem.accountId ?? '') ? editItem.currency : undefined);
+
   // Set when the form opened before accounts/payees had loaded: filled in once they arrive
   const pendingDefaults = useRef({ account: false, payee: false });
 
@@ -175,7 +181,12 @@ export default function RecurringFormModal({ isOpen, onClose, onSave, editItem }
             <label className="block text-sm font-medium text-text-secondary mb-1">
               {amountType === 'variable' ? 'Estimated Amount' : 'Amount'}
             </label>
-            <CurrencyInput value={amount} onChange={setAmount} aria-label="Amount" />
+            <CurrencyInput
+              value={amount}
+              onChange={setAmount}
+              currency={currency}
+              aria-label="Amount"
+            />
           </div>
           <div>
             <label className="block text-sm font-medium text-text-secondary mb-1">Type</label>

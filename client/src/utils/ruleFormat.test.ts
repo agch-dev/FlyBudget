@@ -8,6 +8,8 @@ import {
   isConditionComplete,
   makeAction,
   makeCondition,
+  ruleCurrency,
+  ruleSearchText,
   type RuleLookups,
 } from './ruleFormat';
 import type { RuleAction, RuleCondition } from '../types';
@@ -42,6 +44,7 @@ function hasValidShape(c: RuleCondition): boolean {
     return c.op === 'between' ? Array.isArray(v) && v.length === 2 && v.every(isDate) : isDate(v);
   }
   if (c.field === 'direction') return v === 'inflow' || v === 'outflow';
+  if (c.field === 'currency') return v === 'UYU' || v === 'USD';
   return typeof v === 'string';
 }
 
@@ -81,7 +84,11 @@ describe('rule editor helpers (property-based)', () => {
       fc.property(arbFieldOp, ({ field, op }) => {
         const c = makeCondition(field, op);
         const prefilled =
-          field === 'amount' || field === 'date' || field === 'direction' || !('value' in c);
+          field === 'amount' ||
+          field === 'date' ||
+          field === 'direction' ||
+          field === 'currency' ||
+          !('value' in c);
         expect(isConditionComplete(c)).toBe(prefilled);
       }),
     );
@@ -97,7 +104,8 @@ describe('rule editor helpers (property-based)', () => {
             'value' in c &&
             typeof c.value === 'string' &&
             c.field !== 'date' &&
-            c.field !== 'direction'
+            c.field !== 'direction' &&
+            c.field !== 'currency'
           ) {
             c = { ...c, value: id } as RuleCondition;
           }
@@ -112,5 +120,108 @@ describe('rule editor helpers (property-based)', () => {
       ) as RuleAction;
       expect(actionText(withTarget, lookups)).toMatch(/\S/);
     }
+  });
+});
+
+describe('rules and currencies', () => {
+  const pesos: RuleCondition = { field: 'currency', op: 'is', value: 'UYU' };
+  const dollars: RuleCondition = { field: 'currency', op: 'is', value: 'USD' };
+  const over100: RuleCondition = { field: 'amount', op: 'gt', value: 100_00 };
+  const starbucks: RuleCondition = { field: 'payee_name', op: 'contains', value: 'starbucks' };
+  const arbOther: fc.Arbitrary<RuleCondition> = fc.constantFrom<RuleCondition>(
+    over100,
+    starbucks,
+    { field: 'direction', op: 'is', value: 'outflow' },
+    { field: 'amount', op: 'between', value: [1_00, 5_00] },
+  );
+
+  it('describes the currency condition in plain words', () => {
+    expect(conditionText(pesos, lookups)).toBe('Is in pesos');
+    expect(conditionText(dollars, lookups)).toBe('Is in dollars');
+  });
+
+  it('a rule needing every condition is limited to the currency it names, wherever the condition sits', () => {
+    fc.assert(
+      fc.property(
+        fc.array(arbOther, { maxLength: 3 }),
+        fc.array(arbOther, { maxLength: 3 }),
+        fc.constantFrom(pesos, dollars),
+        (before, after, currency) => {
+          const conditions = [...before, currency, ...after];
+          expect(ruleCurrency({ conditionsOp: 'and', conditions })).toBe(
+            'value' in currency ? currency.value : null,
+          );
+        },
+      ),
+    );
+  });
+
+  it('a rule with no currency condition is not limited to one', () => {
+    fc.assert(
+      fc.property(
+        fc.array(arbOther, { maxLength: 4 }),
+        fc.constantFrom('and', 'or'),
+        (conditions, conditionsOp) => {
+          expect(ruleCurrency({ conditionsOp, conditions })).toBeNull();
+        },
+      ),
+    );
+  });
+
+  it('a rule needing any condition is not limited by a currency condition next to another one', () => {
+    fc.assert(
+      fc.property(
+        fc.array(arbOther, { minLength: 1, maxLength: 3 }),
+        fc.constantFrom(pesos, dollars),
+        (others, currency) => {
+          expect(
+            ruleCurrency({ conditionsOp: 'or', conditions: [currency, ...others] }),
+          ).toBeNull();
+        },
+      ),
+    );
+    // On its own it is the whole rule
+    expect(ruleCurrency({ conditionsOp: 'or', conditions: [dollars] })).toBe('USD');
+    expect(ruleCurrency({ conditionsOp: 'or', conditions: [pesos, dollars] })).toBeNull();
+  });
+
+  it('a rule asking for both currencies at once is limited to neither', () => {
+    expect(ruleCurrency({ conditionsOp: 'and', conditions: [pesos, dollars] })).toBeNull();
+  });
+
+  it("writes amounts with the sign of the rule's currency", () => {
+    expect(conditionText(over100, lookups, 'USD')).toBe('Amount is more than US$100');
+    expect(conditionText(over100, lookups, 'UYU')).toBe('Amount is more than $100');
+    expect(conditionText(over100, lookups)).toBe('Amount is more than $100');
+    expect(
+      conditionText({ field: 'amount', op: 'between', value: [1_50, 20_00] }, lookups, 'USD'),
+    ).toBe('Amount is between US$1.50 and US$20');
+
+    const split: RuleAction = {
+      type: 'split',
+      parts: [
+        { kind: 'fixed', value: 25_00, categoryId: 'c1', notes: null },
+        { kind: 'remainder', value: 0, categoryId: null, notes: null },
+      ],
+    };
+    expect(actionText(split, lookups, 'USD')).toBe(
+      'Split: US$25 to Coffee, the rest to uncategorized',
+    );
+    expect(actionText(split, lookups)).toBe('Split: $25 to Coffee, the rest to uncategorized');
+  });
+
+  it('finds a rule by its currency and by the amount as it is written', () => {
+    const rule = {
+      id: 'r1',
+      conditionsOp: 'and' as const,
+      conditions: [over100, dollars],
+      actions: [{ type: 'set_category' as const, value: 'c1' }],
+      enabled: true,
+      sortOrder: 0,
+      createdAt: '',
+    };
+    const text = ruleSearchText(rule, lookups);
+    expect(text).toContain('us$100');
+    expect(text).toContain('in dollars');
   });
 });

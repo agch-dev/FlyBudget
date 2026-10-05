@@ -348,3 +348,116 @@ describe('rules on existing transactions', () => {
     expect(await json('POST', '/rules/preview', { scope: 'all', ruleIds: [rule.id] })).toEqual([]);
   });
 });
+
+describe('rules and currencies', () => {
+  const DOLLARS = 'acct-usd';
+  const overHundredInDollars = {
+    conditionsOp: 'and',
+    conditions: [
+      { field: 'amount', op: 'gt', value: 100_00 },
+      { field: 'currency', op: 'is', value: 'USD' },
+    ],
+    actions: [{ type: 'set_category', value: HOUSEHOLD }],
+  };
+  const importInto = (accountId: string, rows: Array<{ payeeName: string; amount: number }>) =>
+    json('POST', '/transactions/import/confirm', {
+      accountId,
+      rows: rows.map((r) => ({ date: '2026-09-01', importedId: `imp-${r.payeeName}`, ...r })),
+    });
+  const names = (list: Array<{ payeeName: string }>) => list.map((p) => p.payeeName).sort();
+  const importThree = async () => {
+    await importInto(ACCOUNT, [{ payeeName: 'Pesos 150', amount: -150_00 }]);
+    await importInto(DOLLARS, [
+      { payeeName: 'Dollars 150', amount: -150_00 },
+      { payeeName: 'Dollars 50', amount: -50_00 },
+    ]);
+  };
+
+  beforeEach(() => {
+    db.insert(accounts)
+      .values({ id: DOLLARS, name: 'Caja de ahorro USD', type: 'savings', currency: 'USD' })
+      .run();
+  });
+
+  it('refuses a currency condition that is not pesos or dollars', async () => {
+    const res = await call('POST', '/rules', {
+      ...overHundredInDollars,
+      conditions: [{ field: 'currency', op: 'is', value: 'EUR' }],
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it('categorizes a new transaction "over 100 in dollars" only in a dollar account', async () => {
+    const saved = await addRule(overHundredInDollars);
+    expect(saved.conditions).toEqual(overHundredInDollars.conditions);
+
+    await importThree();
+
+    expect(tx('Dollars 150').categoryId).toBe(HOUSEHOLD);
+    expect(tx('Dollars 50').categoryId).toBeNull();
+    expect(tx('Pesos 150').categoryId).toBeNull();
+  });
+
+  it('compares the native amount when the rule names no currency', async () => {
+    await addRule({
+      conditions: [{ field: 'amount', op: 'gt', value: 100_00 }],
+      actions: [{ type: 'set_category', value: HOUSEHOLD }],
+    });
+    await importThree();
+
+    expect(tx('Pesos 150').categoryId).toBe(HOUSEHOLD);
+    expect(tx('Dollars 150').categoryId).toBe(HOUSEHOLD);
+    expect(tx('Dollars 50').categoryId).toBeNull();
+  });
+
+  it('honours the currency condition in the live match preview, the dry run and when applying', async () => {
+    await importThree();
+
+    const test = await json('POST', '/rules/test', {
+      conditionsOp: 'and',
+      conditions: overHundredInDollars.conditions,
+    });
+    expect(test.count).toBe(1);
+    expect(test.matches).toMatchObject([{ payeeName: 'Dollars 150', currency: 'USD' }]);
+
+    const any = await json('POST', '/rules/test', {
+      conditionsOp: 'or',
+      conditions: overHundredInDollars.conditions,
+    });
+    expect(names(any.matches)).toEqual(['Dollars 150', 'Dollars 50', 'Pesos 150']);
+
+    const pesos = await json('POST', '/rules/test', {
+      conditionsOp: 'and',
+      conditions: [{ field: 'currency', op: 'is', value: 'UYU' }],
+    });
+    expect(pesos.matches).toMatchObject([{ payeeName: 'Pesos 150', currency: 'UYU' }]);
+
+    await addRule(overHundredInDollars);
+    const preview = await json('POST', '/rules/preview', { scope: 'uncategorized' });
+    expect(preview).toMatchObject([{ payeeName: 'Dollars 150', currency: 'USD' }]);
+
+    // Even with every transaction ticked, only the dollar one over 100 changes
+    const everyId = db
+      .select()
+      .from(transactions)
+      .all()
+      .map((t) => t.id);
+    expect(
+      await json('POST', '/rules/apply', { scope: 'uncategorized', transactionIds: everyId }),
+    ).toEqual({ updated: 1 });
+    expect(tx('Dollars 150').categoryId).toBe(HOUSEHOLD);
+    expect(tx('Pesos 150').categoryId).toBeNull();
+    expect(tx('Dollars 50').categoryId).toBeNull();
+  });
+
+  it('reports the currency of pesos transactions in the dry run too', async () => {
+    await importInto(ACCOUNT, [{ payeeName: 'Pesos 150', amount: -150_00 }]);
+    await addRule({
+      conditions: [{ field: 'payee_name', op: 'contains', value: 'pesos' }],
+      actions: [{ type: 'set_category', value: COFFEE }],
+    });
+    expect(await json('POST', '/rules/preview', { scope: 'uncategorized' })).toMatchObject([
+      { payeeName: 'Pesos 150', currency: 'UYU' },
+    ]);
+  });
+});

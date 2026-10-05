@@ -171,7 +171,7 @@ export function ApplyRulesModal({
                           {item.payeeName ?? '—'}
                         </td>
                         <td className="px-2 py-2 text-right tabular-nums text-text whitespace-nowrap">
-                          {formatCurrency(item.amount)}
+                          {formatCurrency(item.amount, item.currency)}
                         </td>
                         <td className="px-3 py-2">
                           <Changes item={item} category={category} />
@@ -230,7 +230,9 @@ function Changes({
       {split && (
         <div className="text-text">
           <span className="text-text-tertiary">Split </span>
-          {split.map((s) => `${formatCurrency(s.amount)} ${category(s.categoryId)}`).join(' · ')}
+          {split
+            .map((s) => `${formatCurrency(s.amount, item.currency)} ${category(s.categoryId)}`)
+            .join(' · ')}
         </div>
       )}
     </div>

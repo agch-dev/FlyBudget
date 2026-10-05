@@ -6,6 +6,8 @@
  * by a higher rule is never overwritten by a lower one. Prepend/append notes always stack.
  */
 
+import type { Currency } from '../utils/currency.js';
+
 export const TEXT_FIELDS = ['payee_name', 'imported_payee', 'notes'] as const;
 export const ID_FIELDS = ['payee', 'account', 'category'] as const;
 
@@ -35,10 +37,15 @@ export type Condition =
   | { field: TextField | IdField; op: (typeof LIST_OPS)[number]; value: string[] }
   | { field: TextField | IdField; op: (typeof EMPTY_OPS)[number] }
   | { field: IdField; op: (typeof ID_OPS)[number]; value: string }
-  /** Amounts compare the absolute value in cents; use `direction` for inflow vs outflow */
+  /**
+   * Amounts compare the absolute native amount in cents, whatever the account's currency; use
+   * `direction` for inflow vs outflow and `currency` for "over 100 in dollars"
+   */
   | { field: 'amount'; op: (typeof AMOUNT_OPS)[number]; value: number }
   | { field: 'amount'; op: 'between'; value: [number, number] }
   | { field: 'direction'; op: 'is'; value: 'inflow' | 'outflow' }
+  /** The currency of the transaction's account */
+  | { field: 'currency'; op: 'is'; value: Currency }
   | { field: 'date'; op: (typeof DATE_OPS)[number]; value: string }
   | { field: 'date'; op: 'between'; value: [string, string] };
 
@@ -69,6 +76,8 @@ export type EngineRule = {
 
 export type TxState = {
   accountId: string;
+  /** The account's currency; `amount` is the native amount in it */
+  currency: Currency;
   date: string;
   amount: number;
   payeeId: string | null;
@@ -150,6 +159,8 @@ export function evalCondition(c: Condition, tx: TxState): boolean {
     }
     case 'direction':
       return c.value === 'inflow' ? tx.amount > 0 : tx.amount < 0;
+    case 'currency':
+      return tx.currency === c.value;
     case 'date': {
       if (c.op === 'between') {
         const [a, b] = c.value[0] <= c.value[1] ? c.value : [c.value[1], c.value[0]];

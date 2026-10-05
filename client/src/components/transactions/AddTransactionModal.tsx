@@ -5,12 +5,14 @@ import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { SavedOnDeviceHint } from '../connection/SavingPausedHint';
 import { CurrencyInput } from '../ui/CurrencyInput';
-import { currencySymbol, formatCurrency } from '../../utils/currency';
+import { currencySymbol, formatCurrency, impliedRate } from '../../utils/currency';
 import { useAccounts } from '../../hooks/useAccounts';
 import { useAddTransaction } from '../../hooks/useOffline';
 import { MerchantSelect } from './MerchantSelect';
 import { CategorySelectButton } from './CategorySelectButton';
 import { AccountIcon } from '../accounts/AccountIcon';
+import { TransferRate } from './TransferRate';
+import type { Account } from '../../types';
 
 interface Props {
   isOpen: boolean;
@@ -23,6 +25,8 @@ const inputClass =
 export function AddTransactionModal({ isOpen, onClose }: Props) {
   const [type, setType] = useState<'debit' | 'credit'>('debit');
   const [amount, setAmount] = useState(0);
+  /** The other account's side of a transfer between currencies, in that account's currency */
+  const [otherAmount, setOtherAmount] = useState(0);
   const [payeeName, setPayeeName] = useState('');
   const [payeeId, setPayeeId] = useState<string | null>(null);
   const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
@@ -46,10 +50,28 @@ export function AddTransactionModal({ isOpen, onClose }: Props) {
     ? categoryId.slice('transfer:'.length)
     : null;
 
+  // A transfer between a pesos and a dollars account has two amounts: what leaves one and
+  // what arrives in the other, each as its own statement shows it
+  const transferTo = transferToId ? openAccounts.find((a) => a.id === transferToId) : undefined;
+  const otherCurrency =
+    transferTo && selectedAccount && transferTo.currency !== selectedAccount.currency
+      ? transferTo.currency
+      : null;
+  // A debit moves money out of this account, a credit brings it in
+  const leavesHere = type === 'debit';
+  const sideLabel = (leaving: boolean, account: Account) =>
+    `Amount ${leaving ? 'leaving' : 'arriving in'} ${account.name} (${currencySymbol(account.currency)})`;
+  const sideName = (leaving: boolean, account: Account) =>
+    `Amount ${leaving ? 'leaving' : 'arriving'} (${currencySymbol(account.currency)})`;
+
   const hasConfirmedMerchant = payeeId !== null;
   const dateValid = date !== '' && /^\d{4}-\d{2}-\d{2}$/.test(date) && isValidDate(parseISO(date));
   const isValid =
-    amount > 0 && (hasConfirmedMerchant || transferToId !== null) && dateValid && accountId !== '';
+    amount > 0 &&
+    (otherCurrency === null || otherAmount > 0) &&
+    (hasConfirmedMerchant || transferToId !== null) &&
+    dateValid &&
+    accountId !== '';
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -65,6 +87,7 @@ export function AddTransactionModal({ isOpen, onClose }: Props) {
     if (isOpen) {
       setType('debit');
       setAmount(0);
+      setOtherAmount(0);
       setPayeeName('');
       setPayeeId(null);
       setDate(format(new Date(), 'yyyy-MM-dd'));
@@ -85,15 +108,17 @@ export function AddTransactionModal({ isOpen, onClose }: Props) {
   function handleSubmit() {
     if (!isValid) return;
     if (transferToId) {
-      // A debit moves money out of this account, a credit brings it in
+      const out = leavesHere;
       newTx.add(
         {
           kind: 'transfer',
           data: {
-            fromAccountId: type === 'debit' ? accountId : transferToId,
-            toAccountId: type === 'debit' ? transferToId : accountId,
+            fromAccountId: out ? accountId : transferToId,
+            toAccountId: out ? transferToId : accountId,
             date,
-            amount,
+            ...(otherCurrency === null
+              ? { amount }
+              : { amount: out ? amount : otherAmount, toAmount: out ? otherAmount : amount }),
             notes: notes || null,
           },
         },
@@ -152,15 +177,45 @@ export function AddTransactionModal({ isOpen, onClose }: Props) {
 
         {/* Amount */}
         <div>
-          <label className="block text-sm font-medium text-text mb-1">Amount *</label>
+          <label className="block text-sm font-medium text-text mb-1">
+            {otherCurrency && selectedAccount
+              ? `${sideLabel(leavesHere, selectedAccount)} *`
+              : 'Amount *'}
+          </label>
           <CurrencyInput
             value={amount}
             onChange={setAmount}
+            onTyping={otherCurrency ? setAmount : undefined}
             placeholder={`${currencySymbol(selectedAccount?.currency)}0.00`}
             currency={selectedAccount?.currency}
-            aria-label="Amount"
+            aria-label={
+              otherCurrency && selectedAccount ? sideName(leavesHere, selectedAccount) : 'Amount'
+            }
           />
         </div>
+
+        {otherCurrency && transferTo && selectedAccount && (
+          <div>
+            <label className="block text-sm font-medium text-text mb-1">
+              {sideLabel(!leavesHere, transferTo)} *
+            </label>
+            <CurrencyInput
+              value={otherAmount}
+              onChange={setOtherAmount}
+              onTyping={setOtherAmount}
+              placeholder={`${currencySymbol(otherCurrency)}0.00`}
+              currency={otherCurrency}
+              aria-label={sideName(!leavesHere, transferTo)}
+            />
+            <TransferRate
+              className="mt-1.5"
+              rate={impliedRate(
+                { amount, currency: selectedAccount.currency },
+                { amount: otherAmount, currency: otherCurrency },
+              )}
+            />
+          </div>
+        )}
 
         {/* Merchant (a transfer has none: it's named after the other account) */}
         {!transferToId && (

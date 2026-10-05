@@ -6,10 +6,34 @@ import {
   formatCentsAxis,
   formatCurrency,
   homeCurrencyTotal,
+  impliedRate,
   inHomeCurrency,
   listTotal,
   parseCents,
 } from './currency';
+
+describe('the rate a transfer between currencies implies', () => {
+  it('is pesos per dollar, whichever side is which', () => {
+    const pesos = { amount: -4_000_000, currency: 'UYU' as const };
+    const dollars = { amount: 100_000, currency: 'USD' as const };
+    expect(impliedRate(pesos, dollars)).toBe(40);
+    expect(impliedRate(dollars, pesos)).toBe(40);
+    expect(impliedRate({ amount: 1_003_125 }, { amount: -25_000, currency: 'USD' })).toBe(40.125);
+  });
+
+  it('is nothing until both amounts are typed, or between accounts of one currency', () => {
+    expect(
+      impliedRate({ amount: 4_000_000, currency: 'UYU' }, { amount: 0, currency: 'USD' }),
+    ).toBe(null);
+    expect(impliedRate({ amount: 0, currency: 'UYU' }, { amount: 100_000, currency: 'USD' })).toBe(
+      null,
+    );
+    expect(impliedRate({ amount: 500, currency: 'USD' }, { amount: -500, currency: 'USD' })).toBe(
+      null,
+    );
+    expect(impliedRate({ amount: 500 }, { amount: -500, currency: 'UYU' })).toBe(null);
+  });
+});
 
 // Up to ±$100 billion, far beyond any real balance but still exact in a double
 const arbCents = fc.integer({ min: -10_000_000_000_00, max: 10_000_000_000_00 });
