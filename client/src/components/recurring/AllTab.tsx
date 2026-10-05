@@ -129,7 +129,7 @@ export default function AllTab({
         r.schedule.name,
         r.payeeName,
         r.accountName,
-        formatScheduleAmount(r.schedule.amount, r.schedule.amountType),
+        formatScheduleAmount(r.schedule.amount, r.schedule.amountType, r.schedule.currency),
         statusLabel(r.status),
         r.nextDate ? format(parseISO(r.nextDate), 'MMM d, yyyy') : '',
         FREQ_LABEL.get(r.schedule.recurrenceType) ?? '',
@@ -193,7 +193,7 @@ export default function AllTab({
           muted ? 'text-text-tertiary' : s.amount > 0 ? 'text-positive' : 'text-text'
         }`}
       >
-        {formatScheduleAmount(s.amount, s.amountType)}
+        {formatScheduleAmount(s.amount, s.amountType, s.currency)}
       </span>
     );
     const nextDate = r.nextDate ? format(parseISO(r.nextDate), 'MMM d, yyyy') : '—';

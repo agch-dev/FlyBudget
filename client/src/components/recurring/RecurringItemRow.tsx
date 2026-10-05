@@ -80,7 +80,7 @@ export default function RecurringItemRow({
         isMuted ? 'text-text-tertiary' : occ.expectedAmount > 0 ? 'text-positive' : 'text-text'
       }`}
     >
-      {formatScheduleAmount(occ.expectedAmount, occ.amountType)}
+      {formatScheduleAmount(occ.expectedAmount, occ.amountType, occ.currency)}
     </p>
   );
   const frequency = FREQ_LABEL.get(occ.recurrenceType) ?? occ.recurrenceType;
@@ -113,7 +113,7 @@ export default function RecurringItemRow({
             <StatusBadge status={occurrenceBadgeStatus(occ, upcomingDays)} />
             {hasDifferentAmount && (
               <span className="text-xs text-caution tabular-nums" title="Actual paid amount">
-                Paid {formatCurrency(occ.matchedAmount!)}
+                Paid {formatCurrency(occ.matchedAmount!, occ.currency)}
               </span>
             )}
           </div>
@@ -159,7 +159,7 @@ export default function RecurringItemRow({
         {amount}
         {hasDifferentAmount && (
           <p className="text-xs text-caution tabular-nums" title="Actual paid amount">
-            {formatCurrency(occ.matchedAmount!)}
+            {formatCurrency(occ.matchedAmount!, occ.currency)}
           </p>
         )}
       </div>

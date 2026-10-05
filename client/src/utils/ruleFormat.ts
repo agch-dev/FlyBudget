@@ -1,13 +1,16 @@
 import { format, parseISO } from 'date-fns';
 import { formatCurrency } from './currency';
-import type {
-  Rule,
-  RuleAction,
-  RuleCondition,
-  RuleConditionField,
-  RuleConditionOp,
-  RuleInput,
-  RuleSplitPart,
+import {
+  CURRENCIES,
+  HOME_CURRENCY,
+  type Currency,
+  type Rule,
+  type RuleAction,
+  type RuleCondition,
+  type RuleConditionField,
+  type RuleConditionOp,
+  type RuleInput,
+  type RuleSplitPart,
 } from '../types';
 
 const TEXT_OPS: RuleConditionOp[] = [
@@ -40,6 +43,7 @@ export const CONDITION_FIELDS: Array<{
     ops: ['is', 'is_not', 'gt', 'gte', 'lt', 'lte', 'between', 'approx'],
   },
   { value: 'direction', label: 'Inflow / outflow', ops: ['is'] },
+  { value: 'currency', label: 'Currency', ops: ['is'] },
   { value: 'category', label: 'Category', ops: [...ID_OPS, 'is_empty', 'is_not_empty'] },
   { value: 'account', label: 'Account', ops: ID_OPS },
   { value: 'date', label: 'Date', ops: ['is', 'before', 'after', 'between'] },
@@ -48,8 +52,32 @@ export const CONDITION_FIELDS: Array<{
 export const FIELD_HINTS: Partial<Record<RuleConditionField, string>> = {
   payee_name: 'The payee name as shown on the transaction',
   imported_payee: 'The original text from your bank or CSV, before any renaming',
-  amount: 'Compares the amount without its sign; add "Inflow / outflow" to tell them apart',
+  amount:
+    'Compares the amount without its sign, in the currency of the account; add "Inflow / outflow" or "Currency" to tell them apart',
+  currency: 'Whether the account the transaction is in holds pesos or dollars',
 };
+
+/** What the currency condition offers: "Pesos" and "Dollars" */
+export const CURRENCY_OPTIONS = CURRENCIES.map((c) => ({ value: c.value, label: c.label }));
+
+/**
+ * The currency a rule is limited to, or null when it can match both. With "all" one currency
+ * condition is enough (two different ones match nothing); with "any" every condition has to
+ * name the same currency. Amounts in a limited rule are written with that currency's sign.
+ */
+export function ruleCurrency(
+  rule: Pick<RuleInput, 'conditionsOp' | 'conditions'>,
+): Currency | null {
+  const named = new Set<Currency>();
+  let others = 0;
+  for (const c of rule.conditions) {
+    if (c.field === 'currency') named.add(c.value);
+    else others++;
+  }
+  if (named.size !== 1) return null;
+  if (rule.conditionsOp === 'or' && others > 0) return null;
+  return [...named][0];
+}
 
 export function opLabel(field: RuleConditionField, op: RuleConditionOp): string {
   if (field === 'date') {
@@ -120,6 +148,8 @@ export function makeCondition(
         : ({ field, op, value: num } as RuleCondition);
     case 'direction':
       return { field, op: 'is', value: old === 'inflow' ? 'inflow' : 'outflow' };
+    case 'currency':
+      return { field, op: 'is', value: old === 'USD' ? 'USD' : HOME_CURRENCY };
     case 'date': {
       const d = str || today();
       return op === 'between'
@@ -195,9 +225,19 @@ function nameOf(field: RuleConditionField, id: string, l: RuleLookups): string {
   return name ?? '(deleted)';
 }
 
-export function conditionText(c: RuleCondition, l: RuleLookups): string {
+/**
+ * A condition in plain words. `currency` is the one the rule is limited to (`ruleCurrency`):
+ * amounts are written with its sign, or with the home currency's when the rule isn't limited.
+ */
+export function conditionText(
+  c: RuleCondition,
+  l: RuleLookups,
+  currency: Currency | null = null,
+): string {
+  const money = (cents: number) => formatCurrency(cents, currency ?? HOME_CURRENCY);
   const field = CONDITION_FIELDS.find((f) => f.value === c.field)?.label ?? c.field;
   if (c.field === 'direction') return c.value === 'inflow' ? 'Is an inflow' : 'Is an outflow';
+  if (c.field === 'currency') return c.value === 'USD' ? 'Is in dollars' : 'Is in pesos';
   const op = opLabel(c.field, c.op);
   if (!('value' in c)) return `${field} ${op}`;
   const isId = c.field === 'payee' || c.field === 'account' || c.field === 'category';
@@ -206,8 +246,8 @@ export function conditionText(c: RuleCondition, l: RuleLookups): string {
   let value: string;
   if (c.field === 'amount') {
     value = Array.isArray(c.value)
-      ? `${formatCurrency(c.value[0])} and ${formatCurrency(c.value[1])}`
-      : formatCurrency(c.value);
+      ? `${money(c.value[0])} and ${money(c.value[1])}`
+      : money(c.value);
   } else if (c.field === 'date') {
     value = Array.isArray(c.value)
       ? `${shortDate(c.value[0])} and ${shortDate(c.value[1])}`
@@ -220,17 +260,21 @@ export function conditionText(c: RuleCondition, l: RuleLookups): string {
   return `${field} ${op} ${value}`;
 }
 
-function splitPartText(p: RuleSplitPart, l: RuleLookups): string {
+function splitPartText(p: RuleSplitPart, l: RuleLookups, currency: Currency | null): string {
   const amount =
     p.kind === 'fixed'
-      ? formatCurrency(p.value)
+      ? formatCurrency(p.value, currency ?? HOME_CURRENCY)
       : p.kind === 'percent'
         ? `${p.value}%`
         : 'the rest';
   return `${amount} to ${p.categoryId ? (l.category(p.categoryId) ?? '(deleted)') : 'uncategorized'}`;
 }
 
-export function actionText(a: RuleAction, l: RuleLookups): string {
+export function actionText(
+  a: RuleAction,
+  l: RuleLookups,
+  currency: Currency | null = null,
+): string {
   switch (a.type) {
     case 'set_category':
       return `Set category to ${l.category(a.value) ?? '(deleted)'}`;
@@ -243,15 +287,16 @@ export function actionText(a: RuleAction, l: RuleLookups): string {
     case 'append_notes':
       return `Add ${quote(a.value)} after notes`;
     case 'split':
-      return `Split: ${a.parts.map((p) => splitPartText(p, l)).join(', ')}`;
+      return `Split: ${a.parts.map((p) => splitPartText(p, l, currency)).join(', ')}`;
   }
 }
 
 /** Plain text of a whole rule, for search */
 export function ruleSearchText(r: Rule, l: RuleLookups): string {
+  const currency = ruleCurrency(r);
   return [
-    ...r.conditions.map((c) => conditionText(c, l)),
-    ...r.actions.map((a) => actionText(a, l)),
+    ...r.conditions.map((c) => conditionText(c, l, currency)),
+    ...r.actions.map((a) => actionText(a, l, currency)),
   ]
     .join(' ')
     .toLowerCase();
