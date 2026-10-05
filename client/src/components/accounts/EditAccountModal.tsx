@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useFormReset } from '../../hooks/useFormReset';
 import { Modal } from '../ui/Modal';
 import { useCanSave } from '../../hooks/useConnection';
@@ -14,13 +15,6 @@ import { AccountGroupField } from './AccountGroupField';
 import { fileToSquareDataUrl } from '../../utils/imageResize';
 import { usePreferencesStore } from '../../store/preferencesStore';
 
-/** Why the currency can't change; undefined (the default hint) for an account with transactions */
-const CURRENCY_LOCK_HINT: Partial<Record<NonNullable<Account['currencyLockedBy']>, string>> = {
-  recurring:
-    "The currency can't change while a recurring item uses this account. Move or delete the recurring item first.",
-  goal: "The currency can't change while a goal is linked to this account. Unlink the goal first.",
-};
-
 /** An account from a copy saved before `currencyLockedBy` existed only says `hasTransactions` */
 function currencyLock(account: Account | null): Account['currencyLockedBy'] {
   if (!account) return 'transactions';
@@ -34,6 +28,7 @@ interface Props {
 }
 
 export function EditAccountModal({ account, onClose }: Props) {
+  const { t } = useTranslation('accounts');
   const [name, setName] = useState('');
   const [type, setType] = useState<AccountType>('checking');
   const [currency, setCurrency] = useState<Currency>(HOME_CURRENCY);
@@ -44,7 +39,7 @@ export function EditAccountModal({ account, onClose }: Props) {
   const canSave = useCanSave();
   const lock = currencyLock(account);
   const [logo, setLogo] = useState<string | null>(null);
-  const [logoError, setLogoError] = useState<string | null>(null);
+  const [logoError, setLogoError] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const showAccountIcons = usePreferencesStore((s) => s.showAccountIcons);
 
@@ -61,7 +56,7 @@ export function EditAccountModal({ account, onClose }: Props) {
     setGroupName(account.groupName ?? '');
     setIsOffBudget(account.isOffBudget === 1);
     setLogo(account.logo ?? null);
-    setLogoError(null);
+    setLogoError(false);
   });
 
   async function handleSubmit(e: React.FormEvent) {
@@ -90,9 +85,9 @@ export function EditAccountModal({ account, onClose }: Props) {
     if (!file) return;
     try {
       setLogo(await fileToSquareDataUrl(file));
-      setLogoError(null);
-    } catch (err) {
-      setLogoError(err instanceof Error ? err.message : 'Could not use that image.');
+      setLogoError(false);
+    } catch {
+      setLogoError(true);
     }
   }
 
@@ -104,10 +99,12 @@ export function EditAccountModal({ account, onClose }: Props) {
 
   return (
     <>
-      <Modal isOpen={!!account} onClose={onClose} title="Edit Account" size="sm">
+      <Modal isOpen={!!account} onClose={onClose} title={t('form.editTitle')} size="sm">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-text-secondary mb-1.5">Logo</label>
+            <label className="block text-sm font-medium text-text-secondary mb-1.5">
+              {t('form.logo')}
+            </label>
             <div className="flex items-center gap-3">
               <AccountIcon name={name} type={type} logo={logo} size="lg" force />
               <div className="flex flex-col gap-1.5">
@@ -117,7 +114,7 @@ export function EditAccountModal({ account, onClose }: Props) {
                     onClick={() => fileRef.current?.click()}
                     className="px-3 py-1.5 text-xs font-medium text-text-secondary bg-surface border border-border rounded-md hover:bg-hover transition-colors cursor-pointer"
                   >
-                    {logo ? 'Change image' : 'Upload image'}
+                    {logo ? t('form.logoChange') : t('form.logoUpload')}
                   </button>
                   {logo && (
                     <button
@@ -125,21 +122,18 @@ export function EditAccountModal({ account, onClose }: Props) {
                       onClick={() => setLogo(null)}
                       className="px-3 py-1.5 text-xs font-medium text-text-tertiary hover:text-negative transition-colors cursor-pointer"
                     >
-                      Use initials
+                      {t('form.logoUseInitials')}
                     </button>
                   )}
                 </div>
                 <p className={`text-xs ${logoError ? 'text-negative' : 'text-text-tertiary'}`}>
-                  {logoError ??
-                    (logo
-                      ? 'Cropped to a square.'
-                      : 'Showing initials. Upload a bank logo or any image.')}
+                  {logoError
+                    ? t('form.logoError')
+                    : logo
+                      ? t('form.logoCropped')
+                      : t('form.logoInitials')}
                 </p>
-                {!showAccountIcons && (
-                  <p className="text-xs text-caution">
-                    Account icons are turned off in Settings → Preferences.
-                  </p>
-                )}
+                {!showAccountIcons && <p className="text-xs text-caution">{t('form.iconsOff')}</p>}
               </div>
               <input
                 ref={fileRef}
@@ -153,13 +147,13 @@ export function EditAccountModal({ account, onClose }: Props) {
 
           <div>
             <label className="block text-sm font-medium text-text-secondary mb-1">
-              Account Name
+              {t('form.name')}
             </label>
             <input
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              aria-label="Account name"
+              aria-label={t('form.nameLabel')}
               autoFocus
               className="block w-full rounded-lg border border-border px-3 py-2 text-sm bg-surface text-text focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
             />
@@ -171,19 +165,23 @@ export function EditAccountModal({ account, onClose }: Props) {
             value={currency}
             onChange={setCurrency}
             locked={lock != null}
-            lockedHint={lock ? CURRENCY_LOCK_HINT[lock] : undefined}
+            lockedHint={
+              lock === 'recurring' || lock === 'goal'
+                ? t(`form.currencyLockedBy.${lock}`)
+                : undefined
+            }
           />
 
           <div>
             <label className="block text-sm font-medium text-text-secondary mb-1">
-              Starting Balance
+              {t('form.startingBalance')}
             </label>
             <CurrencyInput
               value={startingBalance}
               onChange={setStartingBalance}
               allowNegative
               currency={currency}
-              aria-label="Starting balance"
+              aria-label={t('form.startingBalanceLabel')}
             />
           </div>
 
@@ -196,9 +194,7 @@ export function EditAccountModal({ account, onClose }: Props) {
               onChange={(e) => setIsOffBudget(e.target.checked)}
               className="h-4 w-4 rounded border-border text-brand-600 focus:ring-brand-500"
             />
-            <span className="text-sm text-text-secondary">
-              Off budget (excluded from budgeting)
-            </span>
+            <span className="text-sm text-text-secondary">{t('form.offBudgetExcluded')}</span>
           </label>
 
           <SavingPausedHint className="text-right" />
@@ -208,7 +204,7 @@ export function EditAccountModal({ account, onClose }: Props) {
               onClick={() => setConfirmClose(true)}
               className="text-sm text-negative hover:underline font-medium transition-colors"
             >
-              Close Account
+              {t('form.close')}
             </button>
             <div className="flex gap-3">
               <button
@@ -216,14 +212,14 @@ export function EditAccountModal({ account, onClose }: Props) {
                 onClick={onClose}
                 className="px-4 py-2 text-sm font-medium text-text-secondary bg-surface border border-border rounded-lg hover:bg-hover transition-colors"
               >
-                Cancel
+                {t('ui.cancel', { ns: 'common' })}
               </button>
               <button
                 type="submit"
                 disabled={!name.trim() || updateAccount.isPending || !canSave}
                 className="px-4 py-2 text-sm font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                {updateAccount.isPending ? 'Saving…' : 'Save'}
+                {updateAccount.isPending ? t('form.saving') : t('form.save')}
               </button>
             </div>
           </div>
@@ -234,9 +230,9 @@ export function EditAccountModal({ account, onClose }: Props) {
         isOpen={confirmClose}
         onClose={() => setConfirmClose(false)}
         onConfirm={handleCloseAccount}
-        title="Close Account"
-        message={`Are you sure you want to close "${account?.name}"? It will be hidden from your accounts list.`}
-        confirmLabel="Close Account"
+        title={t('form.close')}
+        message={t('form.closeMessage', { name: account?.name ?? '' })}
+        confirmLabel={t('form.close')}
         danger
       />
     </>

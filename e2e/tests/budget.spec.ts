@@ -230,3 +230,118 @@ test.describe('budget', () => {
     ).toBeVisible();
   });
 });
+
+test.describe('the budget in Spanish', () => {
+  test.use({ language: 'es' });
+
+  /** A month's name as the Spanish app writes it ("octubre 2026"; shown with a capital) */
+  const monthTitle = (date: Date) =>
+    new RegExp(
+      `^${new Intl.DateTimeFormat('es', { month: 'long' }).format(date)} ${date.getFullYear()}$`,
+      'i',
+    );
+
+  test('planning, moving between months and a category page read in Spanish', async ({
+    page,
+    api,
+  }) => {
+    const checking = await api.createAccount('Checking', 0);
+    const paychecks = await api.category('Paychecks');
+    const groceries = await api.category('Groceries');
+    await api.createTransaction({
+      accountId: checking.id,
+      date: isoDay(),
+      amount: 300_000,
+      payeeName: 'Employer',
+      categoryId: paychecks.id,
+    });
+    await api.createTransaction({
+      accountId: checking.id,
+      date: isoDay(),
+      amount: -4_321,
+      payeeName: 'Farm Stand',
+      categoryId: groceries.id,
+    });
+
+    await open(page, '/budget');
+    const main = page.getByRole('main');
+    const porAsignar = page.getByRole('status', { name: 'Por asignar' });
+    await expect(porAsignar).toContainText('$3,000');
+    await expect(porAsignar).toContainText('Queda por asignar');
+    const today = new Date();
+    await expect(main.getByText(monthTitle(today))).toBeVisible();
+    await expect(main).toContainText('Todavía no hay nada planificado para');
+    await expect(main.getByRole('link', { name: /Cómo funciona el presupuesto/ })).toBeVisible();
+
+    // Planning an amount
+    await page.getByRole('button', { name: /^Planificado para Groceries:/ }).click();
+    const input = page.getByRole('spinbutton', { name: 'Planificado para Groceries' });
+    await expect(main).toContainText('Promedio mensual');
+    await input.fill('400');
+    await input.press('Enter');
+    await expect(
+      page.getByRole('button', { name: 'Planificado para Groceries: $400' }),
+    ).toBeVisible();
+    await expect(porAsignar).toContainText('$2,600');
+
+    // The table, its sections and the summary beside it
+    for (const text of [
+      'Ingresos',
+      'Gastos',
+      'Planificado',
+      'Real',
+      'Restante',
+      'Total de ingresos',
+      'Total de gastos',
+      'Fijos',
+      'Flexibles',
+      'Resumen',
+      '$400 planificado',
+      'gastado',
+    ]) {
+      await expect(main).toContainText(text);
+    }
+    const showInactive = main.getByRole('button', { name: /^Mostrar \d+ categorías inactivas$/ });
+    await showInactive.first().click();
+    await expect(
+      main.getByRole('button', { name: /^Ocultar \d+ categorías inactivas$/ }),
+    ).toBeVisible();
+    // Nothing of the English page is left (category and group names are stored data)
+    await expect(main).not.toContainText(
+      /Planned|Actual|Remaining|Total Income|Total Expenses|Today|inactive|Summary|budgeted|to budget|earned|spent|Fixed|Flexible\b|Non-Monthly/,
+    );
+
+    // Moving between months
+    await page.getByRole('button', { name: 'Mes siguiente' }).click();
+    const next = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+    await expect(main.getByText(monthTitle(next))).toBeVisible();
+    await page.getByRole('button', { name: 'Mes anterior' }).click();
+    await page.getByRole('button', { name: 'Mes anterior' }).click();
+    await page.getByRole('button', { name: 'Hoy' }).click();
+    await expect(main.getByText(monthTitle(today))).toBeVisible();
+
+    // A category's page
+    await page.getByRole('row').filter({ hasText: 'Groceries' }).getByRole('link').click();
+    await expect(page).toHaveURL(new RegExp(`#/budget/category/${groceries.id}$`));
+    await expect(main.getByRole('link', { name: 'Presupuesto', exact: true })).toBeVisible();
+    for (const text of [
+      'Historial de gastos',
+      'Planificado',
+      'Restante',
+      'Resumen',
+      'Cantidad de transacciones',
+      'Transacción más grande',
+      'Total de gastos',
+      'Primera transacción',
+    ]) {
+      await expect(main).toContainText(text);
+    }
+    // Dates are written the Spanish way: "5 oct 2026"
+    await expect(main).toContainText(
+      new RegExp(`${today.getDate()} \\p{L}{3,4} ${today.getFullYear()}`, 'u'),
+    );
+    await expect(main).not.toContainText(
+      /Spending History|Summary|Planned|Remaining|Largest|Average transaction|Total spending/,
+    );
+  });
+});

@@ -8,6 +8,7 @@ import {
   totalAndChange,
 } from './balanceConversion';
 import type { Currency } from '../types';
+import { setLanguage } from '../i18n';
 import vectors from '../../../server/src/services/conversionVectors.json';
 
 const isoDay = fc
@@ -204,6 +205,18 @@ describe('breakdownLine', () => {
   it('names a currency left out even when what is owned and owed in it cancel out', () => {
     expect(breakdownLine({ UYU: 15_000_000, USD: 0 }, 'UYU', ['USD'])).toBe(
       '$150,000 + US$0 not counted (no exchange rate)',
+    );
+  });
+
+  it('says it in Spanish when the app is in Spanish, with the amounts written the same', () => {
+    setLanguage('es');
+    const native = { UYU: 15_000_000, USD: 320_000 };
+    expect(breakdownLine(native)).toBe('$150,000 + US$3,200');
+    expect(breakdownLine(native, 'UYU', ['USD'])).toBe(
+      '$150,000 + US$3,200 sin contar (no hay tipo de cambio)',
+    );
+    expect(breakdownLine({ UYU: 15_000_000, USD: -320_000 }, 'USD', ['UYU'])).toBe(
+      '-US$3,200 + $150,000 sin contar (no hay tipo de cambio)',
     );
   });
 

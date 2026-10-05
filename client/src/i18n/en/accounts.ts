@@ -1,5 +1,198 @@
+import type { AccountType, AccountTypeGroup } from '../../types';
+
 // Accounts, the reconciliation flow and the first-run screen (/welcome).
 export default {
+  /** Account type names, keyed by `AccountType` (read them with `accountTypeLabel`) */
+  accountType: {
+    checking: 'Checking',
+    savings: 'Savings',
+    cash: 'Cash',
+    credit: 'Credit Card',
+    line_of_credit: 'Line of Credit',
+    investment: 'Brokerage',
+    retirement: 'Retirement',
+    crypto: 'Crypto',
+    real_estate: 'Real Estate',
+    vehicle: 'Vehicle',
+    valuables: 'Valuables',
+    mortgage: 'Mortgage',
+    auto_loan: 'Auto Loan',
+    student_loan: 'Student Loan',
+    loan: 'Other Loan',
+    other_asset: 'Other Asset',
+    other_liability: 'Other Liability',
+  } satisfies Record<AccountType, string>,
+  /** The example shown under the type picker, keyed by `AccountType` */
+  accountTypeHint: {
+    checking: 'Everyday bank account',
+    savings: 'Savings, money market, CDs',
+    cash: 'Wallet or petty cash',
+    credit: 'Credit or charge card',
+    line_of_credit: 'Personal line of credit or HELOC',
+    investment: 'Taxable investment account',
+    retirement: '401(k), IRA, Roth, pension',
+    crypto: 'Exchange account or wallet',
+    real_estate: 'Home, rental or land',
+    vehicle: 'Car, motorcycle, boat, RV',
+    valuables: 'Jewelry, art, collectibles, precious metals',
+    mortgage: 'Home loan',
+    auto_loan: 'Car or vehicle loan',
+    student_loan: 'Federal or private student loan',
+    loan: 'Personal, medical or family loan',
+    other_asset: 'Anything else you own',
+    other_liability: 'Anything else you owe',
+  } satisfies Record<AccountType, string>,
+  /** The six groups of account types, keyed by `AccountTypeGroup` (not an Account Group) */
+  accountTypeGroup: {
+    cash: 'Cash',
+    credit: 'Credit',
+    investments: 'Investments',
+    property: 'Property',
+    loans: 'Loans',
+    other: 'Other',
+  } satisfies Record<AccountTypeGroup, string>,
+  /** The pill next to an account's name, where it is shorter than the type's name */
+  badge: {
+    credit: 'Credit',
+    positive: 'Positive',
+    negative: 'Negative',
+  },
+  page: {
+    title: 'Accounts',
+    add: 'Add Account',
+    emptyTitle: 'Add the accounts you want to track',
+    emptyDescription:
+      'Checking, savings, credit cards, loans, investments or your home: each account keeps its own balance and transactions, and together they make up your net worth.',
+    addFirst: 'Add your first account',
+    connectBank: 'Connect a bank',
+    /** The accessible name of an Account Group's card */
+    groupCard: '{{name}} group',
+    group: 'Group',
+    groupIncomplete: 'Group · balances in the other currency left out: no exchange rate yet',
+    pastMonth: 'past month',
+  },
+  summary: {
+    assets: 'Assets',
+    liabilities: 'Liabilities',
+    noAssets: 'No bank accounts, investments or property yet. <add>Add account</add>',
+    noLiabilities: 'No credit cards or loans yet. <add>Add account</add>',
+  },
+  /** One currency of a combined total that the total leaves out: "US$3,200 not counted (…)" */
+  breakdown: {
+    notCounted: '{{amount}} not counted (no exchange rate)',
+  },
+  form: {
+    addTitle: 'Add Account',
+    editTitle: 'Edit Account',
+    name: 'Account Name',
+    nameLabel: 'Account name',
+    namePlaceholder: 'e.g. Chase Checking',
+    namePlaceholderProperty: 'e.g. 2021 Honda Civic',
+    type: 'Account Type',
+    typeLabel: 'Account type',
+    currency: 'Currency',
+    currencyLocked: "The currency can't change once the account has transactions.",
+    currencyLockedBy: {
+      recurring:
+        "The currency can't change while a recurring item uses this account. Move or delete the recurring item first.",
+      goal: "The currency can't change while a goal is linked to this account. Unlink the goal first.",
+    },
+    amountOwed: 'Amount Owed',
+    amountOwedHint: 'What you owe as of today.',
+    currentValue: 'Current Value',
+    currentValueHint: "What it's worth today. You can update it any time from the account page.",
+    currentBalance: 'Current Balance',
+    currentBalanceHint: 'Enter your balance as of today.',
+    startingBalance: 'Starting Balance',
+    startingBalanceLabel: 'Starting balance',
+    group: 'Group <hint>(optional)</hint>',
+    groupPlaceholder: 'Choose a group or type a new name',
+    groupPlaceholderFirst: 'e.g. Visa Itaú',
+    groupsInUse: 'Groups in use',
+    groupHint:
+      'Accounts of the same product, like the pesos and dollars sides of one card, show together under this name. Leave empty for no group.',
+    offBudget: 'Off budget',
+    offBudgetHint:
+      'Counts toward net worth but not your budget. Recommended for investments, property and loans.',
+    offBudgetExcluded: 'Off budget (excluded from budgeting)',
+    add: 'Add Account',
+    adding: 'Adding…',
+    save: 'Save',
+    saving: 'Saving…',
+    logo: 'Logo',
+    logoUpload: 'Upload image',
+    logoChange: 'Change image',
+    logoUseInitials: 'Use initials',
+    logoCropped: 'Cropped to a square.',
+    logoInitials: 'Showing initials. Upload a bank logo or any image.',
+    logoError: 'Could not use that image.',
+    iconsOff: 'Account icons are turned off in Settings → Preferences.',
+    close: 'Close Account',
+    closeMessage:
+      'Are you sure you want to close "{{name}}"? It will be hidden from your accounts list.',
+  },
+  detail: {
+    notFoundTitle: 'Account not found',
+    notFoundDescription: 'It may have been closed or deleted, or the link is out of date.',
+    goToAccounts: 'Go to Accounts',
+    edit: 'Edit',
+    updateBalance: 'Update balance',
+    updateValue: 'Update value',
+    reconcile: 'Reconcile',
+  },
+  updateValue: {
+    balanceTitle: 'Update Balance',
+    valueTitle: 'Update Value',
+    owedToday: 'Amount owed today',
+    valueToday: 'Value today',
+    currently: 'Currently {{amount}}.',
+    currentlyAdds:
+      'Currently {{amount}}. Adds a <change>{{change}}</change> adjustment dated today.',
+    /** The notes of the adjustment transaction it adds (stored as written) */
+    balanceNotes: 'Balance update',
+    valueNotes: 'Value update',
+  },
+  reconcile: {
+    breadcrumb: 'Reconcile',
+    title: 'Reconcile: {{name}}',
+    enterTitle: "Enter your bank's ending balance",
+    enterHint: 'Check your bank statement or online banking for the current balance.',
+    statementBalance: 'Statement Balance',
+    currentBalance: 'Current selected balance in app',
+    start: 'Start Reconciliation',
+    date: 'Date',
+    payee: 'Payee',
+    amount: 'Amount',
+    /** The column of ticks: one letter, with the word as its hover text */
+    cleared: 'C',
+    clearedHint: 'Cleared',
+    loading: 'Loading...',
+    none: 'No unreconciled transactions.',
+    selectedBalance: 'Selected Balance',
+    difference: 'Difference',
+    ready: 'Ready to finish!',
+    finish: 'Finish',
+    saving: 'Saving...',
+    createAdjustment: 'Create Adjustment',
+    /** The notes of the adjustment transaction (stored as written) */
+    adjustmentNotes: 'Reconciliation adjustment',
+  },
+  /** What the undo toast says was undone or redone */
+  undo: {
+    create: 'Create account "{{name}}"',
+    edit: 'Edit account',
+    close: 'Close account "{{name}}"',
+    reorder: 'Reorder accounts',
+  },
+  /** Server refusals the app translates (api/serverErrors.ts): the server's own sentences */
+  errors: {
+    currencyLocked: {
+      transactions: "An account's currency can't change once it has transactions",
+      recurring:
+        "An account's currency can't change while a recurring item uses it: move or delete the recurring item first",
+      goal: "An account's currency can't change while a goal is linked to it: unlink the goal first",
+    },
+  },
   welcome: {
     title: 'Welcome to <brand></brand>!',
     intro:

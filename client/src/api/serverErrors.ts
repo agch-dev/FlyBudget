@@ -21,10 +21,21 @@ interface TranslatedError {
   /** Matched against the path without its query string */
   path: RegExp;
   status: number;
-  /** The server's sentence, for a route with several refusals of the same status */
-  message?: string;
-  /** The sentence in the current language */
-  text: () => string;
+  /**
+   * The sentence in the current language. A route that refuses with one of several sentences
+   * picks by the server's message, and answers null for one it doesn't know.
+   */
+  text: (message: string) => string | null;
+}
+
+/** The locks on an account's currency (`CURRENCY_LOCK_MESSAGE` on the server) */
+const CURRENCY_LOCKS = ['transactions', 'recurring', 'goal'] as const;
+
+function currencyLocked(message: string): string | null {
+  const lock = CURRENCY_LOCKS.find(
+    (l) => t(`accounts:errors.currencyLocked.${l}`, { lng: 'en' }) === message,
+  );
+  return lock ? t(`accounts:errors.currencyLocked.${lock}`) : null;
 }
 
 const TRANSACTION = /^\/transactions\/[^/]+$/;
@@ -35,21 +46,15 @@ const NEW_TRANSFER = /^\/transactions\/transfer$/;
 type TransactionError = keyof (typeof en)['transactions']['errors'];
 
 /**
- * A refusal recognized by its sentence, which is the English text of its catalog key (so
- * the two can't drift apart: `serverErrors.test.ts` looks for each in the server's code).
+ * The refusals of a transactions route, recognized by their sentence: the English text of
+ * each key is the server's own (`serverErrors.test.ts` looks for each in the server's code).
  */
-const sentence = (
-  method: string,
-  path: RegExp,
-  status: number,
-  key: TransactionError,
-): TranslatedError => ({
-  method,
-  path,
-  status,
-  message: en.transactions.errors[key],
-  text: () => t(`transactions:errors.${key}`),
-});
+const transactionRefusal =
+  (...keys: TransactionError[]) =>
+  (message: string): string | null => {
+    const key = keys.find((k) => en.transactions.errors[k] === message);
+    return key ? t(`transactions:errors.${key}`) : null;
+  };
 
 /**
  * The first match wins. To translate another error, add a line: its route, its status, and
@@ -76,28 +81,51 @@ const TRANSLATED: TranslatedError[] = [
   },
   // The limit on failed attempts (login, setup, password changes)
   { path: /^\/auth\//, status: 429, text: () => t('auth:errors.tooManyAttempts') },
+  // Changing the currency of an account something depends on
+  { method: 'PUT', path: /^\/accounts\/[^/]+$/, status: 409, text: currencyLocked },
   // Linking two transactions as a transfer (server: services/transferLink.ts), and unlinking
-  sentence('POST', LINK_TRANSFER, 403, 'reconciled'),
-  sentence('POST', LINK_TRANSFER, 400, 'splitCannotLink'),
-  sentence('POST', LINK_TRANSFER, 400, 'alreadyTransfer'),
-  sentence('POST', LINK_TRANSFER, 400, 'differentAccounts'),
-  sentence('POST', LINK_TRANSFER, 400, 'outflowAndInflow'),
-  sentence('POST', LINK_TRANSFER, 400, 'sameAmount'),
-  sentence('POST', UNLINK_TRANSFER, 403, 'reconciled'),
-  sentence('POST', UNLINK_TRANSFER, 400, 'notTransfer'),
+  {
+    method: 'POST',
+    path: LINK_TRANSFER,
+    status: 400,
+    text: transactionRefusal(
+      'splitCannotLink',
+      'alreadyTransfer',
+      'differentAccounts',
+      'outflowAndInflow',
+      'sameAmount',
+    ),
+  },
+  { method: 'POST', path: UNLINK_TRANSFER, status: 400, text: transactionRefusal('notTransfer') },
   // A new transfer
-  sentence('POST', NEW_TRANSFER, 400, 'arrivingAmountNeeded'),
-  sentence('POST', NEW_TRANSFER, 400, 'sameAmountBothSides'),
+  {
+    method: 'POST',
+    path: NEW_TRANSFER,
+    status: 400,
+    text: transactionRefusal('arrivingAmountNeeded', 'sameAmountBothSides'),
+  },
   // Editing a transaction (server: PUT /transactions/:id)
-  sentence('PUT', TRANSACTION, 403, 'reconciled'),
-  sentence('PUT', TRANSACTION, 400, 'otherCurrencyAccount'),
-  sentence('PUT', TRANSACTION, 400, 'transferSideLeaving'),
-  sentence('PUT', TRANSACTION, 400, 'transferSideArriving'),
-  sentence('PUT', TRANSACTION, 400, 'transferStays'),
-  sentence('PUT', TRANSACTION, 400, 'editParts'),
-  sentence('PUT', TRANSACTION, 400, 'editWholeSplit'),
-  sentence('DELETE', TRANSACTION, 403, 'reconciled'),
-  sentence('POST', /^\/transactions$/, 400, 'splitsMustAddUp'),
+  {
+    method: 'PUT',
+    path: TRANSACTION,
+    status: 400,
+    text: transactionRefusal(
+      'otherCurrencyAccount',
+      'transferSideLeaving',
+      'transferSideArriving',
+      'transferStays',
+      'editParts',
+      'editWholeSplit',
+    ),
+  },
+  {
+    method: 'POST',
+    path: /^\/transactions$/,
+    status: 400,
+    text: transactionRefusal('splitsMustAddUp'),
+  },
+  // A reconciled transaction can't be changed, whatever the request
+  { path: /^\/transactions\//, status: 403, text: transactionRefusal('reconciled') },
 ];
 
 /**
@@ -111,8 +139,7 @@ export function serverErrorMessage(refusal: ServerRefusal): string {
     (e) =>
       e.status === refusal.status &&
       (!e.method || e.method === refusal.method) &&
-      (e.message === undefined || e.message === refusal.message) &&
       e.path.test(path),
   );
-  return known ? known.text() : refusal.message;
+  return known?.text(refusal.message) ?? refusal.message;
 }

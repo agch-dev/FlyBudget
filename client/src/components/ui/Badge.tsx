@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import type { AccountType } from '../../types';
 import { accountTypeLabel } from '../../utils/accountTypes';
 import { ACCOUNT_TYPE_COLORS } from '../../utils/transactionColors';
@@ -19,13 +20,13 @@ const styles: Partial<Record<Variant, string>> = {
   negative: 'bg-negative-subtle text-negative',
 };
 
-const labels: Partial<Record<Variant, string>> = {
-  credit: 'Credit',
-  positive: 'Positive',
-  negative: 'Negative',
-};
+/** Variants whose pill says something shorter than the account type's name */
+const OWN_LABEL = ['credit', 'positive', 'negative'] as const;
+const hasOwnLabel = (variant: Variant): variant is (typeof OWN_LABEL)[number] =>
+  (OWN_LABEL as readonly Variant[]).includes(variant);
 
 export function Badge({ variant, label }: Props) {
+  const { t } = useTranslation('accounts');
   const className = styles[variant];
   // Other account types get a tint of their icon color
   const color = ACCOUNT_TYPE_COLORS[variant] ?? '#6B7280';
@@ -38,7 +39,7 @@ export function Badge({ variant, label }: Props) {
           : { color, backgroundColor: `color-mix(in srgb, ${color} 15%, transparent)` }
       }
     >
-      {label ?? labels[variant] ?? accountTypeLabel(variant)}
+      {label ?? (hasOwnLabel(variant) ? t(`badge.${variant}`) : accountTypeLabel(variant))}
     </span>
   );
 }

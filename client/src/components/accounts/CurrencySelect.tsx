@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { CURRENCIES, type Currency } from '../../types';
 
 interface Props {
@@ -11,13 +12,14 @@ interface Props {
 
 /** Pesos or dollars, for the add and edit account dialogs and the goal dialog. */
 export function CurrencySelect({ value, onChange, locked = false, lockedHint }: Props) {
+  const { t } = useTranslation('accounts');
   return (
     <div>
       <span
         id="account-currency-label"
         className="block text-sm font-medium text-text-secondary mb-1"
       >
-        Currency
+        {t('form.currency')}
       </span>
       <div role="radiogroup" aria-labelledby="account-currency-label" className="flex gap-2">
         {CURRENCIES.map((c) => {
@@ -36,15 +38,14 @@ export function CurrencySelect({ value, onChange, locked = false, lockedHint }: 
                   : 'border-border bg-surface text-text-secondary hover:bg-hover disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-surface'
               }`}
             >
-              {c.label} <span className="tabular-nums">({c.symbol})</span>
+              {t(`currency.${c.value}`, { ns: 'common' })}{' '}
+              <span className="tabular-nums">({c.symbol})</span>
             </button>
           );
         })}
       </div>
       {locked && (
-        <p className="mt-1 text-xs text-text-tertiary">
-          {lockedHint ?? "The currency can't change once the account has transactions."}
-        </p>
+        <p className="mt-1 text-xs text-text-tertiary">{lockedHint ?? t('form.currencyLocked')}</p>
       )}
     </div>
   );

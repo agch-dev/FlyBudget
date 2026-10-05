@@ -100,6 +100,38 @@ describe('serverErrorMessage', () => {
     }
   });
 
+  it("translates the refusal to change an account's currency, with its reason", () => {
+    setLanguage('es');
+    const transactions = "An account's currency can't change once it has transactions";
+    expect(refusal('PUT', '/accounts/a1', 409, transactions)).toBe(
+      'La moneda de una cuenta no se puede cambiar una vez que tiene transacciones',
+    );
+    expect(
+      refusal(
+        'PUT',
+        '/accounts/a1',
+        409,
+        "An account's currency can't change while a recurring item uses it: move or delete the recurring item first",
+      ),
+    ).toBe(
+      'La moneda de una cuenta no se puede cambiar mientras un recurrente la usa: primero mové o eliminá el recurrente',
+    );
+    expect(
+      refusal(
+        'PUT',
+        '/accounts/a1',
+        409,
+        "An account's currency can't change while a goal is linked to it: unlink the goal first",
+      ),
+    ).toBe(
+      'La moneda de una cuenta no se puede cambiar mientras tiene una meta vinculada: primero desvinculá la meta',
+    );
+    // A 409 of that route the app doesn't know stays as sent, as does one of another route
+    expect(refusal('PUT', '/accounts/a1', 409, 'Something else')).toBe('Something else');
+    expect(refusal('PUT', '/accounts/a1/logo', 409, transactions)).toBe(transactions);
+    expect(refusal('POST', '/accounts', 409, transactions)).toBe(transactions);
+  });
+
   it('leaves every other error in English', () => {
     setLanguage('es');
     // Another refusal of the same route
