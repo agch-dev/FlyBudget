@@ -1,11 +1,16 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { format } from 'date-fns';
 import {
+  defaultDateFormat,
   usePreferencesStore,
   type Theme,
   type DateFormatOption,
   type SidebarMode,
 } from '../../store/preferencesStore';
 import { ConfirmModal } from '../ui/ConfirmModal';
+import { LanguageSwitch } from '../ui/LanguageSwitch';
+import { detectLanguage, browserLanguage } from '../../i18n/language';
 import { IS_DEMO } from '../../demo/isDemo';
 
 const themeOptions: { value: Theme; label: string }[] = [
@@ -19,12 +24,15 @@ const sidebarModes: { value: SidebarMode; label: string; description: string }[]
   { value: 'auto-hide', label: 'Auto-hide', description: 'Collapsed, opens on hover' },
 ];
 
-const dateFormats: { value: DateFormatOption; label: string; example: string }[] = [
-  { value: 'MMM d, yyyy', label: 'MMM d, yyyy', example: 'Jan 5, 2026' },
-  { value: 'MM/dd/yyyy', label: 'MM/dd/yyyy', example: '01/05/2026' },
-  { value: 'dd/MM/yyyy', label: 'dd/MM/yyyy', example: '05/01/2026' },
-  { value: 'yyyy-MM-dd', label: 'yyyy-MM-dd', example: '2026-01-05' },
+const dateFormats: DateFormatOption[] = [
+  'MMM d, yyyy',
+  'd MMM yyyy',
+  'MM/dd/yyyy',
+  'dd/MM/yyyy',
+  'yyyy-MM-dd',
 ];
+/** The day each format is shown with ("Jan 5, 2026", or "5 ene 2026" in Spanish) */
+const EXAMPLE_DAY = new Date(2026, 0, 5);
 
 export function PreferencesPanel() {
   const {
@@ -41,12 +49,14 @@ export function PreferencesPanel() {
     setShowCategoryIcons,
     setShowAccountIcons,
   } = usePreferencesStore();
+  const { t } = useTranslation();
   const [resetOpen, setResetOpen] = useState(false);
 
   function handleReset() {
     setTheme('light');
     setSidebarMode('persistent');
-    setDateFormat('MMM d, yyyy');
+    // The App Language stays as chosen
+    setDateFormat(defaultDateFormat(detectLanguage(browserLanguage())));
     setShowMerchantIcons(true);
     setShowCategoryIcons(true);
     setShowAccountIcons(true);
@@ -81,6 +91,14 @@ export function PreferencesPanel() {
         confirmLabel="Reset"
         danger
       />
+
+      <div className="bg-surface-alt rounded-lg p-5 flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
+        <div className="min-w-0">
+          <h3 className="text-sm font-medium text-text">{t('language.title')}</h3>
+          <p className="text-xs text-text-tertiary mt-0.5">{t('language.description')}</p>
+        </div>
+        <LanguageSwitch />
+      </div>
 
       <div className="bg-surface-alt rounded-lg p-5 space-y-4">
         <h3 className="text-sm font-medium text-text">Theme</h3>
@@ -175,20 +193,20 @@ export function PreferencesPanel() {
       </div>
 
       <div className="bg-surface-alt rounded-lg p-5 space-y-4">
-        <h3 className="text-sm font-medium text-text">Date Format</h3>
+        <h3 className="text-sm font-medium text-text">{t('dateFormat.title')}</h3>
         <div className="grid grid-cols-2 gap-2">
-          {dateFormats.map((opt) => (
+          {dateFormats.map((value) => (
             <button
-              key={opt.value}
-              onClick={() => setDateFormat(opt.value)}
+              key={value}
+              onClick={() => setDateFormat(value)}
               className={`flex items-center justify-between px-4 py-2.5 text-sm rounded-md border transition-colors ${
-                dateFormat === opt.value
+                dateFormat === value
                   ? 'border-brand-500 bg-brand-50 text-brand-700 font-medium'
                   : 'border-border bg-surface text-text-secondary hover:border-border'
               }`}
             >
-              <span>{opt.label}</span>
-              <span className="text-xs text-text-tertiary">{opt.example}</span>
+              <span>{value}</span>
+              <span className="text-xs text-text-tertiary">{format(EXAMPLE_DAY, value)}</span>
             </button>
           ))}
         </div>

@@ -1,4 +1,5 @@
 import { format, parseISO } from 'date-fns';
+import { t } from '../i18n';
 
 // Exchange rates (pesos per dollar): the pure parts of Settings → Exchange rates and of the
 // estimated-rates banner.
@@ -48,7 +49,8 @@ const NAMED_DATES_MAX = 3;
 
 /**
  * The dates whose exchange rate is estimated, for the banner: "10 Nov 2023",
- * "1 Feb 2023 and 10 Nov 2023", or "12 dates from 12 Mar 2021 to 10 Nov 2023".
+ * "1 Feb 2023 and 10 Nov 2023", or "12 dates from 12 Mar 2021 to 10 Nov 2023", in the App
+ * Language.
  * `dates` are YYYY-MM-DD, at least one.
  */
 export function estimatedDatesLabel(dates: readonly string[]): string {
@@ -56,11 +58,15 @@ export function estimatedDatesLabel(dates: readonly string[]): string {
   const sorted = [...new Set(dates)].sort();
   const day = (date: string) => format(parseISO(date), 'd MMM yyyy');
   if (sorted.length > NAMED_DATES_MAX) {
-    return `${sorted.length} dates from ${day(sorted[0])} to ${day(sorted[sorted.length - 1])}`;
+    return t('rates.datesRange', {
+      total: sorted.length,
+      first: day(sorted[0]),
+      last: day(sorted[sorted.length - 1]),
+    });
   }
   const named = sorted.map(day);
   const last = named.pop() ?? '';
-  return named.length ? `${named.join(', ')} and ${last}` : last;
+  return named.length ? t('rates.datesAnd', { dates: named.join(', '), last }) : last;
 }
 
 /**
@@ -74,15 +80,11 @@ export function ratesNotice(
 ): { title: string; detail: string } | null {
   if (!answer) return null;
   if (answer.notCounted) {
-    return {
-      title: 'No exchange rate stored yet.',
-      detail:
-        'Totals in pesos leave dollar amounts out, and totals in dollars leave pesos out, until there is one.',
-    };
+    return { title: t('rates.notCountedTitle'), detail: t('rates.notCountedDetail') };
   }
   if (answer.dates.length === 0) return null;
   return {
-    title: `No exchange rate for ${estimatedDatesLabel(answer.dates)}.`,
-    detail: `Dollar amounts on ${answer.dates.length === 1 ? 'that date' : 'those dates'} are converted at the closest rate available, so totals are estimated.`,
+    title: t('rates.missingTitle', { dates: estimatedDatesLabel(answer.dates) }),
+    detail: t('rates.missingDetail', { count: answer.dates.length }),
   };
 }

@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { TriangleAlert } from 'lucide-react';
 import { useEstimatedRateDates } from '../../hooks/useExchangeRates';
 import { ratesNotice } from '../../utils/exchangeRates';
@@ -11,12 +12,13 @@ import { ratesNotice } from '../../utils/exchangeRates';
  * pesos only never sees it.
  */
 export function EstimatedRatesBanner() {
+  const { t } = useTranslation();
   const notice = ratesNotice(useEstimatedRateDates().data);
   if (!notice) return null;
   return (
     <div
       role="status"
-      aria-label="Estimated exchange rates"
+      aria-label={t('rates.label')}
       className="shrink-0 flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2 text-sm bg-caution-subtle text-text border-b border-caution/30"
     >
       <TriangleAlert size={16} className="text-caution shrink-0" aria-hidden />
@@ -28,7 +30,7 @@ export function EstimatedRatesBanner() {
         to="/settings?tab=rates"
         className="ml-auto inline-flex items-center justify-center px-2.5 py-1 max-md:min-h-11 text-xs font-medium rounded-md border border-border bg-surface text-text-secondary hover:text-text hover:bg-surface-alt transition-colors whitespace-nowrap"
       >
-        Enter rates
+        {t('rates.enter')}
       </Link>
     </div>
   );
