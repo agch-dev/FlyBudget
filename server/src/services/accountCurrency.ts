@@ -1,6 +1,6 @@
-import { eq } from 'drizzle-orm';
+import { eq, ne } from 'drizzle-orm';
 import { db } from '../db/index.js';
-import { accounts } from '../db/schema.js';
+import { accounts, goals, schedules, transactions } from '../db/schema.js';
 import { HOME_CURRENCY, isCurrency, type Currency } from '../utils/currency.js';
 
 // Amounts are native amounts in their account's currency. Rules and recurring items work on
@@ -34,3 +34,42 @@ export function accountCurrencyLookup(): (accountId: AccountId) => Currency {
   );
   return (accountId) => (accountId ? orHome(byId.get(accountId)) : HOME_CURRENCY);
 }
+
+/** What stops an account's currency from changing */
+export type CurrencyLock = 'transactions' | 'recurring' | 'goal';
+
+/**
+ * What ties each account to its currency, loaded once: its transactions (their amounts are
+ * native amounts), a recurring item that pays from or into it (its amount is native too, and
+ * a recurring transfer can't cross currencies), or a goal linked to it (the goal's amounts
+ * follow the account). Null when nothing does, so the currency can still change.
+ */
+export function currencyLockLookup(): (accountId: string) => CurrencyLock | null {
+  const ids = (rows: { id: string | null }[]) => new Set(rows.map((r) => r.id));
+  const withTransactions = ids(
+    db.selectDistinct({ id: transactions.accountId }).from(transactions).all(),
+  );
+  // A canceled item creates nothing, and "Delete" on the Recurring page only cancels
+  const live = ne(schedules.status, 'canceled');
+  const recurring = ids([
+    ...db.selectDistinct({ id: schedules.accountId }).from(schedules).where(live).all(),
+    ...db.selectDistinct({ id: schedules.transferAccountId }).from(schedules).where(live).all(),
+  ]);
+  const withGoals = ids(db.selectDistinct({ id: goals.accountId }).from(goals).all());
+  return (accountId) =>
+    withTransactions.has(accountId)
+      ? 'transactions'
+      : recurring.has(accountId)
+        ? 'recurring'
+        : withGoals.has(accountId)
+          ? 'goal'
+          : null;
+}
+
+/** Why the currency can't change, in words for the user */
+export const CURRENCY_LOCK_MESSAGE: Record<CurrencyLock, string> = {
+  transactions: "An account's currency can't change once it has transactions",
+  recurring:
+    "An account's currency can't change while a recurring item uses it: move or delete the recurring item first",
+  goal: "An account's currency can't change while a goal is linked to it: unlink the goal first",
+};

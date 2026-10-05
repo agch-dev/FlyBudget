@@ -14,6 +14,20 @@ import { AccountGroupField } from './AccountGroupField';
 import { fileToSquareDataUrl } from '../../utils/imageResize';
 import { usePreferencesStore } from '../../store/preferencesStore';
 
+/** Why the currency can't change; undefined (the default hint) for an account with transactions */
+const CURRENCY_LOCK_HINT: Partial<Record<NonNullable<Account['currencyLockedBy']>, string>> = {
+  recurring:
+    "The currency can't change while a recurring item uses this account. Move or delete the recurring item first.",
+  goal: "The currency can't change while a goal is linked to this account. Unlink the goal first.",
+};
+
+/** An account from a copy saved before `currencyLockedBy` existed only says `hasTransactions` */
+function currencyLock(account: Account | null): Account['currencyLockedBy'] {
+  if (!account) return 'transactions';
+  if (account.currencyLockedBy !== undefined) return account.currencyLockedBy;
+  return account.hasTransactions === false ? null : 'transactions';
+}
+
 interface Props {
   account: Account | null;
   onClose: () => void;
@@ -28,6 +42,7 @@ export function EditAccountModal({ account, onClose }: Props) {
   const [isOffBudget, setIsOffBudget] = useState(false);
   const [confirmClose, setConfirmClose] = useState(false);
   const canSave = useCanSave();
+  const lock = currencyLock(account);
   const [logo, setLogo] = useState<string | null>(null);
   const [logoError, setLogoError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -60,7 +75,7 @@ export function EditAccountModal({ account, onClose }: Props) {
         type,
         startingBalance,
         isOffBudget: isOffBudget ? 1 : 0,
-        // Only when chosen anew: the server refuses a change once there are transactions
+        // Only when chosen anew: the server refuses a change once something depends on it
         ...(currency !== account.currency ? { currency } : {}),
         ...(logo !== (account.logo ?? null) ? { logo } : {}),
         ...(group !== (account.groupName ?? null) ? { groupName: group } : {}),
@@ -155,7 +170,8 @@ export function EditAccountModal({ account, onClose }: Props) {
           <CurrencySelect
             value={currency}
             onChange={setCurrency}
-            locked={account?.hasTransactions !== false}
+            locked={lock != null}
+            lockedHint={lock ? CURRENCY_LOCK_HINT[lock] : undefined}
           />
 
           <div>

@@ -318,8 +318,13 @@ export interface Account {
   type: AccountType;
   /** Every amount in the account (balance, starting balance, transactions) is in it */
   currency: Currency;
-  /** False while the account has no transactions: only then can its currency change */
+  /** False while the account has no transactions */
   hasTransactions?: boolean;
+  /**
+   * What ties the account to its currency: its transactions, a recurring item that uses it
+   * or a goal linked to it. Null when nothing does: only then can the currency change.
+   */
+  currencyLockedBy?: 'transactions' | 'recurring' | 'goal' | null;
   /** Its Account Group (accounts with the same name are shown together); null = none */
   groupName?: string | null;
   startingBalance: number;

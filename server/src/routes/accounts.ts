@@ -9,6 +9,7 @@ import { accountTypeSchema, defaultOffBudget } from '../utils/accountTypes.js';
 import { currencySchema, HOME_CURRENCY } from '../utils/currency.js';
 import { groupNameSchema, resolveGroupName } from '../utils/accountGroups.js';
 import { accountTransactionSum, inAccountBalance } from '../services/balances.js';
+import { CURRENCY_LOCK_MESSAGE, currencyLockLookup } from '../services/accountCurrency.js';
 
 export const accountsRouter = Router();
 
@@ -33,15 +34,6 @@ const createSchema = z.object({
 // that only renames an account would otherwise reset its starting balance to 0
 const updateSchema = z.object(fields).partial().extend({ logo: logoSchema.optional() });
 
-function hasTransactions(accountId: string): boolean {
-  return !!db
-    .select({ id: transactions.id })
-    .from(transactions)
-    .where(eq(transactions.accountId, accountId))
-    .limit(1)
-    .get();
-}
-
 /** The group name to store: the spelling the other open accounts already use, if any */
 function groupNameFor(name: string | null, accountId?: string): string | null {
   const others = db
@@ -56,12 +48,17 @@ function groupNameFor(name: string | null, accountId?: string): string | null {
   );
 }
 
-/** `hasTransactions` tells the edit dialog whether the currency can still change. */
-function withBalance(account: typeof accounts.$inferSelect) {
+/**
+ * `currencyLockedBy` tells the edit dialog whether the currency can still change, and why
+ * not. `hasTransactions` stays for an app that was loaded before `currencyLockedBy` existed.
+ */
+function withBalance(account: typeof accounts.$inferSelect, lockOf = currencyLockLookup()) {
+  const currencyLockedBy = lockOf(account.id);
   return {
     ...account,
     balance: account.startingBalance + accountTransactionSum(account.id),
-    hasTransactions: hasTransactions(account.id),
+    hasTransactions: currencyLockedBy === 'transactions',
+    currencyLockedBy,
   };
 }
 
@@ -86,11 +83,13 @@ accountsRouter.get('/', (_req, res) => {
 
   // Every split child has a parent in the same account, so these are all accounts with rows
   const sumMap = new Map(sums.map((s) => [s.accountId, s.sum]));
+  const lockOf = currencyLockLookup();
   res.json(
     rows.map((a) => ({
       ...a,
       balance: a.startingBalance + (sumMap.get(a.id) ?? 0),
       hasTransactions: sumMap.has(a.id),
+      currencyLockedBy: lockOf(a.id),
     })),
   );
 });
@@ -175,18 +174,18 @@ accountsRouter.put('/:id', (req, res) => {
   const parsed = updateSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
 
-  // Amounts are stored in the account's currency, so changing it would silently turn
-  // every existing transaction's pesos into dollars (or back)
+  // Amounts are stored in the account's currency, so changing it would silently turn every
+  // existing transaction's pesos into dollars (or back), and the same for the amount of a
+  // recurring item or a linked goal
   if (parsed.data.currency) {
     const current = db
       .select({ currency: accounts.currency })
       .from(accounts)
       .where(eq(accounts.id, req.params.id))
       .get();
-    if (current && current.currency !== parsed.data.currency && hasTransactions(req.params.id)) {
-      return res
-        .status(409)
-        .json({ error: "An account's currency can't change once it has transactions" });
+    const lock = currencyLockLookup()(req.params.id);
+    if (current && current.currency !== parsed.data.currency && lock) {
+      return res.status(409).json({ error: CURRENCY_LOCK_MESSAGE[lock] });
     }
   }
 
