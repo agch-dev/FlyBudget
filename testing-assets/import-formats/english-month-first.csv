@@ -1,0 +1,7 @@
+Date,Description,Amount,Notes
+09/02/2026,Coffee Shop,-4.50,
+09/02/2026,Coffee Shop,-4.50,a second coffee the same day
+09/13/2026,Grocery Store,"-1,234.56",thousands separator
+09/14/2026,Bank Fee,(25.00),parentheses mean negative
+09/15/2026,Paycheck,"$2,500.00",currency sign
+09/16/2026,Pharmacy,18.20-,trailing minus

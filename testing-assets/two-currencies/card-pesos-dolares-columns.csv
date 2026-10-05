@@ -1,0 +1,13 @@
+Cliente,Número de tarjeta de crédito,Alias,Fecha de corte,Límite de crédito (US$),Límite de crédito ($),
+"Perez, Ana",XXXXX-0000,Visa,04/10/2026,"0,00","40.000,00",
+
+Período,
+Desde:,01/09/2026,Hasta:,30/09/2026
+
+Movimientos,
+Fecha,Número de tarjeta,Número de autorización,Descripción,Importe original,Pesos,Dólares,
+04/09/2026,XXXXX-0000,770,Streaming,"0,00","0,00","9,99",
+19/09/2026,XXXXX-0000,771,Supermercado,"0,00","1.343,28","0,00",
+20/09/2026,,772,Pago Automatico,"0,00","-13.821,26","0,00",
+21/09/2026,XXXXX-0000,773,Reembolso,"0,00","0,00","-4,99",
+22/09/2026,XXXXX-0000,774,Hotel,"0,00","0,00","120,00",

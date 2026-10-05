@@ -1,0 +1,17 @@
+Cliente,Perez Ana,
+Cuenta,Ca Total Convenio,
+Moneda,UYU,
+
+Movimientos,
+Desde:,01/09/2026,Hasta:,30/09/2026
+
+Fecha,Referencia,Concepto,Descripción,Débito,Crédito,Saldos,
+,,Saldo inicial,,,,15919.26
+
+02/09/2026,764991,DEBITO OPERACION EN BANCA DIGITAL,-6425.00,,9494.26,
+
+03/09/2026,764992,CREDITO POR SUELDO,,80000.00,89494.26,
+
+15/09/2026,764993,COMPRA SUPERMERCADO,-2310.50,,87183.76,
+
+,,Saldo final,,,,87183.76

@@ -1,0 +1,10 @@
+Date,Description,Amount,Notes
+2026-09-10,=1+1,-10.00,=2+2
+2026-09-11,+59899000000,-11.00,
+2026-09-12,-Discount Store,-12.00,
+2026-09-13,@handle,-13.00,@note
+2026-09-14,<script>alert(1)</script>,-14.00,<b>bold</b>
+2026-09-15,"Smith, John ""Jr""",-15.00,"a comma, and ""quotes"""
+2026-09-16,"Two
+lines",-16.00,a line break inside the payee
+2026-09-17,Long payee Long payee Long payee Long payee Long payee Long payee Long payee Long payee Long payee Long payee Long payee Long payee Long payee Long payee Long payee Long payee Long payee Long payee Long payee Long payee Long payee Long payee Long payee Long payee Long payee Long payee Long payee Long payee Long payee Long payee Long payee Long payee Long payee Long payee Long payee Long payee Long payee Long payee Long payee Long payee Long payee Long payee Long payee Long payee Long payee Long payee Long payee Long payee Long payee Long payee Long payee Long payee Long payee Long payee Long payee Long payee Long payee Long payee Long payee Long payee,-17.00,660 characters of payee
