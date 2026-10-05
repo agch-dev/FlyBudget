@@ -1,10 +1,16 @@
+import { useTranslation } from 'react-i18next';
 import { format, parseISO, differenceInCalendarDays } from 'date-fns';
 import { formatCurrency } from '../../utils/currency';
 import type { ScheduleOccurrence } from '../../types';
 import StatusBadge from './StatusBadge';
 import RowMenu, { type RowMenuItem } from '../ui/RowMenu';
 import { useIsPhone } from '../../hooks/useIsPhone';
-import { FREQ_LABEL, formatScheduleAmount, occurrenceBadgeStatus } from './scheduleFormat';
+import {
+  dueText,
+  formatScheduleAmount,
+  frequencyLabel,
+  occurrenceBadgeStatus,
+} from './scheduleFormat';
 
 /** Shared with the section header in MonthlyTab so columns line up. */
 export const OCCURRENCE_GRID =
@@ -33,6 +39,7 @@ export default function RecurringItemRow({
   onMatch,
   onUnmatch,
 }: Props) {
+  const { t } = useTranslation('recurring');
   const isPhone = useIsPhone();
   const daysUntil = differenceInCalendarDays(parseISO(occ.expectedDate), new Date());
   const isPaid = occ.displayStatus === 'paid';
@@ -44,35 +51,30 @@ export default function RecurringItemRow({
   const hasDifferentAmount =
     isPaid && occ.matchedAmount !== null && occ.matchedAmount !== occ.expectedAmount;
 
-  let relative: { text: string; tone: string } | null = null;
-  if (occ.displayStatus === 'waiting') {
-    const n = Math.abs(daysUntil);
-    relative = { text: `${n} ${n === 1 ? 'day' : 'days'} overdue`, tone: 'text-negative' };
-  } else if (isPending) {
-    relative = {
-      text: daysUntil === 0 ? 'Today' : daysUntil === 1 ? 'Tomorrow' : `in ${daysUntil} days`,
-      tone: 'text-text-tertiary',
-    };
-  }
+  const due = dueText(occ.displayStatus, daysUntil);
+  const relative = due && {
+    text: due,
+    tone: occ.displayStatus === 'waiting' ? 'text-negative' : 'text-text-tertiary',
+  };
 
   const menu: RowMenuItem[] = [
     {
-      label: 'Mark as paid',
+      label: t('row.markPaid'),
       onClick: () => onMarkPaid?.(),
       hidden: !isPending || !onMarkPaid,
     },
     {
-      label: 'Match to transaction',
+      label: t('row.match'),
       onClick: () => onMatch?.(),
       hidden: !isPending || !onMatch,
     },
-    { label: 'Skip', onClick: () => onSkip?.(), hidden: !isPending || !onSkip },
+    { label: t('row.skip'), onClick: () => onSkip?.(), hidden: !isPending || !onSkip },
     {
-      label: 'Unlink transaction',
+      label: t('row.unlink'),
       onClick: () => onUnmatch?.(),
       hidden: !isPaid || !onUnmatch,
     },
-    { label: 'Edit recurring', onClick: () => onEdit?.(), hidden: !onEdit },
+    { label: t('row.edit'), onClick: () => onEdit?.(), hidden: !onEdit },
   ];
   const amount = (
     <p
@@ -83,7 +85,8 @@ export default function RecurringItemRow({
       {formatScheduleAmount(occ.expectedAmount, occ.amountType, occ.currency)}
     </p>
   );
-  const frequency = FREQ_LABEL.get(occ.recurrenceType) ?? occ.recurrenceType;
+  const frequency = frequencyLabel(occ.recurrenceType);
+  const date = format(parseISO(occ.expectedDate), t('dateFormat.monthDay'));
 
   // Phones: a card. Name and amount on top; date, account and status below
   if (isPhone) {
@@ -105,21 +108,21 @@ export default function RecurringItemRow({
             {amount}
           </div>
           <p className="text-xs text-text-tertiary truncate mt-0.5">
-            {format(parseISO(occ.expectedDate), 'MMM d')}
+            {date}
             {relative && <span className={relative.tone}> · {relative.text}</span>} · {frequency}
             {accountName ? ` · ${accountName}` : ''}
           </p>
           <div className="mt-1.5 flex items-center gap-2">
             <StatusBadge status={occurrenceBadgeStatus(occ, upcomingDays)} />
             {hasDifferentAmount && (
-              <span className="text-xs text-caution tabular-nums" title="Actual paid amount">
-                Paid {formatCurrency(occ.matchedAmount!, occ.currency)}
+              <span className="text-xs text-caution tabular-nums" title={t('row.actualPaid')}>
+                {t('row.paid', { amount: formatCurrency(occ.matchedAmount!, occ.currency) })}
               </span>
             )}
           </div>
         </div>
         <div onClick={(e) => e.stopPropagation()}>
-          <RowMenu label={`Actions for ${occ.scheduleName}`} items={menu} />
+          <RowMenu label={t('row.actionsFor', { name: occ.scheduleName })} items={menu} />
         </div>
       </div>
     );
@@ -144,7 +147,7 @@ export default function RecurringItemRow({
 
       <div className="min-w-0">
         <p className={`text-sm tabular-nums ${isMuted ? 'text-text-tertiary' : 'text-text'}`}>
-          {format(parseISO(occ.expectedDate), 'MMM d')}
+          {date}
         </p>
         {relative && <p className={`text-xs ${relative.tone}`}>{relative.text}</p>}
       </div>
@@ -158,14 +161,14 @@ export default function RecurringItemRow({
       <div className="text-right">
         {amount}
         {hasDifferentAmount && (
-          <p className="text-xs text-caution tabular-nums" title="Actual paid amount">
+          <p className="text-xs text-caution tabular-nums" title={t('row.actualPaid')}>
             {formatCurrency(occ.matchedAmount!, occ.currency)}
           </p>
         )}
       </div>
 
       <div onClick={(e) => e.stopPropagation()}>
-        <RowMenu label={`Actions for ${occ.scheduleName}`} items={menu} />
+        <RowMenu label={t('row.actionsFor', { name: occ.scheduleName })} items={menu} />
       </div>
     </div>
   );

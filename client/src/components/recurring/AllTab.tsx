@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { format, parseISO, subDays, addDays } from 'date-fns';
 import { Search, Sparkles, Clock, Plus, Repeat } from 'lucide-react';
 import { useAccounts } from '../../hooks/useAccounts';
@@ -11,12 +12,13 @@ import {
   useSkipOccurrence,
 } from '../../hooks/useSchedules';
 import { ConfirmModal } from '../ui/ConfirmModal';
-import StatusBadge, { statusLabel, type RecurringBadgeStatus } from './StatusBadge';
+import StatusBadge, { type RecurringBadgeStatus } from './StatusBadge';
 import RowMenu, { type RowMenuItem } from '../ui/RowMenu';
 import { useIsPhone } from '../../hooks/useIsPhone';
 import {
-  FREQ_LABEL,
   formatScheduleAmount,
+  frequencyLabel,
+  statusLabel,
   getUpcomingDays,
   occurrenceBadgeStatus,
   describeUpcomingLength,
@@ -82,6 +84,7 @@ export default function AllTab({
   onFind,
   onChangeUpcomingLength,
 }: Props) {
+  const { t, i18n } = useTranslation('recurring');
   const upcomingLength = usePreferencesStore((s) => s.upcomingLength);
   const upcomingDays = getUpcomingDays(upcomingLength);
   const [filter, setFilter] = useState('');
@@ -131,11 +134,12 @@ export default function AllTab({
         r.accountName,
         formatScheduleAmount(r.schedule.amount, r.schedule.amountType, r.schedule.currency),
         statusLabel(r.status),
-        r.nextDate ? format(parseISO(r.nextDate), 'MMM d, yyyy') : '',
-        FREQ_LABEL.get(r.schedule.recurrenceType) ?? '',
+        r.nextDate ? format(parseISO(r.nextDate), t('datePattern.medium', { ns: 'common' })) : '',
+        frequencyLabel(r.schedule.recurrenceType),
       ].some((f) => f.toLowerCase().includes(q)),
     );
-  }, [rows, filter]);
+    // The search reads statuses, dates and frequencies as written, so it follows the language
+  }, [rows, filter, t, i18n.language]);
 
   const isPhone = useIsPhone();
   const active = filtered.filter((r) => r.schedule.status !== 'canceled');
@@ -148,7 +152,7 @@ export default function AllTab({
     const muted = isPaused || isCanceled;
     const menu: RowMenuItem[] = [
       {
-        label: 'Mark next as paid',
+        label: t('all.markNextPaid'),
         hidden: !r.nextOcc || isCanceled,
         onClick: () =>
           r.nextOcc &&
@@ -159,29 +163,29 @@ export default function AllTab({
           }),
       },
       {
-        label: 'Skip next date',
+        label: t('all.skipNext'),
         hidden: !r.nextOcc || isCanceled,
         onClick: () => r.nextOcc && skipOcc.mutate(r.nextOcc.id),
       },
       {
-        label: isPaused ? 'Resume' : 'Pause',
+        label: isPaused ? t('all.resume') : t('all.pause'),
         hidden: isCanceled,
         onClick: () => updateSchedule.mutate({ id: s.id, status: isPaused ? 'active' : 'paused' }),
       },
       {
-        label: 'Restart',
+        label: t('all.restart'),
         hidden: !isCanceled,
         onClick: () => updateSchedule.mutate({ id: s.id, status: 'active' }),
       },
-      { label: 'Edit', onClick: () => onEdit(s) },
+      { label: t('all.edit'), onClick: () => onEdit(s) },
       {
-        label: 'Cancel recurring',
+        label: t('all.cancel'),
         danger: true,
         hidden: isCanceled,
         onClick: () => setConfirm({ schedule: s, hard: false }),
       },
       {
-        label: 'Delete permanently',
+        label: t('all.deletePermanently'),
         danger: true,
         hidden: !isCanceled,
         onClick: () => setConfirm({ schedule: s, hard: true }),
@@ -196,8 +200,10 @@ export default function AllTab({
         {formatScheduleAmount(s.amount, s.amountType, s.currency)}
       </span>
     );
-    const nextDate = r.nextDate ? format(parseISO(r.nextDate), 'MMM d, yyyy') : '—';
-    const frequency = FREQ_LABEL.get(s.recurrenceType) ?? s.recurrenceType;
+    const nextDate = r.nextDate
+      ? format(parseISO(r.nextDate), t('datePattern.medium', { ns: 'common' }))
+      : '—';
+    const frequency = frequencyLabel(s.recurrenceType);
 
     // Phones: a card. Name and amount on top; payee, account and frequency, then the status
     // and next date
@@ -222,11 +228,13 @@ export default function AllTab({
             </p>
             <div className="mt-1.5 flex items-center gap-2 text-xs text-text-secondary">
               <StatusBadge status={r.status} />
-              {r.nextDate && <span className="tabular-nums">Next {nextDate}</span>}
+              {r.nextDate && (
+                <span className="tabular-nums">{t('all.next', { date: nextDate })}</span>
+              )}
             </div>
           </div>
           <div onClick={(e) => e.stopPropagation()}>
-            <RowMenu label={`Actions for ${s.name}`} items={menu} />
+            <RowMenu label={t('row.actionsFor', { name: s.name })} items={menu} />
           </div>
         </div>
       );
@@ -253,7 +261,7 @@ export default function AllTab({
         {amount}
         <span className="text-sm text-text-secondary truncate">{frequency}</span>
         <div onClick={(e) => e.stopPropagation()}>
-          <RowMenu label={`Actions for ${s.name}`} items={menu} />
+          <RowMenu label={t('row.actionsFor', { name: s.name })} items={menu} />
         </div>
       </div>
     );
@@ -264,15 +272,16 @@ export default function AllTab({
       <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
         <div className="flex items-center gap-2">
           <Button variant="secondary" size="sm" onClick={onFind} className="max-md:hidden">
-            <Sparkles size={13} /> Find recurring
+            <Sparkles size={13} /> {t('page.find')}
           </Button>
           <Button
             variant="secondary"
             size="sm"
             onClick={onChangeUpcomingLength}
-            title="Change upcoming length"
+            title={t('all.changeUpcoming')}
           >
-            <Clock size={13} /> Upcoming: {describeUpcomingLength(upcomingLength)}
+            <Clock size={13} />{' '}
+            {t('all.upcoming', { length: describeUpcomingLength(upcomingLength) })}
           </Button>
         </div>
         <div className="relative w-72 max-md:w-full">
@@ -283,7 +292,7 @@ export default function AllTab({
           <input
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
-            placeholder="Filter recurring…"
+            placeholder={t('all.filter')}
             className="w-full text-sm border border-border rounded-md pl-8 pr-3 py-1.5 bg-surface text-text placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-brand-600 focus:border-brand-600"
           />
         </div>
@@ -293,13 +302,13 @@ export default function AllTab({
         <div
           className={`${GRID} max-md:hidden px-5 py-2.5 bg-surface-alt border-b border-border-light text-xs font-medium text-text-tertiary sticky top-0 z-10`}
         >
-          <span>Name</span>
-          <span>Payee</span>
-          <span>Account</span>
-          <span>Next date</span>
-          <span>Status</span>
-          <span className="text-right">Amount</span>
-          <span>Frequency</span>
+          <span>{t('all.name')}</span>
+          <span>{t('all.payee')}</span>
+          <span>{t('all.account')}</span>
+          <span>{t('all.nextDate')}</span>
+          <span>{t('all.status')}</span>
+          <span className="text-right">{t('all.amount')}</span>
+          <span>{t('all.frequency')}</span>
           <span />
         </div>
 
@@ -307,21 +316,21 @@ export default function AllTab({
           (!canceled.length || !showCanceled) &&
           (filter || allRecurring.length > 0 ? (
             <p className="py-16 text-center text-sm italic text-text-tertiary">
-              {filter ? 'No matching recurring items' : 'No active recurring items'}
+              {filter ? t('all.noMatching') : t('all.noActive')}
             </p>
           ) : (
             <EmptyState
               icon={<Repeat size={26} />}
-              title="No recurring items yet"
-              description="Add bills, subscriptions and paychecks to see what’s due and when, or let FlyBudget find them in the transactions you already have."
+              title={t('all.emptyTitle')}
+              description={t('all.emptyDescription')}
               learnMoreHref={docsUrl('recurring')}
               actions={
                 <>
                   <Button variant="secondary" onClick={onFind}>
-                    <Sparkles size={14} /> Find recurring
+                    <Sparkles size={14} /> {t('page.find')}
                   </Button>
                   <Button onClick={onAdd}>
-                    <Plus size={14} /> Add recurring
+                    <Plus size={14} /> {t('page.add')}
                   </Button>
                 </>
               }
@@ -337,7 +346,7 @@ export default function AllTab({
               onClick={() => setShowCanceled(true)}
               className="w-full py-2.5 text-center text-sm italic text-text-tertiary hover:bg-hover transition-colors cursor-pointer"
             >
-              Show canceled recurring ({canceled.length})
+              {t('all.showCanceled', { total: canceled.length })}
             </button>
           ))}
       </div>
@@ -349,13 +358,13 @@ export default function AllTab({
           if (confirm) deleteSchedule.mutate({ id: confirm.schedule.id, hard: confirm.hard });
           setConfirm(null);
         }}
-        title={confirm?.hard ? 'Delete recurring item?' : 'Cancel recurring item?'}
+        title={confirm?.hard ? t('all.deleteTitle') : t('all.cancelTitle')}
         message={
           confirm?.hard
-            ? `"${confirm.schedule.name}" will be permanently deleted. This cannot be undone.`
-            : `"${confirm?.schedule.name}" will stop generating occurrences. You can restart it from the canceled list.`
+            ? t('all.deleteMessage', { name: confirm.schedule.name })
+            : t('all.cancelMessage', { name: confirm?.schedule.name ?? '' })
         }
-        confirmLabel={confirm?.hard ? 'Delete' : 'Cancel item'}
+        confirmLabel={confirm?.hard ? t('all.deleteConfirm') : t('all.cancelConfirm')}
         danger
       />
     </div>

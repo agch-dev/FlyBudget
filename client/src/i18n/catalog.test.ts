@@ -6,7 +6,7 @@ import { CATALOGS, NAMESPACES, catalogKeys, type Namespace } from './catalog';
  * namespace off this list when you translate it: from then on a key missing from either
  * language fails this test. The list is empty once the whole app is translated.
  */
-const STILL_TO_TRANSLATE: Namespace[] = ['recurring', 'rules', 'goals', 'settings'];
+const STILL_TO_TRANSLATE: Namespace[] = ['settings'];
 
 const text = (catalog: object, key: string): string =>
   key.split('.').reduce((node, part) => (node as Record<string, object>)[part], catalog) as never;

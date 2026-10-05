@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { format, startOfMonth, endOfMonth, addMonths, subMonths, parseISO } from 'date-fns';
 import {
   ChevronLeft,
@@ -38,35 +39,41 @@ interface Props {
 type View = 'list' | 'calendar';
 
 function SummaryColumn({
-  label,
-  verb,
+  kind,
   totals,
   barClass,
 }: {
-  label: string;
-  verb: string;
+  kind: 'income' | 'expenses';
   totals: OccurrenceTotals;
   barClass: string;
 }) {
+  const { t } = useTranslation('recurring');
   const pct = totals.total > 0 ? Math.min(100, (totals.paid / totals.total) * 100) : 0;
   return (
     <div className="flex-1 px-5 py-4 min-w-0">
-      <p className="text-xs font-medium text-text-secondary">{label}</p>
+      <p className="text-xs font-medium text-text-secondary">{t(`monthly.${kind}`)}</p>
       {totals.total > 0 ? (
         <>
           <p className="text-lg font-semibold text-text tabular-nums mt-0.5">
-            {formatCurrency(totals.remaining)}{' '}
-            <span className="text-xs font-normal text-text-tertiary">remaining</span>
+            <Trans
+              t={t}
+              i18nKey="monthly.remaining"
+              values={{ amount: formatCurrency(totals.remaining) }}
+              components={{ small: <span className="text-xs font-normal text-text-tertiary" /> }}
+            />
           </p>
           <div className="h-1.5 bg-surface-alt rounded-full overflow-hidden mt-2">
             <div className={`h-full rounded-full ${barClass}`} style={{ width: `${pct}%` }} />
           </div>
           <p className="text-xs text-text-tertiary tabular-nums mt-1.5">
-            {formatCurrency(totals.paid)} {verb} of {formatCurrency(totals.total)}
+            {t(kind === 'income' ? 'monthly.receivedOf' : 'monthly.paidOf', {
+              paid: formatCurrency(totals.paid),
+              total: formatCurrency(totals.total),
+            })}
           </p>
         </>
       ) : (
-        <p className="text-sm text-text-tertiary mt-1">None this month</p>
+        <p className="text-sm text-text-tertiary mt-1">{t('monthly.noneThisMonth')}</p>
       )}
     </div>
   );
@@ -79,6 +86,7 @@ export default function MonthlyTab({
   allRecurring,
   onMatchOccurrence,
 }: Props) {
+  const { t } = useTranslation('recurring');
   const upcomingDays = getUpcomingDays(usePreferencesStore((s) => s.upcomingLength));
   const [month, setMonth] = useState(format(new Date(), 'yyyy-MM'));
   const [view, setView] = useState<View>('list');
@@ -116,8 +124,8 @@ export default function MonthlyTab({
     document
       .querySelector(`[data-date="${highlightDate}"]`)
       ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    const t = setTimeout(() => setHighlightDate(null), 2000);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setHighlightDate(null), 2000);
+    return () => clearTimeout(timer);
   }, [highlightDate, view]);
 
   function renderSection(title: string, items: ScheduleOccurrence[]) {
@@ -132,10 +140,10 @@ export default function MonthlyTab({
           className={`${OCCURRENCE_GRID} max-md:hidden px-5 py-2 bg-surface-alt border-y border-border-light text-xs font-medium text-text-tertiary`}
         >
           <span className="text-text-secondary font-semibold">{title}</span>
-          <span>Date</span>
-          <span>Account</span>
-          <span>Status</span>
-          <span className="text-right">Amount</span>
+          <span>{t('monthly.date')}</span>
+          <span>{t('monthly.account')}</span>
+          <span>{t('monthly.status')}</span>
+          <span className="text-right">{t('monthly.amount')}</span>
           <span />
         </div>
         {items.map((occ) => (
@@ -174,19 +182,21 @@ export default function MonthlyTab({
       <div className="bg-surface rounded-lg shadow-card border border-border-light">
         {/* Card header: month + navigation + view toggle */}
         <div className="flex flex-wrap items-center justify-between gap-2 px-5 py-3 border-b border-border-light">
-          <h2 className="text-base font-semibold text-text">{format(monthDate, 'MMMM yyyy')}</h2>
+          <h2 className="text-base font-semibold text-text first-letter:uppercase">
+            {format(monthDate, t('dateFormat.monthYear'))}
+          </h2>
           <div className="flex flex-wrap items-center gap-1.5 max-md:w-full">
             <button
               className={navBtn}
               onClick={() => setMonth(format(subMonths(monthDate, 1), 'yyyy-MM'))}
-              aria-label="Previous month"
+              aria-label={t('monthly.previousMonth')}
             >
               <ChevronLeft size={16} />
             </button>
             <button
               className={navBtn}
               onClick={() => setMonth(format(addMonths(monthDate, 1), 'yyyy-MM'))}
-              aria-label="Next month"
+              aria-label={t('monthly.nextMonth')}
             >
               <ChevronRight size={16} />
             </button>
@@ -195,16 +205,16 @@ export default function MonthlyTab({
               disabled={isCurrentMonth}
               className="px-2.5 py-1 max-md:min-h-11 text-xs font-medium border border-border rounded-md text-text-secondary hover:bg-hover disabled:opacity-50 disabled:cursor-default transition-colors cursor-pointer"
             >
-              Today
+              {t('monthly.today')}
             </button>
             <div className="w-px h-5 bg-border mx-1 max-md:hidden" />
             <div className="flex border border-border rounded-md overflow-hidden max-md:ml-auto">
               {(
                 [
-                  ['list', 'List', List],
-                  ['calendar', 'Calendar', CalendarDays],
+                  ['list', List],
+                  ['calendar', CalendarDays],
                 ] as const
-              ).map(([id, label, Icon]) => (
+              ).map(([id, Icon]) => (
                 <button
                   key={id}
                   onClick={() => setView(id)}
@@ -215,7 +225,7 @@ export default function MonthlyTab({
                   } ${id === 'calendar' ? 'border-l border-border' : ''}`}
                 >
                   <Icon size={13} aria-hidden />
-                  <span className="max-md:sr-only">{label}</span>
+                  <span className="max-md:sr-only">{t(`monthly.${id}`)}</span>
                 </button>
               ))}
             </div>
@@ -224,18 +234,8 @@ export default function MonthlyTab({
 
         {/* Summary strip */}
         <div className="flex divide-x divide-border-light">
-          <SummaryColumn
-            label="Income"
-            verb="received"
-            totals={incomeTotals}
-            barClass="bg-positive"
-          />
-          <SummaryColumn
-            label="Expenses"
-            verb="paid"
-            totals={expenseTotals}
-            barClass="bg-negative"
-          />
+          <SummaryColumn kind="income" totals={incomeTotals} barClass="bg-positive" />
+          <SummaryColumn kind="expenses" totals={expenseTotals} barClass="bg-negative" />
         </div>
       </div>
 
@@ -249,24 +249,20 @@ export default function MonthlyTab({
         <div className="bg-surface rounded-lg shadow-card border border-border-light">
           <EmptyState
             icon={<Repeat size={26} />}
-            title={
-              allRecurring.length === 0
-                ? 'Track your bills, subscriptions and paychecks'
-                : 'No recurring items this month'
-            }
+            title={allRecurring.length === 0 ? t('monthly.emptyTitle') : t('monthly.nothingTitle')}
             description={
               allRecurring.length === 0
-                ? 'See what’s due and what’s been paid each month. Add them one by one, or let FlyBudget find them in the transactions you already have.'
-                : 'Nothing is scheduled for this month.'
+                ? t('monthly.emptyDescription')
+                : t('monthly.nothingDescription')
             }
             learnMoreHref={allRecurring.length === 0 ? docsUrl('recurring') : undefined}
             actions={
               <>
                 <Button variant="secondary" size="sm" onClick={onFind}>
-                  <Sparkles size={13} /> Find recurring
+                  <Sparkles size={13} /> {t('page.find')}
                 </Button>
                 <Button size="sm" onClick={onAdd}>
-                  <Plus size={13} /> Add recurring
+                  <Plus size={13} /> {t('page.add')}
                 </Button>
               </>
             }
@@ -285,8 +281,8 @@ export default function MonthlyTab({
         </div>
       ) : (
         <div className="bg-surface rounded-lg shadow-card border border-border-light overflow-hidden">
-          {renderSection('Income', income)}
-          {renderSection('Expenses', expenses)}
+          {renderSection(t('monthly.income'), income)}
+          {renderSection(t('monthly.expenses'), expenses)}
         </div>
       )}
     </div>

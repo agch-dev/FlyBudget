@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { useFormReset } from '../../hooks/useFormReset';
 import { Modal } from '../ui/Modal';
 import { Input, Select } from '../ui/Input';
@@ -12,12 +13,9 @@ import { SavingPausedHint } from '../connection/SavingPausedHint';
 import { format } from 'date-fns';
 import { Button } from '../ui/Button';
 import { formatCurrency } from '../../utils/currency';
-import { amountNeedsConfirming } from './scheduleFormat';
+import { RECURRENCE_TYPES, amountNeedsConfirming, frequencyLabel } from './scheduleFormat';
 import {
-  CURRENCIES,
   HOME_CURRENCY,
-  RECURRENCE_TYPE_LABELS,
-  type Currency,
   type Schedule,
   type RecurrenceType,
   type AmountType,
@@ -31,20 +29,11 @@ interface Props {
   editItem?: Schedule | null;
 }
 
-const AMOUNT_TYPE_OPTIONS: { value: AmountType; label: string }[] = [
-  { value: 'exact', label: 'Exact' },
-  { value: 'approximate', label: 'Approx' },
-  { value: 'variable', label: 'Variable' },
-];
-
-const WEEKEND_ADJUST_OPTIONS: { value: WeekendAdjust; label: string }[] = [
-  { value: 'none', label: 'None' },
-  { value: 'before', label: 'Before weekend' },
-  { value: 'after', label: 'After weekend' },
-  { value: 'closest', label: 'Closest weekday' },
-];
+const AMOUNT_TYPES: AmountType[] = ['exact', 'approximate', 'variable'];
+const WEEKEND_ADJUSTS: WeekendAdjust[] = ['none', 'before', 'after', 'closest'];
 
 export default function RecurringFormModal({ isOpen, onClose, onSave, editItem }: Props) {
+  const { t } = useTranslation('recurring');
   const { data: accounts = [] } = useAccounts();
   const { data: payees = [] } = usePayees();
   const canSave = useCanSave();
@@ -177,33 +166,31 @@ export default function RecurringFormModal({ isOpen, onClose, onSave, editItem }
 
   if (confirming && editItem) {
     const now = currency ?? HOME_CURRENCY;
-    const currencyName = (c: Currency) =>
-      CURRENCIES.find((x) => x.value === c)?.label.toLowerCase() ?? c;
     const account = accounts.find((a) => a.id === accountId);
     return (
-      <Modal isOpen={isOpen} onClose={onClose} title="Check the amount" size="sm">
+      <Modal isOpen={isOpen} onClose={onClose} title={t('checkAmount.title')} size="sm">
         <div className="space-y-4">
           <p className="text-sm text-text-secondary">
             {account
-              ? `${account.name} is in ${currencyName(now)}`
-              : 'With no account it is in pesos'}
-            , so this recurring item changes from {currencyName(editItem.currency ?? HOME_CURRENCY)}{' '}
-            to {currencyName(now)}. Its amount keeps its number and is not converted.
+              ? t(`checkAmount.account.${now}`, { account: account.name })
+              : t('checkAmount.noAccount')}
           </p>
           <dl className="text-sm rounded-md border border-border-light">
             <div className="flex justify-between px-3 py-2">
-              <dt className="text-text-secondary">{isExpense ? 'Expense' : 'Income'}</dt>
+              <dt className="text-text-secondary">
+                {isExpense ? t('form.expense') : t('form.income')}
+              </dt>
               <dd className="font-medium tabular-nums text-text">{formatCurrency(amount, now)}</dd>
             </div>
           </dl>
-          <p className="text-sm text-text-secondary">Is that the right amount?</p>
+          <p className="text-sm text-text-secondary">{t('checkAmount.question')}</p>
           <SavingPausedHint className="text-right" />
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="secondary" onClick={() => setConfirming(false)}>
-              Change amount
+              {t('checkAmount.change')}
             </Button>
             <Button onClick={save} disabled={!canSave}>
-              Yes, save
+              {t('checkAmount.save')}
             </Button>
           </div>
         </div>
@@ -215,18 +202,20 @@ export default function RecurringFormModal({ isOpen, onClose, onSave, editItem }
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={editItem ? 'Edit Recurring' : 'Add Recurring'}
+      title={editItem ? t('form.editTitle') : t('form.addTitle')}
       size="lg"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-text-secondary mb-1">Name</label>
+          <label className="block text-sm font-medium text-text-secondary mb-1">
+            {t('form.name')}
+          </label>
           <Input
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            aria-label="Name"
-            placeholder="e.g. Netflix, Rent, Paycheck…"
+            aria-label={t('form.name')}
+            placeholder={t('form.namePlaceholder')}
             required
           />
         </div>
@@ -234,17 +223,19 @@ export default function RecurringFormModal({ isOpen, onClose, onSave, editItem }
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-text-secondary mb-1">
-              {amountType === 'variable' ? 'Estimated Amount' : 'Amount'}
+              {amountType === 'variable' ? t('form.estimatedAmount') : t('form.amount')}
             </label>
             <CurrencyInput
               value={amount}
               onChange={setAmount}
               currency={currency}
-              aria-label="Amount"
+              aria-label={t('form.amount')}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-text-secondary mb-1">Type</label>
+            <label className="block text-sm font-medium text-text-secondary mb-1">
+              {t('form.type')}
+            </label>
             <div className="flex gap-1 mt-1">
               <button
                 type="button"
@@ -256,7 +247,7 @@ export default function RecurringFormModal({ isOpen, onClose, onSave, editItem }
                     : 'text-text-tertiary hover:bg-hover'
                 }`}
               >
-                Expense
+                {t('form.expense')}
               </button>
               <button
                 type="button"
@@ -268,7 +259,7 @@ export default function RecurringFormModal({ isOpen, onClose, onSave, editItem }
                     : 'text-text-tertiary hover:bg-hover'
                 }`}
               >
-                Income
+                {t('form.income')}
               </button>
             </div>
           </div>
@@ -276,55 +267,57 @@ export default function RecurringFormModal({ isOpen, onClose, onSave, editItem }
 
         <div>
           <label className="block text-sm font-medium text-text-secondary mb-1">
-            Amount Precision
+            {t('form.precision')}
           </label>
           <div className="flex gap-1">
-            {AMOUNT_TYPE_OPTIONS.map((opt) => (
+            {AMOUNT_TYPES.map((value) => (
               <button
-                key={opt.value}
+                key={value}
                 type="button"
-                onClick={() => setAmountType(opt.value)}
-                aria-pressed={amountType === opt.value}
+                onClick={() => setAmountType(value)}
+                aria-pressed={amountType === value}
                 className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg transition-all ${
-                  amountType === opt.value
+                  amountType === value
                     ? 'bg-brand-50 text-brand-600 ring-1 ring-brand-600/20'
                     : 'text-text-tertiary hover:bg-hover'
                 }`}
               >
-                {opt.label}
+                {t(`form.amountType.${value}`)}
               </button>
             ))}
           </div>
           {amountType === 'variable' && (
-            <p className="text-xs text-text-tertiary mt-1">
-              Amount is estimated — used for forecasting and matching, not an exact expectation.
-            </p>
+            <p className="text-xs text-text-tertiary mt-1">{t('form.variableHint')}</p>
           )}
         </div>
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-text-secondary mb-1">Frequency</label>
+            <label className="block text-sm font-medium text-text-secondary mb-1">
+              {t('form.frequency')}
+            </label>
             <Select
-              aria-label="Frequency"
+              aria-label={t('form.frequency')}
               value={recurrenceType}
               onChange={(e) => setRecurrenceType(e.target.value as RecurrenceType)}
             >
-              {RECURRENCE_TYPE_LABELS.map((f) => (
-                <option key={f.value} value={f.value}>
-                  {f.label}
+              {RECURRENCE_TYPES.map((type) => (
+                <option key={type} value={type}>
+                  {frequencyLabel(type)}
                 </option>
               ))}
             </Select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-text-secondary mb-1">Account</label>
+            <label className="block text-sm font-medium text-text-secondary mb-1">
+              {t('form.account')}
+            </label>
             <Select
-              aria-label="Account"
+              aria-label={t('form.account')}
               value={accountId}
               onChange={(e) => setAccountId(e.target.value)}
             >
-              <option value="">No account</option>
+              <option value="">{t('form.noAccount')}</option>
               {accounts.map((a) => (
                 <option key={a.id} value={a.id}>
                   {a.name}
@@ -336,10 +329,12 @@ export default function RecurringFormModal({ isOpen, onClose, onSave, editItem }
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-text-secondary mb-1">Start Date</label>
+            <label className="block text-sm font-medium text-text-secondary mb-1">
+              {t('form.startDate')}
+            </label>
             <Input
               type="date"
-              aria-label="Start date"
+              aria-label={t('form.startDateLabel')}
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
               required
@@ -347,11 +342,15 @@ export default function RecurringFormModal({ isOpen, onClose, onSave, editItem }
           </div>
           <div>
             <label className="block text-sm font-medium text-text-secondary mb-1">
-              End Date <span className="text-text-tertiary font-normal">(optional)</span>
+              <Trans
+                t={t}
+                i18nKey="form.endDate"
+                components={{ small: <span className="text-text-tertiary font-normal" /> }}
+              />
             </label>
             <Input
               type="date"
-              aria-label="End date"
+              aria-label={t('form.endDateLabel')}
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
               min={startDate}
@@ -361,13 +360,23 @@ export default function RecurringFormModal({ isOpen, onClose, onSave, editItem }
 
         <div>
           <label className="block text-sm font-medium text-text-secondary mb-1">
-            Payee <span className="text-text-tertiary font-normal">(optional)</span>
+            <Trans
+              t={t}
+              i18nKey="form.payee"
+              components={{ small: <span className="text-text-tertiary font-normal" /> }}
+            />
           </label>
-          <MerchantSelect value={payeeValue} onChange={setPayeeValue} label="Payee" />
+          <MerchantSelect
+            value={payeeValue}
+            onChange={setPayeeValue}
+            label={t('form.payeeLabel')}
+          />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-text-secondary mb-1">Category</label>
+          <label className="block text-sm font-medium text-text-secondary mb-1">
+            {t('form.category')}
+          </label>
           <CategorySelectButton
             value={categoryId || null}
             onChange={(id) => setCategoryId(id ?? '')}
@@ -377,14 +386,18 @@ export default function RecurringFormModal({ isOpen, onClose, onSave, editItem }
 
         <div>
           <label className="block text-sm font-medium text-text-secondary mb-1">
-            Notes <span className="text-text-tertiary font-normal">(optional)</span>
+            <Trans
+              t={t}
+              i18nKey="form.notes"
+              components={{ small: <span className="text-text-tertiary font-normal" /> }}
+            />
           </label>
           <Input
             type="text"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="Optional notes…"
-            aria-label="Notes"
+            placeholder={t('form.notesPlaceholder')}
+            aria-label={t('form.notesLabel')}
           />
         </div>
 
@@ -396,7 +409,7 @@ export default function RecurringFormModal({ isOpen, onClose, onSave, editItem }
               onChange={(e) => setAutoCreate(e.target.checked)}
               className="rounded border-border text-brand-600 focus:ring-brand-600"
             />
-            <span className="text-sm text-text-secondary">Auto-create transactions</span>
+            <span className="text-sm text-text-secondary">{t('form.autoCreate')}</span>
           </label>
         </div>
 
@@ -407,23 +420,23 @@ export default function RecurringFormModal({ isOpen, onClose, onSave, editItem }
             onClick={() => setShowAdvanced(!showAdvanced)}
             className="text-xs font-medium text-text-tertiary hover:text-text-secondary"
           >
-            {showAdvanced ? '▾ Advanced' : '▸ Advanced'}
+            {showAdvanced ? '▾' : '▸'} {t('form.advanced')}
           </button>
           {showAdvanced && (
             <div className="mt-2 space-y-3 pl-2 border-l-2 border-border-light">
               {showWeekendAdjust && (
                 <div>
                   <label className="block text-xs font-medium text-text-secondary mb-1">
-                    Weekend Adjustment
+                    {t('form.weekendAdjust')}
                   </label>
                   <Select
-                    aria-label="Weekend adjustment"
+                    aria-label={t('form.weekendAdjustLabel')}
                     value={weekendAdjust}
                     onChange={(e) => setWeekendAdjust(e.target.value as WeekendAdjust)}
                   >
-                    {WEEKEND_ADJUST_OPTIONS.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
+                    {WEEKEND_ADJUSTS.map((value) => (
+                      <option key={value} value={value}>
+                        {t(`form.weekendAdjustOption.${value}`)}
                       </option>
                     ))}
                   </Select>
@@ -431,12 +444,15 @@ export default function RecurringFormModal({ isOpen, onClose, onSave, editItem }
               )}
               <div>
                 <label className="block text-xs font-medium text-text-secondary mb-1">
-                  Date Flexibility{' '}
-                  <span className="text-text-tertiary font-normal">(± days for matching)</span>
+                  <Trans
+                    t={t}
+                    i18nKey="form.dateFlexibility"
+                    components={{ small: <span className="text-text-tertiary font-normal" /> }}
+                  />
                 </label>
                 <Input
                   type="number"
-                  aria-label="Date flexibility"
+                  aria-label={t('form.dateFlexibilityLabel')}
                   value={dateFlexibility}
                   onChange={(e) =>
                     setDateFlexibility(Math.max(0, Math.min(14, parseInt(e.target.value) || 0)))
@@ -456,14 +472,14 @@ export default function RecurringFormModal({ isOpen, onClose, onSave, editItem }
             onClick={onClose}
             className="px-4 py-2 text-sm font-medium text-text-secondary bg-surface border border-border rounded-md hover:bg-surface-alt transition-colors"
           >
-            Cancel
+            {t('form.cancel')}
           </button>
           <button
             type="submit"
             disabled={!name || amount === 0 || !canSave}
             className="px-4 py-2 text-sm font-medium text-white bg-brand-600 rounded-md hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            {editItem ? 'Save Changes' : 'Add Recurring'}
+            {editItem ? t('form.saveChanges') : t('form.add')}
           </button>
         </div>
       </form>

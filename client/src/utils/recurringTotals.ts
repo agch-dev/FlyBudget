@@ -1,6 +1,7 @@
 import { HOME_CURRENCY, type Currency, type ScheduleOccurrence } from '../types';
 import { amountIn, convertedNote } from './conversion';
 import { formatCurrency } from './currency';
+import { t } from '../i18n';
 
 // Totals over recurring items of both currencies. The server converts (docs/adr/0001) and
 // sends each occurrence's amounts in the other currency: the expected amount at the rate of
@@ -77,5 +78,7 @@ export function expectedNote(
   if ((item.currency ?? HOME_CURRENCY) === totalCurrency) return null;
   const converted = amountIn(item, totalCurrency);
   if (converted === null) return null;
-  return `${formatCurrency(Math.abs(converted), totalCurrency)} at today's exchange rate`;
+  return t('recurring:atTodaysRate', {
+    amount: formatCurrency(Math.abs(converted), totalCurrency),
+  });
 }

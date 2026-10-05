@@ -488,6 +488,16 @@ export type RuleCondition =
 
 export type RuleConditionOp = RuleCondition['op'];
 
+/** The operators a condition on field `F` can have (`F` is one field, not a union) */
+export type RuleOpsOf<F extends RuleConditionField, C = RuleCondition> = C extends {
+  field: infer CF;
+  op: infer Op;
+}
+  ? F extends CF
+    ? Op
+    : never
+  : never;
+
 export interface RuleSplitPart {
   kind: 'fixed' | 'percent' | 'remainder';
   /** cents for fixed, 0–100 for percent, unused for remainder */

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Copy, GripVertical, Pencil, Play, Plus, Search, Trash2, Wand2 } from 'lucide-react';
 import {
   DndContext,
@@ -70,7 +71,8 @@ function RuleRow({
     id: rule.id,
     disabled: !sortable,
   });
-  const joiner = rule.conditionsOp === 'or' ? 'or' : 'and';
+  const { t } = useTranslation('rules');
+  const joiner = rule.conditionsOp === 'or' ? t('row.or') : t('row.and');
   const currency = ruleCurrency(rule);
 
   return (
@@ -89,7 +91,7 @@ function RuleRow({
           {...attributes}
           {...listeners}
           className={`mt-0.5 text-text-disabled hover:text-text-tertiary touch-none ${sortable ? 'cursor-grab active:cursor-grabbing' : 'invisible'}`}
-          aria-label="Drag to reorder"
+          aria-label={t('row.dragToReorder')}
         >
           <GripVertical size={16} />
         </button>
@@ -99,8 +101,8 @@ function RuleRow({
         type="button"
         role="switch"
         aria-checked={rule.enabled}
-        aria-label={rule.enabled ? 'Disable rule' : 'Enable rule'}
-        title={rule.enabled ? 'Enabled' : 'Disabled'}
+        aria-label={rule.enabled ? t('row.disable') : t('row.enable')}
+        title={rule.enabled ? t('row.enabled') : t('row.disabled')}
         onClick={onToggle}
         className={
           phone
@@ -130,7 +132,7 @@ function RuleRow({
       >
         <div className="min-w-0">
           <p className="text-[11px] font-medium uppercase tracking-wide text-text-tertiary mb-1">
-            If
+            {t('row.if')}
           </p>
           {rule.conditions.length ? (
             <div className="flex flex-wrap items-center gap-1">
@@ -144,12 +146,12 @@ function RuleRow({
               ))}
             </div>
           ) : (
-            <span className="text-xs text-text-secondary">Every transaction</span>
+            <span className="text-xs text-text-secondary">{t('row.everyTransaction')}</span>
           )}
         </div>
         <div className="min-w-0">
           <p className="text-[11px] font-medium uppercase tracking-wide text-text-tertiary mb-1">
-            Then
+            {t('row.then')}
           </p>
           <div className="flex flex-wrap gap-1">
             {rule.actions.map((a, i) => (
@@ -167,23 +169,23 @@ function RuleRow({
       {phone ? (
         <div className="-my-2 -mr-2">
           <RowMenu
-            label="Rule actions"
+            label={t('row.actions')}
             items={[
-              { label: 'Edit', onClick: onEdit },
-              { label: 'Duplicate', onClick: onDuplicate },
-              { label: 'Apply to existing transactions', onClick: onApply },
-              { label: 'Move up', onClick: () => onMove.up?.(), hidden: !onMove.up },
-              { label: 'Move down', onClick: () => onMove.down?.(), hidden: !onMove.down },
-              { label: 'Delete', danger: true, onClick: onDelete },
+              { label: t('row.edit'), onClick: onEdit },
+              { label: t('row.duplicate'), onClick: onDuplicate },
+              { label: t('row.apply'), onClick: onApply },
+              { label: t('row.moveUp'), onClick: () => onMove.up?.(), hidden: !onMove.up },
+              { label: t('row.moveDown'), onClick: () => onMove.down?.(), hidden: !onMove.down },
+              { label: t('row.delete'), danger: true, onClick: onDelete },
             ]}
           />
         </div>
       ) : (
         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
           {[
-            { icon: Play, label: 'Apply to existing transactions', onClick: onApply },
-            { icon: Copy, label: 'Duplicate', onClick: onDuplicate },
-            { icon: Pencil, label: 'Edit', onClick: onEdit },
+            { icon: Play, label: t('row.apply'), onClick: onApply },
+            { icon: Copy, label: t('row.duplicate'), onClick: onDuplicate },
+            { icon: Pencil, label: t('row.edit'), onClick: onEdit },
           ].map(({ icon: Icon, label, onClick }) => (
             <button
               key={label}
@@ -197,8 +199,8 @@ function RuleRow({
           ))}
           <button
             onClick={onDelete}
-            title="Delete"
-            aria-label="Delete"
+            title={t('row.delete')}
+            aria-label={t('row.delete')}
             className="p-1.5 text-text-tertiary hover:text-negative rounded transition-colors cursor-pointer"
           >
             <Trash2 size={14} />
@@ -213,6 +215,7 @@ function RuleRow({
 const NO_RULES: Rule[] = [];
 
 export default function RulesPage() {
+  const { t, i18n } = useTranslation('rules');
   const { data: rulesData = NO_RULES, isLoading } = useRules();
   const updateRule = useUpdateRule();
   const deleteRule = useDeleteRule();
@@ -232,7 +235,8 @@ export default function RulesPage() {
   const shown = useMemo(() => {
     const q = search.trim().toLowerCase();
     return q ? localRules.filter((r) => ruleSearchText(r, lookups).includes(q)) : localRules;
-  }, [localRules, search, lookups]);
+    // The search reads the rules as they are written, so it follows the language
+  }, [localRules, search, lookups, i18n.language]);
   const enabledCount = localRules.filter((r) => r.enabled).length;
 
   const sensors = useSensors(
@@ -271,11 +275,8 @@ export default function RulesPage() {
       <div className="px-6 py-4 border-b border-border shrink-0">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-lg font-semibold text-text">Rules</h1>
-            <p className="text-xs text-text-tertiary mt-0.5">
-              Rules run on new and imported transactions, top to bottom. Each matching rule applies,
-              and a rule higher up wins when two set the same thing.
-            </p>
+            <h1 className="text-lg font-semibold text-text">{t('page.title')}</h1>
+            <p className="text-xs text-text-tertiary mt-0.5">{t('page.intro')}</p>
           </div>
           {/* Phones: the search takes its own line above the buttons */}
           <div className="flex flex-wrap items-center gap-2 max-md:w-full">
@@ -288,7 +289,7 @@ export default function RulesPage() {
                 <input
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search rules…"
+                  placeholder={t('page.search')}
                   className="w-44 max-md:w-full pl-8 pr-3 py-1.5 text-sm border border-border rounded-full bg-surface text-text focus:outline-none focus:ring-1 focus:ring-brand-600 focus:border-brand-600"
                 />
               </div>
@@ -299,16 +300,16 @@ export default function RulesPage() {
               onClick={() =>
                 setApplying({
                   key: `all-${Date.now()}`,
-                  title: 'Run rules',
+                  title: t('apply.runTitle'),
                   scope: 'uncategorized',
                 })
               }
               disabled={enabledCount === 0}
             >
-              <Play size={12} /> Run rules
+              <Play size={12} /> {t('page.run')}
             </Button>
             <Button size="sm" onClick={newRule}>
-              <Plus size={13} /> Add rule
+              <Plus size={13} /> {t('page.add')}
             </Button>
           </div>
         </div>
@@ -317,17 +318,17 @@ export default function RulesPage() {
       <div className="flex-1 overflow-y-auto">
         {isLoading ? (
           <div className="flex items-center justify-center h-32 text-sm text-text-tertiary">
-            Loading...
+            {t('page.loading')}
           </div>
         ) : localRules.length === 0 ? (
           <EmptyState
             icon={<Wand2 size={26} />}
-            title="Let rules do the sorting"
-            description="Rules categorize, rename and split transactions for you as they come in, for example “payee contains Netflix → Streaming”. You can also make one from any transaction."
+            title={t('page.emptyTitle')}
+            description={t('page.emptyDescription')}
             learnMoreHref={docsUrl('rules')}
             actions={
               <Button onClick={newRule}>
-                <Plus size={14} /> Add your first rule
+                <Plus size={14} /> {t('page.addFirst')}
               </Button>
             }
           />
@@ -335,13 +336,13 @@ export default function RulesPage() {
           <div className="max-w-5xl mx-auto px-6 py-4">
             <p className="text-xs text-text-tertiary mb-2">
               {search
-                ? `${shown.length} of ${localRules.length} rules`
-                : `${localRules.length} rule${localRules.length === 1 ? '' : 's'} · ${enabledCount} enabled`}
+                ? t('page.countSearch', { shown: shown.length, total: localRules.length })
+                : t('page.count', { count: localRules.length, enabled: enabledCount })}
             </p>
             <div className="bg-surface rounded-lg shadow-card border border-border-light overflow-hidden">
               {shown.length === 0 && (
                 <p className="px-4 py-6 text-sm text-text-tertiary text-center">
-                  No rules match your search.
+                  {t('page.noMatch')}
                 </p>
               )}
               <DndContext
@@ -373,7 +374,7 @@ export default function RulesPage() {
                       onDuplicate={() =>
                         setEditing({
                           key: `dup-${rule.id}-${Date.now()}`,
-                          title: 'Duplicate rule',
+                          title: t('editor.duplicateTitle'),
                           initial: {
                             conditionsOp: rule.conditionsOp,
                             conditions: rule.conditions,
@@ -386,7 +387,7 @@ export default function RulesPage() {
                         setApplying({
                           key: `rule-${rule.id}-${Date.now()}`,
                           ruleIds: [rule.id],
-                          title: 'Apply rule to existing transactions',
+                          title: t('apply.oneTitle'),
                           scope: 'all',
                         })
                       }
@@ -428,9 +429,9 @@ export default function RulesPage() {
         onConfirm={() => {
           if (deleteId) deleteRule.mutate(deleteId);
         }}
-        title="Delete rule"
-        message="Delete this rule? Transactions it already changed stay as they are."
-        confirmLabel="Delete"
+        title={t('page.deleteTitle')}
+        message={t('page.deleteMessage')}
+        confirmLabel={t('page.delete')}
         danger
       />
     </div>

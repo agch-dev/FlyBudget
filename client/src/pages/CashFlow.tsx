@@ -1,4 +1,6 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
+import { t as translate } from '../i18n';
 import { format, subMonths, startOfYear, endOfYear, subYears } from 'date-fns';
 import { useSpendingByCategory, useIncomeByCategory } from '../hooks/useReports';
 import { currencySymbol } from '../utils/currency';
@@ -26,14 +28,7 @@ import type { Currency, SpendingByCategory as SpendingByCat, IncomeByCategoryIte
 type Preset = '1m' | '3m' | '6m' | 'ytd' | 'last-year' | 'custom';
 type NodeType = 'income' | 'hub' | 'expense-group' | 'subcategory' | 'savings';
 
-const PRESETS: { id: Preset; label: string }[] = [
-  { id: '1m', label: '1M' },
-  { id: '3m', label: '3M' },
-  { id: '6m', label: '6M' },
-  { id: 'ytd', label: 'This Year' },
-  { id: 'last-year', label: 'Last Year' },
-  { id: 'custom', label: 'Custom' },
-];
+const PRESETS: Preset[] = ['1m', '3m', '6m', 'ytd', 'last-year', 'custom'];
 
 const MIN_SAVINGS_CENTS = 500;
 const NODE_W = 12;
@@ -228,12 +223,14 @@ function buildSankeyGraph(
 
   const icon = (c: { categoryIcon?: string | null }) =>
     showIcons && c.categoryIcon ? c.categoryIcon + ' ' : '';
+  // The names of what has no name of its own, in the App Language
+  const uncategorized = translate('cashFlow.node.uncategorized');
 
   // Layer 0: Income sources
   const incomeNodes: SankeyNode[] = validIncome
     .sort((a, b) => b.totalReceived - a.totalReceived)
     .map((c) => ({
-      name: `${icon(c)}${c.categoryName ?? 'Income'}`,
+      name: `${icon(c)}${c.categoryName ?? translate('cashFlow.node.income')}`,
       nodeType: 'income',
       amount: c.totalReceived,
       color: chartColors.positive,
@@ -243,7 +240,7 @@ function buildSankeyGraph(
 
   // Layer 1: Hub
   const hubNode: SankeyNode = {
-    name: 'Total Income',
+    name: translate('cashFlow.node.totalIncome'),
     nodeType: 'hub',
     amount: totalIncome,
     color: chartColors.brand,
@@ -256,7 +253,7 @@ function buildSankeyGraph(
     { total: number; groupId: string | null; items: SpendingByCat[] }
   >();
   for (const item of validSpending) {
-    const key = item.groupName ?? 'Uncategorized';
+    const key = item.groupName ?? uncategorized;
     const ex = groupMap.get(key);
     if (ex) {
       ex.total += item.totalSpent;
@@ -270,7 +267,7 @@ function buildSankeyGraph(
   sortedGroups.forEach(([name], i) => {
     gColorMap.set(
       name,
-      name === 'Uncategorized' ? chartColors.axis : EXPENSE_COLORS[i % EXPENSE_COLORS.length],
+      name === uncategorized ? chartColors.axis : EXPENSE_COLORS[i % EXPENSE_COLORS.length],
     );
   });
 
@@ -292,7 +289,7 @@ function buildSankeyGraph(
     savings > MIN_SAVINGS_CENTS
       ? [
           {
-            name: 'Savings',
+            name: translate('cashFlow.node.savings'),
             nodeType: 'savings',
             amount: savings,
             color: chartColors.positive,
@@ -312,7 +309,7 @@ function buildSankeyGraph(
     const sorted = [...items].sort((a, b) => b.totalSpent - a.totalSpent);
 
     const subs: SankeyNode[] = sorted.map((item, ci) => ({
-      name: `${icon(item)}${item.categoryName ?? 'Uncategorized'}`,
+      name: `${icon(item)}${item.categoryName ?? uncategorized}`,
       nodeType: 'subcategory' as NodeType,
       amount: item.totalSpent,
       color: lighten(gColor, sorted.length > 1 ? Math.min(ci * 0.12, 0.4) : 0),
@@ -515,6 +512,7 @@ function useContainerSize(ref: React.RefObject<HTMLDivElement | null>) {
 }
 
 function SankeyDiagram({ from, to, selectedNode, onNodeClick }: SankeyDiagramProps) {
+  const { t, i18n } = useTranslation();
   const { currency } = useViewingMoney();
   const showIcons = usePreferencesStore((s) => s.showCategoryIcons);
   const { data: incomeData = [], isLoading: il } = useIncomeByCategory(from, to);
@@ -526,7 +524,8 @@ function SankeyDiagram({ from, to, selectedNode, onNodeClick }: SankeyDiagramPro
 
   const graph = useMemo(
     () => buildSankeyGraph(incomeData, spendingData, showIcons),
-    [incomeData, spendingData, showIcons],
+    // The graph holds the names it gives its nodes, so it follows the language
+    [incomeData, spendingData, showIcons, i18n.language],
   );
 
   // Height derived from the graph itself: the most crowded column gets one MIN_SLOT row
@@ -630,7 +629,7 @@ function SankeyDiagram({ from, to, selectedNode, onNodeClick }: SankeyDiagramPro
   if (!graph)
     return (
       <div ref={containerRef} className={SANKEY_BOX} style={{ height: SANKEY_MIN_H }}>
-        <EmptyState />
+        <EmptyState message={t('cashFlow.emptyMessage')} hint={t('cashFlow.emptyHint')} />
       </div>
     );
 
@@ -810,10 +809,7 @@ function SankeyDiagram({ from, to, selectedNode, onNodeClick }: SankeyDiagramPro
       {graph.hasNegativeFlows && (
         <div className="mt-1 px-4 flex items-center gap-1.5 text-xs text-text-tertiary">
           <Info size={12} className="shrink-0" />
-          <span>
-            Some flows excluded — Sankey diagrams cannot represent negative values (e.g. refunds).
-            Summary totals may differ slightly.
-          </span>
+          <span>{t('cashFlow.negativeFlows')}</span>
         </div>
       )}
     </div>
@@ -831,6 +827,7 @@ function SankeyTooltip({
   totalIncome: number;
   totalExpenses: number;
 }) {
+  const { t } = useTranslation();
   const money = useViewingMoney();
   const n = node;
   const amt = money.format(n.amount);
@@ -850,7 +847,9 @@ function SankeyTooltip({
         <p className="text-xs font-medium text-text">{n.name}</p>
         <p className="text-xs text-positive font-semibold">{amt}</p>
         {n.pctOfIncome != null && (
-          <p className="text-xs text-text-tertiary">{n.pctOfIncome.toFixed(1)}% of total income</p>
+          <p className="text-xs text-text-tertiary">
+            {t('cashFlow.ofTotalIncome', { percent: n.pctOfIncome.toFixed(1) })}
+          </p>
         )}
       </>
     );
@@ -862,7 +861,9 @@ function SankeyTooltip({
         <p className="text-xs font-medium text-text">{n.name}</p>
         <p className="text-xs text-positive font-semibold">{amt}</p>
         {n.savingsRate != null && (
-          <p className="text-xs text-text-tertiary">{n.savingsRate.toFixed(1)}% savings rate</p>
+          <p className="text-xs text-text-tertiary">
+            {t('cashFlow.savingsRatePercent', { percent: n.savingsRate.toFixed(1) })}
+          </p>
         )}
       </>
     );
@@ -876,11 +877,13 @@ function SankeyTooltip({
           {amt}
         </p>
         {n.pctOfIncome != null && (
-          <p className="text-xs text-text-tertiary">{n.pctOfIncome.toFixed(1)}% of total income</p>
+          <p className="text-xs text-text-tertiary">
+            {t('cashFlow.ofTotalIncome', { percent: n.pctOfIncome.toFixed(1) })}
+          </p>
         )}
         {n.pctOfSpending != null && (
           <p className="text-xs text-text-tertiary">
-            {n.pctOfSpending.toFixed(1)}% of total spending
+            {t('cashFlow.ofTotalSpending', { percent: n.pctOfSpending.toFixed(1) })}
           </p>
         )}
       </>
@@ -897,12 +900,12 @@ function SankeyTooltip({
       </p>
       {n.pctOfGroup != null && n.groupName && (
         <p className="text-xs text-text-tertiary">
-          {n.pctOfGroup.toFixed(1)}% of {n.groupName}
+          {t('cashFlow.ofGroup', { percent: n.pctOfGroup.toFixed(1), group: n.groupName })}
         </p>
       )}
       {n.pctOfSpending != null && (
         <p className="text-xs text-text-tertiary">
-          {n.pctOfSpending.toFixed(1)}% of total spending
+          {t('cashFlow.ofTotalSpending', { percent: n.pctOfSpending.toFixed(1) })}
         </p>
       )}
     </>
@@ -920,6 +923,7 @@ const pct = (n: number | undefined) =>
  * and a category (or "All of …") to list its transactions below.
  */
 function CashFlowList({ from, to, selectedNode, onNodeClick }: SankeyDiagramProps) {
+  const { t, i18n } = useTranslation();
   const money = useViewingMoney();
   const showIcons = usePreferencesStore((s) => s.showCategoryIcons);
   const { data: incomeData = [], isLoading: il } = useIncomeByCategory(from, to);
@@ -927,7 +931,8 @@ function CashFlowList({ from, to, selectedNode, onNodeClick }: SankeyDiagramProp
   const [openGroup, setOpenGroup] = useState<string | null>(null);
   const graph = useMemo(
     () => buildSankeyGraph(incomeData, spendingData, showIcons),
-    [incomeData, spendingData, showIcons],
+    // The graph holds the names it gives its nodes, so it follows the language
+    [incomeData, spendingData, showIcons, i18n.language],
   );
 
   if (il || sl)
@@ -939,7 +944,7 @@ function CashFlowList({ from, to, selectedNode, onNodeClick }: SankeyDiagramProp
   if (!graph)
     return (
       <div style={{ height: SANKEY_MIN_H }}>
-        <EmptyState />
+        <EmptyState message={t('cashFlow.emptyMessage')} hint={t('cashFlow.emptyHint')} />
       </div>
     );
 
@@ -979,7 +984,9 @@ function CashFlowList({ from, to, selectedNode, onNodeClick }: SankeyDiagramProp
   return (
     <div className="space-y-4">
       <section className="bg-surface rounded-lg shadow-card border border-border-light">
-        <h3 className="px-4 pt-3 pb-1 text-xs font-semibold text-text-secondary">Money in</h3>
+        <h3 className="px-4 pt-3 pb-1 text-xs font-semibold text-text-secondary">
+          {t('cashFlow.moneyIn')}
+        </h3>
         {income.map((n) => (
           <div
             key={n.name}
@@ -997,11 +1004,13 @@ function CashFlowList({ from, to, selectedNode, onNodeClick }: SankeyDiagramProp
       </section>
 
       <section className="bg-surface rounded-lg shadow-card border border-border-light overflow-hidden">
-        <h3 className="px-4 pt-3 pb-1 text-xs font-semibold text-text-secondary">Where it went</h3>
+        <h3 className="px-4 pt-3 pb-1 text-xs font-semibold text-text-secondary">
+          {t('cashFlow.whereItWent')}
+        </h3>
         {savings && (
           <div className="px-4 py-2.5">
             <div className="flex items-baseline justify-between gap-3 text-sm">
-              <span className="text-text font-medium">Saved</span>
+              <span className="text-text font-medium">{t('cashFlow.saved')}</span>
               <span className="tabular-nums font-medium text-positive">
                 {money.format(savings.amount)}
                 <span className="ml-1.5 text-xs font-normal text-text-tertiary">
@@ -1039,8 +1048,12 @@ function CashFlowList({ from, to, selectedNode, onNodeClick }: SankeyDiagramProp
                     {money.format(g.amount)}
                     <span className="ml-1.5 text-xs text-text-tertiary">
                       {' '}
-                      {pct(g.pctOfIncome)}
-                      <span className="sr-only"> of income</span>
+                      <Trans
+                        t={t}
+                        i18nKey="cashFlow.shareOfIncome"
+                        values={{ share: pct(g.pctOfIncome) }}
+                        components={{ hidden: <span className="sr-only" /> }}
+                      />
                     </span>
                   </span>
                 </div>
@@ -1070,7 +1083,9 @@ function CashFlowList({ from, to, selectedNode, onNodeClick }: SankeyDiagramProp
                       onClick={() => select(g)}
                       className="w-full min-h-11 pl-9 pr-4 text-left text-sm font-medium text-brand-600 cursor-pointer"
                     >
-                      {isSelected(g) ? 'Hide transactions' : `All ${g.name} transactions`}
+                      {isSelected(g)
+                        ? t('cashFlow.hideTransactions')
+                        : t('cashFlow.allGroupTransactions', { group: g.name })}
                     </button>
                   </li>
                 </ul>
@@ -1086,6 +1101,7 @@ function CashFlowList({ from, to, selectedNode, onNodeClick }: SankeyDiagramProp
 // ─── Page Component ──────────────────────────────────────────────────────────
 
 export default function CashFlowPage() {
+  const { t } = useTranslation();
   const money = useViewingMoney();
   const showIcons = usePreferencesStore((s) => s.showCategoryIcons);
   const today = new Date();
@@ -1130,20 +1146,20 @@ export default function CashFlowPage() {
     const net = totalIncome - totalExpenses;
     const savingsRate = totalIncome > 0 ? (net / totalIncome) * 100 : 0;
     return [
-      { label: 'Total income', value: money.format(totalIncome), tone: 'positive' },
-      { label: 'Total expenses', value: money.format(totalExpenses), tone: 'negative' },
+      { label: t('cashFlow.totalIncome'), value: money.format(totalIncome), tone: 'positive' },
+      { label: t('cashFlow.totalExpenses'), value: money.format(totalExpenses), tone: 'negative' },
       {
-        label: 'Total net income',
+        label: t('cashFlow.netIncome'),
         value: money.format(net),
         tone: net < 0 ? 'negative' : undefined,
       },
       {
-        label: 'Savings rate',
+        label: t('cashFlow.savingsRate'),
         value: `${savingsRate.toFixed(1)}%`,
         tone: savingsRate < 0 ? 'negative' : undefined,
       },
     ];
-  }, [incData, spData, money]);
+  }, [incData, spData, money, t]);
 
   const handleNodeClick = useCallback((node: SelectedNode | null) => {
     setSelectedNode(node);
@@ -1172,20 +1188,20 @@ export default function CashFlowPage() {
     <div className="flex flex-col h-full bg-surface">
       <div className="px-6 py-4 border-b border-border shrink-0">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <h1 className="text-lg font-semibold text-text shrink-0">Cash Flow</h1>
+          <h1 className="text-lg font-semibold text-text shrink-0">{t('cashFlow.title')}</h1>
           <div className="flex items-center gap-2 flex-wrap">
             <div className="flex flex-wrap gap-0">
               {PRESETS.map((p) => (
                 <button
-                  key={p.id}
-                  onClick={() => setPreset(p.id)}
+                  key={p}
+                  onClick={() => setPreset(p)}
                   className={`px-2.5 py-1 text-xs font-medium whitespace-nowrap transition-colors border-b-2 cursor-pointer ${
-                    preset === p.id
+                    preset === p
                       ? 'border-brand-600 text-brand-600'
                       : 'border-transparent text-text-tertiary hover:text-text-secondary'
                   }`}
                 >
-                  {p.label}
+                  {t(`cashFlow.preset.${p}`)}
                 </button>
               ))}
             </div>
@@ -1193,16 +1209,16 @@ export default function CashFlowPage() {
               <MonthRangePicker
                 from={from}
                 to={to}
-                onChange={(f, t) => {
-                  setFrom(f);
-                  setTo(t);
+                onChange={(newFrom, newTo) => {
+                  setFrom(newFrom);
+                  setTo(newTo);
                 }}
                 defaultOpen
               />
             )}
             <ViewingCurrencySwitch />
             <Button variant="secondary" size="sm" onClick={handleExport}>
-              <Download size={13} /> Export CSV
+              <Download size={13} /> {t('cashFlow.exportCsv')}
             </Button>
           </div>
         </div>
@@ -1214,15 +1230,10 @@ export default function CashFlowPage() {
           <div className="flex items-center justify-between gap-3 mt-5 mb-3">
             <div
               role="group"
-              aria-label="Show as"
+              aria-label={t('cashFlow.showAs')}
               className="flex border border-border rounded-md overflow-hidden"
             >
-              {(
-                [
-                  ['list', 'List'],
-                  ['diagram', 'Diagram'],
-                ] as const
-              ).map(([id, label]) => (
+              {(['list', 'diagram'] as const).map((id) => (
                 <button
                   key={id}
                   type="button"
@@ -1232,12 +1243,12 @@ export default function CashFlowPage() {
                     phoneView === id ? 'bg-surface-alt text-text' : 'text-text-tertiary'
                   } ${id === 'diagram' ? 'border-l border-border' : ''}`}
                 >
-                  {label}
+                  {t(`cashFlow.${id}`)}
                 </button>
               ))}
             </div>
             {!showList && (
-              <p className="text-xs text-text-tertiary text-right">Swipe to see it all</p>
+              <p className="text-xs text-text-tertiary text-right">{t('cashFlow.swipe')}</p>
             )}
           </div>
         )}
@@ -1263,12 +1274,14 @@ export default function CashFlowPage() {
         {selectedNode && (
           <div ref={txSectionRef} className="mt-6">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-semibold text-text">Transactions: {selectedNode.name}</h2>
+              <h2 className="text-sm font-semibold text-text">
+                {t('cashFlow.transactionsOf', { name: selectedNode.name })}
+              </h2>
               <button
                 onClick={() => setSelectedNode(null)}
                 className="flex items-center gap-1 text-xs text-text-tertiary hover:text-text-secondary cursor-pointer transition-colors"
               >
-                <X size={14} /> Clear
+                <X size={14} /> {t('cashFlow.clear')}
               </button>
             </div>
             <div className="bg-surface rounded-lg shadow-card border border-border-light overflow-hidden">
