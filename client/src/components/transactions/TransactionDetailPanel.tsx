@@ -77,10 +77,15 @@ export function TransactionDetailPanel({
   const unlinkTransfer = useUnlinkTransfer();
   const canSave = useCanSave();
 
+  // Each field follows its own saved value: a refresh after saving the notes must not put
+  // back a date that is being typed
+  useEffect(() => setLocalDate(tx.date), [tx.id, tx.date]);
+  useEffect(() => setLocalNotes(tx.notes ?? ''), [tx.id, tx.notes]);
+  useEffect(
+    () => setLocalPayee({ id: tx.payeeId, name: tx.payeeName ?? '' }),
+    [tx.id, tx.payeeId, tx.payeeName],
+  );
   useEffect(() => {
-    setLocalDate(tx.date);
-    setLocalNotes(tx.notes ?? '');
-    setLocalPayee({ id: tx.payeeId, name: tx.payeeName ?? '' });
     setShowCategoryPicker(false);
   }, [tx.id, tx.date, tx.notes, tx.payeeId, tx.payeeName]);
 
