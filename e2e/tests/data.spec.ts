@@ -75,6 +75,84 @@ test.describe('CSV import', () => {
     expect(await api.transactions(`?account_id=${checking.id}&from=2025-01-01`)).toHaveLength(5);
   });
 
+  // A Uruguayan bank's export: semicolons, day-first dates and 1.234,56 amounts
+  const URUGUAYAN_CSV =
+    'Fecha;Descripción;Débito;Crédito\r\n' +
+    '05/03/2026;"Supermercado; sucursal 3";1.234,56;\r\n' +
+    '25/03/2026;Sueldo;;80.000,00\r\n';
+
+  test('reads a Uruguayan file and remembers its conventions for the account', async ({
+    page,
+    api,
+  }) => {
+    const caja = await api.createAccount('Caja de ahorro', 0);
+    await open(page, `/accounts/${caja.id}`);
+    let dialog = await importCsv(page, URUGUAYAN_CSV);
+
+    await expect(dialog).toContainText('Found 2 rows');
+    await expect(dialog.getByRole('combobox', { name: 'Column Fecha' })).toHaveValue('date');
+    await expect(dialog.getByRole('combobox', { name: 'Column Débito' })).toHaveValue('outflow');
+    // Guessed from the file: a day above 12, and a comma before the last two digits
+    await expect(dialog.getByLabel('Dates')).toHaveValue('day-first');
+    await expect(dialog.getByLabel('Decimals')).toHaveValue('comma');
+
+    await dialog.getByRole('button', { name: 'Preview' }).click();
+    await dialog.getByRole('button', { name: 'Import 2 Transactions' }).click();
+    await expect(dialog).toContainText('2 imported, 0 skipped');
+    await dialog.getByRole('button', { name: 'Done' }).click();
+
+    const txs = await api.transactions(`?account_id=${caja.id}&from=2026-01-01`);
+    expect(txs.map((t) => [t.date, t.payeeName, t.amount]).sort()).toEqual([
+      ['2026-03-05', 'Supermercado; sucursal 3', -123_456],
+      ['2026-03-25', 'Sueldo', 8_000_000],
+    ]);
+
+    // A later file with nothing to guess from (4 March or 3 April? 150 or 1.50?) is read
+    // the way this account's files were read before
+    dialog = await importCsv(
+      page,
+      'Fecha;Descripción;Débito;Crédito\r\n04/03/2026;Kiosco;150;\r\n',
+    );
+    await expect(dialog.getByLabel('Dates')).toHaveValue('day-first');
+    await expect(dialog.getByLabel('Decimals')).toHaveValue('comma');
+    await dialog.getByRole('button', { name: 'Preview' }).click();
+    await expect(dialog.getByRole('row', { name: /Kiosco/ })).toContainText('2026-03-04');
+  });
+
+  test('a wrong date or decimal choice shows before anything is imported', async ({
+    page,
+    api,
+  }) => {
+    const caja = await api.createAccount('Caja de ahorro', 0);
+    await open(page, `/accounts/${caja.id}`);
+    const dialog = await importCsv(page, URUGUAYAN_CSV);
+
+    // With point decimals neither amount is a number: say so instead of importing zeros
+    await dialog.getByLabel('Decimals').selectOption('point');
+    await expect(dialog.getByRole('alert')).toContainText("2 rows can't be read");
+    await expect(dialog.getByRole('alert')).toContainText(
+      'Row 1: Can\'t read the amount "1.234,56"',
+    );
+    await dialog.getByRole('button', { name: 'Preview' }).click();
+    await expect(dialog).toContainText('None of the 2 rows could be read');
+
+    await dialog.getByLabel('Decimals').selectOption('comma');
+    await expect(dialog.getByRole('alert')).toHaveCount(0);
+    await dialog.getByRole('button', { name: 'Preview' }).click();
+    await expect(dialog).toContainText('2 transactions found');
+
+    // The preview follows the choices: month first, 25/03 is no date and 05/03 is 3 May
+    await dialog.getByLabel('Dates').selectOption('month-first');
+    await expect(dialog).toContainText('1 transactions found');
+    await expect(dialog.getByRole('alert')).toContainText(
+      'Row 2: Can\'t read the date "25/03/2026"',
+    );
+    await expect(dialog.getByRole('row', { name: /Supermercado/ })).toContainText('2026-05-03');
+    await dialog.getByLabel('Dates').selectOption('day-first');
+    await expect(dialog.getByRole('row', { name: /Supermercado/ })).toContainText('2026-03-05');
+    expect(await api.transactions(`?account_id=${caja.id}`)).toHaveLength(0);
+  });
+
   test('unreadable files explain what went wrong', async ({ page, api }) => {
     const checking = await api.createAccount('Checking', 0);
     await open(page, `/accounts/${checking.id}`);

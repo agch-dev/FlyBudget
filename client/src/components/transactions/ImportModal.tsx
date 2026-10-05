@@ -1,16 +1,21 @@
-import { useState, useCallback } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Upload, AlertTriangle, CheckCircle, X } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { useCanSave } from '../../hooks/useConnection';
 import { SavingPausedHint } from '../connection/SavingPausedHint';
 import {
   parseCsv,
-  normalizeDate,
-  generateImportId,
-  parseImportAmount,
   guessColumnRoles,
+  guessConventions,
+  readImportRows,
+  DEFAULT_CONVENTIONS,
   type ColumnRole,
+  type DateOrder,
+  type DecimalSeparator,
+  type ImportConventions,
+  type ImportProblem,
 } from '../../utils/csv';
+import { usePreferencesStore } from '../../store/preferencesStore';
 import { importPreview } from '../../api/transactions';
 import { useImportConfirm } from '../../hooks/useTransactions';
 import { formatCurrency } from '../../utils/currency';
@@ -26,12 +31,20 @@ interface Props {
 
 type Step = 'upload' | 'map' | 'preview' | 'done';
 
+/** Unreadable rows listed before "and N more" */
+const PROBLEMS_SHOWN = 5;
+const NO_PROBLEMS: ImportProblem[] = [];
+
 export function ImportModal({ isOpen, onClose, accountId }: Props) {
   const [step, setStep] = useState<Step>('upload');
   const canSave = useCanSave();
   const [headers, setHeaders] = useState<string[]>([]);
   const [rawRows, setRawRows] = useState<string[][]>([]);
   const [roles, setRoles] = useState<ColumnRole[]>([]);
+  const [conventions, setConventions] = useState<ImportConventions>(DEFAULT_CONVENTIONS);
+  const rememberConventions = usePreferencesStore((s) => s.setCsvImportConventions);
+  // Only the answer to the latest preview request is shown
+  const previewRequest = useRef(0);
   const [previewRows, setPreviewRows] = useState<ImportPreviewRow[]>([]);
   const [excluded, setExcluded] = useState<Set<number>>(new Set());
   const [result, setResult] = useState<{ imported: number; skipped: number } | null>(null);
@@ -45,6 +58,8 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
     setHeaders([]);
     setRawRows([]);
     setRoles([]);
+    setConventions(DEFAULT_CONVENTIONS);
+    previewRequest.current++;
     setPreviewRows([]);
     setExcluded(new Set());
     setResult(null);
@@ -57,7 +72,7 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
     onClose();
   }
 
-  const handleFile = useCallback((file: File) => {
+  function handleFile(file: File) {
     setError(null);
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -68,12 +83,16 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
         return;
       }
       setHeaders(h);
-      setRawRows(r.filter((row) => row.some((cell) => cell.length > 0)));
+      setRawRows(r);
       setRoles(guessColumnRoles(h));
+      // What this account's files used last time, else what this file's data suggests
+      setConventions(
+        usePreferencesStore.getState().csvImportConventions[accountId] ?? guessConventions(r),
+      );
       setStep('map');
     };
     reader.readAsText(file);
-  }, []);
+  }
 
   function handleDrop(e: React.DragEvent) {
     e.preventDefault();
@@ -94,68 +113,54 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
     });
   }
 
-  /** The rows to import, or a message saying why there are none */
-  function buildImportRows(): ImportRow[] | string {
-    const dateIdx = roles.indexOf('date');
-    const payeeIdx = roles.indexOf('payee');
-    const amountIdx = roles.indexOf('amount');
-    const inflowIdx = roles.indexOf('inflow');
-    const outflowIdx = roles.indexOf('outflow');
-    const notesIdx = roles.indexOf('notes');
+  const hasDate = roles.includes('date');
+  const hasAmount = roles.some((r) => r === 'amount' || r === 'inflow' || r === 'outflow');
 
-    if (dateIdx === -1) return 'Date column is required';
-    if (amountIdx === -1 && inflowIdx === -1 && outflowIdx === -1) {
-      return 'At least one amount column is required';
-    }
+  /** The file as it reads with the chosen columns and conventions */
+  const read = useMemo(
+    () => (hasDate && hasAmount ? readImportRows(rawRows, roles, conventions) : null),
+    [hasDate, hasAmount, rawRows, roles, conventions],
+  );
+  const problems = read?.problems ?? NO_PROBLEMS;
 
-    const rows: ImportRow[] = [];
-    const seen = new Map<string, number>();
-    for (const raw of rawRows) {
-      const date = normalizeDate(raw[dateIdx] ?? '');
-      if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
-
-      let amount: number;
-      if (amountIdx !== -1) {
-        amount = parseImportAmount(raw[amountIdx]);
-      } else {
-        // Some banks write debits in the outflow column as negative numbers
-        const inf = Math.abs(inflowIdx !== -1 ? parseImportAmount(raw[inflowIdx]) : 0);
-        const out = Math.abs(outflowIdx !== -1 ? parseImportAmount(raw[outflowIdx]) : 0);
-        amount = inf > 0 ? inf : -out;
-      }
-      if (amount === 0) continue;
-
-      // Same limits as the server, so one long memo can't fail the whole import
-      const payeeName = payeeIdx !== -1 ? raw[payeeIdx]?.slice(0, 500) || null : null;
-      const notes = notesIdx !== -1 ? raw[notesIdx]?.slice(0, 5000) || null : null;
-      const key = generateImportId(date, amount, payeeName ?? '');
-      const occurrence = (seen.get(key) ?? 0) + 1;
-      seen.set(key, occurrence);
-      const importedId = generateImportId(date, amount, payeeName ?? '', occurrence);
-      rows.push({ date, amount, payeeName, notes, importedId });
-    }
-    return rows;
-  }
-
-  async function handlePreview() {
+  async function runPreview(using: ImportConventions) {
     setError(null);
-    const rows = buildImportRows();
-    if (typeof rows === 'string' || !rows.length) {
-      setError(typeof rows === 'string' ? rows : 'No valid rows found');
+    if (!hasDate) return setError('Date column is required');
+    if (!hasAmount) return setError('At least one amount column is required');
+
+    const { rows, problems: unreadable } = readImportRows(rawRows, roles, using);
+    if (!rows.length) {
+      previewRequest.current++;
+      setStep('map');
+      setError(
+        unreadable.length
+          ? `None of the ${unreadable.length} rows could be read. Check the Dates and Decimals choices.`
+          : 'No valid rows found',
+      );
       return;
     }
 
+    const request = ++previewRequest.current;
     setLoading(true);
     try {
       const preview = await importPreview(accountId, rows);
+      if (request !== previewRequest.current) return;
       setPreviewRows(preview);
       setExcluded(new Set(preview.map((r, i) => (r.isDuplicate ? i : -1)).filter((i) => i >= 0)));
       setStep('preview');
     } catch (e: unknown) {
+      if (request !== previewRequest.current) return;
       setError(e instanceof Error ? e.message : 'Preview failed');
     } finally {
-      setLoading(false);
+      if (request === previewRequest.current) setLoading(false);
     }
+  }
+
+  /** Changing a choice re-reads the file; on the preview step that means a new preview */
+  function changeConventions(next: ImportConventions) {
+    setConventions(next);
+    setError(null);
+    if (step === 'preview') void runPreview(next);
   }
 
   function handleConfirm() {
@@ -172,6 +177,7 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
       { accountId, rows },
       {
         onSuccess: (data) => {
+          rememberConventions(accountId, conventions);
           setResult(data);
           setStep('done');
         },
@@ -198,6 +204,58 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
     { value: 'notes', label: 'Notes' },
     { value: 'skip', label: 'Skip' },
   ];
+
+  const selectClass =
+    'text-sm border border-border rounded px-2 py-1 bg-surface text-text max-md:min-h-11';
+  const conventionFields = (
+    <div className="flex flex-wrap gap-x-6 gap-y-2">
+      <label className="flex items-center gap-2 text-sm text-text-secondary">
+        Dates
+        <select
+          value={conventions.dateOrder}
+          onChange={(e) =>
+            changeConventions({ ...conventions, dateOrder: e.target.value as DateOrder })
+          }
+          className={selectClass}
+        >
+          <option value="day-first">Day first (31/12/2026)</option>
+          <option value="month-first">Month first (12/31/2026)</option>
+        </select>
+      </label>
+      <label className="flex items-center gap-2 text-sm text-text-secondary">
+        Decimals
+        <select
+          value={conventions.decimal}
+          onChange={(e) =>
+            changeConventions({ ...conventions, decimal: e.target.value as DecimalSeparator })
+          }
+          className={selectClass}
+        >
+          <option value="comma">Comma (1.234,56)</option>
+          <option value="point">Point (1,234.56)</option>
+        </select>
+      </label>
+    </div>
+  );
+
+  const problemList = problems.length > 0 && (
+    <div role="alert" className="px-3 py-2 text-sm bg-caution-subtle text-caution rounded-lg">
+      <p className="font-medium">
+        {problems.length === 1
+          ? "1 row can't be read and won't be imported."
+          : `${problems.length} rows can't be read and won't be imported.`}{' '}
+        Check the Dates and Decimals choices.
+      </p>
+      <ul className="mt-1 text-xs">
+        {problems.slice(0, PROBLEMS_SHOWN).map((p) => (
+          <li key={p.row}>
+            Row {p.row}: {p.message}
+          </li>
+        ))}
+        {problems.length > PROBLEMS_SHOWN && <li>and {problems.length - PROBLEMS_SHOWN} more</li>}
+      </ul>
+    </div>
+  );
 
   return (
     <Modal isOpen={isOpen} onClose={handleClose} title="Import Transactions" size="lg">
@@ -282,6 +340,17 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
               </tbody>
             </table>
           </div>
+          {conventionFields}
+          {read && read.rows.length > 0 && (
+            <p className="text-xs text-text-secondary">
+              First row reads as{' '}
+              <span className="font-medium text-text">
+                {read.rows[0].date}, {formatCurrency(read.rows[0].amount)}
+              </span>
+              .
+            </p>
+          )}
+          {problemList}
           <div className="flex justify-end gap-2">
             <button
               onClick={() => setStep('upload')}
@@ -290,7 +359,7 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
               Back
             </button>
             <button
-              onClick={handlePreview}
+              onClick={() => void runPreview(conventions)}
               disabled={loading}
               className="px-4 py-1.5 text-sm font-medium bg-brand-600 text-white rounded-lg hover:bg-brand-700 disabled:opacity-50"
             >
@@ -307,6 +376,8 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
             {previewRows.filter((r) => r.isDuplicate).length} duplicates detected.{' '}
             {previewRows.length - excluded.size} will be imported.
           </p>
+          {conventionFields}
+          {problemList}
           <div className="max-h-64 overflow-y-auto border border-border rounded-lg">
             <table className="w-full text-sm border-collapse">
               <thead className="sticky top-0 bg-surface-alt">
@@ -368,7 +439,10 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
             <button
               onClick={handleConfirm}
               disabled={
-                confirmMutation.isPending || previewRows.length === excluded.size || !canSave
+                confirmMutation.isPending ||
+                loading ||
+                previewRows.length === excluded.size ||
+                !canSave
               }
               className="px-4 py-1.5 text-sm font-medium bg-brand-600 text-white rounded-lg hover:bg-brand-700 disabled:opacity-50"
             >
