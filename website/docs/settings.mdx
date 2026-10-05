@@ -41,16 +41,31 @@ See [Backups and exports](./backups).
 
 | Setting             | Choices                                                                                                                             |
 | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| **App language**    | English or Español. It starts in your browser's language and changes at once, with no reload.                                       |
 | **Theme**           | Light, Dark, or System (follows your computer or phone).                                                                            |
 | **Sidebar**         | **Pinned** (always open) or **Auto-hide** (collapsed, opens when you point at it). The pin at the top of the sidebar does the same. |
 | **Icons**           | Show or hide merchant, category and account icons.                                                                                  |
 | **Currency Symbol** | Up to 3 characters, like `$`, `€`, `£` or `EUR`. It only changes how amounts are shown, not their value.                            |
-| **Date Format**     | `Jan 5, 2026`, `01/05/2026`, `05/01/2026` or `2026-01-05`.                                                                          |
+| **Date Format**     | `Jan 5, 2026`, `5 Jan 2026`, `01/05/2026`, `05/01/2026` or `2026-01-05`.                                                            |
 
 <Screenshot name="dark-budget" alt="The budget in dark mode" />
 
-**Reset to defaults** puts them all back. Preferences are saved in your browser (or in the
-desktop app) rather than in your budget, so each device can have its own.
+**Reset to defaults** puts them all back, except the language. Preferences are saved in your
+browser (or in the desktop app) rather than in your budget, so each device can have its own.
+
+### App language
+
+FlyBudget can be used in English or in Spanish. The first time you open it, it follows your
+browser: Spanish if your browser is in Spanish, English otherwise. Change it under **App
+language**, or with the **English / Español** switch on the sign-in and welcome screens.
+
+The language only changes FlyBudget's own text, including month and weekday names. It never
+changes what your budget stores: account, category and payee names, notes, the default
+categories of a new budget and the names of your dashboards stay as they were written. Amounts
+are written the same way in both languages (`1,234.56`), and exported CSV files keep their
+English column names. If your browser is in Spanish and you have not picked a date format,
+dates are written day first (`5 ene 2026`). Parts of the app that are not translated yet show
+in English, and this guide is in English.
 
 ## Server
 
