@@ -36,6 +36,7 @@ import { plaidRouter } from './routes/plaid.js';
 import { simplefinRouter } from './routes/simplefin.js';
 import { serverRouter } from './routes/server.js';
 import { createExchangeRatesRouter } from './routes/exchangeRates.js';
+import { transferSuggestionsRouter } from './routes/transferSuggestions.js';
 import { createRateBackfill } from './routes/rateBackfill.js';
 import {
   backfillRatesForDollarTransactions,
@@ -120,6 +121,7 @@ app.use('/api/custom-reports', customReportsRouter);
 app.use('/api/dashboards', dashboardsRouter);
 app.use('/api/schedules', schedulesRouter);
 app.use('/api/goals', goalsRouter);
+app.use('/api/transfer-suggestions', transferSuggestionsRouter);
 app.post('/api/exchange-rates/refresh', exchangeRateRefreshLimit);
 app.use('/api/exchange-rates', createExchangeRatesRouter(rateSource));
 app.use('/api/plaid', bankRateLimit, ratesAfterBankSync, plaidRouter);

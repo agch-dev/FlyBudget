@@ -11,6 +11,7 @@ import { TransactionFormRow } from './TransactionFormRow';
 import { TransactionRow } from './TransactionRow';
 import { TransactionCard } from './TransactionCard';
 import { WaitingTransactions } from './WaitingTransactions';
+import { TransferSuggestions } from './TransferSuggestions';
 import { Modal } from '../ui/Modal';
 import { useIsPhone } from '../../hooks/useIsPhone';
 import { TransactionDetailPanel } from './TransactionDetailPanel';
@@ -266,12 +267,18 @@ export function TransactionTable({
         <div className="flex-1 overflow-y-auto">
           {/* Not in a category or month view: they may not belong there */}
           {!categoryId && !categoryIds?.length && !categoryGroupId && !month && (
-            <WaitingTransactions
-              accountId={accountId}
-              categoryName={(id) => categoryMap.get(id)?.name}
-              accountName={(id) => accountInfoMap.get(id)?.name}
-              accountCurrency={(id) => accountInfoMap.get(id)?.currency}
-            />
+            <>
+              <WaitingTransactions
+                accountId={accountId}
+                categoryName={(id) => categoryMap.get(id)?.name}
+                accountName={(id) => accountInfoMap.get(id)?.name}
+                accountCurrency={(id) => accountInfoMap.get(id)?.currency}
+              />
+              <TransferSuggestions
+                accountId={accountId}
+                accountName={(id) => accountInfoMap.get(id)?.name}
+              />
+            </>
           )}
           {showAdd && accountId && !isPhone && (
             <TransactionFormRow

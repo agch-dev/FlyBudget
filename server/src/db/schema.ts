@@ -230,6 +230,28 @@ export const scheduleMatchDismissals = sqliteTable(
   (table) => [uniqueIndex('idx_dismissal_unique').on(table.occurrenceId, table.transactionId)],
 );
 
+/**
+ * Transfer suggestions the user dismissed: that pair of transactions is not suggested again.
+ * The id is derived from the two transaction ids (`pairKey` in services/transferSuggestions.ts,
+ * the smaller id first), so every device stores the same row for the same pair.
+ */
+export const transferSuggestionDismissals = sqliteTable(
+  'transfer_suggestion_dismissals',
+  {
+    id: text('id').primaryKey(),
+    transactionId: text('transaction_id')
+      .notNull()
+      .references(() => transactions.id, { onDelete: 'cascade' }),
+    otherTransactionId: text('other_transaction_id')
+      .notNull()
+      .references(() => transactions.id, { onDelete: 'cascade' }),
+    dismissedAt: text('dismissed_at')
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (table) => [index('idx_transfer_dismissal_other').on(table.otherTransactionId)],
+);
+
 export const customReports = sqliteTable('custom_reports', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),

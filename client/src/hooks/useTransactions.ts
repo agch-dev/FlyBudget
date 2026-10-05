@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import * as txApi from '../api/transactions';
+import * as suggestionsApi from '../api/transferSuggestions';
 import { useUndoStore } from '../store/undoStore';
 import type { Transaction, TransactionQueryParams } from '../types';
 
@@ -240,6 +241,30 @@ export function useUnlinkTransfer() {
         ? txApi.linkTransfer(sides[0].id, sides[1].id)
         : Promise.resolve(),
   );
+}
+
+const TRANSFER_SUGGESTIONS_KEY = ['transactions', 'transfer-suggestions'];
+
+/**
+ * Pairs of transactions that look like transfers. Under the `transactions` key, so anything
+ * that changes transactions (an import above all) asks for them again. Confirm one with
+ * `useLinkTransfer`.
+ */
+export function useTransferSuggestions() {
+  return useQuery({
+    queryKey: TRANSFER_SUGGESTIONS_KEY,
+    queryFn: suggestionsApi.getTransferSuggestions,
+  });
+}
+
+/** "Not a transfer": the pair is not suggested again */
+export function useDismissTransferSuggestion() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, otherTransactionId }: { id: string; otherTransactionId: string }) =>
+      suggestionsApi.dismissTransferSuggestion(id, otherTransactionId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: TRANSFER_SUGGESTIONS_KEY }),
+  });
 }
 
 export function useImportConfirm() {

@@ -20,6 +20,7 @@ import {
   schedules,
   simplefinAccountMappings,
   transactions,
+  transferSuggestionDismissals,
 } from '../db/schema.js';
 import { isCurrency } from '../utils/currency.js';
 
@@ -44,6 +45,7 @@ const TABLES = {
   transactions,
   scheduleOccurrences,
   scheduleMatchDismissals,
+  transferSuggestionDismissals,
   budgetMonths,
   rules,
   customReports,
