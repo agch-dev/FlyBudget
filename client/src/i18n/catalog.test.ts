@@ -11,9 +11,6 @@ const STILL_TO_TRANSLATE: Namespace[] = [
   'import',
   'budget',
   'reports',
-  'recurring',
-  'rules',
-  'goals',
   'settings',
 ];
 

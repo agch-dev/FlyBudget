@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ArrowLeftRight, Pencil, X } from 'lucide-react';
 import { usePreferencesStore } from '../../store/preferencesStore';
 import { payeeColor } from '../../utils/transactionColors';
@@ -34,6 +35,7 @@ export function PayeeIcon({
   force = false,
   onLogoChange,
 }: Props) {
+  const { t } = useTranslation();
   const show = usePreferencesStore((s) => s.showMerchantIcons);
   const fileRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
@@ -66,9 +68,11 @@ export function PayeeIcon({
       onLogoChange!(await fileToSquareDataUrl(file));
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Could not use that image.');
+      setError(err instanceof Error ? err.message : t('payees.imageError'));
     }
   }
+
+  const changeLabel = logo ? t('payees.changeImage', { name }) : t('payees.uploadImage', { name });
 
   return (
     <div className="group/logo relative shrink-0" onClick={(e) => e.stopPropagation()}>
@@ -76,8 +80,8 @@ export function PayeeIcon({
         type="button"
         onClick={() => fileRef.current?.click()}
         onMouseLeave={() => setError(null)}
-        title={error ?? (logo ? `Change image for ${name}` : `Upload an image for ${name}`)}
-        aria-label={logo ? `Change image for ${name}` : `Upload an image for ${name}`}
+        title={error ?? changeLabel}
+        aria-label={changeLabel}
         className={`relative block rounded-full cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 ${error ? 'ring-2 ring-negative' : ''}`}
       >
         {face}
@@ -89,8 +93,8 @@ export function PayeeIcon({
         <button
           type="button"
           onClick={() => onLogoChange(null)}
-          title="Use initial instead"
-          aria-label={`Remove image for ${name}`}
+          title={t('payees.useInitial')}
+          aria-label={t('payees.removeImage', { name })}
           className="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center bg-surface border border-border text-text-tertiary hover:text-negative opacity-0 group-hover/logo:opacity-100 group-focus-within/logo:opacity-100 transition-opacity cursor-pointer"
         >
           <X size={10} />
