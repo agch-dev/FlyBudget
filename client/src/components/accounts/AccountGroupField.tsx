@@ -34,9 +34,12 @@ export function AccountGroupField({ value, onChange }: Props) {
         placeholder={names.length ? 'Choose a group or type a new name' : 'e.g. Visa Itaú'}
         className="block w-full rounded-lg border border-border px-3 py-2 text-sm bg-surface text-text placeholder-text-tertiary focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500"
       />
-      <datalist id={`${id}-groups`}>
+      <datalist id={`${id}-groups`} aria-label="Groups in use">
         {names.map((name) => (
-          <option key={name} value={name} />
+          // The name as text too: a value alone leaves the option without a label
+          <option key={name} value={name}>
+            {name}
+          </option>
         ))}
       </datalist>
       <p className="mt-1 text-xs text-text-tertiary">

@@ -225,12 +225,12 @@ test.describe('exchange rates', () => {
     await expect(main).toContainText('$ 40.25 per US$ 1');
     await expect(main).toContainText('the latest there is');
     // One group per month, the newest open
-    const months = main.locator('details');
+    const months = main.getByRole('group', { name: /^Rates of / });
     await expect(months).toHaveCount(2);
     await expect(months.first()).toHaveAttribute('open', '');
     await expect(months.last()).not.toHaveAttribute('open');
     await expect(main.getByText('39.75')).toBeHidden();
-    await months.last().locator('summary').click();
+    await months.last().getByText('1 rate').click();
     await expect(main.getByText('39.75')).toBeVisible();
   });
 
