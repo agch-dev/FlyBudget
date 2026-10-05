@@ -4,7 +4,7 @@ import { NavLink } from 'react-router-dom';
 import { Plus, Building2, Link2, ChevronDown, ChevronRight } from 'lucide-react';
 import { useAccounts } from '../../hooks/useAccounts';
 import { usePlaidStatus } from '../../hooks/usePlaid';
-import { formatCurrency } from '../../utils/currency';
+import { formatCurrency, homeCurrencyTotal } from '../../utils/currency';
 import { AddAccountModal } from '../accounts/AddAccountModal';
 import { ConnectBankModal } from '../plaid/ConnectBankModal';
 import { PlaidSetupModal } from '../plaid/PlaidSetupModal';
@@ -31,7 +31,7 @@ function AccountRow({ account }: { account: Account }) {
       <span
         className={`ml-2 tabular-nums text-[11px] shrink-0 ${isNegative ? 'text-negative/80' : 'text-sidebar-text/50'}`}
       >
-        {formatCurrency(account.balance)}
+        {formatCurrency(account.balance, account.currency)}
       </span>
     </NavLink>
   );
@@ -92,9 +92,11 @@ export function SidebarAccountList() {
 
   const onBudget = accounts.filter((a) => a.isOffBudget === 0);
   const offBudget = accounts.filter((a) => a.isOffBudget === 1);
-  const allTotal = accounts.reduce((sum, a) => sum + a.balance, 0);
-  const onBudgetTotal = onBudget.reduce((sum, a) => sum + a.balance, 0);
-  const offBudgetTotal = offBudget.reduce((sum, a) => sum + a.balance, 0);
+  // Totals are in pesos; dollar accounts show their own balance on their row only
+  const balance = (a: Account) => a.balance;
+  const allTotal = homeCurrencyTotal(accounts, balance);
+  const onBudgetTotal = homeCurrencyTotal(onBudget, balance);
+  const offBudgetTotal = homeCurrencyTotal(offBudget, balance);
 
   return (
     <>

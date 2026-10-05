@@ -194,7 +194,7 @@ function TotalChartView({
             tick={{ fontSize: 11, fill: chartColors.axis }}
             axisLine={false}
             tickLine={false}
-            tickFormatter={formatCentsAxis}
+            tickFormatter={(cents: number) => formatCentsAxis(cents)}
           />
           <Tooltip content={<ShareTooltip total={total} noSwatch={chartType !== 'bar'} />} />
           {chartType === 'area' ? (
@@ -262,7 +262,7 @@ function TimeChartView({
               tick={{ fontSize: 11, fill: chartColors.axis }}
               axisLine={false}
               tickLine={false}
-              tickFormatter={formatCentsAxis}
+              tickFormatter={(cents: number) => formatCentsAxis(cents)}
             />
             <Tooltip content={<CurrencyTooltip summary={sumSeries} hideZero />} />
             <Legend wrapperStyle={{ fontSize: 11 }} />
@@ -292,7 +292,7 @@ function TimeChartView({
             tick={{ fontSize: 11, fill: chartColors.axis }}
             axisLine={false}
             tickLine={false}
-            tickFormatter={formatCentsAxis}
+            tickFormatter={(cents: number) => formatCentsAxis(cents)}
           />
           <Tooltip content={<CurrencyTooltip summary={sumSeries} />} />
           <Legend wrapperStyle={{ fontSize: 11 }} />

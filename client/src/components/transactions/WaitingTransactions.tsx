@@ -5,6 +5,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { discardWaiting, retryWaiting, sendWaiting, useOutbox } from '../../offline/outbox';
 import { useConnectionStore } from '../../store/connectionStore';
 import { formatCurrency } from '../../utils/currency';
+import type { Currency } from '../../types';
 import { outboxEntryFor, type OutboxItem } from '../../utils/offline';
 import { ConfirmModal } from '../ui/ConfirmModal';
 
@@ -13,13 +14,20 @@ interface Props {
   accountId?: string;
   categoryName: (id: string) => string | undefined;
   accountName: (id: string) => string | undefined;
+  /** Each waiting amount is in its account's currency */
+  accountCurrency: (id: string) => Currency | undefined;
 }
 
 /**
  * New transactions saved on this device while FlyBudget couldn't reach its server, shown
  * above the register until they're sent. They aren't in balances or the budget yet.
  */
-export function WaitingTransactions({ accountId, categoryName, accountName }: Props) {
+export function WaitingTransactions({
+  accountId,
+  categoryName,
+  accountName,
+  accountCurrency,
+}: Props) {
   const qc = useQueryClient();
   const items = useOutbox((s) => s.items);
   const sending = useOutbox((s) => s.sending);
@@ -88,7 +96,7 @@ export function WaitingTransactions({ accountId, categoryName, accountName }: Pr
               className={`text-sm font-medium tabular-nums ${entry.amount > 0 ? 'text-positive' : 'text-text'}`}
             >
               {entry.amount > 0 ? '+' : ''}
-              {formatCurrency(entry.amount)}
+              {formatCurrency(entry.amount, accountCurrency(entry.accountId))}
             </span>
             {item.error ? (
               <span className="basis-full flex flex-wrap items-center gap-2 text-xs">

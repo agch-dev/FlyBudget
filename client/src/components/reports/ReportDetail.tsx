@@ -41,7 +41,7 @@ import {
 import { useSummaryCards } from './BuiltinReport';
 import { EXPENSE_COLORS } from './ChartHelpers';
 import type { StatCard } from './ChartHelpers';
-import type { BuiltinWidgetType } from '../../types';
+import { HOME_CURRENCY, type BuiltinWidgetType } from '../../types';
 
 // The full view of every built-in report has the same parts, top to bottom: four headline
 // figures, the chart, and a table of the numbers behind it (which is what Export CSV saves).
@@ -821,7 +821,11 @@ function DayTransactions({ day, onClose }: { day: string; onClose: () => void })
   );
   const logos = useMemo(() => new Map(payees.map((p) => [p.id, p.logo])), [payees]);
   const rows = data.filter(
-    (t) => !t.transferTransactionId && accountsById.get(t.accountId)?.isOffBudget === 0,
+    (t) =>
+      !t.transferTransactionId &&
+      accountsById.get(t.accountId)?.isOffBudget === 0 &&
+      // Like the calendar's totals: pesos accounts only
+      accountsById.get(t.accountId)?.currency === HOME_CURRENCY,
   );
   const moneyIn = rows.reduce((s, t) => s + Math.max(t.amount, 0), 0);
   const moneyOut = rows.reduce((s, t) => s - Math.min(t.amount, 0), 0);

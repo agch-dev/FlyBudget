@@ -134,7 +134,7 @@ export function NetWorthChart({
   const dot = (color: string) =>
     data.length <= 24 ? { r: 3, fill: color, strokeWidth: 0 } : false;
   const yAxisProps = {
-    tickFormatter: formatCentsAxis,
+    tickFormatter: (cents: number) => formatCentsAxis(cents),
     tick: { fontSize: 11, fill: chartColors.axis },
     axisLine: false,
     tickLine: false,
@@ -255,7 +255,7 @@ export function IncomeExpensesChart({ from, to }: { from: string; to: string }) 
           <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} vertical={false} />
           <XAxis dataKey="month" axisLine={false} tickLine={false} {...xAxis.axisProps} />
           <YAxis
-            tickFormatter={formatCentsAxis}
+            tickFormatter={(cents: number) => formatCentsAxis(cents)}
             tick={{ fontSize: 11, fill: chartColors.axis }}
             axisLine={false}
             tickLine={false}
@@ -323,7 +323,7 @@ export function SpendingChart({ from, to }: { from: string; to: string }) {
         <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} horizontal={false} />
         <XAxis
           type="number"
-          tickFormatter={formatCentsAxis}
+          tickFormatter={(cents: number) => formatCentsAxis(cents)}
           tick={{ fontSize: 11, fill: chartColors.axis }}
           axisLine={false}
           tickLine={false}
@@ -371,7 +371,7 @@ export function MonthlySpendingChart({ from, to }: { from: string; to: string })
           <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} vertical={false} />
           <XAxis dataKey="month" axisLine={false} tickLine={false} {...xAxis.axisProps} />
           <YAxis
-            tickFormatter={formatCentsAxis}
+            tickFormatter={(cents: number) => formatCentsAxis(cents)}
             tick={{ fontSize: 11, fill: chartColors.axis }}
             axisLine={false}
             tickLine={false}
@@ -521,7 +521,7 @@ export function SpendingTrendsChart({
                 <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} vertical={false} />
                 <XAxis dataKey="month" axisLine={false} tickLine={false} {...xAxis.axisProps} />
                 <YAxis
-                  tickFormatter={formatCentsAxis}
+                  tickFormatter={(cents: number) => formatCentsAxis(cents)}
                   tick={{ fontSize: 11, fill: chartColors.axis }}
                   axisLine={false}
                   tickLine={false}

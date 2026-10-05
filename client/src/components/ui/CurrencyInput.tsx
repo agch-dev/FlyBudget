@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { formatCurrency, parseCents } from '../../utils/currency';
+import type { Currency } from '../../types';
 
 interface Props {
   value: number;
@@ -7,6 +8,8 @@ interface Props {
   placeholder?: string;
   className?: string;
   allowNegative?: boolean;
+  /** The currency the amount is in (its account's); pesos when left out */
+  currency?: Currency;
   'aria-label'?: string;
 }
 
@@ -16,6 +19,7 @@ export function CurrencyInput({
   placeholder = '0.00',
   className = '',
   allowNegative = false,
+  currency,
   'aria-label': ariaLabel,
 }: Props) {
   const [focused, setFocused] = useState(false);
@@ -44,7 +48,7 @@ export function CurrencyInput({
   return (
     <input
       type={focused ? 'number' : 'text'}
-      value={focused ? raw : value === 0 ? '' : formatCurrency(value)}
+      value={focused ? raw : value === 0 ? '' : formatCurrency(value, currency)}
       onFocus={handleFocus}
       onBlur={handleBlur}
       onChange={(e) => setRaw(e.target.value)}

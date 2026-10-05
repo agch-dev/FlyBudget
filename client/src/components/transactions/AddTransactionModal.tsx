@@ -5,7 +5,7 @@ import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { SavedOnDeviceHint } from '../connection/SavingPausedHint';
 import { CurrencyInput } from '../ui/CurrencyInput';
-import { formatCurrency } from '../../utils/currency';
+import { currencySymbol, formatCurrency } from '../../utils/currency';
 import { useAccounts } from '../../hooks/useAccounts';
 import { useAddTransaction } from '../../hooks/useOffline';
 import { MerchantSelect } from './MerchantSelect';
@@ -156,7 +156,8 @@ export function AddTransactionModal({ isOpen, onClose }: Props) {
           <CurrencyInput
             value={amount}
             onChange={setAmount}
-            placeholder="$0.00"
+            placeholder={`${currencySymbol(selectedAccount?.currency)}0.00`}
+            currency={selectedAccount?.currency}
             aria-label="Amount"
           />
         </div>
@@ -238,7 +239,7 @@ export function AddTransactionModal({ isOpen, onClose }: Props) {
                         <span
                           className={`text-xs tabular-nums shrink-0 ${a.balance >= 0 ? 'text-text-tertiary' : 'text-negative'}`}
                         >
-                          {formatCurrency(a.balance)}
+                          {formatCurrency(a.balance, a.currency)}
                         </span>
                       </button>
                     ))}
@@ -266,7 +267,7 @@ export function AddTransactionModal({ isOpen, onClose }: Props) {
                         <span
                           className={`text-xs tabular-nums shrink-0 ${a.balance >= 0 ? 'text-text-tertiary' : 'text-negative'}`}
                         >
-                          {formatCurrency(a.balance)}
+                          {formatCurrency(a.balance, a.currency)}
                         </span>
                       </button>
                     ))}
