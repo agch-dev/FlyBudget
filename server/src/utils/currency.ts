@@ -20,6 +20,15 @@ export function isCurrency(value: unknown): value is Currency {
   return CURRENCIES.includes(value as Currency);
 }
 
+/**
+ * The currency a combined total is asked for in, from a request's `currency` query parameter:
+ * pesos when it is left out, null when it is neither pesos nor dollars (answer 400).
+ */
+export function targetCurrencyParam(value: unknown): Currency | null {
+  if (value === undefined) return HOME_CURRENCY;
+  return isCurrency(value) ? value : null;
+}
+
 /** An amount in integer cents and the currency it is in (its account's) */
 export interface NativeAmount {
   amount: number;

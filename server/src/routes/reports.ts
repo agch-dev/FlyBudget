@@ -1,13 +1,14 @@
 import { Router } from 'express';
 import { db } from '../db/index.js';
 import { transactions, accounts, categories, categoryGroups, payees } from '../db/schema.js';
-import { eq, and, gte, lte, sql, inArray, lt, isNull } from 'drizzle-orm';
+import { eq, and, gte, lte, sql, inArray, lt, isNull, type SQL } from 'drizzle-orm';
 import type { Request, Response } from 'express';
 import { monthBounds } from '../utils/date.js';
 import { isLiabilityType } from '../utils/accountTypes.js';
 import { isMonth, isRealDate } from '../utils/validation.js';
-import { inAccountBalance, inHomeCurrency, isIncomeOrSpending } from '../services/balances.js';
-import { HOME_CURRENCY } from '../utils/currency.js';
+import { inAccountBalance, isIncomeOrSpending } from '../services/balances.js';
+import { convertedAmount, convertedSum } from '../services/convertedAmounts.js';
+import { HOME_CURRENCY, targetCurrencyParam, type Currency } from '../utils/currency.js';
 
 export const reportsRouter = Router();
 
@@ -40,6 +41,18 @@ function optionalMonthParams(req: Request, res: Response): { from?: string; to?:
     return null;
   }
   return { from, to };
+}
+
+/**
+ * The currency a report's figures are in: the `currency` query parameter, pesos by default.
+ * Every report below adds up transactions from accounts of both currencies, each converted to
+ * this currency at the exchange rate of its own date (`convertedAmount`). Sends a 400 and
+ * returns null for anything but pesos or dollars.
+ */
+function targetCurrency(req: Request, res: Response): Currency | null {
+  const currency = targetCurrencyParam(req.query.currency);
+  if (!currency) res.status(400).json({ error: 'Expected `currency` as UYU or USD' });
+  return currency;
 }
 
 function monthRange(from: string, to: string): string[] {
@@ -163,6 +176,8 @@ reportsRouter.get('/net-worth', (req, res) => {
 reportsRouter.get('/spending-by-category', (req, res) => {
   const range = optionalMonthParams(req, res);
   if (!range) return;
+  const currency = targetCurrency(req, res);
+  if (!currency) return;
   const { from, to } = range;
   // Only real spending: a split's parent row (its children carry the categories) and transfers
   // have no category and would otherwise show up as "Uncategorized"; income categories aren't spending
@@ -170,7 +185,6 @@ reportsRouter.get('/spending-by-category', (req, res) => {
     eq(transactions.isParent, 0),
     isNull(transactions.transferTransactionId),
     isIncomeOrSpending,
-    inHomeCurrency,
     sql`coalesce(${categoryGroups.isIncome}, 0) = 0`,
   ];
   if (from) conditions.push(gte(transactions.date, monthBounds(from).from));
@@ -183,7 +197,7 @@ reportsRouter.get('/spending-by-category', (req, res) => {
       categoryIcon: categories.icon,
       groupId: categoryGroups.id,
       groupName: categoryGroups.name,
-      totalSpent: sql<number>`coalesce(sum(${transactions.amount}), 0)`,
+      totalSpent: convertedSum(currency),
     })
     .from(transactions)
     .leftJoin(categories, eq(transactions.categoryId, categories.id))
@@ -200,6 +214,8 @@ reportsRouter.get('/spending-by-category', (req, res) => {
 reportsRouter.get('/income-vs-expenses', (req, res) => {
   const range = monthRangeParams(req, res);
   if (!range) return;
+  const currency = targetCurrency(req, res);
+  if (!currency) return;
   const { from, to } = range;
   const months = monthRange(from, to);
 
@@ -211,8 +227,8 @@ reportsRouter.get('/income-vs-expenses', (req, res) => {
     .select({
       month: sql<string>`strftime('%Y-%m', ${transactions.date})`,
       isIncome,
-      total: sql<number>`coalesce(sum(${transactions.amount}), 0)`,
-      outflowCount: sql<number>`sum(case when ${transactions.amount} < 0 then 1 else 0 end)`,
+      total: convertedSum(currency),
+      outflowCount: sql<number>`sum(case when ${convertedAmount(currency)} < 0 then 1 else 0 end)`,
     })
     .from(transactions)
     .leftJoin(categories, eq(transactions.categoryId, categories.id))
@@ -224,8 +240,7 @@ reportsRouter.get('/income-vs-expenses', (req, res) => {
         eq(transactions.isParent, 0),
         isNull(transactions.transferTransactionId),
         isIncomeOrSpending,
-        inHomeCurrency,
-      ),
+          ),
     )
     .groupBy(sql`strftime('%Y-%m', ${transactions.date})`, isIncome)
     .all();
@@ -261,6 +276,8 @@ reportsRouter.get('/income-vs-expenses', (req, res) => {
 reportsRouter.get('/cash-flow', (req, res) => {
   const range = monthRangeParams(req, res);
   if (!range) return;
+  const currency = targetCurrency(req, res);
+  if (!currency) return;
   const { from, to } = range;
   const months = monthRange(from, to);
 
@@ -268,7 +285,7 @@ reportsRouter.get('/cash-flow', (req, res) => {
   const txRows = db
     .select({
       month: sql<string>`strftime('%Y-%m', ${transactions.date})`,
-      net: sql<number>`coalesce(sum(${transactions.amount}), 0)`,
+      net: convertedSum(currency),
     })
     .from(transactions)
     .innerJoin(accounts, eq(transactions.accountId, accounts.id))
@@ -279,7 +296,6 @@ reportsRouter.get('/cash-flow', (req, res) => {
         eq(accounts.isOffBudget, 0),
         inAccountBalance,
         isIncomeOrSpending,
-        eq(accounts.currency, HOME_CURRENCY),
       ),
     )
     .groupBy(sql`strftime('%Y-%m', ${transactions.date})`)
@@ -294,13 +310,16 @@ reportsRouter.get('/cash-flow', (req, res) => {
 reportsRouter.get('/daily-flow', (req, res) => {
   const range = monthRangeParams(req, res);
   if (!range) return;
+  const currency = targetCurrency(req, res);
+  if (!currency) return;
   const { from, to } = range;
   const rows = db
     .select({
       date: transactions.date,
-      income: sql<number>`coalesce(sum(case when ${transactions.amount} > 0 then ${transactions.amount} else 0 end), 0)`,
-      expenses: sql<number>`coalesce(sum(case when ${transactions.amount} < 0 then -${transactions.amount} else 0 end), 0)`,
-      count: sql<number>`count(distinct coalesce(${transactions.parentTransactionId}, ${transactions.id}))`,
+      income: sql<number>`coalesce(sum(max(${convertedAmount(currency)}, 0)), 0)`,
+      expenses: sql<number>`coalesce(sum(-min(${convertedAmount(currency)}, 0)), 0)`,
+      // A transaction that can't be converted (no rate stored at all) is in neither total
+      count: sql<number>`count(distinct case when ${convertedAmount(currency)} is not null then coalesce(${transactions.parentTransactionId}, ${transactions.id}) end)`,
     })
     .from(transactions)
     .innerJoin(accounts, eq(transactions.accountId, accounts.id))
@@ -312,20 +331,21 @@ reportsRouter.get('/daily-flow', (req, res) => {
         eq(transactions.isParent, 0),
         isNull(transactions.transferTransactionId),
         isIncomeOrSpending,
-        eq(accounts.currency, HOME_CURRENCY),
       ),
     )
     .groupBy(transactions.date)
     .orderBy(transactions.date)
     .all();
-  res.json(rows);
+  res.json(rows.filter((r) => r.count > 0));
 });
 
 reportsRouter.get('/income-by-category', (req, res) => {
   const range = optionalMonthParams(req, res);
   if (!range) return;
+  const currency = targetCurrency(req, res);
+  if (!currency) return;
   const { from, to } = range;
-  const conditions = [eq(categoryGroups.isIncome, 1), inHomeCurrency];
+  const conditions = [eq(categoryGroups.isIncome, 1)];
   if (from) conditions.push(gte(transactions.date, monthBounds(from).from));
   if (to) conditions.push(lte(transactions.date, monthBounds(to).to));
 
@@ -336,7 +356,7 @@ reportsRouter.get('/income-by-category', (req, res) => {
       categoryIcon: categories.icon,
       groupId: categoryGroups.id,
       groupName: categoryGroups.name,
-      totalReceived: sql<number>`coalesce(sum(${transactions.amount}), 0)`,
+      totalReceived: convertedSum(currency),
     })
     .from(transactions)
     .leftJoin(categories, eq(transactions.categoryId, categories.id))
@@ -352,11 +372,13 @@ reportsRouter.get('/spending-trends', (req, res) => {
   const { category_ids, granularity } = req.query;
   const range = optionalMonthParams(req, res);
   if (!range) return;
+  const currency = targetCurrency(req, res);
+  if (!currency) return;
   const { from, to } = range;
   if (typeof category_ids !== 'string' || !category_ids) return res.json([]);
 
   const ids = category_ids.split(',');
-  const conditions = [inHomeCurrency];
+  const conditions: SQL[] = [];
   if (from) conditions.push(gte(transactions.date, monthBounds(from).from));
   if (to) conditions.push(lte(transactions.date, monthBounds(to).to));
   // Daily totals (for short ranges) put the date (yyyy-MM-dd) in `month`
@@ -371,7 +393,7 @@ reportsRouter.get('/spending-trends', (req, res) => {
       categoryName: categories.name,
       categoryIcon: categories.icon,
       month: period,
-      total: sql<number>`coalesce(sum(${transactions.amount}), 0)`,
+      total: convertedSum(currency),
     })
     .from(transactions)
     .leftJoin(categories, eq(transactions.categoryId, categories.id))
@@ -390,6 +412,9 @@ reportsRouter.get('/spending-trends', (req, res) => {
 
 reportsRouter.get('/spending-comparison', (req, res) => {
   const { mode = 'month_vs_last_month' } = req.query as Record<string, string>;
+  const target = targetCurrency(req, res);
+  if (!target) return;
+  const currency: Currency = target;
   const today = new Date();
 
   function fmtDate(d: Date): string {
@@ -400,7 +425,7 @@ reportsRouter.get('/spending-comparison', (req, res) => {
     const rows = db
       .select({
         date: transactions.date,
-        total: sql<number>`coalesce(sum(${transactions.amount}), 0)`,
+        total: convertedSum(currency),
       })
       .from(transactions)
       .innerJoin(accounts, eq(transactions.accountId, accounts.id))
@@ -414,8 +439,7 @@ reportsRouter.get('/spending-comparison', (req, res) => {
           isNull(transactions.transferTransactionId),
           isIncomeOrSpending,
           eq(accounts.isOffBudget, 0),
-          eq(accounts.currency, HOME_CURRENCY),
-        ),
+          ),
       )
       .groupBy(transactions.date)
       .all();
@@ -647,6 +671,8 @@ reportsRouter.get('/spending-comparison', (req, res) => {
 reportsRouter.get('/custom', (req, res) => {
   const range = monthRangeParams(req, res);
   if (!range) return;
+  const currency = targetCurrency(req, res);
+  if (!currency) return;
   const { from, to } = range;
   const str = (v: unknown) => (typeof v === 'string' ? v : undefined);
   const mode = str(req.query.mode) ?? 'total';
@@ -663,8 +689,6 @@ reportsRouter.get('/custom', (req, res) => {
     eq(transactions.isParent, 0),
     isNull(transactions.transferTransactionId),
     isIncomeOrSpending,
-    // Also when dollar accounts are picked in the filter: rows are summed across accounts
-    inHomeCurrency,
   ];
 
   if (balance_type === 'expense') conditions.push(lt(transactions.amount, 0));
@@ -716,7 +740,7 @@ reportsRouter.get('/custom', (req, res) => {
       name: groupByCol.name,
       id: groupByCol.id,
       ...(mode === 'time' ? { month: sql<string>`strftime('%Y-%m', ${transactions.date})` } : {}),
-      value: sql<number>`coalesce(sum(${transactions.amount}), 0)`,
+      value: convertedSum(currency),
     })
     .from(transactions)
     .leftJoin(categories, eq(transactions.categoryId, categories.id))
@@ -757,7 +781,7 @@ reportsRouter.get('/custom', (req, res) => {
       .orderBy(
         group_by === 'month'
           ? sql`strftime('%Y-%m', ${transactions.date})`
-          : sql`abs(sum(${transactions.amount})) desc`,
+          : sql`abs(${convertedSum(currency)}) desc`,
       )
       .all() as { name: string | null; id: string | null; value: number }[];
 

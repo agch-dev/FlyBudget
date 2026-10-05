@@ -47,3 +47,12 @@ export function converter(rates: readonly RatePoint[]): Convert {
     return rate === null ? null : convertCents(cents, from, to, rate);
   };
 }
+
+/**
+ * The date whose rate converts a figure expected on `date`: its own, or today for a date still
+ * to come (an upcoming bill, a recurring item later this month). Nobody knows a future rate,
+ * so a rate stored for a later date (entered by hand) is not used before its day.
+ */
+export function rateDateFor(date: string, today: string): string {
+  return date > today ? today : date;
+}
