@@ -362,7 +362,7 @@ function NetWorthDetail({ from, to }: DetailProps) {
     {
       label: 'Net Worth',
       value: money.format(change?.latest ?? 0),
-      sub: breakdownLine(last?.native, money.currency) ?? undefined,
+      sub: breakdownLine(last?.native, money.currency, last?.leftOut) ?? undefined,
     },
     {
       label: 'Change',

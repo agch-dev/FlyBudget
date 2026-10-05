@@ -99,19 +99,23 @@ export function totalAndChange(
 /**
  * What a combined total is made of, each currency in its native amount: "$150,000 + US$3,200".
  * The currency the total is shown in comes first. Null when there is nothing in any other
- * currency (the total already says it all).
+ * currency (the total already says it all). A currency in `leftOut` could not be converted
+ * (no exchange rate stored), so the total above the line does not include it: the line says
+ * so instead of looking like a sum that doesn't add up.
  */
 export function breakdownLine(
   native: Partial<Record<Currency, number>> | undefined,
   shownIn: Currency = HOME_CURRENCY,
+  leftOut: readonly Currency[] = [],
 ): string | null {
   if (!native) return null;
   const others = CURRENCIES.map((c) => c.value).filter((c) => c !== shownIn);
-  if (others.every((c) => !native[c])) return null;
+  if (others.every((c) => !native[c] && !leftOut.includes(c))) return null;
   return others.reduce(
     (line, c) => {
       const cents = native[c] ?? 0;
-      return `${line} ${cents < 0 ? '−' : '+'} ${formatCurrency(Math.abs(cents), c)}`;
+      const note = leftOut.includes(c) ? ' not counted (no exchange rate)' : '';
+      return `${line} ${cents < 0 ? '−' : '+'} ${formatCurrency(Math.abs(cents), c)}${note}`;
     },
     formatCurrency(native[shownIn] ?? 0, shownIn),
   );

@@ -82,8 +82,10 @@ function NetWorthTooltip({ active, payload, label }: any) {
       <p className="text-xs font-medium" style={{ color: chartColors.negative }}>
         Liabilities: {money.format(d.liabilities)}
       </p>
-      {breakdownLine(d.native, money.currency) && (
-        <p className="text-xs text-text-tertiary mt-1">{breakdownLine(d.native, money.currency)}</p>
+      {breakdownLine(d.native, money.currency, d.leftOut) && (
+        <p className="text-xs text-text-tertiary mt-1">
+          {breakdownLine(d.native, money.currency, d.leftOut)}
+        </p>
       )}
     </div>
   );
@@ -130,7 +132,8 @@ export function NetWorthChart({
   const debtTop =
     debtMax > 0 ? Math.ceil(debtMax / niceStep(debtMax, 2)) * niceStep(debtMax, 2) : 0;
   const summary = useMemo(() => netWorthChange(data), [data]);
-  const breakdown = breakdownLine(data[data.length - 1]?.native, money.currency);
+  const latest = data[data.length - 1];
+  const breakdown = breakdownLine(latest?.native, money.currency, latest?.leftOut);
 
   if (isLoading) return <ChartSkeleton />;
   const hasData =

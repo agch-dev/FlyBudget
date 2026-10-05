@@ -4,7 +4,14 @@ import type { AddressInfo } from 'net';
 import type { Server } from 'http';
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
 import { db } from '../db/index.js';
-import { exchangeRates, scheduleOccurrences, schedules, transactions } from '../db/schema.js';
+import { eq } from 'drizzle-orm';
+import {
+  accounts,
+  exchangeRates,
+  scheduleOccurrences,
+  schedules,
+  transactions,
+} from '../db/schema.js';
 import type { DateRange, RatePoint } from '../services/exchangeRates.js';
 import {
   backfillRatesForDate,
@@ -45,7 +52,8 @@ const send = async (method: string, path: string, body?: unknown) => {
   return { status: res.status, body: await res.json() };
 };
 const putRate = (date: string, rate: number) => send('PUT', `/exchange-rates/${date}`, { rate });
-const estimated = async () => (await send('GET', '/exchange-rates/estimated')).body;
+const estimatedAnswer = async () => (await send('GET', '/exchange-rates/estimated')).body;
+const estimated = async () => ({ dates: (await estimatedAnswer()).dates });
 const add = (accountId: string, date: string, amount = -1_000) =>
   send('POST', '/transactions', { accountId, date, amount, payeeName: 'Shop' });
 const importRows = (accountId: string, dates: string[]) =>
@@ -412,6 +420,30 @@ describe('estimated dates', () => {
   it('lists every dollar date while no rate is stored', async () => {
     await add(dollarsId, '2026-09-30');
     expect(await estimated()).toEqual({ dates: ['2026-09-30'] });
+  });
+
+  it('says dollar amounts are not counted at all while no rate is stored', async () => {
+    await add(pesosId, '2026-09-30');
+    // Dollar accounts with nothing in them leave nothing out
+    expect(await estimatedAnswer()).toEqual({ dates: [], notCounted: false });
+    await add(dollarsId, '2026-09-30');
+    expect(await estimatedAnswer()).toEqual({ dates: ['2026-09-30'], notCounted: true });
+    // Any rate at all converts every date, the earlier ones as an estimate
+    await putRate('2026-10-01', 40);
+    expect(await estimatedAnswer()).toEqual({ dates: ['2026-09-30'], notCounted: false });
+  });
+
+  it('counts a dollar starting balance as something left out', async () => {
+    const { body: savings } = await send('POST', '/accounts', {
+      name: 'Colchón',
+      type: 'savings',
+      currency: 'USD',
+      startingBalance: 500_000,
+    });
+    expect(await estimatedAnswer()).toEqual({ dates: [], notCounted: true });
+    await putRate('2026-10-01', 40);
+    expect(await estimatedAnswer()).toEqual({ dates: [], notCounted: false });
+    db.delete(accounts).where(eq(accounts.id, savings.id)).run();
   });
 
   it('drops a date once a rate is entered by hand on or before it', async () => {

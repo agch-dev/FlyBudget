@@ -42,6 +42,11 @@ export interface EstimatedRateDates {
    * their converted amounts use the closest rate there is
    */
   dates: string[];
+  /**
+   * No rate is stored at all while a dollar account holds something: dollar amounts are left
+   * out of converted totals, not estimated
+   */
+  notCounted?: boolean;
 }
 
 export const getEstimatedRateDates = () =>

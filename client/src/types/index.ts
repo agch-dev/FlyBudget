@@ -346,6 +346,8 @@ export interface NetWorthPoint {
   netWorth: number;
   /** What the total is made of: each currency's own net worth in its native amount */
   native?: Record<Currency, number>;
+  /** Currencies `native` lists but the totals leave out: no exchange rate to convert them */
+  leftOut?: Currency[];
 }
 export interface IncomeExpensesPoint {
   month: string;

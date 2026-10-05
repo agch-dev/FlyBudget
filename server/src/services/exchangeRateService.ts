@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, lt, min, ne, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, isNotNull, lt, min, ne, or, sql } from 'drizzle-orm';
 import { format } from 'date-fns';
 import { db } from '../db/index.js';
 import { accounts, exchangeRates, transactions } from '../db/schema.js';
@@ -222,6 +222,23 @@ export function estimatedRateDates(): string[] {
     .orderBy(asc(transactions.date))
     .all()
     .map((row) => row.date);
+}
+
+/**
+ * Whether dollar amounts are missing from converted totals altogether: no rate is stored at
+ * all (not even one to estimate with) while a dollar account holds something, transactions
+ * or a starting balance. False for a budget in pesos only.
+ */
+export function dollarsNotCounted(): boolean {
+  if (earliestRateDate()) return false;
+  const holdsSomething = db
+    .select({ id: accounts.id })
+    .from(accounts)
+    .leftJoin(transactions, eq(transactions.accountId, accounts.id))
+    .where(and(inDollarAccount, or(ne(accounts.startingBalance, 0), isNotNull(transactions.id))))
+    .limit(1)
+    .get();
+  return !!holdsSomething;
 }
 
 /**

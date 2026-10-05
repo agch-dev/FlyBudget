@@ -184,6 +184,28 @@ describe('breakdownLine', () => {
     expect(breakdownLine({ UYU: 15_000_000, USD: 320_000 }, 'USD')).toBe('US$3,200 + $150,000');
   });
 
+  it('says so when an amount it lists is missing from the total', () => {
+    const native = { UYU: 15_000_000, USD: 320_000 };
+    expect(breakdownLine(native, 'UYU', ['USD'])).toBe(
+      '$150,000 + US$3,200 not counted (no exchange rate)',
+    );
+    expect(breakdownLine(native, 'USD', ['UYU'])).toBe(
+      'US$3,200 + $150,000 not counted (no exchange rate)',
+    );
+    expect(breakdownLine({ UYU: 15_000_000, USD: -320_000 }, 'UYU', ['USD'])).toBe(
+      '$150,000 − US$3,200 not counted (no exchange rate)',
+    );
+    // Nothing is left out of a total in its own currency
+    expect(breakdownLine(native, 'UYU', [])).toBe('$150,000 + US$3,200');
+    expect(breakdownLine(native, 'UYU', ['UYU'])).toBe('$150,000 + US$3,200');
+  });
+
+  it('names a currency left out even when what is owned and owed in it cancel out', () => {
+    expect(breakdownLine({ UYU: 15_000_000, USD: 0 }, 'UYU', ['USD'])).toBe(
+      '$150,000 + US$0 not counted (no exchange rate)',
+    );
+  });
+
   it('says nothing when there is only the currency of the total, or nothing to go by', () => {
     expect(breakdownLine({ UYU: 15_000_000, USD: 0 })).toBeNull();
     expect(breakdownLine({ UYU: 0, USD: 320_000 }, 'USD')).toBeNull();
