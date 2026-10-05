@@ -123,20 +123,10 @@ export default function MonthlyTab({
     };
   }, [occurrences]);
 
-  // The summary is in pesos: a recurring item is in its account's currency, and dollar ones
-  // are listed below but not added in
-  const inPesos = useMemo(() => {
-    const currencyOf = new Map(accounts.map((a) => [a.id, a.currency]));
-    return (occs: ScheduleOccurrence[]) =>
-      inHomeCurrency(
-        occs.map((occ) => ({
-          occ,
-          currency: occ.scheduleAccountId ? currencyOf.get(occ.scheduleAccountId) : undefined,
-        })),
-      ).map((o) => o.occ);
-  }, [accounts]);
-  const incomeTotals = useMemo(() => computeTotals(inPesos(income)), [income, inPesos]);
-  const expenseTotals = useMemo(() => computeTotals(inPesos(expenses)), [expenses, inPesos]);
+  // The summary is in pesos: a recurring item is in its account's currency (each occurrence
+  // says which, closed accounts included), and dollar ones are listed below but not added in
+  const incomeTotals = useMemo(() => computeTotals(inHomeCurrency(income)), [income]);
+  const expenseTotals = useMemo(() => computeTotals(inHomeCurrency(expenses)), [expenses]);
 
   // After a calendar day click, scroll the list to that day's first row
   useEffect(() => {

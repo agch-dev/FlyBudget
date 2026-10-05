@@ -191,4 +191,42 @@ test.describe('recurring', () => {
       source: 'detected',
     });
   });
+
+  test("a recurring item in a dollar account is in dollars everywhere it's shown", async ({
+    page,
+    api,
+  }) => {
+    const dollars = await api.createAccount('Caja dolares', 100_000, 'checking', {
+      currency: 'USD',
+    });
+    await api.call('POST', '/schedules', {
+      name: 'Streaming Plus',
+      amount: -1_599,
+      recurrenceType: 'monthly',
+      startDate: isoDay(2),
+      accountId: dollars.id,
+    });
+
+    await open(page, '/dashboard');
+    // Upcoming bills
+    await expect(page.getByRole('main')).toContainText('US$15.99');
+
+    await openAll(page);
+    const row = scheduleRow(page, 'Streaming Plus').first();
+    await expect(row).toContainText('US$15.99');
+
+    // Its editor shows the amount in the account's currency too
+    await row.getByRole('button', { name: 'Actions' }).click();
+    await page.getByRole('menuitem', { name: 'Edit' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Edit Recurring' });
+    await expect(dialog.getByRole('textbox', { name: 'Amount' })).toHaveValue('US$15.99');
+    await dialog.getByRole('button', { name: 'Cancel' }).click();
+
+    // Paying it takes the native amount out of the dollar account
+    await row.getByRole('button', { name: 'Actions' }).click();
+    await page.getByRole('menuitem', { name: 'Mark next as paid' }).click();
+    await expect.poll(() => api.balance(dollars.id)).toBe(98_401);
+    const [paid] = await api.transactions(`?account_id=${dollars.id}&from=2000-01-01`);
+    expect(paid).toMatchObject({ amount: -1_599, currency: 'USD', accountId: dollars.id });
+  });
 });

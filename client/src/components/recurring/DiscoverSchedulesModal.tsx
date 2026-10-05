@@ -150,7 +150,7 @@ export default function DiscoverSchedulesModal({ isOpen, onClose }: Props) {
                   <span
                     className={`text-sm font-medium tabular-nums text-right ${item.amount > 0 ? 'text-positive' : 'text-text'}`}
                   >
-                    {formatScheduleAmount(item.amount, item.amountType)}
+                    {formatScheduleAmount(item.amount, item.amountType, item.currency)}
                   </span>
                 </div>
               );
