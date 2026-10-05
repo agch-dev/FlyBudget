@@ -24,6 +24,7 @@ export type Account = {
   balance: number;
   startingBalance: number;
   currency: 'UYU' | 'USD';
+  groupName: string | null;
 };
 export type Category = { id: string; name: string; groupId: string };
 export type CategoryGroup = { id: string; name: string; isIncome: number; categories: Category[] };

@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { logoSchema } from '../utils/logo.js';
 import { accountTypeSchema, defaultOffBudget } from '../utils/accountTypes.js';
 import { currencySchema, HOME_CURRENCY } from '../utils/currency.js';
+import { groupNameSchema, resolveGroupName } from '../utils/accountGroups.js';
 import { accountTransactionSum, inAccountBalance } from '../services/balances.js';
 
 export const accountsRouter = Router();
@@ -17,6 +18,7 @@ const fields = {
   startingBalance: z.number().int(),
   isOffBudget: z.number().int().min(0).max(1),
   currency: currencySchema,
+  groupName: groupNameSchema,
 };
 
 const createSchema = z.object({
@@ -24,6 +26,7 @@ const createSchema = z.object({
   startingBalance: fields.startingBalance.default(0),
   isOffBudget: fields.isOffBudget.optional(),
   currency: fields.currency.default(HOME_CURRENCY),
+  groupName: fields.groupName.optional(),
 });
 
 // Built without defaults: Zod applies `.default()` even inside `.partial()`, so an update
@@ -37,6 +40,20 @@ function hasTransactions(accountId: string): boolean {
     .where(eq(transactions.accountId, accountId))
     .limit(1)
     .get();
+}
+
+/** The group name to store: the spelling the other open accounts already use, if any */
+function groupNameFor(name: string | null, accountId?: string): string | null {
+  const others = db
+    .select({ id: accounts.id, groupName: accounts.groupName })
+    .from(accounts)
+    .where(isNull(accounts.closedAt))
+    .all()
+    .filter((a) => a.id !== accountId);
+  return resolveGroupName(
+    name,
+    others.map((a) => a.groupName),
+  );
 }
 
 /** `hasTransactions` tells the edit dialog whether the currency can still change. */
@@ -109,6 +126,7 @@ accountsRouter.post('/', (req, res) => {
   const account = {
     id: nanoid(),
     ...parsed.data,
+    groupName: groupNameFor(parsed.data.groupName ?? null),
     // Homes, cars, investments and loans stay off budget unless asked otherwise
     isOffBudget: parsed.data.isOffBudget ?? defaultOffBudget(parsed.data.type),
     sortOrder: 0,
@@ -172,8 +190,12 @@ accountsRouter.put('/:id', (req, res) => {
     }
   }
 
-  if (Object.keys(parsed.data).length) {
-    db.update(accounts).set(parsed.data).where(eq(accounts.id, req.params.id)).run();
+  const changes = { ...parsed.data };
+  if (changes.groupName !== undefined) {
+    changes.groupName = groupNameFor(changes.groupName, req.params.id);
+  }
+  if (Object.keys(changes).length) {
+    db.update(accounts).set(changes).where(eq(accounts.id, req.params.id)).run();
   }
   const updated = db.select().from(accounts).where(eq(accounts.id, req.params.id)).get();
   if (!updated) return res.status(404).json({ error: 'Not found' });

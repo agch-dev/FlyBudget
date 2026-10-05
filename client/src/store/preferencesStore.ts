@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { IS_DEMO } from '../demo/isDemo';
 import type { ImportConventions } from '../utils/csv';
+import { toggleGroupOpen } from '../utils/accountGroups';
 
 export type Theme = 'light' | 'dark' | 'system';
 export type DateFormatOption = 'MMM d, yyyy' | 'MM/dd/yyyy' | 'dd/MM/yyyy' | 'yyyy-MM-dd';
@@ -25,6 +26,8 @@ interface PreferencesState {
   gettingStartedHidden: boolean;
   /** CSV import choices (date order, decimal mark) last used for each account, by account id */
   csvImportConventions: Record<string, ImportConventions>;
+  /** Account Groups expanded in the sidebar on this device, by name; the rest are closed */
+  openAccountGroups: string[];
   setTheme: (theme: Theme) => void;
   setDateFormat: (format: DateFormatOption) => void;
   setSavingsGoal: (goal: number) => void;
@@ -37,6 +40,7 @@ interface PreferencesState {
   setSetupSkipped: (skipped: boolean) => void;
   setGettingStartedHidden: (hidden: boolean) => void;
   setCsvImportConventions: (accountId: string, conventions: ImportConventions) => void;
+  toggleAccountGroup: (name: string) => void;
 }
 
 const PREFERENCES_KEY = 'budget-preferences';
@@ -66,6 +70,7 @@ export const usePreferencesStore = create<PreferencesState>()(
       setupSkipped: false,
       gettingStartedHidden: false,
       csvImportConventions: {},
+      openAccountGroups: [],
       setTheme: (theme) => set({ theme }),
       setDateFormat: (dateFormat) => set({ dateFormat }),
       setSavingsGoal: (savingsGoal) => set({ savingsGoal }),
@@ -81,6 +86,8 @@ export const usePreferencesStore = create<PreferencesState>()(
         set((state) => ({
           csvImportConventions: { ...state.csvImportConventions, [accountId]: conventions },
         })),
+      toggleAccountGroup: (name) =>
+        set((state) => ({ openAccountGroups: toggleGroupOpen(state.openAccountGroups, name) })),
     }),
     {
       name: PREFERENCES_KEY,
