@@ -83,8 +83,10 @@ export default function SummaryStats({ currentMonth }: Props) {
         valueColor={avgExpenses > 0 ? 'text-negative' : undefined}
       />
       <div className="bg-surface-alt rounded-lg px-4 py-3 border border-border-light">
-        <div className="flex items-center justify-between">
-          <p className="text-xs font-medium text-text-tertiary">{t('home.stats.savingsRate')}</p>
+        <div className="flex items-center justify-between max-md:flex-wrap max-md:gap-1">
+          <p className="text-xs font-medium text-text-tertiary max-md:whitespace-nowrap">
+            {t('home.stats.savingsRate')}
+          </p>
           <select
             aria-label={t('home.stats.savingsGoal')}
             value={savingsGoal}

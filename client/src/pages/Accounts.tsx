@@ -132,28 +132,33 @@ function AccountTypeSection({ group, accounts, balancesAgo }: AccountGroupProps)
     <Card padding="none">
       <button
         onClick={() => setCollapsed(!collapsed)}
-        className={`w-full flex items-center justify-between px-5 py-3.5 hover:bg-hover transition-colors ${
+        className={`w-full flex items-center justify-between max-md:gap-3 px-5 py-3.5 hover:bg-hover transition-colors ${
           collapsed ? 'rounded-lg' : 'rounded-t-lg border-b border-border'
         }`}
       >
-        <div className="flex items-center gap-2.5">
+        {/* On a phone the change wraps under the name rather than squeezing it */}
+        <div className="flex items-center gap-2.5 min-w-0 text-left max-md:flex-wrap max-md:gap-x-2 max-md:gap-y-0.5">
           <span className="text-text-tertiary">
             {collapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
           </span>
-          <span className="text-base font-semibold text-text">{accountTypeGroupLabel(group)}</span>
+          <span className="text-base font-semibold text-text max-md:whitespace-nowrap">
+            {accountTypeGroupLabel(group)}
+          </span>
           {change !== 0 && (
             <span
-              className={`flex items-center gap-1 text-xs tabular-nums ${change >= 0 ? 'text-positive' : 'text-negative'}`}
+              className={`flex items-center gap-1 text-xs tabular-nums whitespace-nowrap ${change >= 0 ? 'text-positive' : 'text-negative'}`}
             >
               {change >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
               {change >= 0 ? '+' : ''}
               {formatCurrency(change, viewing)} ({Math.abs(changePct).toFixed(1)}%)
             </span>
           )}
-          <span className="text-xs text-text-tertiary">{t('page.pastMonth')}</span>
+          <span className="text-xs text-text-tertiary whitespace-nowrap">
+            {t('page.pastMonth')}
+          </span>
         </div>
         <span
-          className={`text-base font-semibold tabular-nums ${total < 0 ? 'text-negative' : 'text-text'}`}
+          className={`text-base font-semibold tabular-nums shrink-0 ${total < 0 ? 'text-negative' : 'text-text'}`}
           data-testid="account-type-total"
         >
           {formatCurrency(total, viewing)}

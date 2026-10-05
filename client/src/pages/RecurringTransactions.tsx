@@ -85,14 +85,14 @@ export default function RecurringTransactionsPage() {
   return (
     <div className="flex flex-col h-full bg-surface">
       <div className="px-6 border-b border-border shrink-0 flex flex-wrap items-center justify-between gap-x-4">
-        <div className="flex items-center gap-6">
-          <h1 className="text-lg font-semibold text-text py-4">{t('page.title')}</h1>
+        <div className="flex items-center gap-6 max-md:flex-wrap max-md:gap-x-4 max-md:gap-y-0">
+          <h1 className="text-lg font-semibold text-text py-4 max-md:pb-1">{t('page.title')}</h1>
           <div className="flex gap-1 self-stretch">
             {tabs.map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`px-2 text-sm font-medium whitespace-nowrap transition-colors border-b-2 -mb-px cursor-pointer ${
+                className={`px-2 max-md:min-h-11 text-sm font-medium whitespace-nowrap transition-colors border-b-2 -mb-px cursor-pointer ${
                   activeTab === tab
                     ? 'border-brand-600 text-brand-600'
                     : 'border-transparent text-text-tertiary hover:text-text-secondary'

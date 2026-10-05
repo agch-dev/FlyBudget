@@ -132,7 +132,7 @@ export default function NetWorthMini() {
 
   return (
     <div>
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between max-md:flex-wrap max-md:gap-3">
         <div>
           <p className="text-xs font-medium text-text-tertiary uppercase tracking-wide">
             {t('home.netWorth.title')}
@@ -173,7 +173,7 @@ export default function NetWorthMini() {
             {t('home.netWorth.addAccount')}
           </ButtonLink>
         ) : (
-          <div className="flex flex-wrap items-center justify-end gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2 max-md:justify-start">
             <ViewingCurrencySwitch />
             <select
               aria-label={t('home.netWorth.periodLabel')}

@@ -32,7 +32,7 @@ export function DateRangeControl({
 
   return (
     <div className="flex items-center gap-2 flex-wrap">
-      <div className="flex gap-0">
+      <div className="flex gap-0 max-md:flex-wrap">
         {DATE_PRESETS.filter((p) => p.id !== 'custom').map((p) => (
           <button
             type="button"
