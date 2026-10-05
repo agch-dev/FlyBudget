@@ -21,8 +21,10 @@ import { EmptyState } from '../ui/EmptyState';
 import { useOpenFromLink } from '../../hooks/useOpenFromLink';
 import { docsUrl } from '../../utils/project';
 import { useAddTransaction } from '../../hooks/useOffline';
-import { formatCurrency, listTotal } from '../../utils/currency';
+import { formatCurrency } from '../../utils/currency';
+import { listTotal } from '../../utils/conversion';
 import type { FilterState } from './TransactionFilters';
+import { HOME_CURRENCY } from '../../types';
 import type { CategoryGroup, Currency, Transaction } from '../../types';
 import type { CreateTransactionData } from '../../api/transactions';
 
@@ -58,6 +60,10 @@ export function TransactionTable({
   const [showImport, setShowImport] = useState(false);
 
   const showAccountCol = !accountId;
+  // One account's page adds up native amounts. Every other list (all transactions, a
+  // category's) feeds pesos totals like the Budget's, so its dollar rows also say what they
+  // are in pesos.
+  const totalCurrency = accountId ? undefined : HOME_CURRENCY;
 
   const params = useMemo(() => {
     const base = filtersToParams(filters, accountId);
@@ -157,11 +163,12 @@ export function TransactionTable({
       total: number;
       currency: Currency;
     }> = [];
-    // A day's total is in its rows' currency; a day that mixes currencies adds its pesos only
+    // A day's total is in its rows' currency; a day that mixes currencies is in pesos, its
+    // dollar rows converted at the day's rate
     const dayTotal = (txs: typeof transactions) =>
       listTotal(
-        txs.map((t) => ({ currency: currencyOf(t), amount: Math.abs(t.amount) })),
-        (t) => t.amount,
+        txs.map((t) => ({ ...t, currency: currencyOf(t) })),
+        Math.abs,
       );
     let currentDate = '';
     let currentTxs: typeof transactions = [];
@@ -395,6 +402,7 @@ export function TransactionTable({
                       }
                       showAccountCol={showAccountCol}
                       currency={currencyOf(tx)}
+                      totalCurrency={totalCurrency}
                       isSelected={detailId === tx.id}
                       onOpenDetail={setDetailId}
                       onFilterCategory={(catId) =>

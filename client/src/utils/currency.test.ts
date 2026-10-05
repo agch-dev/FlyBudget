@@ -8,7 +8,6 @@ import {
   homeCurrencyTotal,
   impliedRate,
   inHomeCurrency,
-  listTotal,
   parseCents,
 } from './currency';
 
@@ -121,26 +120,6 @@ describe('combined totals', () => {
         expect(homeCurrencyTotal(dollars, (i) => i.balance)).toBe(0);
       }),
     );
-  });
-
-  it('a list in one currency adds up in that currency', () => {
-    const dollars = [
-      { currency: 'USD' as const, amount: 1_000 },
-      { currency: 'USD' as const, amount: 250 },
-    ];
-    expect(listTotal(dollars, (t) => t.amount)).toEqual({ currency: 'USD', total: 1_250 });
-    const pesos = [{ currency: 'UYU' as const, amount: 40_000 }, { amount: 2_000 }];
-    expect(listTotal(pesos, (t) => t.amount)).toEqual({ currency: 'UYU', total: 42_000 });
-  });
-
-  it('a list that mixes currencies adds up its pesos only', () => {
-    const mixed = [
-      { currency: 'UYU' as const, amount: 40_000 },
-      { currency: 'USD' as const, amount: 1_000 },
-      { currency: 'UYU' as const, amount: 500 },
-    ];
-    expect(listTotal(mixed, (t) => t.amount)).toEqual({ currency: 'UYU', total: 40_500 });
-    expect(listTotal([], () => 1)).toEqual({ currency: 'UYU', total: 0 });
   });
 
   it('treat something with no currency as pesos', () => {

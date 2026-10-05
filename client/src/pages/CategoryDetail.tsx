@@ -16,9 +16,11 @@ import { useBudget, useCategoryHistory } from '../hooks/useBudget';
 import { useTransactions } from '../hooks/useTransactions';
 import { useAppStore } from '../store/appStore';
 import { usePreferencesStore } from '../store/preferencesStore';
-import { formatCurrency, inHomeCurrency } from '../utils/currency';
+import { formatCurrency } from '../utils/currency';
+import { amountIn, totalIn } from '../utils/conversion';
 import { chartColors } from '../utils/chartColors';
 import { TransactionTable } from '../components/transactions/TransactionTable';
+import { HOME_CURRENCY } from '../types';
 import type { Transaction } from '../types';
 import { useXAxisLayout } from '../hooks/useXAxisLayout';
 
@@ -171,14 +173,16 @@ function BudgetWidget({
   );
 }
 
-// The summary is in pesos like the budget: it is given the pesos transactions only
-
-/** What a transaction put in this category: for a split, only its parts in it */
-function amountInCategory(t: Transaction, categoryId: string): number {
-  if (!t.children?.length) return t.amount;
-  return t.children
-    .filter((c) => c.categoryId === categoryId)
-    .reduce((sum, c) => sum + c.amount, 0);
+/**
+ * What a transaction put in this category, in pesos like the Budget (a dollar amount at the
+ * exchange rate of its date): for a split, only its parts in it. Null when it can't be
+ * converted, as no exchange rate is stored yet.
+ */
+function amountInCategory(t: Transaction, categoryId: string): number | null {
+  if (!t.children?.length) return amountIn(t, HOME_CURRENCY);
+  const parts = t.children.filter((c) => c.categoryId === categoryId);
+  if (parts.some((c) => amountIn(c, HOME_CURRENCY) === null)) return null;
+  return totalIn(parts, HOME_CURRENCY);
 }
 
 function SummaryWidget({
@@ -191,16 +195,19 @@ function SummaryWidget({
   isIncome: boolean;
 }) {
   const stats = useMemo(() => {
-    if (transactions.length === 0) return null;
+    const amounts = transactions
+      .map((t) => amountInCategory(t, categoryId))
+      .filter((a) => a !== null)
+      .map(Math.abs);
+    if (amounts.length === 0) return null;
 
-    const amounts = transactions.map((t) => Math.abs(amountInCategory(t, categoryId)));
     const total = amounts.reduce((s, a) => s + a, 0);
     const largest = Math.max(...amounts);
     const average = Math.round(total / amounts.length);
     const dates = transactions.map((t) => t.date).sort();
 
     return {
-      count: transactions.length,
+      count: amounts.length,
       largest,
       average,
       total,
@@ -335,11 +342,7 @@ export default function CategoryDetailPage() {
             )}
           </div>
           <div>
-            <SummaryWidget
-              transactions={inHomeCurrency(transactions)}
-              categoryId={id ?? ''}
-              isIncome={isIncome}
-            />
+            <SummaryWidget transactions={transactions} categoryId={id ?? ''} isIncome={isIncome} />
           </div>
         </div>
       </div>

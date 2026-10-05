@@ -204,6 +204,12 @@ export interface Transaction {
   /** The account's currency, sent with transaction lists (closed accounts included) */
   currency?: Currency;
   /**
+   * The amount in the other currency (pesos for a dollar transaction and the reverse), at
+   * the exchange rate of its date. Sent with transaction lists, worked out by the server on
+   * every read and never stored; null when no rate is stored. Read it with `utils/conversion.ts`
+   */
+  convertedAmount?: number | null;
+  /**
    * For a transfer, sent with transaction lists: the other side's account, its native amount
    * there, and the rate the two amounts imply (pesos per dollar; null within one currency)
    */

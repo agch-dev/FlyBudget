@@ -1,10 +1,26 @@
 import { useEffect } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import * as ratesApi from '../api/exchangeRates';
 
 const KEY = ['exchange-rates'];
 // Under KEY, so saving a rate refreshes it too
 const ESTIMATED_KEY = [...KEY, 'estimated'];
+
+/**
+ * Queries whose answers hold converted amounts. Converted amounts are worked out from the
+ * rates each time they are read (docs/adr/0001), so a new or corrected rate changes them:
+ * every rate mutation refetches these. Add the key of any query that starts converting.
+ */
+export const CONVERTED_QUERY_KEYS = [
+  ['budget'],
+  ['budget-summary'],
+  ['category-history'],
+  ['transactions'],
+] as const;
+
+function ratesChanged(qc: QueryClient) {
+  for (const queryKey of CONVERTED_QUERY_KEYS) qc.invalidateQueries({ queryKey });
+}
 
 /** Every stored exchange rate, today's rate and when rates were last fetched. */
 export const useExchangeRates = () =>
@@ -17,6 +33,7 @@ export function useRefreshExchangeRates() {
     mutationFn: ratesApi.refreshExchangeRates,
     onSuccess: (overview) => {
       qc.setQueryData(KEY, overview);
+      ratesChanged(qc);
       qc.invalidateQueries({ queryKey: ESTIMATED_KEY });
     },
   });
@@ -27,7 +44,10 @@ export function useSaveExchangeRate() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ratesApi.saveExchangeRate,
-    onSuccess: () => qc.invalidateQueries({ queryKey: KEY }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: KEY });
+      ratesChanged(qc);
+    },
   });
 }
 

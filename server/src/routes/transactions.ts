@@ -7,7 +7,9 @@ import { z } from 'zod';
 import { deleteTransactionRow, resolvePayee } from '../services/transactionHelpers.js';
 import { buildRuleContext, insertNewTransaction, loadRules } from '../services/ruleService.js';
 import { isoDate } from '../utils/validation.js';
-import { HOME_CURRENCY, impliedRate } from '../utils/currency.js';
+import { converter } from '../services/currencyConversion.js';
+import { listRates } from '../services/exchangeRateService.js';
+import { HOME_CURRENCY, impliedRate, otherCurrency } from '../utils/currency.js';
 import {
   linkAsTransfer,
   transferCandidates,
@@ -174,10 +176,18 @@ transactionsRouter.get('/', (req, res) => {
       .all()
       .map((a) => [a.id, a.currency]),
   );
-  const withCurrency = (r: (typeof rows)[number]) => ({
-    ...r,
-    currency: currencyOf.get(r.accountId) ?? HOME_CURRENCY,
-  });
+  // ...and what the amount is in the other currency at the rate of its own date, for a row
+  // shown next to a total in that currency. Computed here on every read, never stored
+  // (docs/adr/0001); null while no exchange rate is stored.
+  const convert = converter(listRates());
+  const withCurrency = (r: (typeof rows)[number]) => {
+    const currency = currencyOf.get(r.accountId) ?? HOME_CURRENCY;
+    return {
+      ...r,
+      currency,
+      convertedAmount: convert(r.amount, currency, otherCurrency(currency), r.date),
+    };
+  };
 
   // A transfer's row also says what happened in the other account: its native amount there
   // and, between a pesos and a dollars account, the rate the two amounts imply
