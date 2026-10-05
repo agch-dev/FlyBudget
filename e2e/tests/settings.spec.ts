@@ -110,7 +110,72 @@ test.describe('goals', () => {
       accountId: savings.id,
       icon: '🛡️',
       color: '#059669',
+      currency: 'UYU',
     });
+  });
+
+  test('a dollar goal shows dollars on its card and pesos in the summary', async ({
+    page,
+    api,
+  }) => {
+    await api.createAccount('Checking', 0);
+    await api.call('PUT', `/exchange-rates/${isoDay()}`, { rate: 40 });
+    await api.call('POST', '/goals', { name: 'Trip', targetAmount: 500_000 });
+    await open(page, '/goals');
+    await page.getByRole('main').getByRole('button', { name: 'Add Goal' }).first().click();
+
+    const dialog = page.getByRole('dialog', { name: 'Add Goal' });
+    await dialog.getByRole('textbox', { name: 'Name' }).fill('House');
+    const currency = dialog.getByRole('radiogroup', { name: 'Currency' });
+    await expect(currency.getByRole('radio', { name: 'Pesos ($)' })).toBeChecked();
+    await currency.getByRole('radio', { name: 'Dollars (US$)' }).click();
+    await dialog.getByRole('textbox', { name: 'Target', exact: true }).fill('1000');
+    await dialog.getByRole('textbox', { name: 'Saved so far' }).fill('250');
+    await dialog.getByRole('button', { name: 'Add Goal' }).click();
+    await expect(dialog).toBeHidden();
+
+    const main = page.getByRole('main');
+    // The card, in dollars
+    await expect(main).toContainText('US$250');
+    await expect(main).toContainText('of US$1,000');
+    await expect(main).toContainText('US$750 to go');
+    // The summary, in pesos at 40: target 40,000 + 5,000, of which 10,000 is saved
+    await expect(main).toContainText('$45,000');
+    await expect(main).toContainText('$35,000');
+    await expect(main).toContainText("converted at today's exchange rate");
+  });
+
+  test('linking a dollar account locks the currency and asks to confirm the target', async ({
+    page,
+    api,
+  }) => {
+    await api.createAccount('Dollar savings', 0, 'savings', { currency: 'USD' });
+    const goal = await api.call<{ id: string }>('POST', '/goals', {
+      name: 'Car',
+      targetAmount: 800_000,
+    });
+    await open(page, '/goals');
+    await page.getByRole('main').getByText('Car').click();
+
+    const dialog = page.getByRole('dialog', { name: 'Edit Goal' });
+    await dialog
+      .getByRole('combobox', { name: 'Linked account' })
+      .selectOption({ label: 'Dollar savings' });
+    await expect(dialog.getByRole('radio', { name: 'Dollars (US$)' })).toBeChecked();
+    await expect(dialog.getByRole('radio', { name: 'Pesos ($)' })).toBeDisabled();
+    await dialog.getByRole('button', { name: 'Save' }).click();
+
+    const confirm = page.getByRole('dialog', { name: 'Check the target' });
+    await expect(confirm).toContainText('US$8,000');
+    // Nothing is saved until the user confirms
+    expect((await api.call<any[]>('GET', '/goals'))[0]).toMatchObject({ currency: 'UYU' });
+    await confirm.getByRole('button', { name: 'Yes, save' }).click();
+    await expect(confirm).toBeHidden();
+
+    await expect(page.getByRole('main')).toContainText('of US$8,000');
+    await expect
+      .poll(async () => (await api.call<any[]>('GET', '/goals')).find((g) => g.id === goal.id))
+      .toMatchObject({ currency: 'USD', targetAmount: 800_000 });
   });
 });
 

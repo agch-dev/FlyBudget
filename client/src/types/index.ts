@@ -706,6 +706,13 @@ export interface RuleTestResult {
 }
 
 // Goals
+/** A goal's amounts in pesos at today's exchange rate */
+export interface GoalInPesos {
+  target: number;
+  saved: number;
+  remaining: number;
+}
+
 export interface Goal {
   id: string;
   name: string;
@@ -713,6 +720,10 @@ export interface Goal {
   currentAmount: number;
   targetDate: string | null;
   accountId: string | null;
+  /** The currency of the goal's amounts: its linked account's, or the one chosen without one */
+  currency: Currency;
+  /** For the page's summary; null for a dollar goal while no exchange rate is stored */
+  inPesos?: GoalInPesos | null;
   icon: string;
   color: string;
   sortOrder: number;
