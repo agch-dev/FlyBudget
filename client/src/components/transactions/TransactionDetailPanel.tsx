@@ -1,6 +1,10 @@
 import { useState, useEffect } from 'react';
-import { X, Lock, Trash2, Repeat, Unlink, Wand2 } from 'lucide-react';
-import { useUpdateTransaction, useDeleteTransaction } from '../../hooks/useTransactions';
+import { X, Lock, Trash2, Repeat, Unlink, Wand2, ArrowLeftRight } from 'lucide-react';
+import {
+  useUpdateTransaction,
+  useDeleteTransaction,
+  useUnlinkTransfer,
+} from '../../hooks/useTransactions';
 import { useSchedules, useUnmatchByTransaction } from '../../hooks/useSchedules';
 import { CategoryPicker } from './CategoryPicker';
 import { PayeeCombobox } from './PayeeCombobox';
@@ -14,6 +18,10 @@ import { usePreferencesStore } from '../../store/preferencesStore';
 import { AccountIcon } from '../accounts/AccountIcon';
 import { formatCurrency } from '../../utils/currency';
 import { TransferRate } from './TransferRate';
+import { LinkTransferModal } from './LinkTransferModal';
+import { canLinkAsTransfer } from '../../utils/transferLink';
+import { useCanSave } from '../../hooks/useConnection';
+import { SavingPausedHint } from '../connection/SavingPausedHint';
 import { RECURRENCE_TYPE_LABELS } from '../../types';
 import type {
   Transaction,
@@ -65,6 +73,9 @@ export function TransactionDetailPanel({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [ruleDraft, setRuleDraft] = useState<RuleInput | null>(null);
   const ruleModal = useModalValue(ruleDraft);
+  const [showLinkTransfer, setShowLinkTransfer] = useState(false);
+  const unlinkTransfer = useUnlinkTransfer();
+  const canSave = useCanSave();
 
   useEffect(() => {
     setLocalDate(tx.date);
@@ -75,11 +86,18 @@ export function TransactionDetailPanel({
 
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
-      if (e.key === 'Escape' && !showCategoryPicker && !showDeleteConfirm && !ruleDraft) onClose();
+      if (
+        e.key === 'Escape' &&
+        !showCategoryPicker &&
+        !showDeleteConfirm &&
+        !ruleDraft &&
+        !showLinkTransfer
+      )
+        onClose();
     }
     document.addEventListener('keydown', handleKey);
     return () => document.removeEventListener('keydown', handleKey);
-  }, [onClose, showCategoryPicker, showDeleteConfirm, ruleDraft]);
+  }, [onClose, showCategoryPicker, showDeleteConfirm, ruleDraft, showLinkTransfer]);
 
   const isReconciled = tx.reconciled === 1;
   const isTransfer = !!tx.transferTransactionId;
@@ -251,6 +269,35 @@ export function TransactionDetailPanel({
                   <TransferRate rate={tx.transfer.rate} />
                 </div>
               )}
+              {tx.transfer && tx.transfer.rate === null && (
+                <p className="mt-1 text-xs text-text-secondary">
+                  {tx.transfer.amount > 0 ? 'To' : 'From'}{' '}
+                  {accounts.find((a) => a.id === tx.transfer!.accountId)?.name ??
+                    'the other account'}
+                </p>
+              )}
+              {/* Back to two ordinary transactions (e.g. the wrong two were linked) */}
+              {!isReconciled && (
+                <div className="mt-2">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    disabled={!canSave || unlinkTransfer.isPending}
+                    onClick={() => unlinkTransfer.mutate(tx.id)}
+                  >
+                    <Unlink size={14} />
+                    Unlink transfer
+                  </Button>
+                  <SavingPausedHint className="mt-1" />
+                  {unlinkTransfer.isError && (
+                    <p role="alert" className="mt-1 text-xs text-negative">
+                      {unlinkTransfer.error instanceof Error
+                        ? unlinkTransfer.error.message
+                        : "Couldn't unlink this transfer"}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           ) : (
             <div className="relative">
@@ -334,6 +381,12 @@ export function TransactionDetailPanel({
       </div>
 
       <div className="px-5 py-4 border-t border-border space-y-2">
+        {canLinkAsTransfer(tx) && (
+          <Button variant="secondary" onClick={() => setShowLinkTransfer(true)} className="w-full">
+            <ArrowLeftRight size={14} />
+            Link as transfer
+          </Button>
+        )}
         {!isTransfer && (
           <Button variant="secondary" onClick={startRule} className="w-full">
             <Wand2 size={14} />
@@ -356,6 +409,13 @@ export function TransactionDetailPanel({
           title="New rule from transaction"
         />
       )}
+
+      <LinkTransferModal
+        isOpen={showLinkTransfer}
+        onClose={() => setShowLinkTransfer(false)}
+        transaction={tx}
+        accounts={accounts}
+      />
 
       <ConfirmModal
         isOpen={showDeleteConfirm}
