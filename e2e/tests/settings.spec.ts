@@ -114,6 +114,74 @@ test.describe('goals', () => {
   });
 });
 
+test.describe('exchange rates', () => {
+  test.beforeEach(async ({ api }) => {
+    await api.createAccount('Checking', 0);
+  });
+
+  test('a rate is entered by hand, then corrected', async ({ page, api }) => {
+    await open(page, '/settings?tab=rates');
+    await expect(page.getByText('No exchange rates yet')).toBeVisible();
+    await expect(page.getByText('Never fetched')).toBeVisible();
+
+    await page.getByRole('button', { name: 'Enter a rate' }).first().click();
+    let dialog = page.getByRole('dialog', { name: 'Enter a rate' });
+    // Today is filled in
+    await expect(dialog.getByLabel('Date')).toHaveValue(isoDay());
+    await expect(dialog.getByRole('button', { name: 'Save rate' })).toBeDisabled();
+    await dialog.getByLabel('Pesos per dollar').fill('40.342');
+    await dialog.getByRole('button', { name: 'Save rate' }).click();
+    await expect(dialog).toBeHidden();
+
+    const main = page.getByRole('main');
+    await expect(main).toContainText("Today's rate");
+    await expect(main).toContainText('$ 40.342 per US$ 1');
+    await expect(main).toContainText('Entered by hand');
+    await expect(main).toContainText('1 rate');
+
+    await page.getByRole('button', { name: /^Edit the rate of / }).click();
+    dialog = page.getByRole('dialog', { name: 'Correct a rate' });
+    await expect(dialog.getByLabel('Pesos per dollar')).toHaveValue('40.342');
+    await dialog.getByLabel('Pesos per dollar').fill('41.5');
+    await dialog.getByRole('button', { name: 'Save rate' }).click();
+    await expect(dialog).toBeHidden();
+    await expect(main).toContainText('$ 41.50 per US$ 1');
+
+    const { rates } = await api.call('GET', '/exchange-rates');
+    expect(rates).toMatchObject([{ date: isoDay(), rate: 41.5, manual: true }]);
+  });
+
+  test('rates are listed by month, and an earlier rate covers today', async ({ page, api }) => {
+    await api.call('PUT', `/exchange-rates/${isoDay(-2)}`, { rate: 40.25 });
+    await api.call('PUT', `/exchange-rates/${isoDay(-45)}`, { rate: 39.75 });
+    await open(page, '/settings?tab=rates');
+
+    const main = page.getByRole('main');
+    await expect(main).toContainText('$ 40.25 per US$ 1');
+    await expect(main).toContainText('the latest there is');
+    // One group per month, the newest open
+    const months = main.locator('details');
+    await expect(months).toHaveCount(2);
+    await expect(months.first()).toHaveAttribute('open', '');
+    await expect(months.last()).not.toHaveAttribute('open');
+    await expect(main.getByText('39.75')).toBeHidden();
+    await months.last().locator('summary').click();
+    await expect(main.getByText('39.75')).toBeVisible();
+  });
+
+  test('a refresh that fails says so and keeps the rates', async ({ page, api }) => {
+    // The test servers run with fetching switched off (global-setup.ts): the source is a
+    // personal API, so nothing here may reach it. The failed request logs a console error.
+    test.info().annotations.push({ type: 'allow-page-errors', description: 'refresh fails' });
+    await api.call('PUT', `/exchange-rates/${isoDay(-1)}`, { rate: 40.25 });
+    await open(page, '/settings?tab=rates');
+
+    await page.getByRole('button', { name: 'Refresh' }).click();
+    await expect(page.getByRole('alert')).toContainText("Couldn't get exchange rates");
+    await expect(page.getByRole('main')).toContainText('$ 40.25 per US$ 1');
+  });
+});
+
 test('settings link to the license and the source code', async ({ page, api }) => {
   await api.createAccount('Checking');
   await open(page, '/settings');

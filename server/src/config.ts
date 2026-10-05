@@ -28,6 +28,13 @@ export const allowedHosts = (process.env.FLYBUDGET_ALLOWED_HOSTS ?? '')
 export const trustProxy = process.env.FLYBUDGET_TRUST_PROXY;
 
 /**
+ * Whether the server may fetch exchange rates (on start, on Refresh, for backfills).
+ * `FLYBUDGET_EXCHANGE_RATES=off` switches it off: the source is a personal API, so automated
+ * runs (end-to-end tests, CI) must not call it. Rates can still be entered by hand.
+ */
+export const exchangeRateFetching = process.env.FLYBUDGET_EXCHANGE_RATES !== 'off';
+
+/**
  * How FlyBudget is running: the desktop app (Electron passes a per-launch API token),
  * a self-hosted server, or `npm run dev`. Read on load, before Electron clears the token
  * from the environment.

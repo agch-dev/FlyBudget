@@ -10,6 +10,7 @@ import {
   customReports,
   dashboardPages,
   dashboardWidgets,
+  exchangeRates,
   goals,
   payees,
   plaidAccountMappings,
@@ -49,6 +50,7 @@ const TABLES = {
   dashboardPages,
   dashboardWidgets,
   goals,
+  exchangeRates,
 } satisfies Record<string, SQLiteTable>;
 
 export type BackupTable = keyof typeof TABLES;
@@ -115,7 +117,9 @@ export function parseBackup(input: unknown): Record<BackupTable, Row[]> {
         const ok =
           column.columnType === 'SQLiteInteger'
             ? Number.isSafeInteger(value)
-            : typeof value === 'string' && value.length <= 1_000_000;
+            : column.columnType === 'SQLiteReal'
+              ? typeof value === 'number' && Number.isFinite(value)
+              : typeof value === 'string' && value.length <= 1_000_000;
         // Amounts are read in the account's currency, so an unknown one can't be stored
         const known = column !== accounts.currency || isCurrency(value);
         if (!ok || !known) {

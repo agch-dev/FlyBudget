@@ -102,6 +102,19 @@ test('changes stay in the tab, and "Start over" brings the demo budget back', as
   await expect(page.getByRole('row', { name: /Corner Grocer/ })).toBeVisible();
 });
 
+test('the demo never fetches exchange rates', async ({ page }) => {
+  await openDemo(page, '/settings?tab=rates');
+  await expect(page.getByText('The demo never fetches rates')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Refresh' })).toHaveCount(0);
+
+  // Entering one by hand works, and stays in the tab
+  await page.getByRole('button', { name: 'Enter a rate' }).first().click();
+  const dialog = page.getByRole('dialog', { name: 'Enter a rate' });
+  await dialog.getByLabel('Pesos per dollar').fill('40.5');
+  await dialog.getByRole('button', { name: 'Save rate' }).click();
+  await expect(page.getByRole('main')).toContainText('$ 40.50 per US$ 1');
+});
+
 test("bank connections can't be set up in the demo", async ({ page }) => {
   await openDemo(page, '/settings?tab=connections');
   await expect(page.getByText('Not available in the demo')).toBeVisible();

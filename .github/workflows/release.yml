@@ -108,6 +108,8 @@ jobs:
         env:
           APP: ${{ matrix.app }}
           RUN: ${{ matrix.name == 'linux' && 'xvfb-run -a' || '' }}
+          # The exchange rate source is a personal API: CI must not call it
+          FLYBUDGET_EXCHANGE_RATES: 'off'
         run: |
           $RUN "$APP" > app.log 2>&1 &
           for _ in $(seq 1 60); do
