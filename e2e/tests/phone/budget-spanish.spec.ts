@@ -28,7 +28,7 @@ test('the budget plans an amount and opens a category in Spanish', async ({ page
   await expect(page.getByRole('button', { name: 'Mes anterior' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Mes siguiente' })).toBeVisible();
   const month = new Intl.DateTimeFormat('es', { month: 'long' }).format(new Date());
-  await expect(main.getByText(new RegExp(`^${month} \\d{4}$`, 'i'))).toBeVisible();
+  await expect(main.getByText(new RegExp(`^${month} de \\d{4}$`, 'i'))).toBeVisible();
 
   // Planning an amount in the sheet
   await card.getByRole('button', { name: 'Planificado para Groceries: $500' }).click();
