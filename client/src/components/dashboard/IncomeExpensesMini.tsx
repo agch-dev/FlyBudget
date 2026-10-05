@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { format, parseISO } from 'date-fns';
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { useIncomeVsExpenses } from '../../hooks/useReports';
-import { formatCurrency } from '../../utils/currency';
+import { useViewingMoney } from '../../hooks/useViewingCurrency';
 import { ArrowLeftRight } from 'lucide-react';
 import { Card } from '../ui/Card';
 import { EmptyState } from '../ui/EmptyState';
@@ -12,13 +12,14 @@ import { chartColors } from '../../utils/chartColors';
 import { useXAxisLayout } from '../../hooks/useXAxisLayout';
 
 function CurrencyTooltip({ active, payload, label }: any) {
+  const money = useViewingMoney();
   if (!active || !payload?.length) return null;
   return (
     <div className="bg-surface border border-border rounded-lg shadow-hover px-3 py-2">
       <p className="text-xs text-text-tertiary mb-1">{label}</p>
       {payload.map((p: any) => (
         <p key={p.name} className="text-xs font-medium" style={{ color: p.color }}>
-          {p.name}: {formatCurrency(p.value)}
+          {p.name}: {money.format(p.value)}
         </p>
       ))}
     </div>
@@ -31,6 +32,7 @@ interface Props {
 }
 
 export default function IncomeExpensesMini({ sixMonthsAgo, currentMonth }: Props) {
+  const money = useViewingMoney();
   const { data = [], isLoading } = useIncomeVsExpenses(sixMonthsAgo, currentMonth);
 
   const chartData = useMemo(
@@ -76,7 +78,7 @@ export default function IncomeExpensesMini({ sixMonthsAgo, currentMonth }: Props
           <span
             className={`font-semibold tabular-nums ${latestNet >= 0 ? 'text-positive' : 'text-negative'}`}
           >
-            {formatCurrency(latestNet)}
+            {money.format(latestNet)}
           </span>
         </p>
       )}

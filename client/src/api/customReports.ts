@@ -1,13 +1,14 @@
 import { apiFetch } from './client';
-import type { CustomReportConfig, CustomReportData, SavedCustomReport } from '../types';
+import type { Currency, CustomReportConfig, CustomReportData, SavedCustomReport } from '../types';
 
-function configToQueryString(c: CustomReportConfig): string {
+function configToQueryString(c: CustomReportConfig, currency: Currency): string {
   const p = new URLSearchParams({
     mode: c.mode,
     group_by: c.groupBy,
     balance_type: c.balanceType,
     from: c.dateRange.from,
     to: c.dateRange.to,
+    currency,
   });
   if (c.filters.accountIds.length) p.set('account_ids', c.filters.accountIds.join(','));
   if (c.filters.categoryIds.length) p.set('category_ids', c.filters.categoryIds.join(','));
@@ -16,8 +17,9 @@ function configToQueryString(c: CustomReportConfig): string {
   return p.toString();
 }
 
-export const getCustomReportData = (config: CustomReportConfig) =>
-  apiFetch<CustomReportData>(`/reports/custom?${configToQueryString(config)}`);
+/** A custom report's figures in `currency` (the viewing currency) */
+export const getCustomReportData = (config: CustomReportConfig, currency: Currency) =>
+  apiFetch<CustomReportData>(`/reports/custom?${configToQueryString(config, currency)}`);
 
 export const getSavedReports = () => apiFetch<SavedCustomReport[]>('/custom-reports');
 

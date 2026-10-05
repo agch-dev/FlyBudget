@@ -3,6 +3,7 @@ import { format, subMonths } from 'date-fns';
 import { useBudget } from '../../hooks/useBudget';
 import { useIncomeVsExpenses } from '../../hooks/useReports';
 import { formatCurrency } from '../../utils/currency';
+import { useViewingMoney } from '../../hooks/useViewingCurrency';
 import { StatCard } from '../ui/StatCard';
 import { monthsToAverage } from '../../utils/reportSummary';
 import { usePreferencesStore } from '../../store/preferencesStore';
@@ -16,6 +17,8 @@ const GOAL_OPTIONS = [10, 15, 20, 25, 30];
 
 export default function SummaryStats({ currentMonth }: Props) {
   const twelveMonthsAgo = useMemo(() => format(subMonths(new Date(), 11), 'yyyy-MM'), []);
+  // Income and expenses follow the viewing currency; Left to Spend is the Budget's, in pesos
+  const money = useViewingMoney();
   const savingsGoal = usePreferencesStore((s) => s.savingsGoal);
   const setSavingsGoal = usePreferencesStore((s) => s.setSavingsGoal);
 
@@ -62,12 +65,12 @@ export default function SummaryStats({ currentMonth }: Props) {
       )}
       <StatCard
         label="Avg Monthly Income"
-        value={formatCurrency(avgIncome)}
+        value={money.format(avgIncome)}
         valueColor={avgIncome > 0 ? 'text-positive' : undefined}
       />
       <StatCard
         label="Avg Monthly Expenses"
-        value={formatCurrency(avgExpenses)}
+        value={money.format(avgExpenses)}
         valueColor={avgExpenses > 0 ? 'text-negative' : undefined}
       />
       <div className="bg-surface-alt rounded-lg px-4 py-3 border border-border-light">

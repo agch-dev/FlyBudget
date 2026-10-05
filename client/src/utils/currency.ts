@@ -30,7 +30,8 @@ const withCents = new Intl.NumberFormat('en-US', {
 
 /**
  * "$1,234.56" or "US$1,234.56". Pass the account's currency for a native amount (one account's
- * balance or transaction); leave it out for combined totals, which are in the home currency.
+ * balance or transaction); leave it out only for what is always in pesos (the Budget, planned
+ * amounts). Combined totals that follow the viewing currency use `moneyIn` below.
  */
 export function formatCurrency(cents: number, currency: Currency = HOME_CURRENCY): string {
   const sym = currencySymbol(currency);
@@ -67,21 +68,31 @@ export function formatCentsAxis(cents: number, currency: Currency = HOME_CURRENC
   return `${sign}${sym}${Math.round(dollars)}`;
 }
 
-/**
- * The items a combined total may add up: those in the home currency (pesos). Amounts are
- * stored in each account's own currency, so adding a dollar amount to a pesos one would be
- * wrong by the exchange rate; dollar accounts stay out of the combined totals that don't
- * convert yet (docs/adr/0001; the ones that do use utils/conversion.ts). Something with no
- * currency counts as pesos.
- */
-export function inHomeCurrency<T extends { currency?: Currency }>(items: readonly T[]): T[] {
-  return items.filter((item) => (item.currency ?? HOME_CURRENCY) === HOME_CURRENCY);
+/** A currency and how amounts in it are written: what a page of combined totals formats with */
+export interface Money {
+  currency: Currency;
+  /** "$1,234.56" / "US$1,234.56" */
+  format: (cents: number) => string;
+  /** Short axis label: "$12.5k" / "US$12.5k" */
+  axis: (cents: number) => string;
 }
 
-/** Sum of `amount` over the items in the home currency. Use it for every total across accounts. */
-export function homeCurrencyTotal<T extends { currency?: Currency }>(
-  items: readonly T[],
-  amount: (item: T) => number,
-): number {
-  return inHomeCurrency(items).reduce((sum, item) => sum + amount(item), 0);
+const MONEY = Object.fromEntries(
+  CURRENCIES.map((c): [Currency, Money] => [
+    c.value,
+    {
+      currency: c.value,
+      format: (cents) => formatCurrency(cents, c.value),
+      axis: (cents) => formatCentsAxis(cents, c.value),
+    },
+  ]),
+) as Record<Currency, Money>;
+
+/**
+ * The formatters of one currency, the same object every time. Pages in the viewing currency
+ * (dashboard, reports, cash flow, net worth) get theirs from `useViewingMoney()` and format
+ * every combined total with it, so no figure is left with the wrong sign.
+ */
+export function moneyIn(currency: Currency): Money {
+  return MONEY[currency] ?? MONEY[HOME_CURRENCY];
 }

@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
-import { balanceIn, balancesTotal, breakdownLine, rateOn } from './balanceConversion';
+import {
+  balanceIn,
+  balancesTotal,
+  breakdownLine,
+  rateOn,
+  totalAndChange,
+} from './balanceConversion';
 import type { Currency } from '../types';
 
 const isoDay = fc
@@ -118,6 +124,48 @@ describe('balancesTotal', () => {
         expect(balancesTotal(accounts, to, day, table)).toBe(expected);
       }),
     );
+  });
+});
+
+describe('totalAndChange', () => {
+  const accounts = [
+    { id: 'caja', balance: 15_000_000, currency: 'UYU' as const },
+    { id: 'usd', balance: 320_000, currency: 'USD' as const },
+  ];
+  // A month ago: $140,000 and US$3,000
+  const ago = { caja: 14_000_000, usd: 300_000 };
+  const days = { today: '2026-03-03', ago: '2026-03-01' };
+
+  it('converts today’s balances at today’s rate and the earlier ones at that day’s rate', () => {
+    // Today at 42: $150,000 + US$3,200 × 42 = $284,400. Then at 40: $140,000 + US$3,000 × 40 = $260,000
+    expect(totalAndChange(accounts, ago, 'UYU', days, rates)).toEqual({
+      total: 28_440_000,
+      change: 2_440_000,
+      before: 26_000_000,
+    });
+  });
+
+  it('in dollars, converts the pesos balances instead', () => {
+    // Today: US$3,200 + $150,000 / 42 = US$6,771.43. Then: US$3,000 + $140,000 / 40 = US$6,500
+    expect(totalAndChange(accounts, ago, 'USD', days, rates)).toEqual({
+      total: 677_143,
+      change: 27_143,
+      before: 650_000,
+    });
+  });
+
+  it('an account with no earlier balance known counts as unchanged', () => {
+    expect(totalAndChange([accounts[0]], {}, 'UYU', days, rates)).toEqual({
+      total: 15_000_000,
+      change: 0,
+      before: 15_000_000,
+    });
+  });
+
+  it('a dollar balance that did not move still changes the pesos total when the rate did', () => {
+    const still = [{ id: 'usd', balance: 100_000, currency: 'USD' as const }];
+    expect(totalAndChange(still, { usd: 100_000 }, 'UYU', days, rates).change).toBe(200_000);
+    expect(totalAndChange(still, { usd: 100_000 }, 'USD', days, rates).change).toBe(0);
   });
 });
 

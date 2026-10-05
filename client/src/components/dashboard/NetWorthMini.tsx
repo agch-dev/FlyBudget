@@ -4,20 +4,23 @@ import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'rec
 import { useNetWorth } from '../../hooks/useReports';
 import { useAccounts } from '../../hooks/useAccounts';
 import { ButtonLink } from '../ui/Button';
-import { formatCurrency } from '../../utils/currency';
+import { HOME_CURRENCY } from '../../types';
+import { ViewingCurrencySwitch } from '../ui/ViewingCurrencySwitch';
+import { useViewingMoney } from '../../hooks/useViewingCurrency';
 import { breakdownLine } from '../../utils/balanceConversion';
 import { chartColors } from '../../utils/chartColors';
 import { formatDateAxisLabels, formatDateLabel } from '../../utils/chartTicks';
 import { useXAxisLayout } from '../../hooks/useXAxisLayout';
 
 function MiniTooltip({ active, payload, label }: any) {
+  const money = useViewingMoney();
   if (!active || !payload?.length) return null;
   return (
     <div className="bg-surface border border-border rounded-lg shadow-hover px-3 py-2">
       <p className="text-xs text-text-tertiary mb-1">{label}</p>
       {payload.map((p: any) => (
         <p key={p.name} className="text-xs font-medium" style={{ color: p.color }}>
-          {p.name}: {formatCurrency(p.value)}
+          {p.name}: {money.format(p.value)}
         </p>
       ))}
     </div>
@@ -78,6 +81,7 @@ function computeRange(preset: Preset): {
 }
 
 export default function NetWorthMini() {
+  const money = useViewingMoney();
   const [preset, setPreset] = useState<Preset>('1m');
 
   const { from, to, granularity } = useMemo(() => computeRange(preset), [preset]);
@@ -107,7 +111,7 @@ export default function NetWorthMini() {
 
   const latest = data.length > 0 ? data[data.length - 1].netWorth : 0;
   // What the total is made of, when part of it is in dollars: "$150,000 + US$3,200"
-  const breakdown = breakdownLine(data[data.length - 1]?.native);
+  const breakdown = breakdownLine(data[data.length - 1]?.native, money.currency);
   const first = data.length > 0 ? data[0].netWorth : latest;
   const change = latest - first;
   const pct = first !== 0 ? (change / Math.abs(first)) * 100 : 0;
@@ -134,13 +138,13 @@ export default function NetWorthMini() {
           <p
             className={`text-3xl font-semibold tabular-nums mt-1 ${latest >= 0 ? 'text-text' : 'text-negative'}`}
           >
-            {formatCurrency(latest)}
+            {money.format(latest)}
           </p>
           {breakdown && (
             <p
               className="text-sm text-text-secondary tabular-nums mt-0.5"
               data-testid="net-worth-breakdown"
-              title="Dollars are counted at today's exchange rate"
+              title={`${money.currency === HOME_CURRENCY ? 'Dollars' : 'Pesos'} are counted at today's exchange rate`}
             >
               {breakdown}
             </p>
@@ -155,7 +159,7 @@ export default function NetWorthMini() {
               className={`text-sm tabular-nums mt-0.5 ${change >= 0 ? 'text-positive' : 'text-negative'}`}
             >
               {change >= 0 ? '+' : ''}
-              {formatCurrency(change)} ({Math.abs(pct).toFixed(1)}%)
+              {money.format(change)} ({Math.abs(pct).toFixed(1)}%)
             </p>
           )}
         </div>
@@ -165,17 +169,21 @@ export default function NetWorthMini() {
             Add an account
           </ButtonLink>
         ) : (
-          <select
-            value={preset}
-            onChange={(e) => setPreset(e.target.value as Preset)}
-            className="text-sm border border-border rounded-lg px-3 py-1.5 bg-surface text-text cursor-pointer focus:outline-none focus:ring-1 focus:ring-brand-600"
-          >
-            {PRESETS.map((p) => (
-              <option key={p.value} value={p.value}>
-                {p.label}
-              </option>
-            ))}
-          </select>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <ViewingCurrencySwitch />
+            <select
+              aria-label="Net worth period"
+              value={preset}
+              onChange={(e) => setPreset(e.target.value as Preset)}
+              className="text-sm border border-border rounded-lg px-3 py-1.5 bg-surface text-text cursor-pointer focus:outline-none focus:ring-1 focus:ring-brand-600"
+            >
+              {PRESETS.map((p) => (
+                <option key={p.value} value={p.value}>
+                  {p.label}
+                </option>
+              ))}
+            </select>
+          </div>
         )}
       </div>
 

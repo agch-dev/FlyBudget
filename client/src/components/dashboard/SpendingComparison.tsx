@@ -10,7 +10,9 @@ import {
   Legend,
 } from 'recharts';
 import { useSpendingComparison } from '../../hooks/useReports';
-import { formatCurrency } from '../../utils/currency';
+import { currencySymbol } from '../../utils/currency';
+import { HOME_CURRENCY } from '../../types';
+import { useViewingMoney } from '../../hooks/useViewingCurrency';
 import { TrendingDown } from 'lucide-react';
 import { Card } from '../ui/Card';
 import { EmptyState } from '../ui/EmptyState';
@@ -32,16 +34,18 @@ const MODES: { value: Mode; label: string }[] = [
   { value: 'year_vs_last_year', label: 'This year vs. last year' },
 ];
 
-function formatYAxis(value: number): string {
+/** Compact axis label with the currency's sign: "$950", "US$1.5K" */
+function formatYAxis(value: number, sign: string): string {
   const dollars = Math.abs(value) / 100;
   if (dollars >= 1000) {
     const k = dollars / 1000;
-    return `$${k % 1 === 0 ? k.toFixed(0) : k.toFixed(1)}K`;
+    return `${sign}${k % 1 === 0 ? k.toFixed(0) : k.toFixed(1)}K`;
   }
-  return `$${dollars.toFixed(0)}`;
+  return `${sign}${dollars.toFixed(0)}`;
 }
 
 function ComparisonTooltip({ active, payload, label }: any) {
+  const money = useViewingMoney();
   if (!active || !payload?.length) return null;
   return (
     <div className="bg-surface border border-border rounded-lg shadow-hover px-3 py-2">
@@ -54,7 +58,7 @@ function ComparisonTooltip({ active, payload, label }: any) {
               className="text-xs font-medium"
               style={{ color: p.stroke || p.color }}
             >
-              {p.name}: {formatCurrency(p.value)}
+              {p.name}: {money.format(p.value)}
             </p>
           ),
       )}
@@ -63,6 +67,7 @@ function ComparisonTooltip({ active, payload, label }: any) {
 }
 
 export default function SpendingComparison() {
+  const money = useViewingMoney();
   const [mode, setMode] = useState<Mode>('month_vs_last_month');
   const { data, isLoading } = useSpendingComparison(mode);
 
@@ -93,13 +98,15 @@ export default function SpendingComparison() {
       data.comparison.some((p) => p.cumulative !== 0));
 
   const labels = useMemo(() => chartData.map((d) => d.label), [chartData]);
-  // Inset: y-axis width (50) on the left, chart margin (8) on the right
+  // "US$1.5K" is wider than "$1.5K"
+  const axisWidth = money.currency === HOME_CURRENCY ? 50 : 64;
+  // Inset: y-axis width on the left, chart margin (8) on the right
   const xAxis = useXAxisLayout({
     labels,
     kind: 'point',
     ordered: true,
     fontSize: 11,
-    inset: { left: 50, right: 8 },
+    inset: { left: axisWidth, right: 8 },
   });
 
   if (isLoading || !data) {
@@ -122,7 +129,7 @@ export default function SpendingComparison() {
           <h3 className="text-sm font-semibold text-text">
             Spending{' '}
             <span className="text-text-secondary font-normal tabular-nums">
-              {formatCurrency(data.currentTotal)} {data.periodLabel}
+              {money.format(data.currentTotal)} {data.periodLabel}
             </span>
           </h3>
         </div>
@@ -154,8 +161,10 @@ export default function SpendingComparison() {
                 tick={{ fontSize: 11, fill: chartColors.axis }}
                 axisLine={false}
                 tickLine={false}
-                tickFormatter={formatYAxis}
-                width={50}
+                tickFormatter={(value: number) =>
+                  formatYAxis(value, currencySymbol(money.currency))
+                }
+                width={axisWidth}
               />
               <Tooltip content={<ComparisonTooltip />} />
               <Legend iconSize={8} wrapperStyle={{ fontSize: 11, color: chartColors.axis }} />

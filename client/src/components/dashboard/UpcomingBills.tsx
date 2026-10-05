@@ -4,7 +4,7 @@ import { format, addDays, parseISO, differenceInCalendarDays } from 'date-fns';
 import { useScheduleOccurrences } from '../../hooks/useSchedules';
 import { formatCurrency } from '../../utils/currency';
 import { expectedNote } from '../../utils/recurringTotals';
-import { HOME_CURRENCY } from '../../types';
+import { useViewingCurrency } from '../../hooks/useViewingCurrency';
 import { CalendarClock } from 'lucide-react';
 import { Card } from '../ui/Card';
 import { EmptyState } from '../ui/EmptyState';
@@ -12,6 +12,7 @@ import { ButtonLink } from '../ui/Button';
 import { useSchedules } from '../../hooks/useSchedules';
 
 export default function UpcomingBills() {
+  const viewingCurrency = useViewingCurrency();
   const today = format(new Date(), 'yyyy-MM-dd');
   const thirtyDaysOut = format(addDays(new Date(), 30), 'yyyy-MM-dd');
 
@@ -107,7 +108,7 @@ export default function UpcomingBills() {
                     occ.expectedAmount > 0 ? 'text-positive' : 'text-text'
                   }`}
                   // A dollar bill: what it comes to in pesos, at today's rate until it is due
-                  title={expectedNote(occ, HOME_CURRENCY, today) ?? undefined}
+                  title={expectedNote(occ, viewingCurrency, today) ?? undefined}
                 >
                   {formatCurrency(occ.expectedAmount, occ.currency)}
                 </span>

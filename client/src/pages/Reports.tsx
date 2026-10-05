@@ -10,6 +10,7 @@ import DashboardGrid from '../components/reports/dashboard/DashboardGrid';
 import NameModal from '../components/reports/dashboard/NameModal';
 import { ChartSkeleton } from '../components/reports/ChartHelpers';
 import { DateRangeControl } from '../components/reports/DateRangeControl';
+import { ViewingCurrencySwitch } from '../components/ui/ViewingCurrencySwitch';
 import {
   useCreateDashboard,
   useDashboards,
@@ -52,6 +53,7 @@ export default function ReportsPage() {
           <h1 className="text-lg font-semibold text-text shrink-0">Reports</h1>
           {active && (
             <div className="flex items-center gap-2 flex-wrap">
+              <ViewingCurrencySwitch />
               {/* Layout editing is desktop-only; phones get a single stacked column */}
               <div className="hidden md:block">
                 <Button

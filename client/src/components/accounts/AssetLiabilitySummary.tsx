@@ -1,12 +1,12 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { format } from 'date-fns';
 import { formatCurrency } from '../../utils/currency';
-import { balancesTotal, type DatedRate } from '../../utils/balanceConversion';
-import { useExchangeRates } from '../../hooks/useExchangeRates';
+import { balancesTotal } from '../../utils/balanceConversion';
+import { useBalanceRates } from '../../hooks/useExchangeRates';
+import { useViewingCurrency } from '../../hooks/useViewingCurrency';
 import { chartColors } from '../../utils/chartColors';
 import { accountTypeInfo } from '../../utils/accountTypes';
-import { HOME_CURRENCY, type Account, type AccountGroup } from '../../types';
+import type { Account, AccountGroup, Currency } from '../../types';
 
 interface Bucket {
   group: AccountGroup;
@@ -27,16 +27,17 @@ const LIABILITY_BUCKETS: Bucket[] = [
   { group: 'other', label: 'Other', color: '#9F1239' },
 ];
 
-const NO_RATES: DatedRate[] = [];
-
 interface Props {
   accounts: Account[];
 }
 
-/** In pesos: dollar balances count at today's rate (left out while no rate is stored) */
+/**
+ * In the viewing currency: balances in the other one count at today's rate (left out while no
+ * rate is stored)
+ */
 export function AssetLiabilitySummary({ accounts }: Props) {
-  const rates = useExchangeRates().data?.rates ?? NO_RATES;
-  const today = format(new Date(), 'yyyy-MM-dd');
+  const viewing = useViewingCurrency();
+  const { rates, today } = useBalanceRates();
   const { assets, liabilities } = useMemo(() => {
     // Accounts per group (which also says which groups have any accounts at all), then summed
     const assetAccounts = new Map<AccountGroup, Account[]>();
@@ -48,10 +49,10 @@ export function AssetLiabilitySummary({ accounts }: Props) {
     }
     const sums = (side: Map<AccountGroup, Account[]>) =>
       new Map(
-        [...side].map(([group, list]) => [group, balancesTotal(list, HOME_CURRENCY, today, rates)]),
+        [...side].map(([group, list]) => [group, balancesTotal(list, viewing, today, rates)]),
       );
     return { assets: sums(assetAccounts), liabilities: sums(liabilityAccounts) };
-  }, [accounts, rates, today]);
+  }, [accounts, rates, today, viewing]);
 
   return (
     <div>
@@ -59,6 +60,7 @@ export function AssetLiabilitySummary({ accounts }: Props) {
         title="Assets"
         buckets={ASSET_BUCKETS}
         sums={assets}
+        currency={viewing}
         emptyText="No bank accounts, investments or property yet."
       />
       <div className="border-t border-border-light my-4" />
@@ -66,6 +68,7 @@ export function AssetLiabilitySummary({ accounts }: Props) {
         title="Liabilities"
         buckets={LIABILITY_BUCKETS}
         sums={liabilities}
+        currency={viewing}
         emptyText="No credit cards or loans yet."
         owed
       />
@@ -77,6 +80,8 @@ interface SectionProps {
   title: string;
   buckets: Bucket[];
   sums: Map<AccountGroup, number>;
+  /** The currency the sums are in */
+  currency: Currency;
   /** Shown when there are no accounts on this side at all */
   emptyText: string;
   /** Liabilities: balances are negative */
@@ -87,7 +92,7 @@ interface SectionProps {
  * One side of the balance sheet. Only groups with accounts are listed: a "$0" row for a
  * group you haven't added would read as "you have none", not "not tracked yet".
  */
-function Section({ title, buckets, sums, emptyText, owed = false }: SectionProps) {
+function Section({ title, buckets, sums, currency, emptyText, owed = false }: SectionProps) {
   const rows = buckets.filter((b) => sums.has(b.group));
   const total = rows.reduce((s, b) => s + (sums.get(b.group) ?? 0), 0);
   // Bar widths use magnitudes; a bucket on the "wrong" side (overpaid card) gets no width
@@ -99,7 +104,7 @@ function Section({ title, buckets, sums, emptyText, owed = false }: SectionProps
       <div className="flex items-baseline justify-between">
         <span className="text-sm font-semibold text-text">{title}</span>
         <span className="text-sm font-semibold tabular-nums text-text">
-          {formatCurrency(total)}
+          {formatCurrency(total, currency)}
         </span>
       </div>
 
@@ -142,7 +147,7 @@ function Section({ title, buckets, sums, emptyText, owed = false }: SectionProps
               <span className="text-sm text-text-secondary">{b.label}</span>
             </div>
             <span className="text-sm tabular-nums text-text">
-              {formatCurrency(sums.get(b.group) ?? 0)}
+              {formatCurrency(sums.get(b.group) ?? 0, currency)}
             </span>
           </div>
         ))}

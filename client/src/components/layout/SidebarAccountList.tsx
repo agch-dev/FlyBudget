@@ -4,8 +4,8 @@ import { NavLink } from 'react-router-dom';
 import { Plus, Building2, Link2, ChevronDown, ChevronRight } from 'lucide-react';
 import { useAccounts } from '../../hooks/useAccounts';
 import { usePlaidStatus } from '../../hooks/usePlaid';
-import { format } from 'date-fns';
-import { useExchangeRates, useTodayRate } from '../../hooks/useExchangeRates';
+import { useBalanceRates } from '../../hooks/useExchangeRates';
+import { useViewingCurrency } from '../../hooks/useViewingCurrency';
 import { usePreferencesStore } from '../../store/preferencesStore';
 import { groupTotal, listAccountsByGroup } from '../../utils/accountGroups';
 import { formatCurrency } from '../../utils/currency';
@@ -14,9 +14,7 @@ import { AddAccountModal } from '../accounts/AddAccountModal';
 import { ConnectBankModal } from '../plaid/ConnectBankModal';
 import { PlaidSetupModal } from '../plaid/PlaidSetupModal';
 import { SimplefinConnectModal } from '../simplefin/SimplefinConnectModal';
-import { HOME_CURRENCY, type Account } from '../../types';
-
-const NO_RATES: never[] = [];
+import type { Account } from '../../types';
 
 /** Three 36px rows plus padding */
 const MENU_HEIGHT = 116;
@@ -51,7 +49,8 @@ function AccountRow({ account, nested }: { account: Account; nested?: boolean })
 function GroupRow({ name, accounts }: { name: string; accounts: Account[] }) {
   const open = usePreferencesStore((s) => s.openAccountGroups.includes(name));
   const toggle = usePreferencesStore((s) => s.toggleAccountGroup);
-  const { currency, total, complete } = groupTotal(accounts, useTodayRate());
+  const { rates, today } = useBalanceRates();
+  const { currency, total, complete } = groupTotal(accounts, useViewingCurrency(), today, rates);
   const listId = useId();
   return (
     <div>
@@ -60,7 +59,9 @@ function GroupRow({ name, accounts }: { name: string; accounts: Account[] }) {
         onClick={() => toggle(name)}
         aria-expanded={open}
         aria-controls={listId}
-        title={complete ? undefined : 'Dollar balances are left out: no exchange rate yet'}
+        title={
+          complete ? undefined : 'Balances in the other currency are left out: no exchange rate yet'
+        }
         className="flex items-center justify-between w-full pl-1.5 pr-3 py-0.5 max-md:min-h-11 rounded-md text-[12px] text-left text-sidebar-text/70 hover:bg-sidebar-hover hover:text-sidebar-text-hi transition-all duration-150"
       >
         <span className="flex items-center gap-0.5 min-w-0">
@@ -152,11 +153,11 @@ export function SidebarAccountList() {
 
   const onBudget = accounts.filter((a) => a.isOffBudget === 0);
   const offBudget = accounts.filter((a) => a.isOffBudget === 1);
-  // Totals are in pesos, dollar balances counted at today's rate (rows keep native balances)
-  const { data: rates } = useExchangeRates();
-  const today = format(new Date(), 'yyyy-MM-dd');
-  const total = (list: Account[]) =>
-    balancesTotal(list, HOME_CURRENCY, today, rates?.rates ?? NO_RATES);
+  // Totals are in the viewing currency, balances in the other one counted at today's rate
+  // (rows keep native balances)
+  const viewing = useViewingCurrency();
+  const { rates, today } = useBalanceRates();
+  const total = (list: Account[]) => balancesTotal(list, viewing, today, rates);
   const allTotal = total(accounts);
   const onBudgetTotal = total(onBudget);
   const offBudgetTotal = total(offBudget);
@@ -171,7 +172,7 @@ export function SidebarAccountList() {
           className="flex items-center justify-between py-1.5 text-[13px] font-bold text-sidebar-text-hi hover:text-sidebar-text-hi transition-colors"
         >
           <span>All accounts</span>
-          <span className="tabular-nums ml-2">{formatCurrency(allTotal)}</span>
+          <span className="tabular-nums ml-2">{formatCurrency(allTotal, viewing)}</span>
         </NavLink>
 
         {/* For Budget section */}
@@ -182,7 +183,9 @@ export function SidebarAccountList() {
           >
             <span>For budget</span>
             <span className="flex items-center gap-1">
-              <span className="tabular-nums text-[12px]">{formatCurrency(onBudgetTotal)}</span>
+              <span className="tabular-nums text-[12px]">
+                {formatCurrency(onBudgetTotal, viewing)}
+              </span>
               {forBudgetOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
             </span>
           </button>
@@ -205,7 +208,9 @@ export function SidebarAccountList() {
             >
               <span>Off budget</span>
               <span className="flex items-center gap-1">
-                <span className="tabular-nums text-[12px]">{formatCurrency(offBudgetTotal)}</span>
+                <span className="tabular-nums text-[12px]">
+                  {formatCurrency(offBudgetTotal, viewing)}
+                </span>
                 {offBudgetOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
               </span>
             </button>

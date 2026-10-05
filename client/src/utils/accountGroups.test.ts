@@ -8,6 +8,7 @@ import {
   toggleGroupOpen,
   type GroupableAccount,
 } from './accountGroups';
+import { balancesTotal } from './balanceConversion';
 
 const account = (
   id: string,
@@ -90,30 +91,74 @@ describe('accountGroupNames', () => {
 });
 
 describe('groupTotal', () => {
-  it('adds dollar balances at the given rate to the pesos ones', () => {
+  const rates = [
+    { date: '2026-03-01', rate: 40 },
+    { date: '2026-03-03', rate: 42 },
+  ];
+  const at = (rate: number) => [{ date: '2026-03-01', rate }];
+
+  it('adds dollar balances at the rate of the day shown to the pesos ones', () => {
     // US$100.00 at 40 pesos per dollar = $4,000.00, plus $1,500.00
     const list = [account('uyu', 'Visa', 150_000), account('usd', 'Visa', 10_000, 'USD')];
-    expect(groupTotal(list, 40)).toEqual({ currency: 'UYU', total: 550_000, complete: true });
+    expect(groupTotal(list, 'UYU', '2026-03-02', rates)).toEqual({
+      currency: 'UYU',
+      total: 550_000,
+      complete: true,
+    });
+    // At 42 the next day: $4,200.00 + $1,500.00
+    expect(groupTotal(list, 'UYU', '2026-03-03', rates).total).toBe(570_000);
+  });
+
+  it('in dollars, converts the pesos balances and keeps the dollar ones as they are', () => {
+    // $1,500.00 at 40 = US$37.50, plus US$100.00
+    const list = [account('uyu', 'Visa', 150_000), account('usd', 'Visa', 10_000, 'USD')];
+    expect(groupTotal(list, 'USD', '2026-03-02', rates)).toEqual({
+      currency: 'USD',
+      total: 13_750,
+      complete: true,
+    });
   });
 
   it('rounds a converted balance to whole cents, halves away from zero', () => {
     // One dollar cent at 40.5 is 40.5 peso cents → 41; at 0.5 it is half a cent → 1 (or -1)
-    expect(groupTotal([account('a', 'G', 1, 'USD')], 40.5).total).toBe(41);
-    expect(groupTotal([account('a', 'G', 1, 'USD')], 0.5).total).toBe(1);
-    expect(groupTotal([account('a', 'G', -1, 'USD')], 0.5).total).toBe(-1);
+    expect(groupTotal([account('a', 'G', 1, 'USD')], 'UYU', '2026-03-02', at(40.5)).total).toBe(41);
+    expect(groupTotal([account('a', 'G', 1, 'USD')], 'UYU', '2026-03-02', at(0.5)).total).toBe(1);
+    expect(groupTotal([account('a', 'G', -1, 'USD')], 'UYU', '2026-03-02', at(0.5)).total).toBe(-1);
   });
 
-  it('with no rate it leaves dollar balances out and says the total is incomplete', () => {
+  it('with no rate it leaves out what needs converting and says the total is incomplete', () => {
     const list = [account('uyu', 'Visa', 150_000), account('usd', 'Visa', 10_000, 'USD')];
-    expect(groupTotal(list, null)).toEqual({ currency: 'UYU', total: 150_000, complete: false });
+    expect(groupTotal(list, 'UYU', '2026-03-02', [])).toEqual({
+      currency: 'UYU',
+      total: 150_000,
+      complete: false,
+    });
+    expect(groupTotal(list, 'USD', '2026-03-02', [])).toEqual({
+      currency: 'USD',
+      total: 10_000,
+      complete: false,
+    });
   });
 
-  it('a pesos-only group needs no rate', () => {
-    expect(groupTotal([account('a', 'G', 100), account('b', 'G', -30)], null)).toEqual({
-      currency: 'UYU',
-      total: 70,
-      complete: true,
-    });
+  it('a group all in the currency shown needs no rate', () => {
+    expect(
+      groupTotal([account('a', 'G', 100), account('b', 'G', -30)], 'UYU', '2026-03-02', []),
+    ).toEqual({ currency: 'UYU', total: 70, complete: true });
+  });
+
+  it('is the total the sidebar sections and net worth use for the same accounts', () => {
+    fc.assert(
+      fc.property(
+        accounts,
+        fc.constantFrom<Currency>('UYU', 'USD'),
+        fc.constantFrom('2026-02-01', '2026-03-02', '2026-04-01'),
+        fc.boolean(),
+        (list, to, day, hasRates) => {
+          const table = hasRates ? rates : [];
+          expect(groupTotal(list, to, day, table).total).toBe(balancesTotal(list, to, day, table));
+        },
+      ),
+    );
   });
 
   it('a debt converts to minus what the same credit converts to', () => {
@@ -121,9 +166,11 @@ describe('groupTotal', () => {
       fc.property(
         fc.integer({ min: 0, max: 10_000_000 }),
         fc.double({ min: 0.001, max: 1000, noNaN: true }),
-        (cents, rate) => {
-          const credit = groupTotal([account('a', 'G', cents, 'USD')], rate).total;
-          const debt = groupTotal([account('a', 'G', -cents, 'USD')], rate).total;
+        fc.constantFrom<Currency>('UYU', 'USD'),
+        (cents, rate, to) => {
+          const from: Currency = to === 'UYU' ? 'USD' : 'UYU';
+          const credit = groupTotal([account('a', 'G', cents, from)], to, 'x', at(rate)).total;
+          const debt = groupTotal([account('a', 'G', -cents, from)], to, 'x', at(rate)).total;
           expect(debt).toBe(credit === 0 ? 0 : -credit);
           expect(Number.isInteger(credit)).toBe(true);
         },

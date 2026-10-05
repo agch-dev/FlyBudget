@@ -5,9 +5,8 @@ import {
   currencySymbol,
   formatCentsAxis,
   formatCurrency,
-  homeCurrencyTotal,
   impliedRate,
-  inHomeCurrency,
+  moneyIn,
   parseCents,
 } from './currency';
 
@@ -94,36 +93,19 @@ describe('amounts in pesos and dollars', () => {
   });
 });
 
-describe('combined totals', () => {
-  const arbItem = fc.record({
-    currency: fc.constantFrom('UYU' as const, 'USD' as const),
-    balance: arbCents,
+describe('amounts in a viewing currency', () => {
+  it('writes combined totals with the sign of the currency they are shown in', () => {
+    expect(moneyIn('UYU').format(123_456)).toBe('$1,234.56');
+    expect(moneyIn('USD').format(123_456)).toBe('US$1,234.56');
+    expect(moneyIn('USD').format(-5_000)).toBe('-US$50');
+    expect(moneyIn('UYU').axis(1_250_000)).toBe('$12.5k');
+    expect(moneyIn('USD').axis(1_250_000)).toBe('US$12.5k');
+    expect(moneyIn('USD').currency).toBe('USD');
   });
 
-  it('count pesos accounts only, in their original order', () => {
-    const accounts = [
-      { name: 'Caja', currency: 'UYU' as const, balance: 150_000_00 },
-      { name: 'Caja USD', currency: 'USD' as const, balance: 3_200_00 },
-      { name: 'Tarjeta', currency: 'UYU' as const, balance: -20_000_00 },
-    ];
-    expect(inHomeCurrency(accounts).map((a) => a.name)).toEqual(['Caja', 'Tarjeta']);
-    expect(homeCurrencyTotal(accounts, (a) => a.balance)).toBe(130_000_00);
-  });
-
-  it('never change when dollar amounts are added, removed or changed', () => {
-    fc.assert(
-      fc.property(fc.array(arbItem), fc.array(arbCents), (items, dollarBalances) => {
-        const dollars = dollarBalances.map((balance) => ({ currency: 'USD' as const, balance }));
-        const pesosOnly = items.filter((i) => i.currency === 'UYU');
-        const total = homeCurrencyTotal(pesosOnly, (i) => i.balance);
-        expect(homeCurrencyTotal([...items, ...dollars], (i) => i.balance)).toBe(total);
-        expect(homeCurrencyTotal(dollars, (i) => i.balance)).toBe(0);
-      }),
-    );
-  });
-
-  it('treat something with no currency as pesos', () => {
-    expect(inHomeCurrency([{ balance: 5 }, { balance: 7, currency: undefined }])).toHaveLength(2);
+  it('is the same object for the same currency, so it can be a hook dependency', () => {
+    expect(moneyIn('USD')).toBe(moneyIn('USD'));
+    expect(moneyIn('UYU')).not.toBe(moneyIn('USD'));
   });
 });
 

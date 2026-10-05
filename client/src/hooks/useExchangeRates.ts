@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
+import { format } from 'date-fns';
 import * as ratesApi from '../api/exchangeRates';
+import type { DatedRate } from '../utils/balanceConversion';
 
 const KEY = ['exchange-rates'];
 // Under KEY, so saving a rate refreshes it too
@@ -31,8 +33,18 @@ function ratesChanged(qc: QueryClient) {
 export const useExchangeRates = () =>
   useQuery({ queryKey: KEY, queryFn: ratesApi.getExchangeRates });
 
-/** Today's rate (pesos per dollar), for balances shown as of now; null while none is stored */
-export const useTodayRate = (): number | null => useExchangeRates().data?.current?.rate ?? null;
+const NO_RATES: DatedRate[] = [];
+
+/**
+ * What a total of account balances converts with: every stored rate and today's date
+ * (yyyy-MM-dd), for `balancesTotal`, `groupTotal` and `totalAndChange`. One source for the
+ * sidebar, the Accounts page and their groups, so the same accounts always add up to the same
+ * figure.
+ */
+export function useBalanceRates(): { rates: readonly DatedRate[]; today: string } {
+  const rates = useExchangeRates().data?.rates ?? NO_RATES;
+  return { rates, today: format(new Date(), 'yyyy-MM-dd') };
+}
 
 /** The Refresh button: the server fetches from the last stored date through today. */
 export function useRefreshExchangeRates() {

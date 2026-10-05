@@ -1,5 +1,5 @@
-import { HOME_CURRENCY, type Currency } from '../types';
-import { balanceIn } from './balanceConversion';
+import type { Currency } from '../types';
+import { balanceIn, type DatedRate } from './balanceConversion';
 
 // Account Groups (GLOSSARY.md): accounts of the same real-world product, such as the pesos and
 // dollars sides of one credit card, shown together. A group is only the name its accounts
@@ -61,26 +61,26 @@ export interface GroupTotal {
 }
 
 /**
- * A group's combined balance in pesos: every account's balance, the ones in another currency
- * converted at `todayRate` (pesos per dollar; null when no rate is stored). The one place a
- * group's total is worked out, and the conversion itself is the shared balance rule
- * (`balanceIn`, utils/balanceConversion.ts). To follow a viewing currency, change this
- * function only.
+ * A group's combined balance in `to` (the viewing currency) on `date`: every account's
+ * balance, the ones in another currency converted at that day's rate (`rates` from
+ * `useExchangeRates`). The one place a group's total is worked out; the conversion is the
+ * shared balance rule (`balanceIn`, utils/balanceConversion.ts), so it always agrees with the
+ * sidebar's section totals and net worth for the same accounts.
  */
 export function groupTotal(
   accounts: readonly GroupableAccount[],
-  todayRate: number | null,
+  to: Currency,
+  date: string,
+  rates: readonly DatedRate[],
 ): GroupTotal {
-  // A single rate is the rate of every day, so the day it is asked for doesn't matter
-  const rates = todayRate === null ? [] : [{ date: '', rate: todayRate }];
   let total = 0;
   let complete = true;
   for (const account of accounts) {
-    const converted = balanceIn(account.balance, account.currency, HOME_CURRENCY, '', rates);
+    const converted = balanceIn(account.balance, account.currency, to, date, rates);
     if (converted === null) complete = false;
     else total += converted;
   }
-  return { currency: HOME_CURRENCY, total, complete };
+  return { currency: to, total, complete };
 }
 
 /** The open groups after clicking `name`'s row: opened if it was closed, closed if open */
