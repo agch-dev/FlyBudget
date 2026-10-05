@@ -74,6 +74,8 @@ test('every page fits a phone screen', async ({ page, api }, testInfo) => {
     actions: [{ type: 'set_category', value: groceries.id }],
   });
   await api.call('POST', '/goals', { name: 'Vacation', targetAmount: 200_000 });
+  await api.call('PUT', `/exchange-rates/${isoDay(-1)}`, { rate: 40.342 });
+  await api.call('PUT', `/exchange-rates/${isoDay(-40)}`, { rate: 39.9 });
 
   const routes: [string, string][] = [
     ['dashboard', '/dashboard'],
@@ -91,6 +93,7 @@ test('every page fits a phone screen', async ({ page, api }, testInfo) => {
     ['payees', '/payees'],
     ['rules', '/rules'],
     ['settings', '/settings'],
+    ['settings-rates', '/settings?tab=rates'],
   ];
 
   const problems: string[] = [];

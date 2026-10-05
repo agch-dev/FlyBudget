@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { listenHost, serverMode, trustProxy } from './config.js';
+import { exchangeRateFetching, listenHost, serverMode, trustProxy } from './config.js';
 import { secretCipher } from './db/secretCrypto.js';
 import { deleteExpiredSessions, isPasswordSet } from './auth/sessions.js';
 import { setupCode } from './auth/setupCode.js';
@@ -13,6 +13,7 @@ import {
   apiTokenGuard,
   bankRateLimit,
   errorHandler,
+  exchangeRateRefreshLimit,
   hostGuard,
   originGuard,
   proxyConfigWarning,
@@ -34,6 +35,9 @@ import { goalsRouter } from './routes/goals.js';
 import { plaidRouter } from './routes/plaid.js';
 import { simplefinRouter } from './routes/simplefin.js';
 import { serverRouter } from './routes/server.js';
+import { createExchangeRatesRouter } from './routes/exchangeRates.js';
+import { refreshRates } from './services/exchangeRateService.js';
+import { fetchRatesFromSource, ratesDisabledSource } from './services/exchangeRateSource.js';
 import { syncAllItems } from './services/plaidSyncService.js';
 import { encryptStoredCredentials } from './services/credentialEncryption.js';
 import { seedDefaultCategories } from './db/defaultCategories.js';
@@ -48,6 +52,9 @@ import {
 import { format, addDays } from 'date-fns';
 
 const app = express();
+
+/** Where exchange rates come from; nowhere when fetching is switched off */
+const rateSource = exchangeRateFetching ? fetchRatesFromSource : ratesDisabledSource;
 
 // Behind a reverse proxy (server mode), trust it for HTTPS and client-IP detection
 if (trustProxy) {
@@ -93,6 +100,8 @@ app.use('/api/custom-reports', customReportsRouter);
 app.use('/api/dashboards', dashboardsRouter);
 app.use('/api/schedules', schedulesRouter);
 app.use('/api/goals', goalsRouter);
+app.post('/api/exchange-rates/refresh', exchangeRateRefreshLimit);
+app.use('/api/exchange-rates', createExchangeRatesRouter(rateSource));
 app.use('/api/plaid', bankRateLimit, plaidRouter);
 app.use('/api/simplefin', bankRateLimit, simplefinRouter);
 app.use('/api', apiNotFound);
@@ -186,6 +195,17 @@ function runStartupTasks() {
     const ensured = ensureOccurrencesForAll(horizon);
     if (ensured > 0) console.log(`Ensured ${ensured} new occurrence(s)`);
   });
+
+  // Exchange rates: asks the source only when the newest rate is more than 24 hours old.
+  // Not awaited, and a failure (offline, a malformed answer) is only logged: the stored
+  // rates stay as they were and the server runs on.
+  if (exchangeRateFetching) {
+    refreshRates(rateSource)
+      .then(({ fetched, stored }) => {
+        if (fetched) console.log(`Exchange rates: stored ${stored} rate(s)`);
+      })
+      .catch((err) => console.error('Exchange rates: could not fetch:', err?.message ?? err));
+  }
 
   // Bank sync BEFORE schedule auto-create (so real txns get matched first)
   const bankSyncDone = Promise.all([
