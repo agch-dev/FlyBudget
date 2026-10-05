@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { db } from '../db/index.js';
-import { schedules, scheduleOccurrences, transactions, payees, accounts } from '../db/schema.js';
+import { schedules, scheduleOccurrences, transactions, payees } from '../db/schema.js';
 import { eq, and, or, gte, lte, desc, inArray, isNull } from 'drizzle-orm';
 import { homeCurrencyAccountIds } from '../services/balances.js';
 import { accountCurrency, accountCurrencyLookup } from '../services/accountCurrency.js';
@@ -113,12 +113,7 @@ const CROSS_CURRENCY_TRANSFER =
 
 function crossesCurrencies(accountId?: string | null, transferAccountId?: string | null) {
   if (!accountId || !transferAccountId) return false;
-  const currencyOf = (id: string) =>
-    db.select({ currency: accounts.currency }).from(accounts).where(eq(accounts.id, id)).get()
-      ?.currency;
-  const from = currencyOf(accountId);
-  const to = currencyOf(transferAccountId);
-  return from !== undefined && to !== undefined && from !== to;
+  return accountCurrency(accountId) !== accountCurrency(transferAccountId);
 }
 
 function deriveDisplayStatus(dbStatus: string, expectedDate: string): string {
