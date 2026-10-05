@@ -12,7 +12,8 @@ import { PayeeIcon } from '../payees/PayeeIcon';
 import { useUpdatePayee } from '../../hooks/usePayees';
 import { usePreferencesStore } from '../../store/preferencesStore';
 import { AccountIcon } from '../accounts/AccountIcon';
-import { formatCurrency, formatRate } from '../../utils/currency';
+import { formatCurrency } from '../../utils/currency';
+import { TransferRate } from './TransferRate';
 import { RECURRENCE_TYPE_LABELS } from '../../types';
 import type {
   Transaction,
@@ -247,7 +248,7 @@ export function TransactionDetailPanel({
                     {accounts.find((a) => a.id === tx.transfer!.accountId)?.name ??
                       'the other account'}
                   </p>
-                  <p>Rate: {formatRate(tx.transfer.rate)}</p>
+                  <TransferRate rate={tx.transfer.rate} />
                 </div>
               )}
             </div>

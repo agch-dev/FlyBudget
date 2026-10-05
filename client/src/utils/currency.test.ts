@@ -5,7 +5,6 @@ import {
   currencySymbol,
   formatCentsAxis,
   formatCurrency,
-  formatRate,
   homeCurrencyTotal,
   impliedRate,
   inHomeCurrency,
@@ -33,13 +32,6 @@ describe('the rate a transfer between currencies implies', () => {
       null,
     );
     expect(impliedRate({ amount: 500 }, { amount: -500, currency: 'UYU' })).toBe(null);
-  });
-
-  it('is written as the pesos one dollar costs', () => {
-    expect(formatRate(40)).toBe('US$1 = $40.00');
-    expect(formatRate(40.125)).toBe('US$1 = $40.125');
-    expect(formatRate(39.87654)).toBe('US$1 = $39.877');
-    expect(formatRate(1234.5)).toBe('US$1 = $1,234.50');
   });
 });
 

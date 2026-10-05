@@ -6,7 +6,13 @@ import { useCanAddTransaction } from '../../hooks/useOffline';
 import { CategorySelect } from './CategorySelect';
 import type { Account, CategoryGroup, Payee, Transaction } from '../../types';
 import type { CreateTransactionData, SplitItem } from '../../api/transactions';
-import { parseCents, centsToInput, currencySymbol, formatCurrency } from '../../utils/currency';
+import {
+  parseCents,
+  centsToInput,
+  currencySymbol,
+  formatCurrency,
+  impliedRate,
+} from '../../utils/currency';
 import { TransferRate } from './TransferRate';
 
 interface Props {
@@ -322,8 +328,10 @@ export function TransactionFormRow({
         {otherCurrencyAccount && (
           <TransferRate
             className={sheet ? 'col-span-2' : 'pb-2'}
-            a={{ amount: getTotalCents(), currency: account?.currency }}
-            b={{ amount: otherSideCents, currency: otherCurrencyAccount.currency }}
+            rate={impliedRate(
+              { amount: getTotalCents(), currency: account?.currency },
+              { amount: otherSideCents, currency: otherCurrencyAccount.currency },
+            )}
           />
         )}
         {!sheet && (

@@ -273,7 +273,7 @@ test.describe('transfers between a pesos and a dollars account', () => {
     // The rate follows the amount as it's typed
     await dialog.getByLabel('Amount arriving (US$)').click();
     await page.keyboard.type('1000');
-    await expect(dialog.getByText('Rate: US$1 = $40.00')).toBeVisible();
+    await expect(dialog.getByText('Rate: $ 40.00 per US$ 1')).toBeVisible();
     await add.click();
     await expect(dialog).toBeHidden();
 
@@ -305,7 +305,7 @@ test.describe('transfers between a pesos and a dollars account', () => {
     await expect(form.getByText('Inflow ($)')).toBeVisible();
     await expect(form.getByRole('button', { name: 'Save' })).toBeDisabled();
     await form.getByRole('spinbutton', { name: 'Amount leaving (US$)' }).fill('500');
-    await expect(form.getByText('Rate: US$1 = $40.50')).toBeVisible();
+    await expect(form.getByText('Rate: $ 40.50 per US$ 1')).toBeVisible();
     await form.getByRole('button', { name: 'Save' }).click();
     await expect(form).toBeHidden();
 
@@ -319,7 +319,7 @@ test.describe('transfers between a pesos and a dollars account', () => {
     await page.keyboard.press('Enter');
     const panel = page.getByRole('complementary', { name: 'Transaction details' });
     await expect(panel).toContainText('$20,250 arrived in Cuenta pesos');
-    await expect(panel).toContainText('Rate: US$1 = $40.50');
+    await expect(panel).toContainText('Rate: $ 40.50 per US$ 1');
   });
 
   test('editing one side changes its amount only, and its date on both sides', async ({ api }) => {

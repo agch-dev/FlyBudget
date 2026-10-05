@@ -5,7 +5,7 @@ import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { SavedOnDeviceHint } from '../connection/SavingPausedHint';
 import { CurrencyInput } from '../ui/CurrencyInput';
-import { currencySymbol, formatCurrency } from '../../utils/currency';
+import { currencySymbol, formatCurrency, impliedRate } from '../../utils/currency';
 import { useAccounts } from '../../hooks/useAccounts';
 import { useAddTransaction } from '../../hooks/useOffline';
 import { MerchantSelect } from './MerchantSelect';
@@ -209,8 +209,10 @@ export function AddTransactionModal({ isOpen, onClose }: Props) {
             />
             <TransferRate
               className="mt-1.5"
-              a={{ amount, currency: selectedAccount.currency }}
-              b={{ amount: otherAmount, currency: otherCurrency }}
+              rate={impliedRate(
+                { amount, currency: selectedAccount.currency },
+                { amount: otherAmount, currency: otherCurrency },
+              )}
             />
           </div>
         )}

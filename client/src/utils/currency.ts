@@ -55,16 +55,6 @@ export function impliedRate(
   return Math.abs(pesos.amount / dollars.amount);
 }
 
-const rateDigits = new Intl.NumberFormat('en-US', {
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 3,
-});
-
-/** An exchange rate (pesos per dollar) as the pesos one dollar costs: "US$1 = $40.25" */
-export function formatRate(rate: number): string {
-  return `${currencySymbol('USD')}1 = ${currencySymbol('UYU')}${rateDigits.format(rate)}`;
-}
-
 const oneDecimal = (n: number) => String(Math.round(n * 10) / 10);
 
 /** Short axis label: "$950", "$12.5k", "-$1.2M". Thresholds sit where rounding would reach the next unit. */

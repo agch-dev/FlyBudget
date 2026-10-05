@@ -1,21 +1,21 @@
-import { formatRate, impliedRate } from '../../utils/currency';
-import type { Currency } from '../../types';
-
-interface Side {
-  amount: number;
-  currency?: Currency;
-}
+import { formatRate } from '../../utils/exchangeRates';
 
 /**
- * The exchange rate a transfer between a pesos and a dollars account implies ("Rate: US$1 =
- * $40.25"). Shows nothing between accounts of the same currency, or until both amounts are in.
+ * The exchange rate a transfer between a pesos and a dollars account implies, written like
+ * Settings → Exchange rates ("Rate: $ 40.25 per US$ 1"). Pass `impliedRate(…)` of its two
+ * sides: nothing is shown while that is null (same currency, or an amount still missing).
  */
-export function TransferRate({ a, b, className = '' }: { a: Side; b: Side; className?: string }) {
-  const rate = impliedRate(a, b);
+export function TransferRate({
+  rate,
+  className = '',
+}: {
+  rate: number | null;
+  className?: string;
+}) {
   if (rate === null) return null;
   return (
     <p className={`text-xs text-text-tertiary tabular-nums ${className}`} aria-live="polite">
-      Rate: {formatRate(rate)}
+      Rate: $ {formatRate(rate)} per US$ 1
     </p>
   );
 }
