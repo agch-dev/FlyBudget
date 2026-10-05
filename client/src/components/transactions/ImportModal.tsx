@@ -650,7 +650,9 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
                         className="w-3.5 h-3.5 accent-brand-600"
                       />
                     </td>
-                    <td className="px-2 py-1.5 text-xs text-text-secondary">{row.date}</td>
+                    <td className="px-2 py-1.5 text-xs text-text-secondary whitespace-nowrap">
+                      {row.date}
+                    </td>
                     <td className="px-2 py-1.5 text-xs text-text flex items-center gap-1">
                       {row.payeeName ?? '—'}
                       {row.isDuplicate && (
@@ -665,7 +667,7 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
                       </td>
                     )}
                     <td
-                      className={`px-2 py-1.5 text-xs text-right tabular-nums ${row.amount < 0 ? 'text-text' : 'text-positive'}`}
+                      className={`px-2 py-1.5 text-xs text-right tabular-nums whitespace-nowrap ${row.amount < 0 ? 'text-text' : 'text-positive'}`}
                     >
                       {formatCurrency(row.amount, row.currency)}
                     </td>
