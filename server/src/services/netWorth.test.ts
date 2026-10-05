@@ -61,6 +61,7 @@ describe('netWorthSeries', () => {
       liabilities: 0,
       netWorth: 27_800_000,
       native: { UYU: 15_000_000, USD: 320_000 },
+      leftOut: [],
     });
   });
 
@@ -110,6 +111,7 @@ describe('netWorthSeries', () => {
     });
     expect(point).toMatchObject({ assets: 100_000, netWorth: 100_000 });
     expect(point.native).toEqual({ UYU: 100_000, USD: 7_000 });
+    expect(point.leftOut).toEqual(['USD']);
   });
 
   // Generators
@@ -198,6 +200,35 @@ describe('netWorthSeries', () => {
             expect(point.netWorth).toBe(point.assets - point.liabilities);
             expect(point.assets).toBeGreaterThanOrEqual(0);
             expect(point.liabilities).toBeGreaterThanOrEqual(0);
+          });
+        },
+      ),
+    );
+  });
+
+  it('says which currencies a total leaves out: none with any rate stored, the others with none', () => {
+    fc.assert(
+      fc.property(
+        accountsOf(fc.constantFrom(...CURRENCIES)),
+        changes,
+        rateTable,
+        fc.constantFrom(...CURRENCIES),
+        (accounts, all, table, target) => {
+          const series = (rates: RatePoint[]) =>
+            netWorthSeries({ accounts, changes: all, periods, target, convert: converter(rates) });
+          // One rate is enough: a day before it uses it as an estimate
+          if (table.length > 0) for (const p of series(table)) expect(p.leftOut).toEqual([]);
+          series([]).forEach((point, i) => {
+            const own = accounts.filter((a) => a.currency === target);
+            // The total is the target currency's accounts alone
+            expect(point.netWorth).toBe(singleCurrencyNetWorth(own, all, periods[i].key).netWorth);
+            expect(point.leftOut).not.toContain(target);
+            for (const currency of CURRENCIES) {
+              // A currency listed in the breakdown and missing from the total is named
+              if (currency !== target && point.native[currency] !== 0) {
+                expect(point.leftOut).toContain(currency);
+              }
+            }
           });
         },
       ),

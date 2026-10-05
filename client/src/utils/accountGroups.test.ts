@@ -52,6 +52,39 @@ describe('listAccountsByGroup', () => {
     expect(listAccountsByGroup([old])).toEqual([{ kind: 'account', account: old }]);
   });
 
+  it('names that differ only in case are one group, under its first spelling', () => {
+    const list = [account('a', 'Visa'), account('b', 'visa'), account('c', 'VISA')];
+    expect(listAccountsByGroup(list)).toEqual([{ kind: 'group', name: 'Visa', accounts: list }]);
+    expect(accountGroupNames(list)).toEqual(['Visa']);
+  });
+
+  it('groups by the same case-folded name the server uses, whatever the spelling', () => {
+    const spelled = fc.record({
+      id: fc.uuid(),
+      groupName: fc.option(fc.constantFrom('Visa', 'visa', 'VISA', 'Itaú', 'ITAÚ', 'brou'), {
+        nil: null,
+      }),
+      balance: fc.constant(0),
+      currency: fc.constant<Currency>('UYU'),
+    });
+    fc.assert(
+      fc.property(fc.uniqueArray(spelled, { selector: (a) => a.id, maxLength: 12 }), (list) => {
+        const groups = listAccountsByGroup(list).filter((e) => e.kind === 'group');
+        const folded = groups.map((g) => g.name.toLowerCase());
+        // No two groups, and no two offered names, are the same name in another case
+        expect(new Set(folded).size).toBe(folded.length);
+        const offered = accountGroupNames(list).map((n) => n.toLowerCase());
+        expect(new Set(offered).size).toBe(offered.length);
+        expect([...offered].sort()).toEqual([...folded].sort());
+        for (const g of groups) {
+          for (const a of g.accounts) expect(a.groupName?.toLowerCase()).toBe(g.name.toLowerCase());
+          // The spelling shown is the first account's
+          expect(g.name).toBe(g.accounts[0].groupName);
+        }
+      }),
+    );
+  });
+
   it('shows every account exactly once, in its group or on its own', () => {
     fc.assert(
       fc.property(accounts, (list) => {

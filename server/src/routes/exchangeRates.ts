@@ -3,6 +3,7 @@ import { addDays, format } from 'date-fns';
 import { z } from 'zod';
 import { MAX_RATE } from '../services/exchangeRates.js';
 import {
+  dollarsNotCounted,
   estimatedRateDates,
   ratesOverview,
   refreshRates,
@@ -24,9 +25,10 @@ export function createExchangeRatesRouter(source: RateSource) {
     res.json(ratesOverview());
   });
 
-  // The dates of dollar transactions older than every stored rate (the "estimated" banner)
+  // The dates of dollar transactions older than every stored rate (the "estimated" banner).
+  // `notCounted`: there is no rate at all, so dollar amounts are left out, not estimated
   router.get('/estimated', (_req, res) => {
-    res.json({ dates: estimatedRateDates() });
+    res.json({ dates: estimatedRateDates(), notCounted: dollarsNotCounted() });
   });
 
   // The Refresh button: from the last stored date through today, whatever the 24-hour wait says

@@ -225,12 +225,12 @@ test.describe('exchange rates', () => {
     await expect(main).toContainText('$ 40.25 per US$ 1');
     await expect(main).toContainText('the latest there is');
     // One group per month, the newest open
-    const months = main.locator('details');
+    const months = main.getByRole('group', { name: /^Rates of / });
     await expect(months).toHaveCount(2);
     await expect(months.first()).toHaveAttribute('open', '');
     await expect(months.last()).not.toHaveAttribute('open');
     await expect(main.getByText('39.75')).toBeHidden();
-    await months.last().locator('summary').click();
+    await months.last().getByText('1 rate').click();
     await expect(main.getByText('39.75')).toBeVisible();
   });
 
@@ -281,12 +281,38 @@ test.describe('estimated exchange rates', () => {
     await expect(banner).toBeHidden();
   });
 
+  test('with no rate stored, dollars are said to be left out, not estimated', async ({
+    page,
+    api,
+  }) => {
+    await api.createAccount('Caja pesos', 100_000);
+    await api.createAccount('Caja dolares', 25_050, 'savings', { currency: 'USD' });
+    await open(page, '/dashboard');
+
+    const banner = page.getByRole('status', { name: 'Estimated exchange rates' });
+    await expect(banner).toContainText('No exchange rate stored yet.');
+    await expect(banner).toContainText('Totals in pesos leave dollar amounts out');
+    await expect(banner).not.toContainText('closest rate');
+    // The total counts pesos only, and the line under it says the dollars are missing
+    const main = page.getByRole('main');
+    await expect(main).toContainText(/Net Worth\s*\$1,000/);
+    await expect(main.getByTestId('net-worth-breakdown')).toHaveText(
+      '$1,000 + US$250.50 not counted (no exchange rate)',
+    );
+
+    await api.call('PUT', `/exchange-rates/${isoDay()}`, { rate: 40 });
+    await page.reload();
+    await expect(main).toContainText(/Net Worth\s*\$11,020/);
+    await expect(main.getByTestId('net-worth-breakdown')).toHaveText('$1,000 + US$250.50');
+    await expect(banner).toBeHidden();
+  });
+
   test('a budget in pesos only never shows the banner', async ({ page, api }) => {
     const checking = await api.createAccount('Checking', 0);
     await api.createTransaction({ accountId: checking.id, date: isoDay(-900), amount: -1_500 });
     const answered = page.waitForResponse((r) => r.url().endsWith('/exchange-rates/estimated'));
     await open(page, '/accounts');
-    expect(await (await answered).json()).toEqual({ dates: [] });
+    expect(await (await answered).json()).toEqual({ dates: [], notCounted: false });
     await expect(page.getByRole('heading', { level: 1, name: 'Accounts' })).toBeVisible();
     await expect(page.getByRole('status', { name: 'Estimated exchange rates' })).toBeHidden();
   });

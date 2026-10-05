@@ -7,7 +7,14 @@ import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
 import { db } from '../db/index.js';
 import { exchangeRates } from '../db/schema.js';
 import { errorHandler } from '../middleware/security.js';
-import { FIRST_RATE_DATE, type DateRange, type RatePoint } from '../services/exchangeRates.js';
+import fc from 'fast-check';
+import { InvalidBackupError, parseBackup } from '../services/backupService.js';
+import {
+  FIRST_RATE_DATE,
+  MAX_RATE,
+  type DateRange,
+  type RatePoint,
+} from '../services/exchangeRates.js';
 import {
   backfillRatesFrom,
   listRates,
@@ -328,5 +335,34 @@ describe('backup and restore', () => {
       { date: '2026-10-01', rate: 'forty', fetchedAt: now.toISOString(), isManual: 0 },
     ];
     expect((await send('POST', '/export/restore', backup)).status).toBe(400);
+  });
+
+  it('refuse a backup with a rate no fetch or hand entry could have stored', async () => {
+    saveManualRate('2026-10-02', 40.1, now);
+    const backup = (await send('GET', '/export/backup')).body;
+    const withRate = (rate: number) => ({
+      ...backup,
+      exchangeRates: [{ date: '2026-10-01', rate, fetchedAt: now.toISOString(), isManual: 0 }],
+    });
+    // Zero would divide by zero when converting pesos, a negative rate would flip signs
+    fc.assert(
+      fc.property(
+        fc.oneof(
+          fc.constant(0),
+          fc.double({ max: 0, noNaN: true }),
+          fc.double({ min: MAX_RATE, minExcluded: true, noNaN: true }),
+        ),
+        (rate) => {
+          expect(() => parseBackup(withRate(rate))).toThrow(InvalidBackupError);
+        },
+      ),
+    );
+    fc.assert(
+      fc.property(fc.double({ min: 0.0001, max: MAX_RATE, noNaN: true }), (rate) => {
+        expect(parseBackup(withRate(rate)).exchangeRates[0].rate).toBe(rate);
+      }),
+    );
+    expect((await send('POST', '/export/restore', withRate(0))).status).toBe(400);
+    expect(listRates().map((r) => r.rate)).toEqual([40.1]);
   });
 });

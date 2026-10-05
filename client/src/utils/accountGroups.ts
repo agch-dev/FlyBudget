@@ -19,8 +19,16 @@ export type AccountListEntry<A> =
   { kind: 'group'; name: string; accounts: A[] } | { kind: 'account'; account: A };
 
 /**
+ * What makes two group names the same group: the server stores one spelling per group
+ * (`resolveGroupName`, case-insensitive), but accounts that reach the client another way (a
+ * restored backup, an older offline copy) can still differ in case.
+ */
+const groupKey = (name: string) => name.toLowerCase();
+
+/**
  * A list of accounts as it is shown: each group once, where its first account was, holding
- * its accounts in their order; accounts with no group stay where they are. Call it with the
+ * its accounts in their order; accounts with no group stay where they are. Names that differ
+ * only in case are one group, shown under its first account's spelling. Call it with the
  * accounts of one section (on budget, off budget, a page) to get that section's groups.
  */
 export function listAccountsByGroup<A extends GroupableAccount>(
@@ -34,12 +42,12 @@ export function listAccountsByGroup<A extends GroupableAccount>(
       entries.push({ kind: 'account', account });
       continue;
     }
-    const members = groups.get(name);
+    const members = groups.get(groupKey(name));
     if (members) {
       members.push(account);
     } else {
       const first = [account];
-      groups.set(name, first);
+      groups.set(groupKey(name), first);
       entries.push({ kind: 'group', name, accounts: first });
     }
   }
@@ -48,9 +56,11 @@ export function listAccountsByGroup<A extends GroupableAccount>(
 
 /** The groups in use, in alphabetical order: what an account's dialog offers to choose from */
 export function accountGroupNames(accounts: readonly GroupableAccount[]): string[] {
-  const names = new Set<string>();
-  for (const account of accounts) if (account.groupName) names.add(account.groupName);
-  return [...names].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+  const names = new Map<string, string>();
+  for (const { groupName } of accounts) {
+    if (groupName && !names.has(groupKey(groupName))) names.set(groupKey(groupName), groupName);
+  }
+  return [...names.values()].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
 }
 
 export interface GroupTotal {

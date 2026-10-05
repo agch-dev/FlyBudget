@@ -7,13 +7,14 @@ import {
   linkRefusal,
   type LinkRefusal,
 } from './transferLink.js';
+import type { Currency } from '../utils/currency.js';
 
 // Linking two existing transactions as a transfer, and unlinking a transfer. Every such write
 // goes through `linkAsTransfer` / `unlinkTransfer` (rules in transferLink.ts).
 
 type Row = typeof transactions.$inferSelect;
 /** A transaction with its account's currency */
-export type TransferSide = Row & { currency: string };
+export type TransferSide = Row & { currency: Currency };
 
 export type LinkResult =
   { ok: true; transactions: [TransferSide, TransferSide] } | ({ ok: false } & LinkRefusal);

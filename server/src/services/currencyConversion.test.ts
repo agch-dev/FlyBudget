@@ -1,3 +1,4 @@
+import { readFileSync } from 'fs';
 import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
 import { convertCents, conversionRates, converter, rateDateFor } from './currencyConversion.js';
@@ -136,5 +137,48 @@ describe('rateDateFor', () => {
     expect(rateDateFor('2026-03-01', '2026-03-10')).toBe('2026-03-01');
     expect(rateDateFor('2026-03-10', '2026-03-10')).toBe('2026-03-10');
     expect(rateDateFor('2026-04-02', '2026-03-10')).toBe('2026-03-10');
+  });
+});
+
+// The client keeps a copy of this rule for account balances (client/src/utils/
+// balanceConversion.ts). Both are checked against the same hand-worked examples, so one
+// can't change without the other.
+describe('the conversion examples shared with the client', () => {
+  interface Example {
+    cents: number;
+    from: (typeof CURRENCIES)[number];
+    to: (typeof CURRENCIES)[number];
+    date: string;
+    expected: number | null;
+    why: string;
+  }
+  const vectors: {
+    rates: RatePoint[];
+    rateOn: { date: string; rate: number; why: string }[];
+    conversions: Example[];
+    withoutRates: Example[];
+  } = JSON.parse(readFileSync('src/services/conversionVectors.json', 'utf8'));
+
+  it('finds the rate each date converts at', () => {
+    const rateOn = conversionRates(vectors.rates);
+    for (const { date, rate: expected, why } of vectors.rateOn) {
+      expect(rateOn(date), `${date}: ${why}`).toBe(expected);
+    }
+  });
+
+  it('converts each amount to the cent', () => {
+    const convert = converter(vectors.rates);
+    for (const { cents: amount, from, to, date, expected, why } of vectors.conversions) {
+      const converted = convert(amount, from, to, date);
+      expect(converted, `${amount} ${from} to ${to} on ${date}: ${why}`).toBe(expected);
+      expect(Object.is(converted, -0)).toBe(false);
+    }
+  });
+
+  it('converts nothing across currencies while no rate is stored', () => {
+    const convert = converter([]);
+    for (const { cents: amount, from, to, date, expected, why } of vectors.withoutRates) {
+      expect(convert(amount, from, to, date), why).toBe(expected);
+    }
   });
 });

@@ -8,6 +8,7 @@ import {
   totalAndChange,
 } from './balanceConversion';
 import type { Currency } from '../types';
+import vectors from '../../../server/src/services/conversionVectors.json';
 
 const isoDay = fc
   .integer({ min: 0, max: 2000 })
@@ -184,9 +185,74 @@ describe('breakdownLine', () => {
     expect(breakdownLine({ UYU: 15_000_000, USD: 320_000 }, 'USD')).toBe('US$3,200 + $150,000');
   });
 
+  it('says so when an amount it lists is missing from the total', () => {
+    const native = { UYU: 15_000_000, USD: 320_000 };
+    expect(breakdownLine(native, 'UYU', ['USD'])).toBe(
+      '$150,000 + US$3,200 not counted (no exchange rate)',
+    );
+    expect(breakdownLine(native, 'USD', ['UYU'])).toBe(
+      'US$3,200 + $150,000 not counted (no exchange rate)',
+    );
+    expect(breakdownLine({ UYU: 15_000_000, USD: -320_000 }, 'UYU', ['USD'])).toBe(
+      '$150,000 − US$3,200 not counted (no exchange rate)',
+    );
+    // Nothing is left out of a total in its own currency
+    expect(breakdownLine(native, 'UYU', [])).toBe('$150,000 + US$3,200');
+    expect(breakdownLine(native, 'UYU', ['UYU'])).toBe('$150,000 + US$3,200');
+  });
+
+  it('names a currency left out even when what is owned and owed in it cancel out', () => {
+    expect(breakdownLine({ UYU: 15_000_000, USD: 0 }, 'UYU', ['USD'])).toBe(
+      '$150,000 + US$0 not counted (no exchange rate)',
+    );
+  });
+
   it('says nothing when there is only the currency of the total, or nothing to go by', () => {
     expect(breakdownLine({ UYU: 15_000_000, USD: 0 })).toBeNull();
     expect(breakdownLine({ UYU: 0, USD: 320_000 }, 'USD')).toBeNull();
     expect(breakdownLine(undefined)).toBeNull();
+  });
+});
+
+// The rule here is a copy of the server's (server/src/services/currencyConversion.ts). Both
+// are checked against the same hand-worked examples, so one can't change without the other.
+describe('the conversion examples shared with the server', () => {
+  const examples = (list: typeof vectors.conversions) =>
+    list.map((e) => ({ ...e, from: e.from as Currency, to: e.to as Currency }));
+
+  it('finds the rate each date converts at', () => {
+    for (const { date, rate: expected, why } of vectors.rateOn) {
+      expect(rateOn(vectors.rates, date), `${date}: ${why}`).toBe(expected);
+    }
+  });
+
+  it('converts each amount to the cent', () => {
+    for (const { cents: amount, from, to, date, expected, why } of examples(vectors.conversions)) {
+      const converted = balanceIn(amount, from, to, date, vectors.rates);
+      expect(converted, `${amount} ${from} to ${to} on ${date}: ${why}`).toBe(expected);
+      expect(Object.is(converted, -0)).toBe(false);
+    }
+  });
+
+  it('converts nothing across currencies while no rate is stored', () => {
+    for (const e of vectors.withoutRates) {
+      const converted = balanceIn(e.cents, e.from as Currency, e.to as Currency, e.date, []);
+      expect(converted, e.why).toBe(e.expected);
+    }
+  });
+
+  it('agrees with the examples for any balance at their rates: a total is the sum of its parts', () => {
+    fc.assert(
+      fc.property(fc.constantFrom(...vectors.rateOn), cents, currency, (day, amount, from) => {
+        // The rate the examples give for the day is the one a balance converts at
+        const to: Currency = from === 'UYU' ? 'USD' : 'UYU';
+        const exact = to === 'UYU' ? amount * day.rate : amount / day.rate;
+        const converted = balanceIn(amount, from, to, day.date, vectors.rates)!;
+        expect(Math.abs(converted - exact)).toBeLessThanOrEqual(0.5);
+        expect(
+          balancesTotal([{ balance: amount, currency: from }], to, day.date, vectors.rates),
+        ).toBe(converted);
+      }),
+    );
   });
 });

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
 import {
   estimatedDatesLabel,
+  ratesNotice,
   formatRate,
   groupRatesByMonth,
   parseRateInput,
@@ -117,6 +118,35 @@ describe('estimatedDatesLabel', () => {
         const label = estimatedDatesLabel(dates);
         expect(label).toContain(estimatedDatesLabel([sorted[0]]));
         expect(label).toContain(estimatedDatesLabel([sorted[sorted.length - 1]]));
+      }),
+    );
+  });
+});
+
+describe('ratesNotice', () => {
+  it('is silent when every dollar amount has a rate', () => {
+    expect(ratesNotice({ dates: [], notCounted: false })).toBeNull();
+    expect(ratesNotice(undefined)).toBeNull();
+  });
+
+  it('says amounts are estimated when an earlier rate is missing but another one is stored', () => {
+    expect(ratesNotice({ dates: ['2023-11-10'], notCounted: false })).toEqual({
+      title: 'No exchange rate for 10 Nov 2023.',
+      detail:
+        'Dollar amounts on that date are converted at the closest rate available, so totals are estimated.',
+    });
+    expect(ratesNotice({ dates: ['2023-02-01', '2023-11-10'] })?.detail).toContain('those dates');
+  });
+
+  it('never promises an estimate when no rate is stored at all', () => {
+    fc.assert(
+      fc.property(fc.array(isoDay, { maxLength: 6 }), (dates) => {
+        const notice = ratesNotice({ dates, notCounted: true })!;
+        expect(notice.title).toBe('No exchange rate stored yet.');
+        expect(notice.detail).toBe(
+          'Totals in pesos leave dollar amounts out, and totals in dollars leave pesos out, until there is one.',
+        );
+        expect(notice.title + notice.detail).not.toMatch(/closest|estimated/);
       }),
     );
   });

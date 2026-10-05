@@ -106,8 +106,12 @@ test.describe('account groups', () => {
     const add = page.getByRole('dialog', { name: 'Add Account' });
     await add.getByRole('textbox', { name: 'Account name' }).fill('Oca dolares');
     const groupField = add.getByRole('combobox', { name: /^Group/ });
-    await expect(add.locator('datalist option')).toHaveCount(1);
-    await expect(add.locator('datalist option')).toHaveAttribute('value', 'Oca');
+    // The browser draws a datalist's options itself, so they are hidden in the page
+    const offered = add
+      .getByRole('listbox', { name: 'Groups in use', includeHidden: true })
+      .getByRole('option', { includeHidden: true });
+    await expect(offered).toHaveCount(1);
+    await expect(offered).toHaveText('Oca');
     await groupField.fill('Oca');
     await add.getByRole('button', { name: 'Add Account' }).click();
     await expect(add).toBeHidden();
@@ -140,6 +144,7 @@ test.describe('account groups', () => {
     await expect(page.getByRole('region', { name: 'Oca group' })).toBeVisible();
     await expect(page.getByRole('region', { name: 'Oca Blue group' })).toHaveCount(0);
     await main.getByRole('button', { name: 'Add Account' }).click();
-    await expect(add.locator('datalist option')).toHaveCount(1);
+    await expect(offered).toHaveCount(1);
+    await expect(offered).toHaveText('Oca');
   });
 });

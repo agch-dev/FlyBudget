@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, lt, min, ne, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, isNotNull, lt, min, ne, or, sql } from 'drizzle-orm';
 import { format } from 'date-fns';
 import { db } from '../db/index.js';
 import { accounts, exchangeRates, transactions } from '../db/schema.js';
@@ -152,13 +152,18 @@ let backfilling: Promise<unknown> = Promise.resolve();
 // The earliest date already asked of the source since this server started. The source may
 // have nothing that old, and asking again for every old transaction would hammer it.
 let askedFrom: string | null = null;
+// When the source last failed to answer a backfill. While it is down, every save, bank sync
+// and import would otherwise ask it again (and wait for it): see BACKFILL_RETRY_MS.
+let backfillFailedAt: number | null = null;
 
 /**
  * Makes rates reach back to `date`: for a dollar transaction dated before every stored
  * rate. Fetches from `date` up to the earliest fetched rate, whatever the 24-hour wait
  * says, and does nothing when the stored rates already reach that far (so it is cheap to
  * call for every new dollar transaction). Rejects when the source fails; the caller should
- * still save its transaction.
+ * still save its transaction. What was asked is remembered until the server restarts: a date
+ * the source answered for (even with nothing) is not asked again, and after a failure
+ * nothing is asked for `BACKFILL_RETRY_MS`.
  */
 export function backfillRatesFrom(
   date: string,
@@ -170,10 +175,19 @@ export function backfillRatesFrom(
       from: date,
       earliestFetched: fetchedEdge('oldest')?.date ?? null,
       alreadyAskedFrom: askedFrom,
+      lastFailedAt: backfillFailedAt,
+      now: now.getTime(),
       today: localDate(now),
     });
     if (!range) return NOT_FETCHED;
-    const stored = await fetchAndStore(source, range, now);
+    let stored: number;
+    try {
+      stored = await fetchAndStore(source, range, now);
+    } catch (err) {
+      backfillFailedAt = now.getTime();
+      throw err;
+    }
+    backfillFailedAt = null;
     askedFrom = range.start;
     return { fetched: true, stored };
   });
@@ -208,6 +222,23 @@ export function estimatedRateDates(): string[] {
     .orderBy(asc(transactions.date))
     .all()
     .map((row) => row.date);
+}
+
+/**
+ * Whether dollar amounts are missing from converted totals altogether: no rate is stored at
+ * all (not even one to estimate with) while a dollar account holds something, transactions
+ * or a starting balance. False for a budget in pesos only.
+ */
+export function dollarsNotCounted(): boolean {
+  if (earliestRateDate()) return false;
+  const holdsSomething = db
+    .select({ id: accounts.id })
+    .from(accounts)
+    .leftJoin(transactions, eq(transactions.accountId, accounts.id))
+    .where(and(inDollarAccount, or(ne(accounts.startingBalance, 0), isNotNull(transactions.id))))
+    .limit(1)
+    .get();
+  return !!holdsSomething;
 }
 
 /**
@@ -257,4 +288,5 @@ export function resetExchangeRateFetchState() {
   refreshing = null;
   backfilling = Promise.resolve();
   askedFrom = null;
+  backfillFailedAt = null;
 }

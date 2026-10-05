@@ -2,7 +2,8 @@ import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { format, addDays, parseISO, differenceInCalendarDays } from 'date-fns';
 import { useScheduleOccurrences } from '../../hooks/useSchedules';
-import { formatCurrency } from '../../utils/currency';
+// A native amount: each bill is shown in its own account's currency
+import { formatCurrency as formatNative } from '../../utils/currency';
 import { expectedNote } from '../../utils/recurringTotals';
 import { useViewingCurrency } from '../../hooks/useViewingCurrency';
 import { CalendarClock } from 'lucide-react';
@@ -110,7 +111,7 @@ export default function UpcomingBills() {
                   // A dollar bill: what it comes to in pesos, at today's rate until it is due
                   title={expectedNote(occ, viewingCurrency, today) ?? undefined}
                 >
-                  {formatCurrency(occ.expectedAmount, occ.currency)}
+                  {formatNative(occ.expectedAmount, occ.currency)}
                 </span>
               </div>
             );

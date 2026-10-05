@@ -2,7 +2,9 @@ import { useMemo } from 'react';
 import { format, subMonths } from 'date-fns';
 import { useBudget } from '../../hooks/useBudget';
 import { useIncomeVsExpenses } from '../../hooks/useReports';
-import { formatCurrency } from '../../utils/currency';
+// A native amount: every combined total here goes through `money` (the viewing currency)
+import { formatCurrency as formatNative } from '../../utils/currency';
+import { HOME_CURRENCY } from '../../types';
 import { useViewingMoney } from '../../hooks/useViewingCurrency';
 import { StatCard } from '../ui/StatCard';
 import { monthsToAverage } from '../../utils/reportSummary';
@@ -59,7 +61,12 @@ export default function SummaryStats({ currentMonth }: Props) {
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
       {totalBudgeted > 0 ? (
-        <StatCard label="Left to Spend" value={formatCurrency(leftToSpend)} valueColor={ltsColor} />
+        // A Budget figure: always pesos, whatever the viewing currency
+        <StatCard
+          label="Left to Spend"
+          value={formatNative(leftToSpend, HOME_CURRENCY)}
+          valueColor={ltsColor}
+        />
       ) : (
         <StatCard label="Left to Spend" value="—" sub="No budget set this month" />
       )}

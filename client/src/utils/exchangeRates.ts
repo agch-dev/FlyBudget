@@ -62,3 +62,27 @@ export function estimatedDatesLabel(dates: readonly string[]): string {
   const last = named.pop() ?? '';
   return named.length ? `${named.join(', ')} and ${last}` : last;
 }
+
+/**
+ * What the banner at the top of the app says about missing exchange rates, or null when
+ * there is nothing to say. With some rate stored, a dollar amount dated before it is
+ * converted at that rate (an estimate). With no rate stored at all nothing can be converted,
+ * so the amounts are left out of totals: the banner must not promise an estimate then.
+ */
+export function ratesNotice(
+  answer: { dates: readonly string[]; notCounted?: boolean } | undefined,
+): { title: string; detail: string } | null {
+  if (!answer) return null;
+  if (answer.notCounted) {
+    return {
+      title: 'No exchange rate stored yet.',
+      detail:
+        'Totals in pesos leave dollar amounts out, and totals in dollars leave pesos out, until there is one.',
+    };
+  }
+  if (answer.dates.length === 0) return null;
+  return {
+    title: `No exchange rate for ${estimatedDatesLabel(answer.dates)}.`,
+    detail: `Dollar amounts on ${answer.dates.length === 1 ? 'that date' : 'those dates'} are converted at the closest rate available, so totals are estimated.`,
+  };
+}

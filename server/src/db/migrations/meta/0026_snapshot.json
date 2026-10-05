@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "7fb664c6-6a93-4838-9ef6-f467f7794c0f",
-  "prevId": "d47509cc-94ef-410e-999c-74d19ee30a52",
+  "id": "1ebce705-4986-4068-b463-43a9b08f3d4a",
+  "prevId": "7436bed7-0f5d-440c-b073-4cc973e71e86",
   "tables": {
     "accounts": {
       "name": "accounts",
@@ -61,6 +61,21 @@
         },
         "logo": {
           "name": "logo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "currency": {
+          "name": "currency",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'UYU'"
+        },
+        "group_name": {
+          "name": "group_name",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -382,6 +397,13 @@
           "autoincrement": false,
           "default": 0
         },
+        "date_range": {
+          "name": "date_range",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "text",
@@ -548,13 +570,21 @@
           "notNull": false,
           "autoincrement": false
         },
+        "currency": {
+          "name": "currency",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'UYU'"
+        },
         "icon": {
           "name": "icon",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false,
-          "default": "'ðŸŽ¯'"
+          "default": "'🎯'"
         },
         "color": {
           "name": "color",
@@ -624,6 +654,13 @@
         },
         "default_category_id": {
           "name": "default_category_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "logo": {
+          "name": "logo",
           "type": "text",
           "primaryKey": false,
           "notNull": false,
@@ -1069,6 +1106,22 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
+        },
+        "conditions_op": {
+          "name": "conditions_op",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'and'"
+        },
+        "enabled": {
+          "name": "enabled",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 1
         },
         "sort_order": {
           "name": "sort_order",
@@ -1543,6 +1596,20 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
+        },
+        "user_agent": {
+          "name": "user_agent",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "last_used_at": {
+          "name": "last_used_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
         }
       },
       "indexes": {},
@@ -1794,6 +1861,21 @@
           "notNull": false,
           "autoincrement": false
         },
+        "imported_payee": {
+          "name": "imported_payee",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "is_adjustment": {
+          "name": "is_adjustment",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
         "recurring_transaction_id": {
           "name": "recurring_transaction_id",
           "type": "text",
@@ -1893,6 +1975,109 @@
           "columnsFrom": ["schedule_id"],
           "columnsTo": ["id"],
           "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "exchange_rates": {
+      "name": "exchange_rates",
+      "columns": {
+        "date": {
+          "name": "date",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "rate": {
+          "name": "rate",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "fetched_at": {
+          "name": "fetched_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "is_manual": {
+          "name": "is_manual",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
+    "transfer_suggestion_dismissals": {
+      "name": "transfer_suggestion_dismissals",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "transaction_id": {
+          "name": "transaction_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "other_transaction_id": {
+          "name": "other_transaction_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "dismissed_at": {
+          "name": "dismissed_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(datetime('now'))"
+        }
+      },
+      "indexes": {
+        "idx_transfer_dismissal_other": {
+          "name": "idx_transfer_dismissal_other",
+          "columns": ["other_transaction_id"],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {
+        "transfer_suggestion_dismissals_transaction_id_transactions_id_fk": {
+          "name": "transfer_suggestion_dismissals_transaction_id_transactions_id_fk",
+          "tableFrom": "transfer_suggestion_dismissals",
+          "tableTo": "transactions",
+          "columnsFrom": ["transaction_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "transfer_suggestion_dismissals_other_transaction_id_transactions_id_fk": {
+          "name": "transfer_suggestion_dismissals_other_transaction_id_transactions_id_fk",
+          "tableFrom": "transfer_suggestion_dismissals",
+          "tableTo": "transactions",
+          "columnsFrom": ["other_transaction_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },

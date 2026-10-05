@@ -123,11 +123,12 @@ describe("a goal's currency", () => {
     ).toBe(400);
   });
 
-  it("follows the linked account's currency when that changes", async () => {
+  it("keeps its currency: the linked account's can't change under it", async () => {
     const account = await newAccount('Savings', 'UYU');
     const goal = await newGoal({ accountId: account.id });
-    await send('PUT', `/accounts/${account.id}`, { currency: 'USD' });
-    expect((await listed(goal.id)).currency).toBe('USD');
+    const refused = await send('PUT', `/accounts/${account.id}`, { currency: 'USD' });
+    expect(refused.status).toBe(409);
+    expect((await listed(goal.id)).currency).toBe('UYU');
   });
 });
 

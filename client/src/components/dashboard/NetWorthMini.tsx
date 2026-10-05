@@ -111,7 +111,9 @@ export default function NetWorthMini() {
 
   const latest = data.length > 0 ? data[data.length - 1].netWorth : 0;
   // What the total is made of, when part of it is in dollars: "$150,000 + US$3,200"
-  const breakdown = breakdownLine(data[data.length - 1]?.native, money.currency);
+  const last = data[data.length - 1];
+  const breakdown = breakdownLine(last?.native, money.currency, last?.leftOut);
+  const other = money.currency === HOME_CURRENCY ? 'Dollars' : 'Pesos';
   const first = data.length > 0 ? data[0].netWorth : latest;
   const change = latest - first;
   const pct = first !== 0 ? (change / Math.abs(first)) * 100 : 0;
@@ -144,7 +146,11 @@ export default function NetWorthMini() {
             <p
               className="text-sm text-text-secondary tabular-nums mt-0.5"
               data-testid="net-worth-breakdown"
-              title={`${money.currency === HOME_CURRENCY ? 'Dollars' : 'Pesos'} are counted at today's exchange rate`}
+              title={
+                last?.leftOut?.length
+                  ? `${other} are not in the total above: there is no exchange rate to convert them. Enter one in Settings → Exchange rates`
+                  : `${other} are counted at today's exchange rate`
+              }
             >
               {breakdown}
             </p>

@@ -4,9 +4,12 @@ import type { AddressInfo } from 'net';
 import type { Server } from 'http';
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
 import { db } from '../db/index.js';
+import { exchangeRates } from '../db/schema.js';
 import { errorHandler } from '../middleware/security.js';
 import { accountsRouter } from './accounts.js';
 import { exportRouter } from './export.js';
+import { goalsRouter } from './goals.js';
+import { schedulesRouter } from './schedules.js';
 import { transactionsRouter } from './transactions.js';
 
 let server: Server;
@@ -20,6 +23,8 @@ beforeAll(async () => {
   );
   app.use('/api/accounts', accountsRouter);
   app.use('/api/export', exportRouter);
+  app.use('/api/goals', goalsRouter);
+  app.use('/api/schedules', schedulesRouter);
   app.use('/api/transactions', transactionsRouter);
   app.use(errorHandler);
   server = await new Promise<Server>((r) => {
@@ -96,6 +101,96 @@ describe('account currency', () => {
     expect(renamed.body).toMatchObject({ name: 'Tarjeta dólares', currency: 'USD' });
   });
 
+  const newAccount = async (name: string, currency = 'UYU') =>
+    (await send('POST', '/accounts', { name, type: 'checking', currency })).body;
+  const listed = async (id: string) =>
+    (await send('GET', '/accounts')).body.find((a: { id: string }) => a.id === id);
+
+  it('says why the currency is locked, or that it is not', async () => {
+    const account = await newAccount('Nueva');
+    expect(account.currencyLockedBy).toBeNull();
+    expect((await listed(account.id)).currencyLockedBy).toBeNull();
+    await send('POST', '/transactions', { accountId: account.id, date: '2026-03-01', amount: -5 });
+    expect((await listed(account.id)).currencyLockedBy).toBe('transactions');
+  });
+
+  it('cannot change currency while a recurring item uses the account, on either side', async () => {
+    const paidFrom = await newAccount('Paga');
+    const receives = await newAccount('Recibe');
+    const item = await send('POST', '/schedules', {
+      name: 'Ahorro',
+      accountId: paidFrom.id,
+      transferAccountId: receives.id,
+      amount: -1_000,
+      recurrenceType: 'monthly',
+      startDate: '2026-01-10',
+    });
+    expect(item.status).toBe(201);
+
+    for (const account of [paidFrom, receives]) {
+      const refused = await send('PUT', `/accounts/${account.id}`, { currency: 'USD' });
+      expect(refused.status).toBe(409);
+      expect(refused.body.error).toMatch(/recurring/i);
+      expect(await listed(account.id)).toMatchObject({
+        currency: 'UYU',
+        currencyLockedBy: 'recurring',
+      });
+    }
+
+    await send('DELETE', `/schedules/${item.body.id}`);
+    const freed = await send('PUT', `/accounts/${paidFrom.id}`, { currency: 'USD' });
+    expect(freed.status).toBe(200);
+    expect(freed.body).toMatchObject({ currency: 'USD', currencyLockedBy: null });
+  });
+
+  it('cannot change currency while a goal is linked to the account', async () => {
+    const account = await newAccount('Ahorros');
+    const goal = await send('POST', '/goals', {
+      name: 'Viaje',
+      targetAmount: 500_000,
+      accountId: account.id,
+    });
+    expect(goal.status).toBe(201);
+
+    const refused = await send('PUT', `/accounts/${account.id}`, { currency: 'USD' });
+    expect(refused.status).toBe(409);
+    expect(refused.body.error).toMatch(/goal/i);
+    expect((await listed(account.id)).currencyLockedBy).toBe('goal');
+    // Everything else about the account can still change
+    const renamed = await send('PUT', `/accounts/${account.id}`, {
+      name: 'Viajes',
+      currency: 'UYU',
+    });
+    expect(renamed.status).toBe(200);
+
+    await send('PUT', `/goals/${goal.body.id}`, { accountId: null });
+    expect((await send('PUT', `/accounts/${account.id}`, { currency: 'USD' })).status).toBe(200);
+  });
+
+  it('refuses to move a transaction to an account of the other currency', async () => {
+    const pesos = await newAccount('Pesos');
+    const otherPesos = await newAccount('Más pesos');
+    const dollars = await newAccount('Dólares', 'USD');
+    const tx = await send('POST', '/transactions', {
+      accountId: pesos.id,
+      date: '2026-03-01',
+      amount: -4_000_000,
+    });
+
+    const refused = await send('PUT', `/transactions/${tx.body.id}`, { accountId: dollars.id });
+    expect(refused.status).toBe(400);
+    expect(refused.body.error).toMatch(/currency/i);
+    const unknown = await send('PUT', `/transactions/${tx.body.id}`, { accountId: 'nowhere' });
+    expect(unknown.status).toBe(400);
+
+    const moved = await send('PUT', `/transactions/${tx.body.id}`, {
+      accountId: otherPesos.id,
+      notes: 'moved',
+    });
+    expect(moved.status).toBe(200);
+    expect(moved.body).toMatchObject({ accountId: otherPesos.id, amount: -4_000_000 });
+  });
+
   it("lists each transaction with its account's currency, closed accounts included", async () => {
     const { body: account } = await send('POST', '/accounts', {
       name: 'Cuenta vieja',
@@ -136,11 +231,53 @@ describe('export and backup', () => {
 
     const csv = await fetch(`${base}/export/transactions/csv`).then((r) => r.text());
     const [header, ...rows] = csv.split('\n');
-    expect(header).toBe('Date,Account,Currency,Payee,Category,Notes,Amount,Reconciled');
+    expect(header).toBe('Date,Account,Group,Currency,Payee,Category,Notes,Amount,Reconciled');
     expect(rows.sort()).toEqual([
-      '2026-05-10,Dollars,USD,,,,-19.99,No',
-      '2026-05-10,Pesos,UYU,,,,-450.00,No',
+      '2026-05-10,Dollars,,USD,,,,-19.99,No',
+      '2026-05-10,Pesos,,UYU,,,,-450.00,No',
     ]);
+  });
+
+  it("the CSV export names each row's Account Group, safely for a spreadsheet", async () => {
+    await freshStart();
+    const add = async (name: string, groupName: string | null, amount: number) => {
+      const { body: account } = await send('POST', '/accounts', {
+        name,
+        type: 'checking',
+        groupName,
+      });
+      await send('POST', '/transactions', { accountId: account.id, date: '2026-05-10', amount });
+    };
+    await add('Caja', 'Itaú, cuentas', -100);
+    await add('Tarjeta', '=SUM(A1)', -200);
+    await add('Efectivo', null, -300);
+
+    const csv = await fetch(`${base}/export/transactions/csv`).then((r) => r.text());
+    expect(csv.split('\n').slice(1).sort()).toEqual([
+      '2026-05-10,Caja,"Itaú, cuentas",UYU,,,,-1.00,No',
+      '2026-05-10,Efectivo,,UYU,,,,-3.00,No',
+      "2026-05-10,Tarjeta,'=SUM(A1),UYU,,,,-2.00,No",
+    ]);
+  });
+
+  it('exports the stored exchange rates as CSV, oldest first', async () => {
+    db.delete(exchangeRates).run();
+    const none = await fetch(`${base}/export/exchange-rates/csv`);
+    expect(none.headers.get('content-type')).toContain('text/csv');
+    expect(none.headers.get('content-disposition')).toContain('exchange-rates.csv');
+    expect(await none.text()).toBe('Date,Pesos per dollar,Source\n');
+
+    db.insert(exchangeRates)
+      .values([
+        { date: '2026-10-02', rate: 40.125, fetchedAt: '2026-10-02T12:00:00.000Z', isManual: 1 },
+        { date: '2026-10-01', rate: 40, fetchedAt: '2026-10-02T12:00:00.000Z', isManual: 0 },
+      ])
+      .run();
+    const csv = await fetch(`${base}/export/exchange-rates/csv`).then((r) => r.text());
+    expect(csv).toBe(
+      'Date,Pesos per dollar,Source\n2026-10-01,40,Fetched\n2026-10-02,40.125,Entered by hand',
+    );
+    db.delete(exchangeRates).run();
   });
 
   it("a backup carries each account's currency through a restore", async () => {

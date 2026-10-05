@@ -38,6 +38,11 @@ export interface NetWorthPoint {
   netWorth: number;
   /** What the total is made of: each currency's own net worth, in its native amount */
   native: Record<Currency, number>;
+  /**
+   * Currencies with a balance the total does not count, because it could not be converted
+   * (no exchange rate stored). `native` still lists them, so the page must say so.
+   */
+  leftOut: Currency[];
 }
 
 /**
@@ -58,8 +63,9 @@ export function dayShown(period: string, today: string): string {
  * Net worth at the end of each period, in `target`. Assets are the positive balances of
  * accounts that hold value, liabilities the negative balances of debts; each balance is
  * converted on its own (whole cents) and then added, so the total is the sum of what the
- * accounts show. A balance that cannot be converted (no rate stored) is left out of the total
- * and still listed in `native`. `periods` must be in ascending order.
+ * accounts show. A balance that cannot be converted (no rate stored) is left out of the total,
+ * still listed in `native`, and its currency named in `leftOut`. `periods` must be in
+ * ascending order.
  */
 export function netWorthSeries({
   accounts,
@@ -92,6 +98,7 @@ export function netWorthSeries({
     let assets = 0;
     let liabilities = 0;
     const native = Object.fromEntries(CURRENCIES.map((c) => [c, 0])) as Record<Currency, number>;
+    const notConverted = new Set<Currency>();
     for (const c of cursors) {
       while (c.next < c.entries.length && c.entries[c.next].period <= key) {
         c.balance += c.entries[c.next++].total;
@@ -102,10 +109,20 @@ export function netWorthSeries({
       if (counted === 0) continue;
       native[c.account.currency] += counted;
       const converted = convert(counted, c.account.currency, target, date);
-      if (converted === null) continue;
+      if (converted === null) {
+        notConverted.add(c.account.currency);
+        continue;
+      }
       if (liability) liabilities -= converted;
       else assets += converted;
     }
-    return { month: key, assets, liabilities, netWorth: assets - liabilities, native };
+    return {
+      month: key,
+      assets,
+      liabilities,
+      netWorth: assets - liabilities,
+      native,
+      leftOut: CURRENCIES.filter((c) => notConverted.has(c)),
+    };
   });
 }

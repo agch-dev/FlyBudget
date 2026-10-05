@@ -147,6 +147,7 @@ export function ExchangeRates() {
                 <details
                   key={month}
                   open={i === 0}
+                  aria-label={`Rates of ${monthLabel(month)}`}
                   className="group rounded-lg border border-border-light"
                 >
                   <summary className="flex items-center justify-between gap-3 px-4 py-2.5 max-md:min-h-11 cursor-pointer text-sm font-medium text-text hover:bg-surface-alt rounded-lg">

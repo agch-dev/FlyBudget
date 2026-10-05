@@ -23,6 +23,7 @@ import {
   transferSuggestionDismissals,
 } from '../db/schema.js';
 import { isCurrency } from '../utils/currency.js';
+import { MAX_RATE } from './exchangeRates.js';
 
 // Full JSON backup of the user's data, and restoring one.
 //
@@ -125,7 +126,12 @@ export function parseBackup(input: unknown): Record<BackupTable, Row[]> {
         // Amounts are read in the account's or goal's currency, so an unknown one can't be stored
         const known =
           (column !== accounts.currency && column !== goals.currency) || isCurrency(value);
-        if (!ok || !known) {
+        // The same bounds as a fetched or hand-entered rate: zero can't be divided by, and a
+        // negative rate would turn money in into money out
+        const plausible =
+          column !== exchangeRates.rate ||
+          (typeof value === 'number' && value > 0 && value <= MAX_RATE);
+        if (!ok || !known || !plausible) {
           throw new InvalidBackupError(`Row ${i + 1} of "${name}" has an invalid "${key}"`);
         }
         row[key] = value;

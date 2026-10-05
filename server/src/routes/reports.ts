@@ -80,16 +80,16 @@ function monthRange(from: string, to: string): string[] {
   return months;
 }
 
+/**
+ * Every calendar day from `from` to `to` (YYYY-MM-DD, both included), empty when `to` is
+ * earlier. Walks UTC days: a calendar day has nothing to do with the machine's time zone, and
+ * walking local midnights loses days where a daylight-saving change removes one.
+ */
 export function dayRange(from: string, to: string): string[] {
   const days: string[] = [];
-  const d = new Date(from + 'T00:00:00');
-  const end = new Date(to + 'T00:00:00');
-  while (d <= end) {
-    // Local date parts: toISOString() is UTC, which is the previous day east of UTC
-    days.push(
-      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`,
-    );
-    d.setDate(d.getDate() + 1);
+  const end = Date.parse(`${to}T00:00:00Z`);
+  for (let t = Date.parse(`${from}T00:00:00Z`); t <= end; t += 86_400_000) {
+    days.push(new Date(t).toISOString().slice(0, 10));
   }
   return days;
 }

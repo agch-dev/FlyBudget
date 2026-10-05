@@ -267,4 +267,21 @@ test.describe('accounts', () => {
       "The currency can't change once the account has transactions.",
     );
   });
+
+  test('the currency is locked while a goal is linked to the account', async ({ page, api }) => {
+    const account = await api.createAccount('Ahorros', 0, 'savings');
+    await api.call('POST', '/goals', {
+      name: 'Viaje',
+      targetAmount: 500_000,
+      accountId: account.id,
+    });
+    await open(page, `/accounts/${account.id}`);
+    await page.getByRole('button', { name: 'Edit' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Edit Account' });
+    await expect(dialog.getByRole('radio', { name: 'Pesos ($)' })).toBeChecked();
+    await expect(dialog.getByRole('radio', { name: 'Dollars (US$)' })).toBeDisabled();
+    await expect(dialog).toContainText(
+      "The currency can't change while a goal is linked to this account.",
+    );
+  });
 });

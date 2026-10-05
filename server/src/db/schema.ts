@@ -306,7 +306,7 @@ export const goals = sqliteTable('goals', {
   accountId: text('account_id').references(() => accounts.id, { onDelete: 'set null' }),
   // 'UYU' or 'USD': the currency of the goal's amounts. A linked account's currency wins
   // (services/goalAmounts.ts); this is what the goal keeps once it has no account
-  currency: text('currency').notNull().default('UYU'),
+  currency: text('currency').$type<Currency>().notNull().default('UYU'),
   icon: text('icon').notNull().default('🎯'),
   color: text('color').notNull().default('#2563EB'),
   sortOrder: integer('sort_order').notNull().default(0),

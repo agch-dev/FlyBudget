@@ -37,7 +37,7 @@ import { simplefinRouter } from './routes/simplefin.js';
 import { serverRouter } from './routes/server.js';
 import { createExchangeRatesRouter } from './routes/exchangeRates.js';
 import { transferSuggestionsRouter } from './routes/transferSuggestions.js';
-import { createRateBackfill } from './routes/rateBackfill.js';
+import { createRateBackfill, createScheduleRateBackfill } from './routes/rateBackfill.js';
 import {
   backfillRatesForDollarTransactions,
   refreshRates,
@@ -109,7 +109,8 @@ app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
 app.use('/api/server', serverRouter);
 app.use('/api/accounts', accountsRouter);
 app.use('/api/categories', categoriesRouter);
-// A new dollar transaction older than every stored rate fetches the missing rates first
+// A dollar transaction saved with a date older than every stored rate fetches the missing
+// rates first (so does marking a recurring item paid, below)
 if (exchangeRateFetching) app.use('/api/transactions', createRateBackfill(rateSource));
 app.use('/api/transactions', transactionsRouter);
 app.use('/api/budget', budgetRouter);
@@ -119,6 +120,7 @@ app.use('/api/reports', reportsRouter);
 app.use('/api/export', exportRouter);
 app.use('/api/custom-reports', customReportsRouter);
 app.use('/api/dashboards', dashboardsRouter);
+if (exchangeRateFetching) app.use('/api/schedules', createScheduleRateBackfill(rateSource));
 app.use('/api/schedules', schedulesRouter);
 app.use('/api/goals', goalsRouter);
 app.use('/api/transfer-suggestions', transferSuggestionsRouter);

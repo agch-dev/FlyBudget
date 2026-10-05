@@ -18,12 +18,12 @@ export type AccountType =
   | 'other_asset'
   | 'other_liability';
 
-export type AccountGroup = 'cash' | 'credit' | 'investments' | 'property' | 'loans' | 'other';
+export type AccountTypeGroup = 'cash' | 'credit' | 'investments' | 'property' | 'loans' | 'other';
 
 export interface AccountTypeInfo {
   value: AccountType;
   label: string;
-  group: AccountGroup;
+  group: AccountTypeGroup;
   /** Debts: the balance is what's owed, stored as a negative number */
   liability: boolean;
   /** Everyday spending accounts; the rest default to off budget */
@@ -171,7 +171,7 @@ export const ACCOUNT_TYPES: AccountTypeInfo[] = [
   },
 ];
 
-export const ACCOUNT_GROUPS: { value: AccountGroup; label: string }[] = [
+export const ACCOUNT_TYPE_GROUPS: { value: AccountTypeGroup; label: string }[] = [
   { value: 'cash', label: 'Cash' },
   { value: 'credit', label: 'Credit' },
   { value: 'investments', label: 'Investments' },
@@ -318,8 +318,13 @@ export interface Account {
   type: AccountType;
   /** Every amount in the account (balance, starting balance, transactions) is in it */
   currency: Currency;
-  /** False while the account has no transactions: only then can its currency change */
+  /** False while the account has no transactions */
   hasTransactions?: boolean;
+  /**
+   * What ties the account to its currency: its transactions, a recurring item that uses it
+   * or a goal linked to it. Null when nothing does: only then can the currency change.
+   */
+  currencyLockedBy?: 'transactions' | 'recurring' | 'goal' | null;
   /** Its Account Group (accounts with the same name are shown together); null = none */
   groupName?: string | null;
   startingBalance: number;
@@ -341,6 +346,8 @@ export interface NetWorthPoint {
   netWorth: number;
   /** What the total is made of: each currency's own net worth in its native amount */
   native?: Record<Currency, number>;
+  /** Currencies `native` lists but the totals leave out: no exchange rate to convert them */
+  leftOut?: Currency[];
 }
 export interface IncomeExpensesPoint {
   month: string;

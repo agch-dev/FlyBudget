@@ -6,10 +6,10 @@ import { useBalanceRates } from '../../hooks/useExchangeRates';
 import { useViewingCurrency } from '../../hooks/useViewingCurrency';
 import { chartColors } from '../../utils/chartColors';
 import { accountTypeInfo } from '../../utils/accountTypes';
-import type { Account, AccountGroup, Currency } from '../../types';
+import type { Account, AccountTypeGroup, Currency } from '../../types';
 
 interface Bucket {
-  group: AccountGroup;
+  group: AccountTypeGroup;
   label: string;
   color: string;
 }
@@ -40,14 +40,14 @@ export function AssetLiabilitySummary({ accounts }: Props) {
   const { rates, today } = useBalanceRates();
   const { assets, liabilities } = useMemo(() => {
     // Accounts per group (which also says which groups have any accounts at all), then summed
-    const assetAccounts = new Map<AccountGroup, Account[]>();
-    const liabilityAccounts = new Map<AccountGroup, Account[]>();
+    const assetAccounts = new Map<AccountTypeGroup, Account[]>();
+    const liabilityAccounts = new Map<AccountTypeGroup, Account[]>();
     for (const a of accounts) {
       const info = accountTypeInfo(a.type);
       const side = info.liability ? liabilityAccounts : assetAccounts;
       side.set(info.group, [...(side.get(info.group) ?? []), a]);
     }
-    const sums = (side: Map<AccountGroup, Account[]>) =>
+    const sums = (side: Map<AccountTypeGroup, Account[]>) =>
       new Map(
         [...side].map(([group, list]) => [group, balancesTotal(list, viewing, today, rates)]),
       );
@@ -79,7 +79,7 @@ export function AssetLiabilitySummary({ accounts }: Props) {
 interface SectionProps {
   title: string;
   buckets: Bucket[];
-  sums: Map<AccountGroup, number>;
+  sums: Map<AccountTypeGroup, number>;
   /** The currency the sums are in */
   currency: Currency;
   /** Shown when there are no accounts on this side at all */

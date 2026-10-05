@@ -33,7 +33,8 @@ import {
 } from '../utils/recurrence.js';
 import { ensureOccurrences } from './scheduleService.js';
 import { linkOccurrenceToTransaction } from './matchingEngine.js';
-import { HOME_CURRENCY, type Currency } from '../utils/currency.js';
+import { type Currency } from '../utils/currency.js';
+import { accountCurrencyLookup } from './accountCurrency.js';
 
 const DATE_WINDOW = 2; // ±days, Actual's approx-date bound
 const OCCURRENCES_TO_MATCH = 3;
@@ -277,7 +278,7 @@ function loadTransactions(accountId: string, claimed: Set<string>): Tx[] {
 export function findSchedules(): DiscoveredSchedule[] {
   const openAccounts = db.select().from(accounts).where(isNull(accounts.closedAt)).all();
   const accountName = new Map(openAccounts.map((a) => [a.id, a.name]));
-  const accountCurrency = new Map(openAccounts.map((a) => [a.id, a.currency]));
+  const currencyOf = accountCurrencyLookup();
 
   // Payees already covered by a live schedule are excluded
   const scheduledPayees = new Set(
@@ -333,7 +334,7 @@ export function findSchedules(): DiscoveredSchedule[] {
       id: `${c.payeeKey}|${c.accountId}`,
       accountId: c.accountId,
       accountName: accountName.get(c.accountId) ?? '',
-      currency: accountCurrency.get(c.accountId) ?? HOME_CURRENCY,
+      currency: currencyOf(c.accountId),
       payeeId: sample?.payeeId ?? null,
       payeeName: sample?.payeeName ?? 'Unknown payee',
       amount: c.amount,

@@ -67,6 +67,7 @@ it('each day of the history uses that day’s rate, for what is owned and what i
     liabilities: 0,
     netWorth: 27_800_000,
     native: { UYU: 15_000_000, USD: 320_000 },
+    leftOut: [],
   });
   // No balance changed overnight; the dollar went from 40 to 42
   expect(points[1]).toMatchObject({ month: '2025-03-10', netWorth: 28_440_000 });
@@ -78,6 +79,7 @@ it('each day of the history uses that day’s rate, for what is owned and what i
     liabilities: 840_000,
     netWorth: 27_600_000,
     native: { UYU: 15_000_000, USD: 300_000 },
+    leftOut: [],
   });
 });
 

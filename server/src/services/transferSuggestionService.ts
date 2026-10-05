@@ -5,6 +5,7 @@ import { rateLookup } from './exchangeRates.js';
 import { listRates } from './exchangeRateService.js';
 import { pairKey, suggestTransfers } from './transferSuggestions.js';
 import type { LinkSide } from './transferLink.js';
+import type { Currency } from '../utils/currency.js';
 
 // The database side of transfer suggestions (rules in transferSuggestions.ts). Nothing here
 // links anything: confirming a suggestion is `linkAsTransfer` (transferLinkService.ts).
@@ -16,7 +17,7 @@ export interface SuggestionSide {
   date: string;
   /** Native amount: cents in the account's currency */
   amount: number;
-  currency: string;
+  currency: Currency;
   payeeName: string | null;
 }
 

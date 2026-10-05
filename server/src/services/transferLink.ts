@@ -1,3 +1,5 @@
+import type { Currency } from '../utils/currency.js';
+
 // Which two existing transactions can be linked as a transfer. Pure: the database side is in
 // transferLinkService.ts.
 
@@ -7,7 +9,7 @@ export interface LinkSide {
   accountId: string;
   date: string;
   amount: number;
-  currency: string;
+  currency: Currency;
   reconciled: number;
   isParent: number;
   parentTransactionId: string | null;
@@ -61,14 +63,15 @@ export function linkRefusal(a: LinkSide, b: LinkSide): LinkRefusal | null {
 }
 
 /**
- * Whether `other` is offered as the other side when linking `of`: an unlinked transaction of
- * the opposite direction in another account. The amount is not compared, so a same-currency
+ * Whether `other` is offered as the other side when linking `of`: another unlinked transaction
+ * of the opposite direction in another account. The amount is not compared, so a same-currency
  * candidate of a different amount is offered and then refused by `linkRefusal` with its reason.
  */
 export function isTransferCandidate(of: LinkSide, other: LinkSide): boolean {
   return (
     sideRefusal(of) === null &&
     sideRefusal(other) === null &&
+    other.id !== of.id &&
     other.accountId !== of.accountId &&
     Math.sign(of.amount) * Math.sign(other.amount) === -1
   );
