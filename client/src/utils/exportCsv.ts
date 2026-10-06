@@ -2,6 +2,7 @@ import { t } from '../i18n';
 import type en from '../i18n/en/reports';
 import type { BuiltinWidgetType, Currency, CustomReportData, ReportGroupBy } from '../types';
 import { currencySymbol } from './currency';
+import { shownReport } from './reportText';
 
 // A report's "Export CSV" file follows the App Language, like the table on screen: its header
 // row, the names the app supplies and its file name come from the catalog (`reports:csv`).
@@ -41,22 +42,20 @@ export function csvFileName(
 }
 
 /**
- * A custom report as the rows of its CSV file: a row per group, or over time a row per month
- * with a column per group. A group with no name (no category, no payee) gets the name the
- * report shows for it on screen.
+ * A custom report as the rows of its CSV file, grouped as the table shows it (`shownReport`):
+ * a row per group, or over time a row per month with a column per group.
  */
 export function customReportCsvRows(data: CustomReportData, groupBy: ReportGroupBy): CsvRow[] {
-  const named = (name: string | null) =>
-    name ?? (groupBy === 'payee' ? t('reports:unknownPayee') : t('reports:uncategorized'));
-  if (data.mode === 'total') {
-    return data.data.map((d) => ({
-      [csvHeader('name')]: named(d.name),
+  const shown = shownReport(data, groupBy);
+  if (shown.mode === 'total') {
+    return shown.data.map((d) => ({
+      [csvHeader('name')]: d.name,
       [csvHeader('amount_cents')]: d.value,
     }));
   }
-  return data.data.map((d) => {
+  return shown.data.map((d) => {
     const row: CsvRow = { [csvHeader('month')]: d.month };
-    for (const g of data.groups) row[named(g.name)] = d[g.key] ?? 0;
+    for (const g of shown.groups) row[g.name] = d[g.key];
     return row;
   });
 }

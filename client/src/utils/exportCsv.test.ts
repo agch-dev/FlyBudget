@@ -245,4 +245,18 @@ describe('customReportCsvRows', () => {
       { mes: '2026-03', 'Corner Market': 200, 'Sin beneficiario': 50 },
     ]);
   });
+
+  it('over time: a payee called "Unknown" and rows with no payee are one column, summed', () => {
+    const data = {
+      mode: 'time',
+      groups: [
+        { key: 'g0', name: 'Unknown' },
+        { key: 'g1', name: null },
+      ],
+      data: [{ month: '2026-03', g0: 30, g1: 50 }],
+    } as const;
+    expect(
+      customReportCsvRows(data as unknown as Parameters<typeof customReportCsvRows>[0], 'payee'),
+    ).toEqual([{ month: '2026-03', Unknown: 80 }]);
+  });
 });

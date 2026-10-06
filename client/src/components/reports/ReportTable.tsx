@@ -1,16 +1,14 @@
 import { useTranslation } from 'react-i18next';
 import { useViewingMoney } from '../../hooks/useViewingCurrency';
 import { monthLabel } from './ChartHelpers';
-import { groupName } from '../../utils/reportText';
-import type { CustomReportData, ReportGroupBy } from '../../types';
+import type { ShownReportData } from '../../utils/reportText';
 
 interface Props {
-  data: CustomReportData;
-  /** What the rows are grouped by: it decides the label of a group with no name */
-  groupBy: ReportGroupBy;
+  /** The report as shown (`shownReport`): each group under its label, once */
+  data: ShownReportData;
 }
 
-export default function ReportTable({ data, groupBy }: Props) {
+export default function ReportTable({ data }: Props) {
   const { t } = useTranslation('reports');
   const money = useViewingMoney();
   if (data.mode === 'total') {
@@ -28,7 +26,7 @@ export default function ReportTable({ data, groupBy }: Props) {
           <tbody>
             {data.data.map((row, i) => (
               <tr key={i} className="border-b border-border-light hover:bg-hover">
-                <td className="py-2 px-3 text-text-secondary">{groupName(row.name, groupBy)}</td>
+                <td className="py-2 px-3 text-text-secondary">{row.name}</td>
                 <td
                   className={`py-2 px-3 text-right tabular-nums font-medium ${row.value < 0 ? 'text-negative' : 'text-text'}`}
                 >
@@ -63,7 +61,7 @@ export default function ReportTable({ data, groupBy }: Props) {
                 key={g.key}
                 className="text-right py-2 px-3 font-semibold text-text-secondary whitespace-nowrap"
               >
-                {groupName(g.name, groupBy)}
+                {g.name}
               </th>
             ))}
           </tr>
