@@ -195,7 +195,8 @@ describe('reports with dollar accounts', () => {
       expect(byGroup.data).toEqual([{ name: 'Spending', id: 'spending', value: 349_960 }]);
 
       const byPayee = await custom(`${both}&balance_type=income&group_by=payee`);
-      expect(byPayee.data).toEqual([{ name: 'Unknown', id: null, value: 4_990_000 }]);
+      // No payee: no name (the client writes the label)
+      expect(byPayee.data).toEqual([{ name: null, id: null, value: 4_990_000 }]);
 
       const net = await custom(`${both}&balance_type=net&group_by=month`);
       expect(net.data).toEqual([
@@ -223,15 +224,16 @@ describe('reports with dollar accounts', () => {
       const income = await custom(`${both}&balance_type=income&mode=time`);
       expect(income).toEqual({
         mode: 'time',
-        groups: ['Salary'],
+        groups: [{ key: 'g0', name: 'Salary' }],
         data: [
-          { month: '2026-02', Salary: 890_000 },
-          { month: '2026-03', Salary: 4_100_000 },
+          { month: '2026-02', g0: 890_000 },
+          { month: '2026-03', g0: 4_100_000 },
         ],
       });
 
       const spending = await custom(`${feb}&balance_type=expense&mode=time&group_by=account`);
-      expect(spending.data).toEqual([{ month: '2026-02', Dollars: 39_000 }]);
+      expect(spending.groups).toEqual([{ key: 'g0', name: 'Dollars' }]);
+      expect(spending.data).toEqual([{ month: '2026-02', g0: 39_000 }]);
     });
   });
 

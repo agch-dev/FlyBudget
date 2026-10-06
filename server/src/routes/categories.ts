@@ -4,27 +4,51 @@ import { categories, categoryGroups, transactions, budgetMonths } from '../db/sc
 import { eq, sql } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import { z } from 'zod';
+import { shownName, storedName } from '../services/defaultNames.js';
+import { requestLanguage, type Language } from '../utils/language.js';
 
 export const categoriesRouter = Router();
 
+// A supplied name typed in either language is stored in English (services/defaultNames.ts)
 const groupSchema = z.object({
-  name: z.string().trim().min(1).max(200),
+  name: z
+    .string()
+    .trim()
+    .min(1)
+    .max(200)
+    .transform((name) => storedName('group', name)),
   isIncome: z.number().int().min(0).max(1),
 });
 
 const categorySchema = z.object({
   groupId: z.string().max(64),
-  name: z.string().trim().min(1).max(200),
+  name: z
+    .string()
+    .trim()
+    .min(1)
+    .max(200)
+    .transform((name) => storedName('category', name)),
   icon: z.string().max(32).optional(),
   budgetType: z.enum(['fixed', 'flexible', 'non_monthly', 'savings']).nullable().optional(),
 });
 
-categoriesRouter.get('/', (_req, res) => {
+/** A row as a device in `language` reads it: a Default Category by its name there */
+const shownGroup = <T extends { name: string }>(group: T, language: Language): T => ({
+  ...group,
+  name: shownName('group', group.name, language),
+});
+const shownCategory = <T extends { name: string }>(category: T, language: Language): T => ({
+  ...category,
+  name: shownName('category', category.name, language),
+});
+
+categoriesRouter.get('/', (req, res) => {
+  const language = requestLanguage(req);
   const groups = db.select().from(categoryGroups).orderBy(categoryGroups.sortOrder).all();
   const cats = db.select().from(categories).orderBy(categories.sortOrder).all();
   const result = groups.map((g) => ({
-    ...g,
-    categories: cats.filter((c) => c.groupId === g.id),
+    ...shownGroup(g, language),
+    categories: cats.filter((c) => c.groupId === g.id).map((c) => shownCategory(c, language)),
   }));
   res.json(result);
 });
@@ -44,7 +68,7 @@ categoriesRouter.post('/groups', (req, res) => {
     createdAt: new Date().toISOString(),
   };
   db.insert(categoryGroups).values(group).run();
-  res.status(201).json({ ...group, categories: [] });
+  res.status(201).json({ ...shownGroup(group, requestLanguage(req)), categories: [] });
 });
 
 categoriesRouter.put('/groups/reorder', (req, res) => {
@@ -73,7 +97,7 @@ categoriesRouter.put('/groups/:id', (req, res) => {
     .where(eq(categoryGroups.id, req.params.id))
     .get();
   if (!updated) return res.status(404).json({ error: 'Not found' });
-  res.json(updated);
+  res.json(shownGroup(updated, requestLanguage(req)));
 });
 
 categoriesRouter.delete('/groups/:id', (req, res) => {
@@ -97,7 +121,7 @@ categoriesRouter.post('/', (req, res) => {
     createdAt: new Date().toISOString(),
   };
   db.insert(categories).values(category).run();
-  res.status(201).json(category);
+  res.status(201).json(shownCategory(category, requestLanguage(req)));
 });
 
 categoriesRouter.put('/reorder', (req, res) => {
@@ -119,7 +143,7 @@ categoriesRouter.put('/:id', (req, res) => {
   }
   const updated = db.select().from(categories).where(eq(categories.id, req.params.id)).get();
   if (!updated) return res.status(404).json({ error: 'Not found' });
-  res.json(updated);
+  res.json(shownCategory(updated, requestLanguage(req)));
 });
 
 categoriesRouter.get('/:id/transaction-count', (req, res) => {
