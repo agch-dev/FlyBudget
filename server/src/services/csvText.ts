@@ -6,7 +6,7 @@ import type { Language } from '../utils/language.js';
 interface CsvText {
   transactions: {
     fileName: string;
-    /** In the order of the file's columns */
+    /** A header per column; the order is the route's column list (routes/export.ts) */
     header: {
       date: string;
       account: string;
@@ -23,7 +23,7 @@ interface CsvText {
   };
   exchangeRates: {
     fileName: string;
-    /** In the order of the file's columns */
+    /** A header per column; the order is the route's column list (routes/export.ts) */
     header: { date: string; rate: string; source: string };
     enteredByHand: string;
     fetched: string;

@@ -35,8 +35,23 @@ export function escapeCsv(val: string | null | undefined): string {
   return s;
 }
 
-/** A line of text cells: the words the app supplies (a header row) are escaped like any other */
-const csvLine = (cells: string[]) => cells.map(escapeCsv).join(',');
+/** A column of a file: the key of its header in `csvText`, and how a row writes its cell */
+type Column<Row, Key extends string> = readonly [header: Key, cell: (row: Row) => string];
+
+/**
+ * A file's header line (the words the app supplies, escaped like any other text) and its rows,
+ * both in the order of `columns`, so a header always sits over its own cells
+ */
+function csvTable<Row, Key extends string>(
+  columns: readonly Column<Row, Key>[],
+  headers: Record<Key, string>,
+  rows: readonly Row[],
+): { header: string; body: string } {
+  return {
+    header: `${columns.map(([key]) => escapeCsv(headers[key])).join(',')}\n`,
+    body: rows.map((row) => columns.map(([, cell]) => cell(row)).join(',')).join('\n'),
+  };
+}
 
 /** The header that makes the answer a download called `fileName` (one of the app's own names) */
 const attachment = (fileName: string) => `attachment; filename="${fileName}"`;
@@ -91,22 +106,20 @@ exportRouter.get('/transactions/csv', (req, res) => {
 
   // Amounts are native: each row's is in its account's currency, named in its own column.
   // Group is the account's Account Group (empty when it has none)
-  const header = `${csvLine(Object.values(text.header))}\n`;
-  const body = rows
-    .map((r) =>
-      [
-        r.date,
-        escapeCsv(accts[r.accountId]?.name ?? ''),
-        escapeCsv(accts[r.accountId]?.groupName),
-        accts[r.accountId]?.currency ?? '',
-        escapeCsv(r.payeeName),
-        escapeCsv(r.categoryId ? (cats[r.categoryId] ?? '') : ''),
-        escapeCsv(r.notes),
-        (r.amount / 100).toFixed(2),
-        escapeCsv(r.reconciled ? text.yes : text.no),
-      ].join(','),
-    )
-    .join('\n');
+  type Row = (typeof rows)[number];
+  const account = (r: Row) => accts[r.accountId];
+  const columns: Column<Row, keyof typeof text.header>[] = [
+    ['date', (r) => r.date],
+    ['account', (r) => escapeCsv(account(r)?.name ?? '')],
+    ['group', (r) => escapeCsv(account(r)?.groupName)],
+    ['currency', (r) => account(r)?.currency ?? ''],
+    ['payee', (r) => escapeCsv(r.payeeName)],
+    ['category', (r) => escapeCsv(r.categoryId ? (cats[r.categoryId] ?? '') : '')],
+    ['notes', (r) => escapeCsv(r.notes)],
+    ['amount', (r) => (r.amount / 100).toFixed(2)],
+    ['reconciled', (r) => escapeCsv(r.reconciled ? text.yes : text.no)],
+  ];
+  const { header, body } = csvTable(columns, text.header, rows);
 
   res.setHeader('Content-Type', 'text/csv');
   res.setHeader('Content-Disposition', attachment(text.fileName));
@@ -116,11 +129,12 @@ exportRouter.get('/transactions/csv', (req, res) => {
 // Every stored exchange rate (pesos per dollar), oldest first: what converted totals use
 exportRouter.get('/exchange-rates/csv', (req, res) => {
   const text = csvText(requestLanguage(req)).exchangeRates;
-  const header = `${csvLine(Object.values(text.header))}\n`;
-  const body = listRates()
-    .map((r) => [r.date, String(r.rate), escapeCsv(r.manual ? text.enteredByHand : text.fetched)])
-    .map((cells) => cells.join(','))
-    .join('\n');
+  const columns: Column<ReturnType<typeof listRates>[number], keyof typeof text.header>[] = [
+    ['date', (r) => r.date],
+    ['rate', (r) => String(r.rate)],
+    ['source', (r) => escapeCsv(r.manual ? text.enteredByHand : text.fetched)],
+  ];
+  const { header, body } = csvTable(columns, text.header, listRates());
   res.setHeader('Content-Type', 'text/csv');
   res.setHeader('Content-Disposition', attachment(text.fileName));
   res.send(header + body);
