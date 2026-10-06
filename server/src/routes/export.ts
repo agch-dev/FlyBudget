@@ -12,6 +12,8 @@ import { listRates } from '../services/exchangeRateService.js';
 import { eq, and, gte, lte } from 'drizzle-orm';
 import { isRealDate } from '../utils/validation.js';
 import { refusal } from '../utils/refusals.js';
+import { shownName } from '../services/defaultNames.js';
+import { requestLanguage } from '../utils/language.js';
 
 export const exportRouter = Router();
 
@@ -40,6 +42,8 @@ exportRouter.get('/transactions/csv', (req, res) => {
   ) {
     return res.status(400).json({ error: 'Expected `from` and `to` as YYYY-MM-DD' });
   }
+  // A download is a plain navigation, so its language comes in the address (`lang`)
+  const language = requestLanguage(req);
   // A split is exported as its parts (which carry the categories), so amounts add up
   const filters = [eq(transactions.isParent, 0)];
   if (typeof from === 'string') filters.push(gte(transactions.date, from));
@@ -72,7 +76,7 @@ exportRouter.get('/transactions/csv', (req, res) => {
       .select()
       .from(categories)
       .all()
-      .map((c) => [c.id, c.name]),
+      .map((c) => [c.id, shownName('category', c.name, language)]),
   );
 
   // Amounts are native: each row's is in its account's currency, named in its own column.

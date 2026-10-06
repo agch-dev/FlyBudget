@@ -14,11 +14,19 @@ import {
   nextPosition,
 } from '../services/dashboardService.js';
 import { refusal } from '../utils/refusals.js';
+import { shownName, storedName } from '../services/defaultNames.js';
+import { requestLanguage, type Language } from '../utils/language.js';
 
 export const dashboardsRouter = Router();
 
 const pageSchema = z.object({
-  name: z.string().trim().min(1).max(100),
+  // "Vista general" is stored as "Overview": a supplied name, like a Default Category's
+  name: z
+    .string()
+    .trim()
+    .min(1)
+    .max(100)
+    .transform((name) => storedName('dashboard', name)),
   // The range widgets on this dashboard follow unless they have their own; null = last 6 months
   dateRange: dateRangeSchema.nullable().optional(),
 });
@@ -57,22 +65,27 @@ function parseWidget(w: typeof dashboardWidgets.$inferSelect) {
   return { ...w, meta: JSON.parse(w.meta) };
 }
 
-function parsePage(p: typeof dashboardPages.$inferSelect) {
-  return { ...p, dateRange: p.dateRange ? JSON.parse(p.dateRange) : null };
+function parsePage(p: typeof dashboardPages.$inferSelect, language: Language) {
+  return {
+    ...p,
+    name: shownName('dashboard', p.name, language),
+    dateRange: p.dateRange ? JSON.parse(p.dateRange) : null,
+  };
 }
 
 function getPage(id: string) {
   return db.select().from(dashboardPages).where(eq(dashboardPages.id, id)).get();
 }
 
-dashboardsRouter.get('/', (_req, res) => {
+dashboardsRouter.get('/', (req, res) => {
+  const language = requestLanguage(req);
   ensureDefaultDashboard();
   const pages = db
     .select()
     .from(dashboardPages)
     .orderBy(asc(dashboardPages.sortOrder), asc(dashboardPages.createdAt))
     .all();
-  res.json(pages.map(parsePage));
+  res.json(pages.map((p) => parsePage(p, language)));
 });
 
 dashboardsRouter.post('/', (req, res) => {
@@ -90,7 +103,7 @@ dashboardsRouter.post('/', (req, res) => {
     dateRange: dateRange ? JSON.stringify(dateRange) : null,
   };
   db.insert(dashboardPages).values(row).run();
-  res.status(201).json(parsePage(getPage(row.id)!));
+  res.status(201).json(parsePage(getPage(row.id)!, requestLanguage(req)));
 });
 
 dashboardsRouter.put('/:id', (req, res) => {
@@ -105,7 +118,7 @@ dashboardsRouter.put('/:id', (req, res) => {
   }
   const page = getPage(req.params.id);
   if (!page) return res.status(404).json({ error: 'Not found' });
-  res.json(parsePage(page));
+  res.json(parsePage(page, requestLanguage(req)));
 });
 
 dashboardsRouter.delete('/:id', (req, res) => {

@@ -1,165 +1,190 @@
 import { count } from 'drizzle-orm';
-import { nanoid } from 'nanoid';
 import { db } from './index.js';
 import { categoryGroups, categories, transactions } from './schema.js';
 
 type BudgetType = 'fixed' | 'flexible' | 'non_monthly' | 'savings';
 
-const defaultGroups: {
+/**
+ * What a new budget starts with. Names are the English spelling: what is stored, and what
+ * services/defaultNames.ts names in the language of each request (every name here must be on
+ * its list, in both languages). Ids come from the keys (`default-group-food`,
+ * `default-category-groceries`), so every device that creates the defaults creates the same
+ * rows: never change a key.
+ */
+export const defaultGroups: {
+  key: string;
   name: string;
   isIncome: number;
-  categories: { name: string; icon: string; budgetType?: BudgetType }[];
+  categories: { key: string; name: string; icon: string; budgetType?: BudgetType }[];
 }[] = [
   {
+    key: 'income',
     name: 'Income',
     isIncome: 1,
     categories: [
-      { name: 'Paychecks', icon: '💵' },
-      { name: 'Interest', icon: '💹' },
-      { name: 'Business Income', icon: '💼' },
-      { name: 'Other Income', icon: '💰' },
+      { key: 'paychecks', name: 'Paychecks', icon: '💵' },
+      { key: 'interest', name: 'Interest', icon: '💹' },
+      { key: 'business-income', name: 'Business Income', icon: '💼' },
+      { key: 'other-income', name: 'Other Income', icon: '💰' },
     ],
   },
   {
+    key: 'gifts',
     name: 'Gifts & Donations',
     isIncome: 0,
     categories: [
-      { name: 'Charity', icon: '❤️', budgetType: 'flexible' },
-      { name: 'Gifts', icon: '🎁', budgetType: 'flexible' },
-      { name: 'Donations', icon: '🤝', budgetType: 'flexible' },
+      { key: 'charity', name: 'Charity', icon: '❤️', budgetType: 'flexible' },
+      { key: 'gifts', name: 'Gifts', icon: '🎁', budgetType: 'flexible' },
+      { key: 'donations', name: 'Donations', icon: '🤝', budgetType: 'flexible' },
     ],
   },
   {
+    key: 'transportation',
     name: 'Transportation',
     isIncome: 0,
     categories: [
-      { name: 'Gas / Fuel', icon: '⛽', budgetType: 'flexible' },
-      { name: 'Car Payment', icon: '🚗', budgetType: 'fixed' },
-      { name: 'Car Insurance', icon: '🛡️', budgetType: 'fixed' },
-      { name: 'Parking', icon: '🅿️', budgetType: 'flexible' },
-      { name: 'Public Transit', icon: '🚌', budgetType: 'flexible' },
-      { name: 'Ride Share', icon: '🚕', budgetType: 'flexible' },
-      { name: 'Car Maintenance', icon: '🔧', budgetType: 'non_monthly' },
+      { key: 'gas-fuel', name: 'Gas / Fuel', icon: '⛽', budgetType: 'flexible' },
+      { key: 'car-payment', name: 'Car Payment', icon: '🚗', budgetType: 'fixed' },
+      { key: 'car-insurance', name: 'Car Insurance', icon: '🛡️', budgetType: 'fixed' },
+      { key: 'parking', name: 'Parking', icon: '🅿️', budgetType: 'flexible' },
+      { key: 'public-transit', name: 'Public Transit', icon: '🚌', budgetType: 'flexible' },
+      { key: 'ride-share', name: 'Ride Share', icon: '🚕', budgetType: 'flexible' },
+      { key: 'car-maintenance', name: 'Car Maintenance', icon: '🔧', budgetType: 'non_monthly' },
     ],
   },
   {
+    key: 'housing',
     name: 'Housing',
     isIncome: 0,
     categories: [
-      { name: 'Rent / Mortgage', icon: '🏠', budgetType: 'fixed' },
-      { name: 'Home Insurance', icon: '🛡️', budgetType: 'fixed' },
-      { name: 'Property Tax', icon: '🏛️', budgetType: 'fixed' },
-      { name: 'HOA Fees', icon: '🏢', budgetType: 'fixed' },
-      { name: 'Home Maintenance', icon: '🔨', budgetType: 'flexible' },
-      { name: 'Home Improvement', icon: '🎨', budgetType: 'non_monthly' },
+      { key: 'rent-mortgage', name: 'Rent / Mortgage', icon: '🏠', budgetType: 'fixed' },
+      { key: 'home-insurance', name: 'Home Insurance', icon: '🛡️', budgetType: 'fixed' },
+      { key: 'property-tax', name: 'Property Tax', icon: '🏛️', budgetType: 'fixed' },
+      { key: 'hoa-fees', name: 'HOA Fees', icon: '🏢', budgetType: 'fixed' },
+      { key: 'home-maintenance', name: 'Home Maintenance', icon: '🔨', budgetType: 'flexible' },
+      { key: 'home-improvement', name: 'Home Improvement', icon: '🎨', budgetType: 'non_monthly' },
     ],
   },
   {
+    key: 'bills',
     name: 'Bills & Utilities',
     isIncome: 0,
     categories: [
-      { name: 'Electric', icon: '⚡', budgetType: 'fixed' },
-      { name: 'Water', icon: '💧', budgetType: 'fixed' },
-      { name: 'Gas (Natural)', icon: '🔥', budgetType: 'fixed' },
-      { name: 'Internet', icon: '🌐', budgetType: 'fixed' },
-      { name: 'Phone', icon: '📱', budgetType: 'fixed' },
-      { name: 'Trash / Recycling', icon: '♻️', budgetType: 'fixed' },
-      { name: 'Streaming Services', icon: '📺', budgetType: 'fixed' },
+      { key: 'electric', name: 'Electric', icon: '⚡', budgetType: 'fixed' },
+      { key: 'water', name: 'Water', icon: '💧', budgetType: 'fixed' },
+      { key: 'gas-natural', name: 'Gas (Natural)', icon: '🔥', budgetType: 'fixed' },
+      { key: 'internet', name: 'Internet', icon: '🌐', budgetType: 'fixed' },
+      { key: 'phone', name: 'Phone', icon: '📱', budgetType: 'fixed' },
+      { key: 'trash-recycling', name: 'Trash / Recycling', icon: '♻️', budgetType: 'fixed' },
+      { key: 'streaming-services', name: 'Streaming Services', icon: '📺', budgetType: 'fixed' },
     ],
   },
   {
+    key: 'food',
     name: 'Food & Dining',
     isIncome: 0,
     categories: [
-      { name: 'Groceries', icon: '🛒', budgetType: 'flexible' },
-      { name: 'Restaurants', icon: '🍽️', budgetType: 'flexible' },
-      { name: 'Coffee Shops', icon: '☕', budgetType: 'flexible' },
-      { name: 'Fast Food', icon: '🍔', budgetType: 'flexible' },
-      { name: 'Alcohol / Bars', icon: '🍷', budgetType: 'flexible' },
+      { key: 'groceries', name: 'Groceries', icon: '🛒', budgetType: 'flexible' },
+      { key: 'restaurants', name: 'Restaurants', icon: '🍽️', budgetType: 'flexible' },
+      { key: 'coffee-shops', name: 'Coffee Shops', icon: '☕', budgetType: 'flexible' },
+      { key: 'fast-food', name: 'Fast Food', icon: '🍔', budgetType: 'flexible' },
+      { key: 'alcohol-bars', name: 'Alcohol / Bars', icon: '🍷', budgetType: 'flexible' },
     ],
   },
   {
+    key: 'travel',
     name: 'Travel & Lifestyle',
     isIncome: 0,
     categories: [
-      { name: 'Flights', icon: '✈️', budgetType: 'non_monthly' },
-      { name: 'Hotels', icon: '🏨', budgetType: 'non_monthly' },
-      { name: 'Vacation', icon: '🏖️', budgetType: 'non_monthly' },
-      { name: 'Entertainment', icon: '🎬', budgetType: 'non_monthly' },
-      { name: 'Hobbies', icon: '🎨', budgetType: 'non_monthly' },
+      { key: 'flights', name: 'Flights', icon: '✈️', budgetType: 'non_monthly' },
+      { key: 'hotels', name: 'Hotels', icon: '🏨', budgetType: 'non_monthly' },
+      { key: 'vacation', name: 'Vacation', icon: '🏖️', budgetType: 'non_monthly' },
+      { key: 'entertainment', name: 'Entertainment', icon: '🎬', budgetType: 'non_monthly' },
+      { key: 'hobbies', name: 'Hobbies', icon: '🎨', budgetType: 'non_monthly' },
     ],
   },
   {
+    key: 'shopping',
     name: 'Shopping',
     isIncome: 0,
     categories: [
-      { name: 'Clothing', icon: '👔', budgetType: 'flexible' },
-      { name: 'Electronics', icon: '💻', budgetType: 'flexible' },
-      { name: 'Home Goods', icon: '🛋️', budgetType: 'flexible' },
-      { name: 'Personal Care', icon: '✨', budgetType: 'flexible' },
+      { key: 'clothing', name: 'Clothing', icon: '👔', budgetType: 'flexible' },
+      { key: 'electronics', name: 'Electronics', icon: '💻', budgetType: 'flexible' },
+      { key: 'home-goods', name: 'Home Goods', icon: '🛋️', budgetType: 'flexible' },
+      { key: 'personal-care', name: 'Personal Care', icon: '✨', budgetType: 'flexible' },
     ],
   },
   {
+    key: 'family',
     name: 'Family',
     isIncome: 0,
     categories: [
-      { name: 'Childcare / Daycare', icon: '👶', budgetType: 'fixed' },
-      { name: 'Kids Activities', icon: '🎪', budgetType: 'flexible' },
-      { name: 'School Supplies', icon: '🎒', budgetType: 'flexible' },
-      { name: 'Baby Supplies', icon: '🍼', budgetType: 'flexible' },
-      { name: 'Allowance', icon: '🐷', budgetType: 'flexible' },
+      { key: 'childcare-daycare', name: 'Childcare / Daycare', icon: '👶', budgetType: 'fixed' },
+      { key: 'kids-activities', name: 'Kids Activities', icon: '🎪', budgetType: 'flexible' },
+      { key: 'school-supplies', name: 'School Supplies', icon: '🎒', budgetType: 'flexible' },
+      { key: 'baby-supplies', name: 'Baby Supplies', icon: '🍼', budgetType: 'flexible' },
+      { key: 'allowance', name: 'Allowance', icon: '🐷', budgetType: 'flexible' },
     ],
   },
   {
+    key: 'education',
     name: 'Education',
     isIncome: 0,
     categories: [
-      { name: 'Tuition', icon: '🎓', budgetType: 'fixed' },
-      { name: 'Books & Supplies', icon: '📚', budgetType: 'non_monthly' },
-      { name: 'Student Loans', icon: '📜', budgetType: 'fixed' },
-      { name: 'Online Courses', icon: '💻', budgetType: 'non_monthly' },
+      { key: 'tuition', name: 'Tuition', icon: '🎓', budgetType: 'fixed' },
+      { key: 'books-supplies', name: 'Books & Supplies', icon: '📚', budgetType: 'non_monthly' },
+      { key: 'student-loans', name: 'Student Loans', icon: '📜', budgetType: 'fixed' },
+      { key: 'online-courses', name: 'Online Courses', icon: '💻', budgetType: 'non_monthly' },
     ],
   },
   {
+    key: 'health',
     name: 'Health & Wellness',
     isIncome: 0,
     categories: [
-      { name: 'Doctor / Medical', icon: '🩺', budgetType: 'non_monthly' },
-      { name: 'Dentist', icon: '🦷', budgetType: 'non_monthly' },
-      { name: 'Pharmacy', icon: '💊', budgetType: 'flexible' },
-      { name: 'Gym / Fitness', icon: '🏋️', budgetType: 'flexible' },
-      { name: 'Mental Health', icon: '🧠', budgetType: 'non_monthly' },
-      { name: 'Vision / Eye Care', icon: '👓', budgetType: 'non_monthly' },
+      { key: 'doctor-medical', name: 'Doctor / Medical', icon: '🩺', budgetType: 'non_monthly' },
+      { key: 'dentist', name: 'Dentist', icon: '🦷', budgetType: 'non_monthly' },
+      { key: 'pharmacy', name: 'Pharmacy', icon: '💊', budgetType: 'flexible' },
+      { key: 'gym-fitness', name: 'Gym / Fitness', icon: '🏋️', budgetType: 'flexible' },
+      { key: 'mental-health', name: 'Mental Health', icon: '🧠', budgetType: 'non_monthly' },
+      { key: 'vision-eye-care', name: 'Vision / Eye Care', icon: '👓', budgetType: 'non_monthly' },
     ],
   },
   {
+    key: 'financial',
     name: 'Financial',
     isIncome: 0,
     categories: [
-      { name: 'Savings', icon: '🐷', budgetType: 'non_monthly' },
-      { name: 'Investments', icon: '📈', budgetType: 'non_monthly' },
-      { name: 'Loan Payment', icon: '🏦', budgetType: 'fixed' },
-      { name: 'Bank Fees', icon: '💸', budgetType: 'fixed' },
+      { key: 'savings', name: 'Savings', icon: '🐷', budgetType: 'non_monthly' },
+      { key: 'investments', name: 'Investments', icon: '📈', budgetType: 'non_monthly' },
+      { key: 'loan-payment', name: 'Loan Payment', icon: '🏦', budgetType: 'fixed' },
+      { key: 'bank-fees', name: 'Bank Fees', icon: '💸', budgetType: 'fixed' },
     ],
   },
   {
+    key: 'business',
     name: 'Business',
     isIncome: 0,
     categories: [
-      { name: 'Office Supplies', icon: '📎', budgetType: 'flexible' },
-      { name: 'Software / Tools', icon: '⚙️', budgetType: 'flexible' },
-      { name: 'Marketing', icon: '📣', budgetType: 'flexible' },
-      { name: 'Professional Services', icon: '💼', budgetType: 'flexible' },
-      { name: 'Business Travel', icon: '🧳', budgetType: 'non_monthly' },
+      { key: 'office-supplies', name: 'Office Supplies', icon: '📎', budgetType: 'flexible' },
+      { key: 'software-tools', name: 'Software / Tools', icon: '⚙️', budgetType: 'flexible' },
+      { key: 'marketing', name: 'Marketing', icon: '📣', budgetType: 'flexible' },
+      {
+        key: 'professional-services',
+        name: 'Professional Services',
+        icon: '💼',
+        budgetType: 'flexible',
+      },
+      { key: 'business-travel', name: 'Business Travel', icon: '🧳', budgetType: 'non_monthly' },
     ],
   },
   {
+    key: 'other',
     name: 'Other',
     isIncome: 0,
     categories: [
-      { name: 'Miscellaneous', icon: '📁', budgetType: 'flexible' },
-      { name: 'Cash / ATM', icon: '💵', budgetType: 'flexible' },
-      { name: 'Uncategorized', icon: '❓', budgetType: 'flexible' },
+      { key: 'miscellaneous', name: 'Miscellaneous', icon: '📁', budgetType: 'flexible' },
+      { key: 'cash-atm', name: 'Cash / ATM', icon: '💵', budgetType: 'flexible' },
     ],
   },
 ];
@@ -179,7 +204,7 @@ export function seedDefaultCategories(): number {
   db.transaction((tx) => {
     const now = new Date().toISOString();
     defaultGroups.forEach((group, groupIdx) => {
-      const groupId = nanoid();
+      const groupId = `default-group-${group.key}`;
       tx.insert(categoryGroups)
         .values({
           id: groupId,
@@ -193,7 +218,7 @@ export function seedDefaultCategories(): number {
       group.categories.forEach((cat, catIdx) => {
         tx.insert(categories)
           .values({
-            id: nanoid(),
+            id: `default-category-${cat.key}`,
             groupId,
             name: cat.name,
             icon: cat.icon,

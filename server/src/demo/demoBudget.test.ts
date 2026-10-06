@@ -11,6 +11,7 @@ import { budgetRouter } from '../routes/budget.js';
 import { schedulesRouter } from '../routes/schedules.js';
 import { buildDemoBudget } from './demoBudget.js';
 import { loadDemoBudget } from './loadDemoBudget.js';
+import { shownName, suppliedNames } from '../services/defaultNames.js';
 
 // The website demo's budget (see ../browser/README.md) has to look finished whatever day
 // someone opens it: these check it for any "today".
@@ -30,6 +31,18 @@ describe('the demo budget (property-based)', () => {
       }),
       { numRuns: 20 },
     );
+  });
+
+  it('names every group and category with a supplied name, so the demo reads in Spanish too', () => {
+    const { categoryGroups, categories, dashboardPages } = buildDemoBudget(new Date('2026-10-06'));
+    const english = (kind: 'group' | 'category') => suppliedNames(kind).map((n) => n.en);
+    for (const group of categoryGroups) expect(english('group')).toContain(group.name);
+    for (const category of categories) expect(english('category')).toContain(category.name);
+    expect(shownName('category', 'Biscuit (dog)', 'es')).toBe('Biscuit (perro)');
+    expect(dashboardPages.map((p) => shownName('dashboard', p.name, 'es'))).toEqual([
+      'Vista general',
+      'Year in review',
+    ]);
   });
 
   it('only has transactions from its history, up to today', () => {
