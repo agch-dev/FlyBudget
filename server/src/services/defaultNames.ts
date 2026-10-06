@@ -137,16 +137,15 @@ const byEnglish = (list: SuppliedName[]) => new Map(list.map((entry) => [entry.e
 const byEither = (list: SuppliedName[]) =>
   new Map(list.flatMap((entry) => [[entry.es, entry] as const, [entry.en, entry] as const]));
 
-const STORED: Record<NameKind, Map<string, SuppliedName>> = {
-  group: byEnglish(GROUPS),
-  category: byEnglish(CATEGORIES),
-  dashboard: byEnglish(DASHBOARDS),
-};
-const TYPED: Record<NameKind, Map<string, SuppliedName>> = {
-  group: byEither(GROUPS),
-  category: byEither(CATEGORIES),
-  dashboard: byEither(DASHBOARDS),
-};
+/** One lookup per kind, built from `LISTS`, so a new kind needs no line here */
+const perKind = (index: (list: SuppliedName[]) => Map<string, SuppliedName>) =>
+  Object.fromEntries(NAME_KINDS.map((kind) => [kind, index(LISTS[kind])])) as Record<
+    NameKind,
+    Map<string, SuppliedName>
+  >;
+
+const STORED = perKind(byEnglish);
+const TYPED = perKind(byEither);
 
 /** Every supplied name of one kind, in both languages. */
 export function suppliedNames(kind: NameKind): readonly SuppliedName[] {
