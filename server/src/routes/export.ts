@@ -14,6 +14,7 @@ import { isRealDate } from '../utils/validation.js';
 import { refusal } from '../utils/refusals.js';
 import { shownName } from '../services/defaultNames.js';
 import { requestLanguage } from '../utils/language.js';
+import { csvText } from '../services/csvText.js';
 
 export const exportRouter = Router();
 
@@ -34,6 +35,15 @@ export function escapeCsv(val: string | null | undefined): string {
   return s;
 }
 
+/** A line of text cells: the words the app supplies (a header row) are escaped like any other */
+const csvLine = (cells: string[]) => cells.map(escapeCsv).join(',');
+
+/** The header that makes the answer a download called `fileName` (one of the app's own names) */
+const attachment = (fileName: string) => `attachment; filename="${fileName}"`;
+
+// Both files follow the App Language of the device that asks (services/csvText.ts): their
+// header row, the words the app supplies in cells and their name. A download is a plain
+// navigation, so the language comes in the address (`lang`).
 exportRouter.get('/transactions/csv', (req, res) => {
   const { from, to } = req.query;
   if (
@@ -42,8 +52,8 @@ exportRouter.get('/transactions/csv', (req, res) => {
   ) {
     return res.status(400).json({ error: 'Expected `from` and `to` as YYYY-MM-DD' });
   }
-  // A download is a plain navigation, so its language comes in the address (`lang`)
   const language = requestLanguage(req);
+  const text = csvText(language).transactions;
   // A split is exported as its parts (which carry the categories), so amounts add up
   const filters = [eq(transactions.isParent, 0)];
   if (typeof from === 'string') filters.push(gte(transactions.date, from));
@@ -81,7 +91,7 @@ exportRouter.get('/transactions/csv', (req, res) => {
 
   // Amounts are native: each row's is in its account's currency, named in its own column.
   // Group is the account's Account Group (empty when it has none)
-  const header = 'Date,Account,Group,Currency,Payee,Category,Notes,Amount,Reconciled\n';
+  const header = `${csvLine(Object.values(text.header))}\n`;
   const body = rows
     .map((r) =>
       [
@@ -93,25 +103,26 @@ exportRouter.get('/transactions/csv', (req, res) => {
         escapeCsv(r.categoryId ? (cats[r.categoryId] ?? '') : ''),
         escapeCsv(r.notes),
         (r.amount / 100).toFixed(2),
-        r.reconciled ? 'Yes' : 'No',
+        escapeCsv(r.reconciled ? text.yes : text.no),
       ].join(','),
     )
     .join('\n');
 
   res.setHeader('Content-Type', 'text/csv');
-  res.setHeader('Content-Disposition', 'attachment; filename="transactions.csv"');
+  res.setHeader('Content-Disposition', attachment(text.fileName));
   res.send(header + body);
 });
 
 // Every stored exchange rate (pesos per dollar), oldest first: what converted totals use
-exportRouter.get('/exchange-rates/csv', (_req, res) => {
-  const header = 'Date,Pesos per dollar,Source\n';
+exportRouter.get('/exchange-rates/csv', (req, res) => {
+  const text = csvText(requestLanguage(req)).exchangeRates;
+  const header = `${csvLine(Object.values(text.header))}\n`;
   const body = listRates()
-    .map((r) => [r.date, String(r.rate), escapeCsv(r.manual ? 'Entered by hand' : 'Fetched')])
+    .map((r) => [r.date, String(r.rate), escapeCsv(r.manual ? text.enteredByHand : text.fetched)])
     .map((cells) => cells.join(','))
     .join('\n');
   res.setHeader('Content-Type', 'text/csv');
-  res.setHeader('Content-Disposition', 'attachment; filename="exchange-rates.csv"');
+  res.setHeader('Content-Disposition', attachment(text.fileName));
   res.send(header + body);
 });
 

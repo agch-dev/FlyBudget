@@ -5,7 +5,7 @@ import { format, subMonths, startOfYear, endOfYear, subYears } from 'date-fns';
 import { useSpendingByCategory, useIncomeByCategory } from '../hooks/useReports';
 import { currencySymbol } from '../utils/currency';
 import { useViewingMoney } from '../hooks/useViewingCurrency';
-import { downloadCsv, rowsInCurrency } from '../utils/exportCsv';
+import { csvFileName, csvRows, downloadCsv, rowsInCurrency } from '../utils/exportCsv';
 import { ViewingCurrencySwitch } from '../components/ui/ViewingCurrencySwitch';
 import { usePreferencesStore } from '../store/preferencesStore';
 import { chartColors } from '../utils/chartColors';
@@ -1170,13 +1170,15 @@ export default function CashFlowPage() {
 
   function handleExport() {
     downloadCsv(
-      `cash-flow-${from}-${to}.csv`,
+      csvFileName('cash-flow', from, to),
       rowsInCurrency(
-        spData.map((d) => ({
-          category: `${showIcons && d.categoryIcon ? d.categoryIcon + ' ' : ''}${d.categoryName ?? 'Uncategorized'}`,
-          group: d.groupName ?? '',
-          total_cents: d.totalSpent,
-        })),
+        csvRows(
+          spData.map((d) => ({
+            category: `${showIcons && d.categoryIcon ? d.categoryIcon + ' ' : ''}${d.categoryName ?? t('node.uncategorized')}`,
+            group: d.groupName ?? '',
+            total_cents: d.totalSpent,
+          })),
+        ),
         money.currency,
       ),
     );
