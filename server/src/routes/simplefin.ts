@@ -101,8 +101,9 @@ simplefinRouter.post('/setup', async (req, res) => {
     });
   } catch (err: any) {
     logError('SimpleFIN setup error', err);
+    // 500, not 502-504, which the app reads as "server unreachable"
     res
-      .status(err instanceof InvalidSetupTokenError ? 400 : 502)
+      .status(err instanceof InvalidSetupTokenError ? 400 : 500)
       .json(simplefinRefusal(err, 'Could not reach SimpleFIN. Try again later.'));
   }
 });

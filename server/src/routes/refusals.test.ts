@@ -96,6 +96,8 @@ beforeAll(async () => {
 afterAll(() => server.close());
 
 const seen = new Set<string>();
+/** Every status a coded refusal was answered with */
+const statuses = new Set<number>();
 
 const send = async (method: string, path: string, body?: unknown, cookie?: string) => {
   const res = await fetch(base + path, {
@@ -105,7 +107,10 @@ const send = async (method: string, path: string, body?: unknown, cookie?: strin
   });
   const text = await res.text();
   const answer = { status: res.status, body: text ? JSON.parse(text) : null, res };
-  if (answer.body?.code) seen.add(answer.body.code);
+  if (answer.body?.code) {
+    seen.add(answer.body.code);
+    statuses.add(answer.status);
+  }
   return answer;
 };
 
@@ -492,32 +497,32 @@ describe('SimpleFIN', () => {
 
   it('refuses when the bridge hands back something that is not an access URL', async () => {
     answers(new Response('not a url'));
-    expectRefusal(await setup(good), 502, 'simplefin_invalid_url');
+    expectRefusal(await setup(good), 500, 'simplefin_invalid_url');
   });
 
   it('says when the subscription has lapsed or access was revoked', async () => {
     answers(claimed(), new Response('', { status: 402 }));
-    expectRefusal(await setup(good), 502, 'simplefin_subscription_required');
+    expectRefusal(await setup(good), 500, 'simplefin_subscription_required');
     answers(claimed(), new Response('', { status: 403 }));
-    expectRefusal(await setup(good), 502, 'simplefin_access_denied');
+    expectRefusal(await setup(good), 500, 'simplefin_access_denied');
   });
 
   it('says when SimpleFIN answers something unreadable', async () => {
     answers(claimed(), new Response('<html>'));
-    expectRefusal(await setup(good), 502, 'simplefin_bad_response');
+    expectRefusal(await setup(good), 500, 'simplefin_bad_response');
     answers(claimed(), new Response('{"accounts": "none"}'));
-    expectRefusal(await setup(good), 502, 'simplefin_bad_response');
+    expectRefusal(await setup(good), 500, 'simplefin_bad_response');
   });
 
   it('says when the address is one FlyBudget will not connect to', async () => {
     answers(new UnsafeUrlError('Refusing to connect to a non-public address'));
-    expectRefusal(await setup(good), 502, 'bank_address_refused');
+    expectRefusal(await setup(good), 500, 'bank_address_refused');
   });
 
   it('says when SimpleFIN cannot be reached, without the reason', async () => {
     answers(new Error('getaddrinfo ENOTFOUND /secret/path'));
     const answer = await setup(good);
-    expectRefusal(answer, 502, 'simplefin_unreachable');
+    expectRefusal(answer, 500, 'simplefin_unreachable');
     expect(answer.body.error).toBe('Could not reach SimpleFIN. Try again later.');
   });
 
@@ -528,7 +533,7 @@ describe('SimpleFIN', () => {
 
 describe('Plaid', () => {
   it('refuses while Plaid is not configured', async () => {
-    expectRefusal(await send('POST', '/plaid/hosted-link'), 503, 'plaid_not_configured');
+    expectRefusal(await send('POST', '/plaid/hosted-link'), 409, 'plaid_not_configured');
   });
 
   it('says when connecting, syncing or disconnecting fails', async () => {
@@ -538,7 +543,7 @@ describe('Plaid', () => {
       environment: 'sandbox',
     });
     bank.startHostedLink = () => Promise.reject(new Error('no Hosted Link URL'));
-    expectRefusal(await send('POST', '/plaid/hosted-link'), 502, 'plaid_link_failed');
+    expectRefusal(await send('POST', '/plaid/hosted-link'), 500, 'plaid_link_failed');
     expectRefusal(await send('POST', '/plaid/sync-all'), 500, 'sync_failed');
 
     db.insert(plaidItems)
@@ -551,7 +556,7 @@ describe('Plaid', () => {
       })
       .run();
     const answer = await send('DELETE', '/plaid/items/item-1');
-    expectRefusal(answer, 502, 'plaid_revoke_failed');
+    expectRefusal(answer, 500, 'plaid_revoke_failed');
     expect(JSON.stringify(answer.body)).not.toContain('access-token');
   });
 });
@@ -709,6 +714,12 @@ describe('what never carries a code', () => {
 describe('the list of codes', () => {
   it('is exactly what the routes above answered with', () => {
     expect([...seen].sort()).toEqual([...REFUSAL_CODES].sort());
+  });
+
+  // The app reads 502-504 as "server unreachable" (client/src/utils/connection.ts) and would
+  // never show the sentence: a bank or source that fails answers 500
+  it('never answers with a gateway status', () => {
+    expect([...statuses].filter((s) => s >= 502 && s <= 504)).toEqual([]);
   });
 
   it('names its codes and params in snake_case and camelCase', () => {

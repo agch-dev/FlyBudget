@@ -55,9 +55,11 @@ const mapAccountSchema = z.object({
 const accountExists = (id: string) =>
   db.select({ id: accounts.id }).from(accounts).where(eq(accounts.id, id)).get() !== undefined;
 
+// Refusals answer 409 or 500, never 502-504: the app reads those as "server unreachable" and
+// would not show the sentence
 function requirePlaid(res: any): boolean {
   if (!isPlaidConfigured()) {
-    res.status(503).json(refusal('plaid_not_configured', 'Plaid is not configured'));
+    res.status(409).json(refusal('plaid_not_configured', 'Plaid is not configured'));
     return false;
   }
   return true;
@@ -176,7 +178,7 @@ plaidRouter.post('/hosted-link', async (_req, res) => {
     res.json(await startHostedLink({ kind: 'new' }));
   } catch (err: any) {
     logError('Plaid hosted-link error', err);
-    res.status(502).json(linkFailed(err, 'Could not start connecting to Plaid'));
+    res.status(500).json(linkFailed(err, 'Could not start connecting to Plaid'));
   }
 });
 
@@ -194,7 +196,7 @@ plaidRouter.post('/items/:itemId/hosted-link', async (req, res) => {
     res.json(await startHostedLink({ kind: 'update', itemId }, item.accessToken));
   } catch (err: any) {
     logError('Plaid hosted-link (update) error', err);
-    res.status(502).json(linkFailed(err, 'Could not start reconnecting to Plaid'));
+    res.status(500).json(linkFailed(err, 'Could not start reconnecting to Plaid'));
   }
 });
 
@@ -216,7 +218,7 @@ plaidRouter.get('/hosted-link/:sessionId', async (req, res) => {
     res.json(result);
   } catch (err: any) {
     logError('Plaid hosted-link poll error', err);
-    res.status(502).json(linkFailed(err, 'Could not finish connecting to Plaid'));
+    res.status(500).json(linkFailed(err, 'Could not finish connecting to Plaid'));
   }
 });
 
@@ -378,7 +380,7 @@ plaidRouter.delete('/items/:itemId', async (req, res) => {
         if (code !== 'ITEM_NOT_FOUND' && code !== 'INVALID_ACCESS_TOKEN') {
           logError('Plaid item remove error', err);
           return res
-            .status(502)
+            .status(500)
             .json(
               refusal(
                 'plaid_revoke_failed',
