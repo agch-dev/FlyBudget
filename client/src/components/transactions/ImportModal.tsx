@@ -60,6 +60,9 @@ type Step = 'upload' | 'map' | 'preview' | 'done';
 /** A row of the preview: where it goes and in which currency */
 type PreviewRow = ImportPreviewRow & { accountId: string; currency: Currency };
 
+/** How long a chosen file waits for the account's remembered settings before it opens without them */
+const SETTINGS_WAIT_MS = 4000;
+
 /** Unreadable rows listed before "and N more" */
 const PROBLEMS_SHOWN = 5;
 const NO_PROBLEMS: ImportProblem[] = [];
@@ -111,6 +114,7 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
   const [otherAccountId, setOtherAccountId] = useState<string | null>(null);
   // What this account's last import used, from the server (loaded as the dialog opens)
   const queryClient = useQueryClient();
+  // Loaded early so a file opens at once; `loadMemory` reads the answer when a file is chosen
   useImportSettings(accountId, isOpen);
   const saveSettings = useSaveImportSettings();
   /** The remembered choices the current file was opened with */
@@ -157,18 +161,26 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
    */
   async function loadMemory(): Promise<ImportMemory | undefined> {
     let saved: ImportMemory | null | undefined;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     try {
-      saved = (await queryClient.fetchQuery({ ...importSettingsQuery(accountId), retry: false }))
-        .settings;
+      // A server that stops answering mid-request mustn't keep the file from opening
+      const late = new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error('timeout')), SETTINGS_WAIT_MS);
+      });
+      const answer = queryClient.fetchQuery({ ...importSettingsQuery(accountId), retry: false });
+      saved = (await Promise.race([answer, late])).settings;
     } catch {
       saved = queryClient.getQueryData<{ settings: ImportMemory | null }>(
         importSettingsKey(accountId),
       )?.settings;
+    } finally {
+      clearTimeout(timer);
     }
     return rememberedImport(
       saved,
       usePreferencesStore.getState().csvImportConventions[accountId],
-      new Set((accounts ?? []).map((a) => a.id)),
+      // Until the accounts load, no remembered account can be told apart from a deleted one
+      accounts && new Set(accounts.map((a) => a.id)),
     );
   }
 

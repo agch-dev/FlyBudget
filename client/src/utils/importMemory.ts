@@ -14,16 +14,21 @@ export const MAX_REMEMBERED_HEADER_LENGTH = 500;
  * The choices to open an account's import with: the server's when it has any, else what this
  * device remembered before settings moved to the server, else none (`undefined`: guess from
  * the file). `saved` is undefined when the server couldn't be asked. A remembered account for
- * the other currency's rows that no longer exists is forgotten, so the usual default applies.
+ * the other currency's rows that no longer exists is forgotten, so the usual default applies;
+ * with no list of accounts yet (`accountIds` undefined) it is kept, since it may well exist.
  */
 export function rememberedImport(
   saved: ImportMemory | null | undefined,
   onDevice: ImportMemory | undefined,
-  accountIds: ReadonlySet<string>,
+  accountIds: ReadonlySet<string> | undefined,
 ): ImportMemory | undefined {
   const memory = saved ?? onDevice;
   if (!memory) return undefined;
-  if (typeof memory.otherAccountId === 'string' && !accountIds.has(memory.otherAccountId)) {
+  if (
+    accountIds &&
+    typeof memory.otherAccountId === 'string' &&
+    !accountIds.has(memory.otherAccountId)
+  ) {
     const { otherAccountId: _, ...rest } = memory;
     return rest;
   }

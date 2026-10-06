@@ -51,16 +51,20 @@ function groupNameFor(name: string | null, accountId?: string): string | null {
 }
 
 /**
+ * An account as the API sends it: import settings have their own route, so the list stays
+ * small and only the import dialog reads them
+ */
+const withoutImportSettings = ({ importSettings: _, ...account }: typeof accounts.$inferSelect) =>
+  account;
+
+/**
  * `currencyLockedBy` tells the edit dialog whether the currency can still change, and why
  * not. `hasTransactions` stays for an app that was loaded before `currencyLockedBy` existed.
  */
-function withBalance(
-  { importSettings: _, ...account }: typeof accounts.$inferSelect,
-  lockOf = currencyLockLookup(),
-) {
+function withBalance(account: typeof accounts.$inferSelect, lockOf = currencyLockLookup()) {
   const currencyLockedBy = lockOf(account.id);
   return {
-    ...account,
+    ...withoutImportSettings(account),
     balance: account.startingBalance + accountTransactionSum(account.id),
     hasTransactions: currencyLockedBy === 'transactions',
     currencyLockedBy,
@@ -90,9 +94,8 @@ accountsRouter.get('/', (_req, res) => {
   const sumMap = new Map(sums.map((s) => [s.accountId, s.sum]));
   const lockOf = currencyLockLookup();
   res.json(
-    // Import settings have their own route: the list stays small, and only the import reads them
-    rows.map(({ importSettings: _, ...a }) => ({
-      ...a,
+    rows.map((a) => ({
+      ...withoutImportSettings(a),
       balance: a.startingBalance + (sumMap.get(a.id) ?? 0),
       hasTransactions: sumMap.has(a.id),
       currencyLockedBy: lockOf(a.id),

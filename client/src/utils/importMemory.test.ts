@@ -105,6 +105,14 @@ describe('rememberedImport', () => {
       }),
     );
   });
+
+  it('keeps every remembered account while the list of accounts has not loaded', () => {
+    fc.assert(
+      fc.property(memory, (m) => {
+        expect(rememberedImport(m, undefined, undefined)).toEqual(m);
+      }),
+    );
+  });
 });
 
 describe('nextImportMemory', () => {
