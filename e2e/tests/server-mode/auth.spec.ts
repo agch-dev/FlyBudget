@@ -92,7 +92,7 @@ test('another browser sees only the login screen', async ({ page, baseURL }) => 
   await expect(page.getByLabel('Dirección del servidor')).toHaveText(`localhost:${SERVER_PORT}`);
   await page.getByLabel('Contraseña', { exact: true }).fill('not the password');
   await page.getByRole('button', { name: 'Iniciar sesión' }).click();
-  // The server answers in English; the app translates the errors of signing in
+  // The server answers in English with a code; the app says the refusal in Spanish
   await expect(page.getByText('Contraseña incorrecta')).toBeVisible();
   await expect(page.getByText('Incorrect password')).toBeHidden();
 
