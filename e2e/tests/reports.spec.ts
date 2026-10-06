@@ -223,8 +223,8 @@ test.describe('reports in Spanish', () => {
     await open(page, '/reports');
     const main = page.getByRole('main');
     await expect(main.getByRole('heading', { level: 1, name: 'Reportes' })).toBeVisible();
-    // The dashboard's name is stored, so it stays as the server wrote it
-    await expect(page.getByRole('button', { name: 'Overview' })).toBeVisible();
+    // The dashboard the app creates is named in the App Language
+    await expect(page.getByRole('button', { name: 'Vista general' })).toBeVisible();
     await expect(main).toContainText(/\$2,000\s*Ingresos totales/);
     await expect(main).toContainText(/\$52\.50\s*Gastos totales/);
     for (const widget of [
@@ -266,9 +266,9 @@ test.describe('reports in Spanish', () => {
     await page.getByRole('combobox', { name: 'Agrupar por' }).selectOption('category');
     const table = page.getByRole('table');
     await expect(table.getByRole('columnheader', { name: 'Monto' })).toBeVisible();
-    // What has no category is named by the app; category names are the user's
+    // What has no category is named by the app, and so is a default category
     await expect(table.getByRole('row', { name: 'Sin categoría $4' })).toBeVisible();
-    await expect(table.getByRole('row', { name: 'Groceries $48.50' })).toBeVisible();
+    await expect(table.getByRole('row', { name: 'Supermercado $48.50' })).toBeVisible();
 
     await page.getByRole('button', { name: 'Guardar' }).click();
     const dialog = page.getByRole('dialog', { name: 'Guardar reporte' });

@@ -55,7 +55,7 @@ test.describe('el registro de una cuenta', () => {
     await form.getByRole('button', { name: 'Dividir transacción' }).click();
     await form
       .getByRole('combobox', { name: 'Categoría de la parte 1' })
-      .selectOption({ label: '🛒 Groceries' });
+      .selectOption({ label: '🛒 Supermercado' });
     await form.getByRole('spinbutton', { name: 'Monto de la parte 1' }).fill('60');
     await expect(form.getByText('Restan $40')).toBeVisible();
     await form.getByRole('spinbutton', { name: 'Monto de la parte 2' }).fill('40');
@@ -79,8 +79,8 @@ test.describe('el registro de una cuenta', () => {
     await expect(panel(page)).not.toContainText(ENGLISH);
     await panel(page).getByRole('button', { name: 'Sin categoría' }).click();
     await page.getByPlaceholder('Buscar categorías...').fill('rest');
-    await page.getByRole('button', { name: /Restaurants/ }).click();
-    await expect(row(page, 'Panadería')).toContainText('Restaurants');
+    await page.getByRole('button', { name: /Restaurantes/ }).click();
+    await expect(row(page, 'Panadería')).toContainText('Restaurantes');
     await panel(page).getByRole('textbox', { name: 'Notas' }).fill('bizcochos y pan');
     await panel(page).getByRole('textbox', { name: 'Notas' }).blur();
     await expect
