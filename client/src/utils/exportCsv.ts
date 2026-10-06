@@ -1,27 +1,61 @@
-import type { Currency, CustomReportData, ReportGroupBy } from '../types';
+import { t } from '../i18n';
+import type en from '../i18n/en/reports';
+import type { BuiltinWidgetType, Currency, CustomReportData, ReportGroupBy } from '../types';
 import { currencySymbol } from './currency';
 
-// Exported files read the same in every App Language: their header row and the names the app
-// supplies are English (the table on screen is translated).
-export const CSV_UNCATEGORIZED = 'Uncategorized';
-export const CSV_DELETED_CATEGORY = 'Deleted category';
-export const CSV_UNKNOWN_PAYEE = 'Unknown';
+// A report's "Export CSV" file follows the App Language, like the table on screen: its header
+// row, the names the app supplies and its file name come from the catalog (`reports:csv`).
+// Amounts (whole cents), months, dates and currency signs are written the same in both.
+
+/** A column a report file can have: its header is `reports:csv.column.<id>` */
+export type CsvColumn = keyof typeof en.csv.column;
+
+/** A column's header in the App Language */
+const csvHeader = (column: CsvColumn) => t(`reports:csv.column.${column}`);
+
+/** A file of rows: a column per key, the key being the column's header */
+export type CsvRow = Record<string, unknown>;
+
+/** Rows whose every key is a column id: a key the catalog doesn't have doesn't compile */
+type ColumnsOnly<R> = { [K in keyof R]: K extends CsvColumn ? unknown : never };
+
+/**
+ * Rows keyed by column id, as rows keyed by each column's header in the App Language. Call it
+ * when the file is made, so the headers are in the language of that moment.
+ */
+export function csvRows<R extends ColumnsOnly<R>>(rows: readonly R[]): CsvRow[] {
+  return rows.map((row) =>
+    Object.fromEntries(
+      Object.entries(row).map(([column, value]) => [csvHeader(column as CsvColumn), value]),
+    ),
+  );
+}
+
+/** The name of a report's file for a range, in the App Language */
+export function csvFileName(
+  report: BuiltinWidgetType | 'custom' | 'cash-flow',
+  from: string,
+  to: string,
+): string {
+  return t(`reports:csv.file.${report}`, { from, to });
+}
 
 /**
  * A custom report as the rows of its CSV file: a row per group, or over time a row per month
- * with a column per group. A group with no name (no category, no payee) gets the file's label.
+ * with a column per group. A group with no name (no category, no payee) gets the name the
+ * report shows for it on screen.
  */
-export function customReportCsvRows(
-  data: CustomReportData,
-  groupBy: ReportGroupBy,
-): Record<string, unknown>[] {
+export function customReportCsvRows(data: CustomReportData, groupBy: ReportGroupBy): CsvRow[] {
   const named = (name: string | null) =>
-    name ?? (groupBy === 'payee' ? CSV_UNKNOWN_PAYEE : CSV_UNCATEGORIZED);
+    name ?? (groupBy === 'payee' ? t('reports:unknownPayee') : t('reports:uncategorized'));
   if (data.mode === 'total') {
-    return data.data.map((d) => ({ name: named(d.name), amount_cents: d.value }));
+    return data.data.map((d) => ({
+      [csvHeader('name')]: named(d.name),
+      [csvHeader('amount_cents')]: d.value,
+    }));
   }
   return data.data.map((d) => {
-    const row: Record<string, unknown> = { month: d.month };
+    const row: CsvRow = { [csvHeader('month')]: d.month };
     for (const g of data.groups) row[named(g.name)] = d[g.key] ?? 0;
     return row;
   });
@@ -29,14 +63,13 @@ export function customReportCsvRows(
 
 /**
  * Rows of amounts in one currency (a report in the viewing currency), each saying which: a
- * last `currency` column holding its sign (`$` or `US$`). The amounts stay plain numbers.
+ * last column, headed "currency" in the App Language, holding its sign (`$` or `US$`). The
+ * amounts stay plain numbers.
  */
-export function rowsInCurrency<R extends Record<string, unknown>>(
-  rows: readonly R[],
-  currency: Currency,
-): (R & { currency: string })[] {
+export function rowsInCurrency(rows: readonly CsvRow[], currency: Currency): CsvRow[] {
+  const header = csvHeader('currency');
   const sign = currencySymbol(currency);
-  return rows.map((row) => ({ ...row, currency: sign }));
+  return rows.map((row) => ({ ...row, [header]: sign }));
 }
 
 /**
@@ -49,14 +82,19 @@ export function csvCell(value: unknown): string {
   return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
-export function downloadCsv(filename: string, rows: Record<string, unknown>[]): void {
-  if (!rows.length) return;
+/** The text of a file of rows: a header line (escaped like any text cell), then a line per row */
+export function csvFileText(rows: readonly CsvRow[]): string {
+  if (!rows.length) return '';
   const headers = Object.keys(rows[0]);
-  const lines = [
+  return [
     headers.map(csvCell).join(','),
     ...rows.map((r) => headers.map((h) => csvCell(r[h])).join(',')),
-  ];
-  const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  ].join('\n');
+}
+
+export function downloadCsv(filename: string, rows: readonly CsvRow[]): void {
+  if (!rows.length) return;
+  const blob = new Blob([csvFileText(rows)], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;

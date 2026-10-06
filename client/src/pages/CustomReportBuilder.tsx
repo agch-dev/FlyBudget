@@ -13,7 +13,7 @@ import {
   useUpdateSavedReport,
 } from '../hooks/useCustomReports';
 import { useDebounce } from '../hooks/useDebounce';
-import { customReportCsvRows, downloadCsv, rowsInCurrency } from '../utils/exportCsv';
+import { csvFileName, customReportCsvRows, downloadCsv, rowsInCurrency } from '../utils/exportCsv';
 import { useViewingCurrency } from '../hooks/useViewingCurrency';
 import { ViewingCurrencySwitch } from '../components/ui/ViewingCurrencySwitch';
 import { computeDateRange, decodeRangeParam, resolveDateRange } from '../utils/dateRange';
@@ -94,7 +94,7 @@ export default function CustomReportBuilder() {
 
   function handleExport() {
     if (!data) return;
-    const filename = `custom-report-${config.dateRange.from}-${config.dateRange.to}.csv`;
+    const filename = csvFileName('custom', config.dateRange.from, config.dateRange.to);
     downloadCsv(filename, rowsInCurrency(customReportCsvRows(data, config.groupBy), currency));
   }
 

@@ -77,7 +77,7 @@ export function DataExport() {
     if (from) params.set('from', from);
     if (to) params.set('to', to);
     const qs = params.toString();
-    // The file names default categories in the App Language
+    // The file is written in the App Language
     download(withLanguage(`${API_BASE}/transactions/csv${qs ? `?${qs}` : ''}`));
   }
 
@@ -129,7 +129,7 @@ export function DataExport() {
           <h3 className="text-sm font-medium text-text">{t('data.rates.title')}</h3>
           <p className="text-xs text-text-tertiary mt-0.5">{t('data.rates.description')}</p>
         </div>
-        <Button onClick={() => download(`${API_BASE}/exchange-rates/csv`)} size="sm">
+        <Button onClick={() => download(withLanguage(`${API_BASE}/exchange-rates/csv`))} size="sm">
           <Download size={14} /> {t('data.rates.download')}
         </Button>
       </div>
