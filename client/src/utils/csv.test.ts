@@ -611,3 +611,76 @@ describe('generateImportId', () => {
     );
   });
 });
+
+describe("the app's own transactions export, imported back", () => {
+  // The header rows the server writes (server/src/services/csvText.ts)
+  const ENGLISH = 'Date,Account,Group,Currency,Payee,Category,Notes,Amount,Reconciled';
+  const SPANISH = 'Fecha,Cuenta,Grupo,Moneda,Beneficiario,Categoría,Notas,Monto,Conciliada';
+
+  const word = fc.constantFrom('Tienda Inglesa', 'UTE', 'Sueldo, marzo', 'Café "El Sol"', '');
+  const exported = fc.record({
+    date: fc
+      .tuple(
+        fc.integer({ min: 2000, max: 2030 }),
+        fc.integer({ min: 1, max: 12 }),
+        fc.integer({ min: 1, max: 28 }),
+      )
+      .map(([y, m, d]) => `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`),
+    currency: fc.constantFrom('UYU', 'USD'),
+    payee: word,
+    notes: word,
+    cents: fc.integer({ min: -10_000_000, max: 10_000_000 }).filter((c) => c !== 0),
+    reconciled: fc.boolean(),
+  });
+  type Exported = typeof exported extends fc.Arbitrary<infer T> ? T : never;
+
+  /** The file the server writes for these rows, under a language's header */
+  const file = (rows: Exported[], header: string, yes: string) =>
+    [
+      header,
+      ...rows.map((r) =>
+        [
+          r.date,
+          'Caja',
+          '',
+          r.currency,
+          quote(r.payee),
+          '',
+          quote(r.notes),
+          (r.cents / 100).toFixed(2),
+          r.reconciled ? yes : 'No',
+        ].join(','),
+      ),
+    ].join('\n');
+
+  it('reads the Spanish file with the same columns and the same rows as the English one', () => {
+    fc.assert(
+      fc.property(fc.array(exported, { minLength: 1, maxLength: 20 }), (rows) => {
+        const english = readCsvFile(file(rows, ENGLISH, 'Yes'));
+        const spanish = readCsvFile(file(rows, SPANISH, 'Sí'));
+        const roles = guessRoles(spanish.headers, spanish.rows);
+        expect(guessColumnRoles(spanish.headers)).toEqual(guessColumnRoles(english.headers));
+        expect(roles).toEqual(guessRoles(english.headers, english.rows));
+        expect(roles).toEqual([
+          'date',
+          'skip',
+          'skip',
+          'currency',
+          'payee',
+          'skip',
+          'notes',
+          'amount',
+          'skip',
+        ]);
+
+        const conventions = { dateOrder: 'month-first', decimal: 'point' } as const;
+        const read = readImportRows(spanish.rows, roles, conventions);
+        expect(read).toEqual(readImportRows(english.rows, roles, conventions));
+        expect(read.problems).toEqual([]);
+        expect(read.rows.map((r) => [r.date, r.amount, r.payeeName, r.notes, r.currency])).toEqual(
+          rows.map((r) => [r.date, r.cents, r.payee || null, r.notes || null, r.currency]),
+        );
+      }),
+    );
+  });
+});
