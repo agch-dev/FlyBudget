@@ -723,43 +723,47 @@ reportsRouter.get('/custom', (req, res) => {
     if (ids.length) conditions.push(inArray(categories.groupId, ids));
   }
 
-  const groupByCol = {
-    category: {
-      name: categories.name,
-      id: transactions.categoryId,
-      groupCol: transactions.categoryId,
-    },
-    categoryGroup: {
-      name: categoryGroups.name,
-      id: categories.groupId,
-      groupCol: categories.groupId,
-    },
-    payee: {
-      name: sql<string | null>`coalesce(${payees.name}, ${transactions.payeeName})`,
-      id: transactions.payeeId,
-      groupCol: transactions.payeeId,
-    },
-    account: { name: accounts.name, id: transactions.accountId, groupCol: transactions.accountId },
-    month: {
-      name: sql<string>`strftime('%Y-%m', ${transactions.date})`,
-      id: sql<string>`strftime('%Y-%m', ${transactions.date})`,
-      groupCol: sql`strftime('%Y-%m', ${transactions.date})`,
-    },
-  }[group_by as 'category'] ?? {
+  // Each grouping's name, id and GROUP BY column, and `kind`: the supplied names it shows in
+  // the language of the request (categories and groups), null when every name is the user's
+  const byCategory = {
     name: categories.name,
     id: transactions.categoryId,
     groupCol: transactions.categoryId,
+    kind: 'category' as NameKind | null,
   };
+  const groupByCol =
+    {
+      category: byCategory,
+      categoryGroup: {
+        name: categoryGroups.name,
+        id: categories.groupId,
+        groupCol: categories.groupId,
+        kind: 'group' as NameKind | null,
+      },
+      payee: {
+        name: sql<string | null>`coalesce(${payees.name}, ${transactions.payeeName})`,
+        id: transactions.payeeId,
+        groupCol: transactions.payeeId,
+        kind: null,
+      },
+      account: {
+        name: accounts.name,
+        id: transactions.accountId,
+        groupCol: transactions.accountId,
+        kind: null,
+      },
+      month: {
+        name: sql<string>`strftime('%Y-%m', ${transactions.date})`,
+        id: sql<string>`strftime('%Y-%m', ${transactions.date})`,
+        groupCol: sql`strftime('%Y-%m', ${transactions.date})`,
+        kind: null,
+      },
+    }[group_by as 'category'] ?? byCategory;
 
-  // Categories and groups are named in the language of the request. What has no category or
-  // no payee has no name: the label for it ("Uncategorized") is the client's text, not a name.
+  // What has no category or no payee has no name: the label for it ("Uncategorized") is the
+  // client's text, not a name.
   const language = requestLanguage(req);
-  const nameKind: NameKind | null =
-    group_by === 'categoryGroup'
-      ? 'group'
-      : ['payee', 'account', 'month'].includes(group_by)
-        ? null
-        : 'category';
+  const nameKind = groupByCol.kind;
   const shown = (name: string | null): string | null =>
     !name ? null : nameKind ? shownName(nameKind, name, language) : name;
 
