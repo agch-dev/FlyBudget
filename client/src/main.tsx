@@ -10,7 +10,7 @@ import '@fontsource/inter/700.css';
 import 'react-grid-layout/css/styles.css';
 import './index.css';
 import { initTheme } from './utils/applyTheme';
-import { initLanguage } from './utils/applyLanguage';
+import { initLanguage, refetchOnLanguageChange } from './utils/applyLanguage';
 import { restoreOfflineCopy, startOfflineCopy } from './offline/snapshot';
 import { loadOutbox } from './offline/outbox';
 import { IS_DEMO, startDemoApi } from './demo/demoApi';
@@ -24,6 +24,8 @@ const queryClient = new QueryClient({
     queries: { staleTime: 30_000, retry: 1 },
   },
 });
+// The server names default categories in the language of the request
+refetchOnLanguageChange(queryClient);
 
 const render = () =>
   createRoot(document.getElementById('root')!).render(

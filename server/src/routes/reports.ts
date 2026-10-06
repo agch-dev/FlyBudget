@@ -17,8 +17,24 @@ import { format } from 'date-fns';
 import { converter } from '../services/currencyConversion.js';
 import { listRates } from '../services/exchangeRateService.js';
 import { dayShown, netWorthSeries } from '../services/netWorth.js';
+import { shownName, shownNameOrNull, type NameKind } from '../services/defaultNames.js';
+import { requestLanguage, type Language } from '../utils/language.js';
 
 export const reportsRouter = Router();
+
+/** Report rows with their category (and group) named in the language of the request */
+function namedIn<T extends { categoryName: string | null; groupName?: string | null }>(
+  rows: T[],
+  language: Language,
+): T[] {
+  return rows.map((row) => ({
+    ...row,
+    categoryName: shownNameOrNull('category', row.categoryName, language),
+    ...(row.groupName === undefined
+      ? {}
+      : { groupName: shownNameOrNull('group', row.groupName, language) }),
+  }));
+}
 
 /** Longest range a report may cover, so a bad request can't make the server build millions of rows */
 const MAX_MONTHS = 1200;
@@ -205,7 +221,9 @@ reportsRouter.get('/spending-by-category', (req, res) => {
     .all();
 
   res.json(
-    rows.filter((r) => r.totalSpent < 0).map((r) => ({ ...r, totalSpent: Math.abs(r.totalSpent) })),
+    namedIn(rows, requestLanguage(req))
+      .filter((r) => r.totalSpent < 0)
+      .map((r) => ({ ...r, totalSpent: Math.abs(r.totalSpent) })),
   );
 });
 
@@ -363,7 +381,7 @@ reportsRouter.get('/income-by-category', (req, res) => {
     .groupBy(transactions.categoryId)
     .all();
 
-  res.json(rows.filter((r) => r.totalReceived > 0));
+  res.json(namedIn(rows, requestLanguage(req)).filter((r) => r.totalReceived > 0));
 });
 
 reportsRouter.get('/spending-trends', (req, res) => {
@@ -400,7 +418,7 @@ reportsRouter.get('/spending-trends', (req, res) => {
     .all();
 
   res.json(
-    rows
+    namedIn(rows, requestLanguage(req))
       .filter((r) => r.categoryId && ids.includes(r.categoryId) && r.total < 0)
       .map((r) => ({ ...r, total: Math.abs(r.total) })),
   );
@@ -705,33 +723,49 @@ reportsRouter.get('/custom', (req, res) => {
     if (ids.length) conditions.push(inArray(categories.groupId, ids));
   }
 
-  const groupByCol = {
-    category: {
-      name: categories.name,
-      id: transactions.categoryId,
-      groupCol: transactions.categoryId,
-    },
-    categoryGroup: {
-      name: categoryGroups.name,
-      id: categories.groupId,
-      groupCol: categories.groupId,
-    },
-    payee: {
-      name: sql<string>`coalesce(${payees.name}, ${transactions.payeeName}, 'Unknown')`,
-      id: transactions.payeeId,
-      groupCol: transactions.payeeId,
-    },
-    account: { name: accounts.name, id: transactions.accountId, groupCol: transactions.accountId },
-    month: {
-      name: sql<string>`strftime('%Y-%m', ${transactions.date})`,
-      id: sql<string>`strftime('%Y-%m', ${transactions.date})`,
-      groupCol: sql`strftime('%Y-%m', ${transactions.date})`,
-    },
-  }[group_by as 'category'] ?? {
+  // Each grouping's name, id and GROUP BY column, and `kind`: the supplied names it shows in
+  // the language of the request (categories and groups), null when every name is the user's
+  const byCategory = {
     name: categories.name,
     id: transactions.categoryId,
     groupCol: transactions.categoryId,
+    kind: 'category' as NameKind | null,
   };
+  const groupByCol =
+    {
+      category: byCategory,
+      categoryGroup: {
+        name: categoryGroups.name,
+        id: categories.groupId,
+        groupCol: categories.groupId,
+        kind: 'group' as NameKind | null,
+      },
+      payee: {
+        name: sql<string | null>`coalesce(${payees.name}, ${transactions.payeeName})`,
+        id: transactions.payeeId,
+        groupCol: transactions.payeeId,
+        kind: null,
+      },
+      account: {
+        name: accounts.name,
+        id: transactions.accountId,
+        groupCol: transactions.accountId,
+        kind: null,
+      },
+      month: {
+        name: sql<string>`strftime('%Y-%m', ${transactions.date})`,
+        id: sql<string>`strftime('%Y-%m', ${transactions.date})`,
+        groupCol: sql`strftime('%Y-%m', ${transactions.date})`,
+        kind: null,
+      },
+    }[group_by as 'category'] ?? byCategory;
+
+  // What has no category or no payee has no name: the label for it ("Uncategorized") is the
+  // client's text, not a name.
+  const language = requestLanguage(req);
+  const nameKind = groupByCol.kind;
+  const shown = (name: string | null): string | null =>
+    !name ? null : nameKind ? shownName(nameKind, name, language) : name;
 
   const baseQuery = db
     .select({
@@ -754,19 +788,24 @@ reportsRouter.get('/custom', (req, res) => {
       .all() as { name: string | null; id: string | null; month: string; value: number }[];
 
     const months = monthRange(from, to);
-    const groupSet = new Set<string>();
-    for (const r of rows) groupSet.add(r.name || 'Uncategorized');
-    const groups = Array.from(groupSet).sort();
+    // Groups are told apart by the name shown (two categories that read alike are one line),
+    // in name order with the unnamed one last. Each gets a key for its figures in `data`: a
+    // name can't be the key, since one group has none.
+    const names = [...new Set(rows.map((r) => shown(r.name)))].sort((a, b) =>
+      a === null ? 1 : b === null ? -1 : a < b ? -1 : a > b ? 1 : 0,
+    );
+    const keyOf = new Map(names.map((name, i) => [name, `g${i}`]));
+    const groups = names.map((name) => ({ key: keyOf.get(name)!, name }));
 
     const dataMap = new Map<string, Record<string, number>>();
     for (const m of months) dataMap.set(m, {});
 
     for (const r of rows) {
-      const label = r.name || 'Uncategorized';
+      const key = keyOf.get(shown(r.name))!;
       const bucket = dataMap.get(r.month);
       if (bucket) {
         const val = balance_type === 'expense' ? Math.abs(r.value) : r.value;
-        bucket[label] = (bucket[label] || 0) + val;
+        bucket[key] = (bucket[key] || 0) + val;
       }
     }
 
@@ -786,7 +825,7 @@ reportsRouter.get('/custom', (req, res) => {
     const data = rows
       .filter((r) => r.value !== 0)
       .map((r) => ({
-        name: r.name || 'Uncategorized',
+        name: shown(r.name),
         id: r.id,
         value: balance_type === 'expense' ? Math.abs(r.value) : r.value,
       }));

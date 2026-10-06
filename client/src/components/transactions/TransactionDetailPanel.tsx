@@ -25,6 +25,7 @@ import { canLinkAsTransfer } from '../../utils/transferLink';
 import { useCanSave } from '../../hooks/useConnection';
 import { SavingPausedHint } from '../connection/SavingPausedHint';
 import { HOME_CURRENCY } from '../../types';
+import { ApiError } from '../../api/client';
 import { frequencyLabel } from '../recurring/scheduleFormat';
 import type {
   Transaction,
@@ -93,6 +94,9 @@ export function TransactionDetailPanel({
   useEffect(() => {
     setShowCategoryPicker(false);
   }, [tx.id, tx.date, tx.notes, tx.payeeId, tx.payeeName]);
+  // A refused change belongs to the transaction it was made on
+  const resetUpdate = updateTx.reset;
+  useEffect(() => resetUpdate(), [tx.id, resetUpdate]);
 
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
@@ -237,6 +241,14 @@ export function TransactionDetailPanel({
             <Lock size={12} />
             <span>{t('detail.reconciled')}</span>
           </div>
+        )}
+
+        {/* The server refused a change (reconciled on another device, say): its sentence, in
+            the App Language. Offline is the connection banner's to say */}
+        {updateTx.error instanceof ApiError && (
+          <p role="alert" className="text-xs text-negative">
+            {updateTx.error.message}
+          </p>
         )}
 
         <div>

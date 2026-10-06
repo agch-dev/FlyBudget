@@ -271,4 +271,12 @@ export default {
     cancel: 'Cancel',
     save: 'Save',
   },
+  /** The server's refusals, by code (api/serverErrors.ts): the English is the server's own */
+  errors: {
+    otherCurrency: 'That transaction is in a different currency than this recurring item',
+    transferOtherCurrency:
+      "A recurring transfer can't go between a pesos and a dollars account, because the amount arriving changes with the exchange rate. Add each transfer when it happens instead.",
+    noAccount: 'Schedule has no account assigned',
+    nothingPending: 'No pending occurrence found',
+  },
 } as const;

@@ -242,7 +242,10 @@ test.describe('exchange rates', () => {
     await open(page, '/settings?tab=rates');
 
     await page.getByRole('button', { name: 'Refresh' }).click();
-    await expect(page.getByRole('alert')).toContainText("Couldn't get exchange rates");
+    // With fetching switched off the refusal says so, rather than "couldn't get them right now"
+    await expect(page.getByRole('alert')).toHaveText(
+      'Fetching exchange rates is switched off (FLYBUDGET_EXCHANGE_RATES=off)',
+    );
     await expect(page.getByRole('main')).toContainText('$ 40.25 per US$ 1');
   });
 });

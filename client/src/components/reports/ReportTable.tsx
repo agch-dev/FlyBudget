@@ -1,11 +1,11 @@
 import { useTranslation } from 'react-i18next';
 import { useViewingMoney } from '../../hooks/useViewingCurrency';
 import { monthLabel } from './ChartHelpers';
-import { groupName } from '../../utils/reportText';
-import type { CustomReportData } from '../../types';
+import type { ShownReportData } from '../../utils/reportText';
 
 interface Props {
-  data: CustomReportData;
+  /** The report as shown (`shownReport`): each group under its label, once */
+  data: ShownReportData;
 }
 
 export default function ReportTable({ data }: Props) {
@@ -26,7 +26,7 @@ export default function ReportTable({ data }: Props) {
           <tbody>
             {data.data.map((row, i) => (
               <tr key={i} className="border-b border-border-light hover:bg-hover">
-                <td className="py-2 px-3 text-text-secondary">{groupName(row.name)}</td>
+                <td className="py-2 px-3 text-text-secondary">{row.name}</td>
                 <td
                   className={`py-2 px-3 text-right tabular-nums font-medium ${row.value < 0 ? 'text-negative' : 'text-text'}`}
                 >
@@ -58,10 +58,10 @@ export default function ReportTable({ data }: Props) {
             </th>
             {data.groups.map((g) => (
               <th
-                key={g}
+                key={g.key}
                 className="text-right py-2 px-3 font-semibold text-text-secondary whitespace-nowrap"
               >
-                {groupName(g)}
+                {g.name}
               </th>
             ))}
           </tr>
@@ -73,10 +73,10 @@ export default function ReportTable({ data }: Props) {
                 {monthLabel(row.month as string)}
               </td>
               {data.groups.map((g) => {
-                const val = (row[g] as number) || 0;
+                const val = (row[g.key] as number) || 0;
                 return (
                   <td
-                    key={g}
+                    key={g.key}
                     className={`py-2 px-3 text-right tabular-nums ${val < 0 ? 'text-negative' : 'text-text-secondary'}`}
                   >
                     {val !== 0 ? money.format(val) : '—'}

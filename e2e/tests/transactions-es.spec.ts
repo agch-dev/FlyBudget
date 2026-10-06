@@ -55,7 +55,7 @@ test.describe('el registro de una cuenta', () => {
     await form.getByRole('button', { name: 'Dividir transacción' }).click();
     await form
       .getByRole('combobox', { name: 'Categoría de la parte 1' })
-      .selectOption({ label: '🛒 Groceries' });
+      .selectOption({ label: '🛒 Supermercado' });
     await form.getByRole('spinbutton', { name: 'Monto de la parte 1' }).fill('60');
     await expect(form.getByText('Restan $40')).toBeVisible();
     await form.getByRole('spinbutton', { name: 'Monto de la parte 2' }).fill('40');
@@ -79,8 +79,8 @@ test.describe('el registro de una cuenta', () => {
     await expect(panel(page)).not.toContainText(ENGLISH);
     await panel(page).getByRole('button', { name: 'Sin categoría' }).click();
     await page.getByPlaceholder('Buscar categorías...').fill('rest');
-    await page.getByRole('button', { name: /Restaurants/ }).click();
-    await expect(row(page, 'Panadería')).toContainText('Restaurants');
+    await page.getByRole('button', { name: /Restaurantes/ }).click();
+    await expect(row(page, 'Panadería')).toContainText('Restaurantes');
     await panel(page).getByRole('textbox', { name: 'Notas' }).fill('bizcochos y pan');
     await panel(page).getByRole('textbox', { name: 'Notas' }).blur();
     await expect
@@ -99,6 +99,30 @@ test.describe('el registro de una cuenta', () => {
     await confirm.getByRole('button', { name: 'Eliminar' }).click();
     await expect(page.getByText('1 transacción', { exact: true })).toBeVisible();
     expect(await api.balance(checking.id)).toBe(90_000);
+  });
+
+  test('editar una transacción conciliada lo explica en español', async ({ page, api }) => {
+    const { checking } = await setup(api);
+    const bakery = (await api.createTransaction({
+      accountId: checking.id,
+      date: isoDay(),
+      amount: -1_250,
+      payeeName: 'Panadería',
+    })) as { id: string };
+    await open(page, `/accounts/${checking.id}`);
+    await openDetails(page, 'Panadería');
+
+    // Meanwhile, on another device, it is reconciled
+    await api.call('PUT', `/accounts/${checking.id}/reconcile`, { transactionIds: [bakery.id] });
+
+    const notes = panel(page).getByRole('textbox', { name: 'Notas' });
+    await notes.fill('bizcochos');
+    await notes.blur();
+    await expect(panel(page).getByRole('alert')).toHaveText(
+      'No se puede modificar una transacción conciliada',
+    );
+    await expect(panel(page)).not.toContainText('Cannot modify a reconciled transaction');
+    expect((await api.transactions(`?account_id=${checking.id}`))[0].notes).toBeNull();
   });
 
   test('una búsqueda sin resultados lo dice en español', async ({ page, api }) => {
@@ -176,7 +200,7 @@ test.describe('transferencias', () => {
     await expect(dialog).toContainText('Elegí la transacción donde llegó este dinero.');
     await expect(dialog).not.toContainText(ENGLISH);
 
-    // The server refuses in English; the app says it in Spanish
+    // The server's refusal carries a code; the app says it in Spanish
     await dialog.getByRole('button', { name: /DEPOSITO/ }).click();
     await expect(dialog.getByRole('alert')).toHaveText(
       'Estas cuentas tienen la misma moneda, así que las dos transacciones tienen que ser por el mismo monto',
@@ -185,6 +209,42 @@ test.describe('transferencias', () => {
     await dialog.getByRole('button', { name: /TRASPASO DE CUENTA/ }).click();
     await expect(dialog).toBeHidden();
     await expect(row(page, 'TRASPASO A CAJA')).toContainText('Transferencia');
+  });
+
+  test('una transacción conciliada no se puede cambiar, y lo dice en español', async ({
+    page,
+    api,
+  }) => {
+    const { checking, savings } = await setup(api);
+    const add = (accountId: string, amount: number, payeeName: string) =>
+      api.createTransaction({ accountId, date: isoDay(), amount, payeeName }) as Promise<{
+        id: string;
+      }>;
+    await add(checking.id, -25_000, 'TRASPASO A CAJA');
+    const reconciled = await add(savings.id, 25_000, 'TRASPASO DE CUENTA');
+    const gone = await add(savings.id, 25_000, 'OTRO DEPOSITO');
+
+    await open(page, `/accounts/${checking.id}`);
+    await openDetails(page, 'TRASPASO A CAJA');
+    await panel(page).getByRole('button', { name: 'Vincular como transferencia' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Vincular como transferencia' });
+    await expect(dialog.getByRole('button', { name: /TRASPASO DE CUENTA/ })).toBeVisible();
+
+    // Meanwhile, on another device: one is reconciled and the other deleted
+    await api.call('PUT', `/accounts/${savings.id}/reconcile`, { transactionIds: [reconciled.id] });
+    await api.call('DELETE', `/transactions/${gone.id}`);
+
+    // A refusal with a code reads as its Spanish sentence
+    await dialog.getByRole('button', { name: /TRASPASO DE CUENTA/ }).click();
+    await expect(dialog.getByRole('alert')).toHaveText(
+      'No se puede modificar una transacción conciliada',
+    );
+    await expect(dialog).not.toContainText('Cannot modify a reconciled transaction');
+
+    // One without a code reads as the generic sentence, never as the server's English
+    await dialog.getByRole('button', { name: /OTRO DEPOSITO/ }).click();
+    await expect(dialog.getByRole('alert')).toHaveText('No se pudo completar la acción');
+    await expect(dialog).not.toContainText('Not found');
   });
 
   test('las sugerencias de transferencia se revisan y se confirman', async ({ page, api }) => {

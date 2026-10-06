@@ -307,6 +307,38 @@ test.describe('export, backup and restore', () => {
     expect(csv).toBe('Date,Pesos per dollar,Source\n2026-03-02,40.25,Entered by hand');
   });
 
+  test.describe('in Spanish', () => {
+    test.use({ language: 'es' });
+
+    test('the CSV files are written and named in Spanish', async ({ page, api }) => {
+      const checking = await api.createAccount('Checking', 0);
+      await api.createTransaction({
+        accountId: checking.id,
+        date: '2026-03-02',
+        amount: -1_000,
+        payeeName: 'Market',
+      });
+      await api.call('PUT', '/exchange-rates/2026-03-02', { rate: 40.25 });
+      await open(page, '/settings');
+      await page.getByRole('button', { name: 'Datos' }).click();
+
+      let download = page.waitForEvent('download');
+      await page.getByRole('button', { name: 'Descargar CSV', exact: true }).click();
+      expect((await download).suggestedFilename()).toBe('transacciones.csv');
+      expect(fs.readFileSync(await (await download).path(), 'utf8')).toBe(
+        'Fecha,Cuenta,Grupo,Moneda,Beneficiario,Categoría,Notas,Monto,Conciliada\n' +
+          '2026-03-02,Checking,,UYU,Market,,,-10.00,No',
+      );
+
+      download = page.waitForEvent('download');
+      await page.getByRole('button', { name: 'Descargar CSV de tipos de cambio' }).click();
+      expect((await download).suggestedFilename()).toBe('tipos-de-cambio.csv');
+      expect(fs.readFileSync(await (await download).path(), 'utf8')).toBe(
+        'Fecha,Pesos por dólar,Origen\n2026-03-02,40.25,Ingresado a mano',
+      );
+    });
+  });
+
   test('a backup restores everything it contained', async ({ page, api }) => {
     const checking = await api.createAccount('Checking', 50_000);
     await api.createTransaction({

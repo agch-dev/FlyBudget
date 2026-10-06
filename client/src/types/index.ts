@@ -410,14 +410,19 @@ export interface SavedCustomReport {
   updatedAt: string;
 }
 
+/**
+ * A custom report's groups arrive named in the App Language. `name` is null for what has no
+ * category (or no payee): the app writes that label itself (`groupName` in utils/reportText.ts).
+ */
 export interface CustomReportTotalData {
   mode: 'total';
-  data: { name: string; id: string | null; value: number }[];
+  data: { name: string | null; id: string | null; value: number }[];
 }
 
 export interface CustomReportTimeData {
   mode: 'time';
-  groups: string[];
+  /** One per line or column; `key` is where each row of `data` holds the group's figure */
+  groups: { key: string; name: string | null }[];
   data: Record<string, string | number>[];
 }
 

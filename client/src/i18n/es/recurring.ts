@@ -259,6 +259,13 @@ const es: Translation<typeof en> = {
     cancel: 'Cancelar',
     save: 'Guardar',
   },
+  errors: {
+    otherCurrency: 'Esa transacción está en una moneda distinta a la de este recurrente',
+    transferOtherCurrency:
+      'Una transferencia recurrente no puede ir entre una cuenta en pesos y una en dólares, porque el monto que llega cambia con el tipo de cambio. Agregá cada transferencia cuando ocurra.',
+    noAccount: 'El recurrente no tiene una cuenta asignada',
+    nothingPending: 'El recurrente no tiene nada pendiente',
+  },
 };
 
 export default es;

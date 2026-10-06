@@ -30,13 +30,16 @@ import {
   monthLabel,
 } from './ChartHelpers';
 import ReportTable from './ReportTable';
-import { groupName } from '../../utils/reportText';
+import { shownReport, type ShownReportData } from '../../utils/reportText';
 import { useXAxisLayout } from '../../hooks/useXAxisLayout';
 
 // Plot insets for the charts below: left margin (16) + default y-axis width (60), right margin (16)
 const INSET = { left: 76, right: 16 };
 import type { PieSectorDataItem } from 'recharts';
 import type { CustomReportConfig, CustomReportData } from '../../types';
+
+type ShownTotals = Extract<ShownReportData, { mode: 'total' }>;
+type ShownOverTime = Extract<ShownReportData, { mode: 'time' }>;
 
 interface Props {
   config: CustomReportConfig;
@@ -45,33 +48,37 @@ interface Props {
 }
 
 export default function ReportChartArea({ config, data, isLoading }: Props) {
+  // Group labels are in the App Language: worked out again on a switch. Memoized so the
+  // charts below get the same data until it changes
+  const { i18n } = useTranslation('reports');
+  const language = i18n.language;
+  const shown = useMemo(
+    () => (data ? shownReport(data, config.groupBy) : undefined),
+    [data, config.groupBy, language],
+  );
   if (isLoading)
     return (
       <div className="h-full">
         <ChartSkeleton />
       </div>
     );
-  if (!data)
+  if (!shown)
     return (
       <div className="h-full">
         <EmptyState />
       </div>
     );
 
-  if (config.chartType === 'table') return <ReportTable data={data} />;
-  if (config.chartType === 'donut' && data.mode === 'total') return <DonutView data={data} />;
-  if (data.mode === 'total') return <TotalChartView config={config} data={data} />;
-  return <TimeChartView config={config} data={data} />;
+  if (config.chartType === 'table') return <ReportTable data={shown} />;
+  if (config.chartType === 'donut' && shown.mode === 'total') return <DonutView data={shown} />;
+  if (shown.mode === 'total') return <TotalChartView config={config} data={shown} />;
+  return <TimeChartView config={config} data={shown} />;
 }
 
-/**
- * Totals as positive amounts, each with the color its slice or bar is drawn in and the name it
- * is shown under.
- */
-function withColors(rows: Extract<CustomReportData, { mode: 'total' }>['data']) {
+/** Totals as positive amounts, each with the color its slice or bar is drawn in */
+function withColors(rows: ShownTotals['data']) {
   return rows.map((d, i) => ({
     ...d,
-    name: groupName(d.name),
     value: Math.abs(d.value),
     color: EXPENSE_COLORS[i % EXPENSE_COLORS.length],
   }));
@@ -124,8 +131,7 @@ function InactiveSlice({
   );
 }
 
-function DonutView({ data }: { data: Extract<CustomReportData, { mode: 'total' }> }) {
-  useTranslation('reports');
+function DonutView({ data }: { data: ShownTotals }) {
   const chartData = withColors(data.data);
   if (!chartData.length) return <EmptyState />;
   const total = chartData.reduce((s, d) => s + d.value, 0);
@@ -161,17 +167,11 @@ function singlePointType(type: CustomReportConfig['chartType'], points: number) 
   return points === 1 && (type === 'line' || type === 'area') ? 'bar' : type;
 }
 
-function TotalChartView({
-  config,
-  data,
-}: {
-  config: CustomReportConfig;
-  data: Extract<CustomReportData, { mode: 'total' }>;
-}) {
+function TotalChartView({ config, data }: { config: CustomReportConfig; data: ShownTotals }) {
   const { t, i18n } = useTranslation('reports');
   const language = i18n.language;
   const money = useViewingMoney();
-  const chartData = useMemo(() => withColors(data.data), [data, language]);
+  const chartData = useMemo(() => withColors(data.data), [data]);
   const total = useMemo(() => chartData.reduce((s, d) => s + d.value, 0), [chartData]);
   const chartType = singlePointType(config.chartType, chartData.length);
   // Month groups arrive as "2025-06"; show them like the other charts ("Jun 25"). Checking the
@@ -238,13 +238,7 @@ function TotalChartView({
   );
 }
 
-function TimeChartView({
-  config,
-  data,
-}: {
-  config: CustomReportConfig;
-  data: Extract<CustomReportData, { mode: 'time' }>;
-}) {
+function TimeChartView({ config, data }: { config: CustomReportConfig; data: ShownOverTime }) {
   const { i18n } = useTranslation('reports');
   const language = i18n.language;
   const money = useViewingMoney();
@@ -281,9 +275,9 @@ function TimeChartView({
             <Legend wrapperStyle={{ fontSize: 11 }} />
             {groups.map((g, i) => (
               <Bar
-                key={g}
-                dataKey={g}
-                name={groupName(g)}
+                key={g.key}
+                dataKey={g.key}
+                name={g.name}
                 stackId="a"
                 fill={EXPENSE_COLORS[i % EXPENSE_COLORS.length]}
               />
@@ -315,10 +309,10 @@ function TimeChartView({
             if (chartType === 'area')
               return (
                 <Area
-                  key={g}
+                  key={g.key}
                   type="monotone"
-                  dataKey={g}
-                  name={groupName(g)}
+                  dataKey={g.key}
+                  name={g.name}
                   stroke={color}
                   fill={color}
                   fillOpacity={0.1}
@@ -327,10 +321,10 @@ function TimeChartView({
             if (chartType === 'line')
               return (
                 <Line
-                  key={g}
+                  key={g.key}
                   type="monotone"
-                  dataKey={g}
-                  name={groupName(g)}
+                  dataKey={g.key}
+                  name={g.name}
                   stroke={color}
                   strokeWidth={2}
                   dot={{ r: 2 }}
@@ -338,9 +332,9 @@ function TimeChartView({
               );
             return (
               <Bar
-                key={g}
-                dataKey={g}
-                name={groupName(g)}
+                key={g.key}
+                dataKey={g.key}
+                name={g.name}
                 fill={color}
                 radius={[2, 2, 0, 0]}
                 maxBarSize={32}

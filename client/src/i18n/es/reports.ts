@@ -20,7 +20,7 @@ const es: Translation<typeof en> = {
   transactions: 'Transacciones',
   monthlyAverage: 'Promedio mensual',
   uncategorized: 'Sin categoría',
-  unknownPayee: 'Desconocido',
+  unknownPayee: 'Sin beneficiario',
   deletedCategory: 'Categoría eliminada',
   viewAll: 'Ver todo',
   dateRange: 'Rango de fechas',
@@ -97,6 +97,43 @@ const es: Translation<typeof en> = {
     calendar: {
       label: 'Calendario de transacciones',
       description: 'Entradas y salidas de cada día',
+    },
+  },
+
+  csv: {
+    column: {
+      month: 'mes',
+      date: 'fecha',
+      name: 'nombre',
+      category: 'categoría',
+      group: 'grupo',
+      transactions: 'transacciones',
+      amount_cents: 'monto_centavos',
+      income_cents: 'ingresos_centavos',
+      expenses_cents: 'gastos_centavos',
+      net_cents: 'neto_centavos',
+      assets_cents: 'activos_centavos',
+      liabilities_cents: 'pasivos_centavos',
+      net_worth_cents: 'patrimonio_neto_centavos',
+      change_cents: 'variación_centavos',
+      pesos_cents: 'pesos_centavos',
+      dollars_cents: 'dólares_centavos',
+      spent_cents: 'gastado_centavos',
+      monthly_average_cents: 'promedio_mensual_centavos',
+      money_in_cents: 'entradas_centavos',
+      money_out_cents: 'salidas_centavos',
+      total_cents: 'total_centavos',
+      currency: 'moneda',
+    },
+    file: {
+      summary: 'reporte-resumen-{{from}}-a-{{to}}.csv',
+      'net-worth': 'reporte-patrimonio-neto-{{from}}-a-{{to}}.csv',
+      'income-expenses': 'reporte-ingresos-y-gastos-{{from}}-a-{{to}}.csv',
+      spending: 'reporte-gastos-{{from}}-a-{{to}}.csv',
+      'spending-trends': 'reporte-tendencias-de-gastos-{{from}}-a-{{to}}.csv',
+      calendar: 'reporte-calendario-{{from}}-a-{{to}}.csv',
+      custom: 'reporte-personalizado-{{from}}-a-{{to}}.csv',
+      'cash-flow': 'flujo-de-fondos-{{from}}-a-{{to}}.csv',
     },
   },
 
@@ -444,6 +481,9 @@ const es: Translation<typeof en> = {
     createReport: 'Crear el reporte "{{name}}"',
     editReport: 'Editar reporte',
     deleteReport: 'Eliminar el reporte "{{name}}"',
+  },
+  errors: {
+    lastDashboard: 'No se puede eliminar el último panel',
   },
 };
 

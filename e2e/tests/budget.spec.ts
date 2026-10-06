@@ -274,13 +274,13 @@ test.describe('the budget in Spanish', () => {
     await expect(main.getByRole('link', { name: /Cómo funciona el presupuesto/ })).toBeVisible();
 
     // Planning an amount
-    await page.getByRole('button', { name: /^Planificado para Groceries:/ }).click();
-    const input = page.getByRole('spinbutton', { name: 'Planificado para Groceries' });
+    await page.getByRole('button', { name: /^Planificado para Supermercado:/ }).click();
+    const input = page.getByRole('spinbutton', { name: 'Planificado para Supermercado' });
     await expect(main).toContainText('Promedio mensual');
     await input.fill('400');
     await input.press('Enter');
     await expect(
-      page.getByRole('button', { name: 'Planificado para Groceries: $400' }),
+      page.getByRole('button', { name: 'Planificado para Supermercado: $400' }),
     ).toBeVisible();
     await expect(porAsignar).toContainText('$2,600');
 
@@ -321,7 +321,7 @@ test.describe('the budget in Spanish', () => {
     await expect(main.getByText(monthTitle(today))).toBeVisible();
 
     // A category's page
-    await page.getByRole('row').filter({ hasText: 'Groceries' }).getByRole('link').click();
+    await page.getByRole('row').filter({ hasText: 'Supermercado' }).getByRole('link').click();
     await expect(page).toHaveURL(new RegExp(`#/budget/category/${groceries.id}$`));
     await expect(main.getByRole('link', { name: 'Presupuesto', exact: true })).toBeVisible();
     for (const text of [

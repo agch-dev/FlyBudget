@@ -164,13 +164,16 @@ test.describe('reports', () => {
   });
 });
 
-/** Clicks an export button and returns the file it saves, as text. */
+/** Clicks an export button and returns the file it saves: its name and its text. */
 async function exported(page: Page, button: string) {
   const [download] = await Promise.all([
     page.waitForEvent('download'),
     page.getByRole('button', { name: button, exact: true }).click(),
   ]);
-  return readFile(await download.path(), 'utf8');
+  return {
+    name: download.suggestedFilename(),
+    text: await readFile(await download.path(), 'utf8'),
+  };
 }
 
 /** Switches the App Language the way Settings does, then reloads. */
@@ -223,8 +226,8 @@ test.describe('reports in Spanish', () => {
     await open(page, '/reports');
     const main = page.getByRole('main');
     await expect(main.getByRole('heading', { level: 1, name: 'Reportes' })).toBeVisible();
-    // The dashboard's name is stored, so it stays as the server wrote it
-    await expect(page.getByRole('button', { name: 'Overview' })).toBeVisible();
+    // The dashboard the app creates is named in the App Language
+    await expect(page.getByRole('button', { name: 'Vista general' })).toBeVisible();
     await expect(main).toContainText(/\$2,000\s*Ingresos totales/);
     await expect(main).toContainText(/\$52\.50\s*Gastos totales/);
     for (const widget of [
@@ -266,9 +269,9 @@ test.describe('reports in Spanish', () => {
     await page.getByRole('combobox', { name: 'Agrupar por' }).selectOption('category');
     const table = page.getByRole('table');
     await expect(table.getByRole('columnheader', { name: 'Monto' })).toBeVisible();
-    // What has no category is named by the app; category names are the user's
+    // What has no category is named by the app, and so is a default category
     await expect(table.getByRole('row', { name: 'Sin categoría $4' })).toBeVisible();
-    await expect(table.getByRole('row', { name: 'Groceries $48.50' })).toBeVisible();
+    await expect(table.getByRole('row', { name: 'Supermercado $48.50' })).toBeVisible();
 
     await page.getByRole('button', { name: 'Guardar' }).click();
     const dialog = page.getByRole('dialog', { name: 'Guardar reporte' });
@@ -278,9 +281,10 @@ test.describe('reports in Spanish', () => {
   });
 });
 
-test('exported CSV files are the same in English and in Spanish', async ({ page, api }) => {
+test('exported CSV files follow the App Language', async ({ page, api }) => {
   await seed(api);
   const files: Record<string, string[]> = { en: [], es: [] };
+  const names: Record<string, string[]> = { en: [], es: [] };
   for (const [language, exportCsv, exportReport] of [
     ['en', 'Export CSV', 'Export'],
     ['es', 'Exportar CSV', 'Exportar'],
@@ -294,13 +298,39 @@ test('exported CSV files are the same in English and in Spanish', async ({ page,
     // Spending by category has an uncategorized row, which the app names
     for (const type of ['summary', 'spending', 'spending-trends', 'calendar']) {
       await open(page, `/reports/widget/${widgets.find((w) => w.type === type).id}`);
-      files[language].push(await exported(page, exportCsv));
+      const file = await exported(page, exportCsv);
+      files[language].push(file.text);
+      names[language].push(file.name);
     }
     await open(page, '/reports/custom');
     await expect(page.getByRole('button', { name: exportReport, exact: true })).toBeEnabled();
-    files[language].push(await exported(page, exportReport));
+    const file = await exported(page, exportReport);
+    files[language].push(file.text);
+    names[language].push(file.name);
   }
-  expect(files.en[1]).toContain('category,group,spent_cents,monthly_average_cents,currency');
+  const headers = (language: string) => files[language].map((text) => text.split('\n')[0]);
+  expect(headers('en')).toEqual([
+    'month,income_cents,expenses_cents,net_cents,transactions,currency',
+    'category,group,spent_cents,monthly_average_cents,currency',
+    'month,category,spent_cents,currency',
+    'date,transactions,money_in_cents,money_out_cents,net_cents,currency',
+    'name,amount_cents,currency',
+  ]);
+  expect(headers('es')).toEqual([
+    'mes,ingresos_centavos,gastos_centavos,neto_centavos,transacciones,moneda',
+    'categoría,grupo,gastado_centavos,promedio_mensual_centavos,moneda',
+    'mes,categoría,gastado_centavos,moneda',
+    'fecha,transacciones,entradas_centavos,salidas_centavos,neto_centavos,moneda',
+    'nombre,monto_centavos,moneda',
+  ]);
+  // Spending by category has an uncategorized row, which the app names
   expect(files.en[1]).toContain('Uncategorized,');
-  expect(files.es).toEqual(files.en);
+  expect(files.es[1]).toContain('Sin categoría,');
+  expect(names.en[0]).toMatch(/^report-summary-\d{4}-\d{2}-to-\d{4}-\d{2}\.csv$/);
+  expect(names.es[0]).toMatch(/^reporte-resumen-\d{4}-\d{2}-a-\d{4}-\d{2}\.csv$/);
+  expect(names.es[4]).toMatch(/^reporte-personalizado-.*\.csv$/);
+  // Under the header, only the names the app supplies differ: months, dates and amounts don't
+  const body = (text: string) => text.split('\n').slice(1).join('\n');
+  expect(body(files.es[0])).toBe(body(files.en[0]));
+  expect(body(files.es[3])).toBe(body(files.en[3]));
 });

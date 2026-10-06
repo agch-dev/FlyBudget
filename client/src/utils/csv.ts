@@ -302,6 +302,8 @@ const COLUMN_HINTS: Record<string, string> = {
   descripcion: 'payee',
   concepto: 'payee',
   detalle: 'payee',
+  // The app's own transactions export in Spanish ("Beneficiario", "Notas"), so it imports back
+  beneficiario: 'payee',
   amount: 'amount',
   'transaction amount': 'amount',
   importe: 'amount',
@@ -332,6 +334,8 @@ const COLUMN_HINTS: Record<string, string> = {
   memo: 'notes',
   notes: 'notes',
   note: 'notes',
+  notas: 'notes',
+  nota: 'notes',
   reference: 'notes',
   referencia: 'notes',
 };

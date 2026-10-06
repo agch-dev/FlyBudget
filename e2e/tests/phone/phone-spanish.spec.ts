@@ -10,9 +10,98 @@ test.use({ language: 'es' });
 
 /**
  * Text the app writes in English that must not show in Spanish: page titles, tab names and
- * common buttons. Nothing here may also be stored data the test creates or the default
- * categories (Income, Savings, Uncategorized, Other…), which stay in English.
+ * common buttons, and the names the app supplies (Default Categories, the "Overview"
+ * dashboard), which the server sends in the App Language. Nothing here may also be stored
+ * data the test creates.
  */
+/**
+ * The default groups and categories of a new budget, and the dashboard the app creates. Left
+ * out: the names spelled alike in both languages (Internet, Hobbies, Marketing) and
+ * "Vacation", which is also the goal `seedEveryPage` creates.
+ */
+const DEFAULT_NAMES = [
+  'Overview',
+  // Groups
+  'Income',
+  'Gifts & Donations',
+  'Transportation',
+  'Housing',
+  'Bills & Utilities',
+  'Food & Dining',
+  'Travel & Lifestyle',
+  'Shopping',
+  'Family',
+  'Education',
+  'Health & Wellness',
+  'Financial',
+  'Business',
+  'Other',
+  // Categories
+  'Paychecks',
+  'Interest',
+  'Business Income',
+  'Other Income',
+  'Charity',
+  'Gifts',
+  'Donations',
+  'Gas / Fuel',
+  'Car Payment',
+  'Car Insurance',
+  'Parking',
+  'Public Transit',
+  'Ride Share',
+  'Car Maintenance',
+  'Rent / Mortgage',
+  'Home Insurance',
+  'Property Tax',
+  'HOA Fees',
+  'Home Maintenance',
+  'Home Improvement',
+  'Electric',
+  'Water',
+  'Gas (Natural)',
+  'Phone',
+  'Trash / Recycling',
+  'Streaming Services',
+  'Groceries',
+  'Restaurants',
+  'Coffee Shops',
+  'Fast Food',
+  'Alcohol / Bars',
+  'Flights',
+  'Hotels',
+  'Entertainment',
+  'Clothing',
+  'Electronics',
+  'Home Goods',
+  'Personal Care',
+  'Childcare / Daycare',
+  'Kids Activities',
+  'School Supplies',
+  'Baby Supplies',
+  'Allowance',
+  'Tuition',
+  'Books & Supplies',
+  'Student Loans',
+  'Online Courses',
+  'Doctor / Medical',
+  'Dentist',
+  'Pharmacy',
+  'Gym / Fitness',
+  'Mental Health',
+  'Vision / Eye Care',
+  'Savings',
+  'Investments',
+  'Loan Payment',
+  'Bank Fees',
+  'Office Supplies',
+  'Software / Tools',
+  'Professional Services',
+  'Business Travel',
+  'Miscellaneous',
+  'Cash / ATM',
+];
+
 const ENGLISH = [
   // Page titles and the Settings tabs
   'Dashboard',
@@ -61,6 +150,7 @@ const ENGLISH = [
   'Viewing currency',
   'Date Format',
   'Theme',
+  ...DEFAULT_NAMES,
 ];
 
 /** The English words above that the page shows: as text, or as an accessible name, title or placeholder */

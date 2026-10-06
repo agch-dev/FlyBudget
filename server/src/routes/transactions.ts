@@ -21,6 +21,8 @@ import {
   unlinkTransfer,
   type LinkResult,
 } from '../services/transferLinkService.js';
+import { refusal } from '../utils/refusals.js';
+import { RECONCILED } from '../services/transactionRefusals.js';
 
 export const transactionsRouter = Router();
 
@@ -83,7 +85,19 @@ const importRowSchema = z.object({
   notes: z.string().max(5_000).nullable().optional(),
   importedId: z.string().max(500),
 });
-const importRowsSchema = z.array(importRowSchema).max(100_000);
+const MAX_IMPORT_ROWS = 100_000;
+const importRowsSchema = z.array(importRowSchema).max(MAX_IMPORT_ROWS);
+
+/** A file with more rows than one import takes: said in words, not as a list of fields */
+const tooManyRows = (body: unknown) =>
+  Array.isArray((body as { rows?: unknown } | null)?.rows) &&
+  (body as { rows: unknown[] }).rows.length > MAX_IMPORT_ROWS
+    ? refusal(
+        'import_too_many_rows',
+        `A file can have at most ${MAX_IMPORT_ROWS} rows: import it in parts`,
+        { max: MAX_IMPORT_ROWS },
+      )
+    : null;
 
 // GET /transactions — excludes split children; attaches children array to parents
 /**
@@ -259,7 +273,9 @@ transactionsRouter.post('/', (req, res) => {
     const finalPayeeId = payee.payeeId;
     const splitSum = splits.reduce((sum, s) => sum + s.amount, 0);
     if (splitSum !== rest.amount) {
-      return res.status(400).json({ error: 'Split amounts must equal transaction total' });
+      return res
+        .status(400)
+        .json(refusal('split_total_mismatch', 'Split amounts must equal transaction total'));
     }
 
     const parentId = txId ?? nanoid();
@@ -337,14 +353,24 @@ transactionsRouter.post('/transfer', (req, res) => {
 
   // Each side is stored in its own account's currency, as its statement shows it
   if (fromAcct.currency !== toAcct.currency && toAmount === undefined) {
-    return res.status(400).json({
-      error: 'These accounts have different currencies: enter the amount arriving too',
-    });
+    return res
+      .status(400)
+      .json(
+        refusal(
+          'transfer_needs_arriving_amount',
+          'These accounts have different currencies: enter the amount arriving too',
+        ),
+      );
   }
   if (fromAcct.currency === toAcct.currency && toAmount !== undefined && toAmount !== amount) {
-    return res.status(400).json({
-      error: 'Between accounts of the same currency the same amount leaves and arrives',
-    });
+    return res
+      .status(400)
+      .json(
+        refusal(
+          'transfer_same_amount',
+          'Between accounts of the same currency the same amount leaves and arrives',
+        ),
+      );
   }
   const arriving = toAmount ?? amount;
 
@@ -393,9 +419,7 @@ transactionsRouter.post('/transfer', (req, res) => {
 
 // Linking two existing transactions as a transfer, and unlinking one (transferLinkService.ts)
 const sendLinkResult = (res: Response, result: LinkResult) =>
-  result.ok
-    ? res.json(result.transactions)
-    : res.status(result.status).json({ error: result.error });
+  result.ok ? res.json(result.transactions) : res.status(result.status).json(result.body);
 
 // GET /transactions/:id/transfer-candidates — what could be the other side of this one
 transactionsRouter.get('/:id/transfer-candidates', (req, res) => {
@@ -418,6 +442,8 @@ transactionsRouter.post('/:id/unlink-transfer', (req, res) => {
 
 // POST /transactions/import/preview — check for duplicates before importing
 transactionsRouter.post('/import/preview', (req, res) => {
+  const tooMany = tooManyRows(req.body);
+  if (tooMany) return res.status(400).json(tooMany);
   const parsed = z
     .object({ accountId: z.string().max(64), rows: importRowsSchema })
     .safeParse(req.body);
@@ -443,6 +469,8 @@ transactionsRouter.post('/import/preview', (req, res) => {
 
 // POST /transactions/import/confirm — insert non-duplicate rows
 transactionsRouter.post('/import/confirm', (req, res) => {
+  const tooMany = tooManyRows(req.body);
+  if (tooMany) return res.status(400).json(tooMany);
   const parsed = z
     .object({ accountId: z.string().max(64), rows: importRowsSchema })
     .safeParse(req.body);
@@ -497,8 +525,7 @@ transactionsRouter.put('/:id', (req, res) => {
 
   const existing = db.select().from(transactions).where(eq(transactions.id, req.params.id)).get();
   if (!existing) return res.status(404).json({ error: 'Not found' });
-  if (existing.reconciled === 1)
-    return res.status(403).json({ error: 'Cannot modify a reconciled transaction' });
+  if (existing.reconciled === 1) return res.status(403).json(RECONCILED);
 
   const data = parsed.data;
   const changes = (key: keyof typeof data) =>
@@ -509,13 +536,24 @@ transactionsRouter.put('/:id', (req, res) => {
   ) {
     return res
       .status(400)
-      .json({ error: "Change the split transaction's account, date or amount instead of a part" });
+      .json(
+        refusal(
+          'split_amount_fixed',
+          "Change the split transaction's account, date or amount instead of a part",
+        ),
+      );
   }
   if (existing.isParent === 1 && (changes('amount') || data.categoryId)) {
-    return res.status(400).json({ error: 'Edit the parts of a split transaction instead' });
+    return res
+      .status(400)
+      .json(refusal('split_edit_parts', 'Edit the parts of a split transaction instead'));
   }
   if (existing.transferTransactionId && (changes('accountId') || data.categoryId)) {
-    return res.status(400).json({ error: 'Transfers have no category and stay in their accounts' });
+    return res
+      .status(400)
+      .json(
+        refusal('transfer_no_category', 'Transfers have no category and stay in their accounts'),
+      );
   }
 
   // An amount is a native amount in its account's currency: in an account of the other
@@ -524,10 +562,14 @@ transactionsRouter.put('/:id', (req, res) => {
     const target = existingAccountCurrency(data.accountId);
     if (!target) return res.status(400).json({ error: 'Account not found' });
     if (target !== accountCurrency(existing.accountId)) {
-      return res.status(400).json({
-        error:
-          'A transaction cannot move to an account of another currency: its amount would change meaning. Delete it and add it in the other account instead',
-      });
+      return res
+        .status(400)
+        .json(
+          refusal(
+            'account_other_currency',
+            'A transaction cannot move to an account of another currency: its amount would change meaning. Delete it and add it in the other account instead',
+          ),
+        );
     }
   }
 
@@ -547,12 +589,19 @@ transactionsRouter.put('/:id', (req, res) => {
     data.amount !== undefined &&
     Math.sign(data.amount) !== Math.sign(existing.amount)
   ) {
-    return res.status(400).json({
-      error:
+    return res
+      .status(400)
+      .json(
         existing.amount < 0
-          ? 'This side of the transfer is money leaving the account: enter an amount below zero'
-          : 'This side of the transfer is money arriving in the account: enter an amount above zero',
-    });
+          ? refusal(
+              'transfer_side_leaving',
+              'This side of the transfer is money leaving the account: enter an amount below zero',
+            )
+          : refusal(
+              'transfer_side_arriving',
+              'This side of the transfer is money arriving in the account: enter an amount above zero',
+            ),
+      );
   }
 
   db.transaction((tx) => {
@@ -594,8 +643,7 @@ transactionsRouter.put('/:id', (req, res) => {
 transactionsRouter.delete('/:id', (req, res) => {
   const existing = db.select().from(transactions).where(eq(transactions.id, req.params.id)).get();
   if (!existing) return res.status(404).json({ error: 'Not found' });
-  if (existing.reconciled === 1)
-    return res.status(403).json({ error: 'Cannot modify a reconciled transaction' });
+  if (existing.reconciled === 1) return res.status(403).json(RECONCILED);
 
   deleteTransactionRow(existing);
   res.status(204).send();

@@ -3,6 +3,7 @@ import type { ErrorRequestHandler, RequestHandler } from 'express';
 import helmet from 'helmet';
 import { rateLimit } from 'express-rate-limit';
 import { allowedHosts, serverMode, trustProxy } from '../config.js';
+import { refusal } from '../utils/refusals.js';
 
 // Locally (desktop app, `npm run dev`) the API has no login: it's protected by
 // only answering the app itself. These guards stop other websites open in the
@@ -168,7 +169,7 @@ export const bankRateLimit = rateLimit({
   skip: (req) => req.method === 'GET',
   standardHeaders: 'draft-8',
   legacyHeaders: false,
-  message: { error: 'Too many bank requests. Wait a minute and try again.' },
+  message: refusal('bank_rate_limit', 'Too many bank requests. Wait a minute and try again.'),
 });
 
 /**
@@ -180,7 +181,10 @@ export const exchangeRateRefreshLimit = rateLimit({
   limit: 10,
   standardHeaders: 'draft-8',
   legacyHeaders: false,
-  message: { error: 'Exchange rates were refreshed a lot just now. Try again in an hour.' },
+  message: refusal(
+    'rates_refresh_limit',
+    'Exchange rates were refreshed a lot just now. Try again in an hour.',
+  ),
 });
 
 /**

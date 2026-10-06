@@ -27,12 +27,7 @@ import { formatCurrency as formatNative } from '../../utils/currency';
 import { useViewingMoney } from '../../hooks/useViewingCurrency';
 import { breakdownLine } from '../../utils/balanceConversion';
 import { convertedNote, totalIn } from '../../utils/conversion';
-import {
-  CSV_DELETED_CATEGORY,
-  CSV_UNCATEGORIZED,
-  downloadCsv,
-  rowsInCurrency,
-} from '../../utils/exportCsv';
+import { csvFileName, csvRows, downloadCsv, rowsInCurrency } from '../../utils/exportCsv';
 import { dayBounds, monthCount } from '../../utils/dateRange';
 import { CALENDAR_MONTHS_MAX } from '../../utils/calendarLayout';
 import { PayeeIcon } from '../payees/PayeeIcon';
@@ -282,9 +277,6 @@ interface DetailProps {
   to: string;
 }
 
-const csvName = (type: BuiltinWidgetType, from: string, to: string) =>
-  `report-${type}-${from}-to-${to}.csv`;
-
 function SummaryDetail({ from, to }: DetailProps) {
   const { t } = useTranslation('reports');
   const money = useViewingMoney();
@@ -312,15 +304,17 @@ function SummaryDetail({ from, to }: DetailProps) {
       tableTitle={t('detail.monthlyBreakdown')}
       onExport={() =>
         downloadCsv(
-          csvName('summary', from, to),
+          csvFileName('summary', from, to),
           rowsInCurrency(
-            rows.map((r) => ({
-              month: r.month,
-              income_cents: r.income,
-              expenses_cents: r.expenses,
-              net_cents: r.net,
-              transactions: r.count,
-            })),
+            csvRows(
+              rows.map((r) => ({
+                month: r.month,
+                income_cents: r.income,
+                expenses_cents: r.expenses,
+                net_cents: r.net,
+                transactions: r.count,
+              })),
+            ),
             money.currency,
           ),
         )
@@ -402,18 +396,20 @@ function NetWorthDetail({ from, to }: DetailProps) {
       tableTitle={t('detail.netWorth.tableTitle')}
       onExport={() =>
         downloadCsv(
-          csvName('net-worth', from, to),
+          csvFileName('net-worth', from, to),
           rowsInCurrency(
-            rows.map((r) => ({
-              month: r.month,
-              assets_cents: r.assets,
-              liabilities_cents: r.liabilities,
-              net_worth_cents: r.netWorth,
-              change_cents: r.change ?? '',
-              ...(hasDollars
-                ? { pesos_cents: r.native?.UYU ?? '', dollars_cents: r.native?.USD ?? '' }
-                : {}),
-            })),
+            csvRows(
+              rows.map((r) => ({
+                month: r.month,
+                assets_cents: r.assets,
+                liabilities_cents: r.liabilities,
+                net_worth_cents: r.netWorth,
+                change_cents: r.change ?? '',
+                ...(hasDollars
+                  ? { pesos_cents: r.native?.UYU ?? '', dollars_cents: r.native?.USD ?? '' }
+                  : {}),
+              })),
+            ),
             money.currency,
           ),
         )
@@ -495,14 +491,16 @@ function IncomeExpensesDetail({ from, to }: DetailProps) {
       tableTitle={t('detail.monthlyBreakdown')}
       onExport={() =>
         downloadCsv(
-          csvName('income-expenses', from, to),
+          csvFileName('income-expenses', from, to),
           rowsInCurrency(
-            data.map((d) => ({
-              month: d.month,
-              income_cents: d.income,
-              expenses_cents: d.expenses,
-              net_cents: d.net,
-            })),
+            csvRows(
+              data.map((d) => ({
+                month: d.month,
+                income_cents: d.income,
+                expenses_cents: d.expenses,
+                net_cents: d.net,
+              })),
+            ),
             money.currency,
           ),
         )
@@ -561,12 +559,6 @@ function SpendingDetail({ from, to }: DetailProps) {
             showIcons,
             t('uncategorized'),
           ),
-          // The exported file reads the same in every App Language
-          csvLabel: categoryLabel(
-            { name: d.categoryName, icon: d.categoryIcon },
-            showIcons,
-            CSV_UNCATEGORIZED,
-          ),
         })),
     [data, showIcons, t],
   );
@@ -597,14 +589,16 @@ function SpendingDetail({ from, to }: DetailProps) {
       tableTitle={t('detail.spending.tableTitle')}
       onExport={() =>
         downloadCsv(
-          csvName('spending', from, to),
+          csvFileName('spending', from, to),
           rowsInCurrency(
-            rows.map((r) => ({
-              category: r.csvLabel,
-              group: r.groupName ?? '',
-              spent_cents: r.totalSpent,
-              monthly_average_cents: Math.round(r.totalSpent / months),
-            })),
+            csvRows(
+              rows.map((r) => ({
+                category: r.label,
+                group: r.groupName ?? '',
+                spent_cents: r.totalSpent,
+                monthly_average_cents: Math.round(r.totalSpent / months),
+              })),
+            ),
             money.currency,
           ),
         )
@@ -781,8 +775,6 @@ function SpendingTrendsDetail({
         id,
         color: EXPENSE_COLORS[i % EXPENSE_COLORS.length],
         label: categoryLabel(byId.get(id), showIcons, t('deletedCategory')),
-        // The exported file reads the same in every App Language
-        csvLabel: categoryLabel(byId.get(id), showIcons, CSV_DELETED_CATEGORY),
         total,
         peak,
       };
@@ -821,15 +813,17 @@ function SpendingTrendsDetail({
       tableTitle={t('detail.trends.tableTitle')}
       onExport={() =>
         downloadCsv(
-          csvName('spending-trends', from, to),
+          csvFileName('spending-trends', from, to),
           rowsInCurrency(
-            [...trend]
-              .sort((a, b) => a.month.localeCompare(b.month))
-              .map((p) => ({
-                month: p.month,
-                category: rows.find((r) => r.id === p.categoryId)?.csvLabel ?? '',
-                spent_cents: p.total,
-              })),
+            csvRows(
+              [...trend]
+                .sort((a, b) => a.month.localeCompare(b.month))
+                .map((p) => ({
+                  month: p.month,
+                  category: rows.find((r) => r.id === p.categoryId)?.label ?? '',
+                  spent_cents: p.total,
+                })),
+            ),
             money.currency,
           ),
         )
@@ -1062,15 +1056,17 @@ function CalendarDetail({ from, to }: DetailProps) {
       tableTitle={t('detail.calendar.tableTitle')}
       onExport={() =>
         downloadCsv(
-          csvName('calendar', from, to),
+          csvFileName('calendar', from, to),
           rowsInCurrency(
-            data.map((d) => ({
-              date: d.date,
-              transactions: d.count,
-              money_in_cents: d.income,
-              money_out_cents: d.expenses,
-              net_cents: d.income - d.expenses,
-            })),
+            csvRows(
+              data.map((d) => ({
+                date: d.date,
+                transactions: d.count,
+                money_in_cents: d.income,
+                money_out_cents: d.expenses,
+                net_cents: d.income - d.expenses,
+              })),
+            ),
             money.currency,
           ),
         )

@@ -24,6 +24,7 @@ import {
   dismissMatchSuggestion,
   getMatchSuggestions,
 } from '../services/matchingEngine.js';
+import { refusal } from '../utils/refusals.js';
 
 export const schedulesRouter = Router();
 
@@ -109,9 +110,11 @@ const updateSchema = z.object(scheduleFields).partial().refine(ruleMatchesType, 
 
 // A recurring item has one amount, and a transfer between a pesos and a dollars account needs
 // two (what leaves and what arrives, which changes with the exchange rate)
-const CROSS_CURRENCY_TRANSFER =
+const CROSS_CURRENCY_TRANSFER = refusal(
+  'recurring_transfer_other_currency',
   "A recurring transfer can't go between a pesos and a dollars account, because the amount " +
-  'arriving changes with the exchange rate. Add each transfer when it happens instead.';
+    'arriving changes with the exchange rate. Add each transfer when it happens instead.',
+);
 
 function crossesCurrencies(accountId?: string | null, transferAccountId?: string | null) {
   if (!accountId || !transferAccountId) return false;
@@ -339,7 +342,7 @@ schedulesRouter.post('/', (req, res) => {
 
   const data = parsed.data;
   if (crossesCurrencies(data.accountId, data.transferAccountId)) {
-    return res.status(400).json({ error: CROSS_CURRENCY_TRANSFER });
+    return res.status(400).json(CROSS_CURRENCY_TRANSFER);
   }
   const rule = data.recurrenceRule
     ? JSON.stringify(data.recurrenceRule)
@@ -420,7 +423,7 @@ schedulesRouter.put('/:id', (req, res) => {
       data.transferAccountId === undefined ? existing.transferAccountId : data.transferAccountId,
     )
   ) {
-    return res.status(400).json({ error: CROSS_CURRENCY_TRANSFER });
+    return res.status(400).json(CROSS_CURRENCY_TRANSFER);
   }
   const updates: Record<string, any> = { ...data, updatedAt: new Date().toISOString() };
 
@@ -517,7 +520,9 @@ schedulesRouter.post('/:id/mark-paid', (req, res) => {
   const schedule = db.select().from(schedules).where(eq(schedules.id, req.params.id)).get();
   if (!schedule) return res.status(404).json({ error: 'Not found' });
   if (!schedule.accountId)
-    return res.status(400).json({ error: 'Schedule has no account assigned' });
+    return res
+      .status(400)
+      .json(refusal('recurring_no_account', 'Schedule has no account assigned'));
 
   const bodySchema = z.object({
     date: isoDate,
@@ -550,7 +555,11 @@ schedulesRouter.post('/:id/mark-paid', (req, res) => {
         return aDiff - bDiff;
       })[0];
 
-    if (!nearestOcc) return res.status(400).json({ error: 'No pending occurrence found' });
+    if (!nearestOcc) {
+      return res
+        .status(400)
+        .json(refusal('recurring_nothing_pending', 'No pending occurrence found'));
+    }
     occId = nearestOcc.id;
   }
 
@@ -625,7 +634,12 @@ schedulesRouter.post('/occurrences/:occId/match', (req, res) => {
   if (schedule && tx && accountCurrency(tx.accountId) !== accountCurrency(schedule.accountId)) {
     return res
       .status(400)
-      .json({ error: 'That transaction is in a different currency than this recurring item' });
+      .json(
+        refusal(
+          'recurring_other_currency',
+          'That transaction is in a different currency than this recurring item',
+        ),
+      );
   }
 
   linkOccurrenceToTransaction(req.params.occId, parsed.data.transactionId, 'manual', 100);

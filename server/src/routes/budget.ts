@@ -8,6 +8,8 @@ import { nanoid } from 'nanoid';
 import { z } from 'zod';
 import { monthBounds } from '../utils/date.js';
 import { isMonth } from '../utils/validation.js';
+import { shownName } from '../services/defaultNames.js';
+import { requestLanguage } from '../utils/language.js';
 
 export const budgetRouter = Router();
 
@@ -37,6 +39,7 @@ budgetRouter.param('month', (_req, res, next, month) => {
 
 budgetRouter.get('/:month', (req, res) => {
   const { month } = req.params;
+  const language = requestLanguage(req);
   const { from, to } = monthBounds(month);
 
   const groups = db.select().from(categoryGroups).orderBy(categoryGroups.sortOrder).all();
@@ -82,6 +85,7 @@ budgetRouter.get('/:month', (req, res) => {
 
   const result = groups.map((g) => ({
     ...g,
+    name: shownName('group', g.name, language),
     categories: cats
       .filter((c) => c.groupId === g.id)
       .map((c) => {
@@ -91,6 +95,7 @@ budgetRouter.get('/:month', (req, res) => {
         const carryOver = (priorBudgetMap[c.id] ?? 0) + (priorActivityMap[c.id] ?? 0);
         return {
           ...c,
+          name: shownName('category', c.name, language),
           budgeted: budgetedAmt,
           spent: Math.abs(Math.min(activity, 0)),
           carryOver,

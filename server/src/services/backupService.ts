@@ -24,6 +24,7 @@ import {
 } from '../db/schema.js';
 import { isCurrency } from '../utils/currency.js';
 import { MAX_RATE } from './exchangeRates.js';
+import { refusal, RefusalError } from '../utils/refusals.js';
 
 // Full JSON backup of the user's data, and restoring one.
 //
@@ -73,7 +74,13 @@ export function createBackup() {
   return data;
 }
 
-export class InvalidBackupError extends Error {}
+/** A file that can't be restored: the route answers with its refusal */
+export class InvalidBackupError extends RefusalError {}
+
+const notABackup = () =>
+  new InvalidBackupError(refusal('not_a_backup', 'This is not a FlyBudget backup file'));
+const invalidRow = (row: number, table: string, error: string) =>
+  new InvalidBackupError(refusal('backup_row_invalid', error, { row, table }));
 
 type Row = Record<string, unknown>;
 
@@ -85,34 +92,38 @@ type Row = Record<string, unknown>;
  */
 export function parseBackup(input: unknown): Record<BackupTable, Row[]> {
   if (!input || typeof input !== 'object' || Array.isArray(input)) {
-    throw new InvalidBackupError('This is not a FlyBudget backup file');
+    throw notABackup();
   }
   const body = input as Record<string, unknown>;
   const isV1 = body.format === undefined && Array.isArray(body.accounts);
   if (!isV1 && body.format !== BACKUP_FORMAT) {
-    throw new InvalidBackupError('This is not a FlyBudget backup file');
+    throw notABackup();
   }
   if (typeof body.version === 'number' && body.version > BACKUP_VERSION) {
-    throw new InvalidBackupError('This backup was made by a newer version of FlyBudget');
+    throw new InvalidBackupError(
+      refusal('backup_newer_version', 'This backup was made by a newer version of FlyBudget'),
+    );
   }
 
   const result = {} as Record<BackupTable, Row[]>;
   for (const name of BACKUP_TABLES) {
     const rows = body[name] ?? [];
     if (!Array.isArray(rows) || rows.length > MAX_ROWS_PER_TABLE) {
-      throw new InvalidBackupError(`"${name}" in the backup is not a list of rows`);
+      throw new InvalidBackupError(
+        refusal('not_a_backup', `"${name}" in the backup is not a list of rows`),
+      );
     }
     const columns = Object.entries(getTableColumns(TABLES[name]));
     result[name] = rows.map((raw, i) => {
       if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
-        throw new InvalidBackupError(`Row ${i + 1} of "${name}" is not valid`);
+        throw invalidRow(i + 1, name, `Row ${i + 1} of "${name}" is not valid`);
       }
       const row: Row = {};
       for (const [key, column] of columns) {
         const value = (raw as Row)[key];
         if (value === undefined || value === null) {
           if (column.notNull && !column.hasDefault) {
-            throw new InvalidBackupError(`Row ${i + 1} of "${name}" is missing "${key}"`);
+            throw invalidRow(i + 1, name, `Row ${i + 1} of "${name}" is missing "${key}"`);
           }
           if (value === null && !column.notNull) row[key] = null;
           continue;
@@ -132,7 +143,7 @@ export function parseBackup(input: unknown): Record<BackupTable, Row[]> {
           column !== exchangeRates.rate ||
           (typeof value === 'number' && value > 0 && value <= MAX_RATE);
         if (!ok || !known || !plausible) {
-          throw new InvalidBackupError(`Row ${i + 1} of "${name}" has an invalid "${key}"`);
+          throw invalidRow(i + 1, name, `Row ${i + 1} of "${name}" has an invalid "${key}"`);
         }
         row[key] = value;
       }

@@ -58,6 +58,13 @@ _Spanish_: Sugerencia de transferencia
 ### Display
 
 **App Language**:
-The language the app's own text is written in on one device: English or Spanish. It never changes anything the budget stores (names, notes, payees) or how amounts are written.
+The language the app's own text is written in on one device: English or Spanish. It never changes anything the user typed or a bank reported (names, notes, payees) or how amounts are written.
 _Avoid_: Locale, translation, idioma del presupuesto
 _Spanish_: Idioma de la app
+
+### Budget
+
+**Default Category**:
+A category, category group or report dashboard (the "Overview" one) whose name is one the app supplies, in either language. Its name is the app's own text, so each device shows it in its App Language. Renaming it makes it an ordinary one whose name is what the user typed; giving it a supplied name again makes it a default one again.
+_Avoid_: Seeded category, built-in category, system category
+_Spanish_: Categoría predeterminada

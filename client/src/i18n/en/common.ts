@@ -176,5 +176,7 @@ export default {
   },
   errors: {
     invalidValues: 'Some of the values entered are invalid',
+    /** A refusal the app has no sentence for, in a language the server doesn't write */
+    actionFailed: 'The action could not be completed',
   },
 } as const;

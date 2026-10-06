@@ -102,6 +102,48 @@ export default {
     calendar: { label: 'Transaction Calendar', description: 'Money in and out on each day' },
   } satisfies Record<BuiltinWidgetType, { label: string; description: string }>,
 
+  /**
+   * The "Export CSV" files (utils/exportCsv.ts): the header of each column and the file names.
+   * Amounts are whole cents, so those headers end in `_cents`.
+   */
+  csv: {
+    column: {
+      month: 'month',
+      date: 'date',
+      name: 'name',
+      category: 'category',
+      group: 'group',
+      transactions: 'transactions',
+      amount_cents: 'amount_cents',
+      income_cents: 'income_cents',
+      expenses_cents: 'expenses_cents',
+      net_cents: 'net_cents',
+      assets_cents: 'assets_cents',
+      liabilities_cents: 'liabilities_cents',
+      net_worth_cents: 'net_worth_cents',
+      change_cents: 'change_cents',
+      pesos_cents: 'pesos_cents',
+      dollars_cents: 'dollars_cents',
+      spent_cents: 'spent_cents',
+      monthly_average_cents: 'monthly_average_cents',
+      money_in_cents: 'money_in_cents',
+      money_out_cents: 'money_out_cents',
+      total_cents: 'total_cents',
+      /** The column `rowsInCurrency` adds: the sign of the currency a row's amounts are in */
+      currency: 'currency',
+    },
+    file: {
+      summary: 'report-summary-{{from}}-to-{{to}}.csv',
+      'net-worth': 'report-net-worth-{{from}}-to-{{to}}.csv',
+      'income-expenses': 'report-income-expenses-{{from}}-to-{{to}}.csv',
+      spending: 'report-spending-{{from}}-to-{{to}}.csv',
+      'spending-trends': 'report-spending-trends-{{from}}-to-{{to}}.csv',
+      calendar: 'report-calendar-{{from}}-to-{{to}}.csv',
+      custom: 'custom-report-{{from}}-{{to}}.csv',
+      'cash-flow': 'cash-flow-{{from}}-{{to}}.csv',
+    } satisfies Record<BuiltinWidgetType | 'custom' | 'cash-flow', string>,
+  },
+
   chart: {
     noData: 'No data for this period',
     noDataHint: 'Add transactions, or pick a longer date range.',
@@ -452,5 +494,9 @@ export default {
     createReport: 'Create report "{{name}}"',
     editReport: 'Edit report',
     deleteReport: 'Delete report "{{name}}"',
+  },
+  /** The server's refusals, by code (api/serverErrors.ts): the English is the server's own */
+  errors: {
+    lastDashboard: 'Cannot delete the last dashboard',
   },
 } as const;
