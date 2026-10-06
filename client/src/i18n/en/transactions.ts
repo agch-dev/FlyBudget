@@ -196,7 +196,7 @@ export default {
     discardMessage:
       "It was only saved on this device and hasn't been sent to FlyBudget, so it will be gone.",
   },
-  /** The server's refusals the app translates (api/serverErrors.ts): its own sentences */
+  /** The server's refusals, by code (api/serverErrors.ts): the English is the server's own */
   errors: {
     reconciled: 'Cannot modify a reconciled transaction',
     splitCannotLink: 'A split transaction and its parts cannot be linked as a transfer',

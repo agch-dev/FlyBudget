@@ -157,6 +157,7 @@ const es: Translation<typeof en> = {
   },
   errors: {
     invalidValues: 'Algunos de los valores ingresados no son válidos',
+    actionFailed: 'No se pudo completar la acción',
   },
 };
 

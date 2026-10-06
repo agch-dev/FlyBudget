@@ -394,9 +394,32 @@ export default {
       description: 'Sign out of FlyBudget on this browser.',
     },
   },
-  /** Server refusals the app translates (api/serverErrors.ts): the server's own sentences */
+  /** The server's refusals, by code (api/serverErrors.ts): the English is the server's own */
   errors: {
     bankRateLimit: 'Too many bank requests. Wait a minute and try again.',
     ratesRefreshLimit: 'Exchange rates were refreshed a lot just now. Try again in an hour.',
+    notABackup: 'This is not a FlyBudget backup file',
+    backupNewerVersion: 'This backup was made by a newer version of FlyBudget',
+    backupInconsistent: 'The backup is inconsistent, so nothing was restored',
+    backupRowInvalid: 'Row {{row}} of "{{table}}" is not valid',
+    simplefinInvalidToken: 'Invalid setup token',
+    simplefinTokenUsed:
+      'This setup token was already used or revoked — create a new one in SimpleFIN Bridge',
+    simplefinInvalidUrl: 'Invalid SimpleFIN access URL',
+    simplefinSubscriptionRequired:
+      'SimpleFIN subscription required — visit simplefin.org to activate',
+    simplefinAccessDenied: 'SimpleFIN access denied — the connection may have been revoked',
+    simplefinBadResponse: 'SimpleFIN returned an invalid response',
+    simplefinUnreachable: 'Could not reach SimpleFIN. Try again later.',
+    bankAddressRefused: 'Refusing to connect to a non-public address',
+    plaidNotConfigured: 'Plaid is not configured',
+    plaidLinkFailed: 'Could not finish connecting to Plaid',
+    plaidRevokeFailed:
+      'Could not revoke access at Plaid, so the connection was kept. Check your internet connection and try again.',
+    syncFailed: 'Sync failed',
+    ratesRefreshFailed: "Couldn't get exchange rates right now. The rates already stored are kept.",
+    ratesFetchingOff: 'Fetching exchange rates is switched off (FLYBUDGET_EXCHANGE_RATES=off)',
+    rateDateInFuture: 'Choose a date up to today',
+    pickAnotherCategory: 'Pick another category',
   },
 } as const;

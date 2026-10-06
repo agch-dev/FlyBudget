@@ -1,4 +1,6 @@
 import type { CreateTransactionData, CreateTransferData } from '../api/transactions';
+import { refusalMessage, type ServerRefusal } from '../api/serverErrors';
+import { t } from '../i18n';
 
 // Offline copy: FlyBudget keeps what it last loaded on this device, so the app still opens
 // (read-only) when its server can't be reached, and new transactions typed while offline
@@ -115,7 +117,12 @@ export type OutboxItem = {
   id: string;
   /** When it was saved on the device (ms) */
   savedAt: number;
-  /** Why the server refused it (it stays until tried again or discarded) */
+  /**
+   * Why the server refused it (it stays until tried again or discarded): what the server
+   * sent, not a sentence, so it reads in the language shown when it is looked at
+   */
+  refused?: ServerRefusal;
+  /** A refusal kept by an earlier version, as the sentence shown then */
   error?: string;
 } & (
   | { kind: 'transaction'; data: CreateTransactionData }
@@ -140,7 +147,16 @@ export function outboxEntryFor(
   return null;
 }
 
+/** The server refused this item: it waits for the user to try again or discard it */
+export const isRefused = (item: OutboxItem) => !!item.refused || !!item.error;
+
+/** Why the server refused it, in the language shown now (the component re-renders on a switch) */
+export const refusedBecause = (item: OutboxItem): string =>
+  item.refused
+    ? refusalMessage(item.refused, t('transactions:waiting.couldNotSave'))
+    : (item.error ?? '');
+
 /** Items to send, oldest first (refused ones wait for the user) */
 export function sendable(items: readonly OutboxItem[]): OutboxItem[] {
-  return items.filter((i) => !i.error).sort((a, b) => a.savedAt - b.savedAt);
+  return items.filter((i) => !isRefused(i)).sort((a, b) => a.savedAt - b.savedAt);
 }

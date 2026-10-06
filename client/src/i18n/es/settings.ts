@@ -392,6 +392,32 @@ const es: Translation<typeof en> = {
     bankRateLimit: 'Demasiados pedidos al banco. Esperá un minuto y probá de nuevo.',
     ratesRefreshLimit:
       'Los tipos de cambio se actualizaron muchas veces recién. Probá de nuevo en una hora.',
+    notABackup: 'Este archivo no es una copia de seguridad de FlyBudget',
+    backupNewerVersion: 'Esta copia de seguridad se hizo con una versión más nueva de FlyBudget',
+    backupInconsistent: 'La copia de seguridad es inconsistente, así que no se restauró nada',
+    backupRowInvalid: 'La fila {{row}} de "{{table}}" no es válida',
+    simplefinInvalidToken: 'El token de configuración no es válido',
+    simplefinTokenUsed:
+      'Este token de configuración ya se usó o se revocó: creá uno nuevo en SimpleFIN Bridge',
+    simplefinInvalidUrl: 'La URL de acceso de SimpleFIN no es válida',
+    simplefinSubscriptionRequired:
+      'Hace falta una suscripción a SimpleFIN: entrá a simplefin.org para activarla',
+    simplefinAccessDenied: 'SimpleFIN denegó el acceso: puede que la conexión se haya revocado',
+    simplefinBadResponse: 'SimpleFIN devolvió una respuesta que no se pudo leer',
+    simplefinUnreachable: 'No se pudo conectar con SimpleFIN. Probá de nuevo más tarde.',
+    bankAddressRefused:
+      'FlyBudget no se conecta a esa dirección: tiene que ser una dirección https pública',
+    plaidNotConfigured: 'Plaid no está configurado',
+    plaidLinkFailed: 'No se pudo completar la conexión con Plaid',
+    plaidRevokeFailed:
+      'No se pudo revocar el acceso en Plaid, así que la conexión se mantuvo. Revisá tu conexión a internet y probá de nuevo.',
+    syncFailed: 'No se pudo sincronizar',
+    ratesRefreshFailed:
+      'No se pudieron obtener los tipos de cambio en este momento. Los tipos de cambio ya guardados se mantienen.',
+    ratesFetchingOff:
+      'La obtención de tipos de cambio está desactivada (FLYBUDGET_EXCHANGE_RATES=off)',
+    rateDateInFuture: 'Elegí una fecha hasta hoy',
+    pickAnotherCategory: 'Elegí otra categoría',
   },
 };
 

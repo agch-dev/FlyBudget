@@ -445,6 +445,9 @@ const es: Translation<typeof en> = {
     editReport: 'Editar reporte',
     deleteReport: 'Eliminar el reporte "{{name}}"',
   },
+  errors: {
+    lastDashboard: 'No se puede eliminar el último panel',
+  },
 };
 
 export default es;

@@ -391,4 +391,9 @@ export default {
     applyTo_one: 'Apply to {{total}} transaction',
     applyTo_other: 'Apply to {{total}} transactions',
   },
+  /** The server's refusals, by code (api/serverErrors.ts): the English is the server's own */
+  errors: {
+    regexInvalid: 'Invalid regular expression',
+    regexTooLong: 'A regular expression can be at most {{max}} characters',
+  },
 } as const;

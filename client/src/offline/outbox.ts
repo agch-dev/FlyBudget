@@ -4,7 +4,6 @@ import { ApiError, NetworkError } from '../api/client';
 import * as txApi from '../api/transactions';
 import { sendable, type OutboxItem } from '../utils/offline';
 import { deleteValue, readValue, storageWorks, updateValue } from './storage';
-import { t } from '../i18n';
 
 // New transactions saved while FlyBudget can't reach its server wait here, on this device,
 // and are sent in order once it's back. Each carries the id it will have on the server, so
@@ -73,7 +72,9 @@ export const discardWaiting = (id: string) => change((items) => items.filter((i)
 
 /** Clears a refused item's error so the next send tries it again. */
 export const retryWaiting = (id: string) =>
-  change((items) => items.map((i) => (i.id === id ? { ...i, error: undefined } : i)));
+  change((items) =>
+    items.map((i) => (i.id === id ? { ...i, refused: undefined, error: undefined } : i)),
+  );
 
 /** Deletes every waiting transaction (sign-out). */
 export async function clearOutbox() {
@@ -102,8 +103,8 @@ async function sendAll(qc: QueryClient) {
       } catch (err) {
         if (temporary(err)) break;
         // Refused (say its account was deleted meanwhile): keep it for the user to fix or discard
-        const error = err instanceof Error ? err.message : t('transactions:waiting.couldNotSave');
-        await change((items) => items.map((i) => (i.id === item.id ? { ...i, error } : i)));
+        const refused = err instanceof ApiError ? err.refusal : {};
+        await change((items) => items.map((i) => (i.id === item.id ? { ...i, refused } : i)));
       }
     }
   } finally {

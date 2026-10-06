@@ -24,6 +24,7 @@ const es: Translation<typeof en> = {
     incorrectCurrentPassword: 'La contraseña actual es incorrecta',
     incorrectSetupCode: 'Código de configuración incorrecto',
     passwordLength: 'La contraseña nueva tiene que tener entre {{min}} y {{max}} caracteres',
+    passwordAlreadySet: 'Ya se configuró una contraseña',
     tooManyAttempts: 'Demasiados intentos. Esperá 15 minutos y probá de nuevo.',
   },
 };
