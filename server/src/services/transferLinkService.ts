@@ -1,13 +1,10 @@
 import { and, eq, isNull, ne, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { accounts, transactions } from '../db/schema.js';
-import {
-  byNearestDate,
-  isTransferCandidate,
-  linkRefusal,
-  type LinkRefusal,
-} from './transferLink.js';
+import { byNearestDate, isTransferCandidate, linkRefusal } from './transferLink.js';
+import { RECONCILED } from './transactionRefusals.js';
 import type { Currency } from '../utils/currency.js';
+import { refusal, type Refusal } from '../utils/refusals.js';
 
 // Linking two existing transactions as a transfer, and unlinking a transfer. Every such write
 // goes through `linkAsTransfer` / `unlinkTransfer` (rules in transferLink.ts).
@@ -16,10 +13,19 @@ type Row = typeof transactions.$inferSelect;
 /** A transaction with its account's currency */
 export type TransferSide = Row & { currency: Currency };
 
+/** What a link or unlink came to: both sides as saved, or the HTTP answer of a refusal */
 export type LinkResult =
-  { ok: true; transactions: [TransferSide, TransferSide] } | ({ ok: false } & LinkRefusal);
+  | { ok: true; transactions: [TransferSide, TransferSide] }
+  | { ok: false; status: 400 | 403 | 404; body: Refusal | { error: string } };
 
-const NOT_FOUND = { ok: false, status: 404, error: 'Not found' } as const;
+const NOT_FOUND = { ok: false, status: 404, body: { error: 'Not found' } } as const;
+
+/** A refused link or unlink: a reconciled transaction is forbidden, the rest are bad requests */
+const refused = (r: Refusal): LinkResult => ({
+  ok: false,
+  status: r.code === 'transaction_reconciled' ? 403 : 400,
+  body: r,
+});
 
 /** Most candidates offered for one transaction (the nearest in date) */
 export const MAX_TRANSFER_CANDIDATES = 100;
@@ -44,8 +50,8 @@ export function linkAsTransfer(id: string, otherId: string): LinkResult {
     const a = loadSide(id);
     const b = loadSide(otherId);
     if (!a || !b) return NOT_FOUND;
-    const refusal = linkRefusal(a, b);
-    if (refusal) return { ok: false, ...refusal };
+    const why = linkRefusal(a, b);
+    if (why) return refused(why);
 
     for (const [side, other] of [
       [a, b],
@@ -70,21 +76,11 @@ export function unlinkTransfer(id: string): LinkResult {
     const side = loadSide(id);
     if (!side) return NOT_FOUND;
     if (!side.transferTransactionId) {
-      return {
-        ok: false,
-        status: 400,
-        error: 'This transaction is not a transfer',
-        code: 'not_a_transfer',
-      };
+      return refused(refusal('not_a_transfer', 'This transaction is not a transfer'));
     }
     const other = loadSide(side.transferTransactionId);
     if (side.reconciled === 1 || other?.reconciled === 1) {
-      return {
-        ok: false,
-        status: 403,
-        error: 'Cannot modify a reconciled transaction',
-        code: 'transaction_reconciled',
-      };
+      return refused(RECONCILED);
     }
     for (const t of [side, other]) {
       if (!t) continue;

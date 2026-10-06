@@ -7,6 +7,7 @@ import {
   linkRefusal,
   type LinkSide,
 } from './transferLink.js';
+import { RECONCILED } from './transactionRefusals.js';
 
 const side = fc.record<LinkSide>({
   id: fc.constantFrom('a', 'b', 'c'),
@@ -70,6 +71,14 @@ describe('linking rules', () => {
           expect(a.currency).toBe(b.currency);
           expect(a.amount).not.toBe(-b.amount);
         }
+      }),
+    );
+  });
+
+  it('refuse a reconciled side with the refusal every edit of a reconciled transaction gets', () => {
+    fc.assert(
+      fc.property(pair, ([a, b]) => {
+        if (a.reconciled === 1) expect(linkRefusal(a, b)).toEqual(RECONCILED);
       }),
     );
   });

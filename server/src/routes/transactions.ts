@@ -22,7 +22,7 @@ import {
   type LinkResult,
 } from '../services/transferLinkService.js';
 import { refusal } from '../utils/refusals.js';
-import { refusalBody } from '../services/transferLink.js';
+import { RECONCILED } from '../services/transactionRefusals.js';
 
 export const transactionsRouter = Router();
 
@@ -98,8 +98,6 @@ const tooManyRows = (body: unknown) =>
         { max: MAX_IMPORT_ROWS },
       )
     : null;
-
-const RECONCILED = refusal('transaction_reconciled', 'Cannot modify a reconciled transaction');
 
 // GET /transactions — excludes split children; attaches children array to parents
 /**
@@ -421,7 +419,7 @@ transactionsRouter.post('/transfer', (req, res) => {
 
 // Linking two existing transactions as a transfer, and unlinking one (transferLinkService.ts)
 const sendLinkResult = (res: Response, result: LinkResult) =>
-  result.ok ? res.json(result.transactions) : res.status(result.status).json(refusalBody(result));
+  result.ok ? res.json(result.transactions) : res.status(result.status).json(result.body);
 
 // GET /transactions/:id/transfer-candidates — what could be the other side of this one
 transactionsRouter.get('/:id/transfer-candidates', (req, res) => {
