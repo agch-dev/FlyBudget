@@ -13,6 +13,7 @@ import {
   type RuleLookups,
 } from './ruleFormat';
 import type { RuleAction, RuleCondition } from '../types';
+import { setLanguage } from '../i18n';
 
 const lookups: RuleLookups = {
   payee: (id) => (id === 'p1' ? 'Starbucks' : undefined),
@@ -113,7 +114,7 @@ describe('rule editor helpers (property-based)', () => {
         }
       }),
     );
-    for (const { value } of ACTION_TYPES) {
+    for (const value of ACTION_TYPES) {
       const a = makeAction(value);
       const withTarget = (
         a.type === 'set_category' || a.type === 'set_payee' ? { ...a, value: 'gone' } : a
@@ -223,5 +224,154 @@ describe('rules and currencies', () => {
     const text = ruleSearchText(rule, lookups);
     expect(text).toContain('us$100');
     expect(text).toContain('in dollars');
+  });
+});
+
+describe('rule summaries in English', () => {
+  it('reads as a sentence for each kind of field', () => {
+    const cases: Array<[RuleCondition, string]> = [
+      [{ field: 'payee', op: 'is', value: 'p1' }, 'Payee is Starbucks'],
+      [{ field: 'payee', op: 'is_empty' }, 'Payee is empty'],
+      [
+        { field: 'payee', op: 'one_of', value: ['p1', 'gone'] },
+        'Payee is one of Starbucks, (deleted)',
+      ],
+      [{ field: 'payee_name', op: 'not_contains', value: 'x' }, 'Payee name doesn\'t contain "x"'],
+      [
+        { field: 'imported_payee', op: 'regex', value: '^amzn' },
+        'Imported description matches regex /^amzn/',
+      ],
+      [{ field: 'notes', op: 'is_not_empty' }, 'Notes is not empty'],
+      [{ field: 'category', op: 'is_empty' }, 'Category is uncategorized'],
+      [{ field: 'category', op: 'is_not_empty' }, 'Category is categorized'],
+      [{ field: 'account', op: 'is_not', value: 'a1' }, 'Account is not Checking'],
+      [{ field: 'amount', op: 'approx', value: 12_00 }, 'Amount is about $12'],
+      [{ field: 'direction', op: 'is', value: 'inflow' }, 'Is an inflow'],
+      [{ field: 'date', op: 'is', value: '2026-10-05' }, 'Date is on Oct 5, 2026'],
+      [
+        { field: 'date', op: 'between', value: ['2026-01-01', '2026-03-31'] },
+        'Date is between Jan 1, 2026 and Mar 31, 2026',
+      ],
+    ];
+    for (const [condition, sentence] of cases) {
+      expect(conditionText(condition, lookups)).toBe(sentence);
+    }
+  });
+
+  it('describes each action', () => {
+    expect(actionText({ type: 'set_category', value: 'c1' }, lookups)).toBe(
+      'Set category to Coffee',
+    );
+    expect(actionText({ type: 'set_payee', value: 'gone' }, lookups)).toBe(
+      'Rename payee to (deleted)',
+    );
+    expect(actionText({ type: 'set_notes', value: '' }, lookups)).toBe('Clear notes');
+    expect(actionText({ type: 'set_notes', value: 'work' }, lookups)).toBe('Set notes to "work"');
+    expect(actionText({ type: 'prepend_notes', value: '#biz ' }, lookups)).toBe(
+      'Add "#biz " before notes',
+    );
+    expect(actionText({ type: 'append_notes', value: ' ok' }, lookups)).toBe(
+      'Add " ok" after notes',
+    );
+  });
+});
+
+describe('rule summaries in Spanish', () => {
+  it('reads as a Spanish sentence, with the article and gender each field needs', () => {
+    setLanguage('es');
+    const cases: Array<[RuleCondition, string]> = [
+      [{ field: 'payee', op: 'is', value: 'p1' }, 'El beneficiario es Starbucks'],
+      [{ field: 'payee', op: 'is_empty' }, 'No tiene beneficiario'],
+      [
+        { field: 'payee', op: 'not_one_of', value: ['p1', 'gone'] },
+        'El beneficiario no es ninguno de: Starbucks, (eliminado)',
+      ],
+      [
+        { field: 'payee_name', op: 'contains', value: 'netflix' },
+        'El nombre del beneficiario contiene "netflix"',
+      ],
+      [{ field: 'imported_payee', op: 'is_empty' }, 'La descripción importada está vacía'],
+      [
+        { field: 'imported_payee', op: 'regex', value: '^amzn' },
+        'La descripción importada coincide con la expresión regular /^amzn/',
+      ],
+      [{ field: 'notes', op: 'starts_with', value: 'a' }, 'Las notas empiezan con "a"'],
+      [{ field: 'notes', op: 'is_empty' }, 'Las notas están vacías'],
+      [{ field: 'category', op: 'is', value: 'gone' }, 'La categoría es (eliminada)'],
+      [{ field: 'category', op: 'one_of', value: ['c1'] }, 'La categoría es una de: Coffee'],
+      [{ field: 'category', op: 'is_empty' }, 'No tiene categoría'],
+      [{ field: 'account', op: 'is_not', value: 'a1' }, 'La cuenta no es Checking'],
+      [{ field: 'amount', op: 'gte', value: 50_00 }, 'El monto es de al menos $50'],
+      [{ field: 'amount', op: 'approx', value: 12_00 }, 'El monto es de aproximadamente $12'],
+      [{ field: 'direction', op: 'is', value: 'outflow' }, 'Es una salida'],
+      [{ field: 'currency', op: 'is', value: 'USD' }, 'Está en dólares'],
+      [{ field: 'date', op: 'is', value: '2026-10-05' }, 'La fecha es el 5 oct 2026'],
+      [{ field: 'date', op: 'before', value: '2026-10-05' }, 'La fecha es anterior al 5 oct 2026'],
+      [
+        { field: 'date', op: 'between', value: ['2026-01-01', '2026-03-31'] },
+        'La fecha está entre el 1 ene 2026 y el 31 mar 2026',
+      ],
+    ];
+    for (const [condition, sentence] of cases) {
+      expect(conditionText(condition, lookups)).toBe(sentence);
+    }
+  });
+
+  it("writes a dollars-only rule's amounts with US$", () => {
+    setLanguage('es');
+    expect(conditionText({ field: 'amount', op: 'gt', value: 100_00 }, lookups, 'USD')).toBe(
+      'El monto es mayor que US$100',
+    );
+    expect(
+      conditionText({ field: 'amount', op: 'between', value: [1_50, 20_00] }, lookups, 'USD'),
+    ).toBe('El monto está entre US$1.50 y US$20');
+  });
+
+  it('describes each action, splits included', () => {
+    setLanguage('es');
+    expect(actionText({ type: 'set_category', value: 'c1' }, lookups)).toBe(
+      'Asignar la categoría Coffee',
+    );
+    expect(actionText({ type: 'set_category', value: 'gone' }, lookups)).toBe(
+      'Asignar la categoría (eliminada)',
+    );
+    expect(actionText({ type: 'set_payee', value: 'p1' }, lookups)).toBe(
+      'Cambiar el nombre del beneficiario a Starbucks',
+    );
+    expect(actionText({ type: 'set_notes', value: '' }, lookups)).toBe('Borrar las notas');
+    expect(actionText({ type: 'set_notes', value: 'trabajo' }, lookups)).toBe(
+      'Reemplazar las notas por "trabajo"',
+    );
+    expect(actionText({ type: 'prepend_notes', value: '#neg ' }, lookups)).toBe(
+      'Agregar "#neg " antes de las notas',
+    );
+    expect(
+      actionText(
+        {
+          type: 'split',
+          parts: [
+            { kind: 'fixed', value: 25_00, categoryId: 'c1', notes: null },
+            { kind: 'percent', value: 30, categoryId: null, notes: null },
+            { kind: 'remainder', value: 0, categoryId: 'gone', notes: null },
+          ],
+        },
+        lookups,
+        'USD',
+      ),
+    ).toBe('Dividir: US$25 a Coffee, 30% sin categoría, el resto a (eliminada)');
+  });
+
+  it('has its own sentence for every field and operator', () => {
+    const english = CONDITION_FIELDS.flatMap((f) =>
+      f.ops.map((op) => conditionText(makeCondition(f.value, op), lookups)),
+    );
+    setLanguage('es');
+    const spanish = CONDITION_FIELDS.flatMap((f) =>
+      f.ops.map((op) => conditionText(makeCondition(f.value, op), lookups)),
+    );
+    spanish.forEach((sentence, i) => {
+      expect(sentence).not.toBe(english[i]);
+      expect(sentence).not.toMatch(/condition\.|\{\{/);
+    });
   });
 });

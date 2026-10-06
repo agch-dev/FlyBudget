@@ -1,3 +1,5 @@
+import { readFile } from 'node:fs/promises';
+import type { Page } from '@playwright/test';
 import { test, expect, open, isoDay, type Api } from './fixtures';
 
 // Reports: the built-in dashboard, the custom report builder, and saving a report.
@@ -160,4 +162,145 @@ test.describe('reports', () => {
       .poll(async () => (await api.call<any[]>('GET', '/dashboards')).map((d) => d.name))
       .toEqual(['Overview', 'Taxes']);
   });
+});
+
+/** Clicks an export button and returns the file it saves, as text. */
+async function exported(page: Page, button: string) {
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: button, exact: true }).click(),
+  ]);
+  return readFile(await download.path(), 'utf8');
+}
+
+/** Switches the App Language the way Settings does, then reloads. */
+async function switchLanguage(page: Page, language: 'en' | 'es') {
+  await page.evaluate((language) => {
+    const saved = JSON.parse(localStorage.getItem('budget-preferences')!);
+    saved.state.language = language;
+    localStorage.setItem('budget-preferences', JSON.stringify(saved));
+  }, language);
+  await page.reload();
+  await expect(page.locator('html')).toHaveAttribute('lang', language);
+}
+
+test.describe('reports in Spanish', () => {
+  test.use({ language: 'es' });
+
+  const month = () => new Intl.DateTimeFormat('es', { month: 'long' }).format(new Date());
+
+  test('the dashboard is in Spanish', async ({ page, api }) => {
+    await seed(api);
+    await open(page, '/dashboard');
+    const main = page.getByRole('main');
+    for (const heading of [
+      'Flujo de fondos',
+      'Presupuesto',
+      'Próximos pagos',
+      'Gastos por categoría',
+      'Transacciones recientes',
+    ]) {
+      await expect(main.getByRole('heading', { name: heading, exact: true })).toBeVisible();
+    }
+    await expect(main.getByText('Patrimonio neto', { exact: true })).toBeVisible();
+    await expect(main.getByText('Primeros pasos con FlyBudget')).toBeVisible();
+    await expect(main.getByText('Disponible para gastar')).toBeVisible();
+    await expect(main.getByRole('combobox', { name: 'Comparar gastos' })).toHaveValue(
+      'month_vs_last_month',
+    );
+    await expect(main.getByText(/Gastos \$52\.50 este mes/)).toBeVisible();
+    // The month by its Spanish name
+    await expect(
+      main.getByRole('link', { name: new RegExp(`^${month()} de \\d{4}$`) }),
+    ).toBeVisible();
+    for (const english of ['Net Worth', 'Cash Flow', 'Upcoming Bills', 'View all']) {
+      await expect(main.getByText(english, { exact: true })).toHaveCount(0);
+    }
+  });
+
+  test('the report dashboards are in Spanish, stored names as written', async ({ page, api }) => {
+    await seed(api);
+    await open(page, '/reports');
+    const main = page.getByRole('main');
+    await expect(main.getByRole('heading', { level: 1, name: 'Reportes' })).toBeVisible();
+    // The dashboard's name is stored, so it stays as the server wrote it
+    await expect(page.getByRole('button', { name: 'Overview' })).toBeVisible();
+    await expect(main).toContainText(/\$2,000\s*Ingresos totales/);
+    await expect(main).toContainText(/\$52\.50\s*Gastos totales/);
+    for (const widget of [
+      'Patrimonio neto',
+      'Ingresos y gastos',
+      'Gastos por categoría',
+      'Tendencias de gastos',
+      'Calendario de transacciones',
+    ]) {
+      await expect(main.getByText(widget, { exact: true }).first()).toBeVisible();
+    }
+    await expect(main.getByText('Este mes', { exact: true }).first()).toBeVisible();
+    // The calendar: Spanish month name and weekday letters, still Sunday first
+    await expect(main.getByText(new RegExp(`^${month()} de \\d{4}$`))).toBeVisible();
+    await expect(main.getByText('D', { exact: true }).first()).toBeVisible();
+
+    await page.getByRole('button', { name: 'Agregar widget' }).click();
+    await expect(page.getByText('Entradas y salidas de cada día')).toBeVisible();
+    await page.keyboard.press('Escape');
+
+    // A full view: stat cards, table headers and the calendar's day list
+    await main.getByText('Calendario de transacciones', { exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Guardar en el widget' })).toBeVisible();
+    await expect(main.getByText('Promedio diario de salidas')).toBeVisible();
+    for (const column of ['Fecha', 'Transacciones', 'Entradas', 'Salidas', 'Neto']) {
+      await expect(main.getByRole('columnheader', { name: column, exact: true })).toBeVisible();
+    }
+    await main.getByRole('row').nth(1).click();
+    await expect(main.getByRole('columnheader', { name: 'Beneficiario' })).toBeVisible();
+  });
+
+  test('the custom report builder is in Spanish', async ({ page, api }) => {
+    await seed(api);
+    await open(page, '/reports/custom');
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'Reporte personalizado' }),
+    ).toBeVisible();
+    await page.getByRole('button', { name: 'Tabla' }).click();
+    await page.getByRole('combobox', { name: 'Agrupar por' }).selectOption('category');
+    const table = page.getByRole('table');
+    await expect(table.getByRole('columnheader', { name: 'Monto' })).toBeVisible();
+    // What has no category is named by the app; category names are the user's
+    await expect(table.getByRole('row', { name: 'Sin categoría $4' })).toBeVisible();
+    await expect(table.getByRole('row', { name: 'Groceries $48.50' })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Guardar' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Guardar reporte' });
+    await dialog.getByRole('textbox', { name: 'Nombre del reporte' }).fill('Por categoría');
+    await dialog.getByRole('button', { name: 'Guardar' }).click();
+    await expect(page.getByRole('heading', { level: 1, name: 'Por categoría' })).toBeVisible();
+  });
+});
+
+test('exported CSV files are the same in English and in Spanish', async ({ page, api }) => {
+  await seed(api);
+  const files: Record<string, string[]> = { en: [], es: [] };
+  for (const [language, exportCsv, exportReport] of [
+    ['en', 'Export CSV', 'Export'],
+    ['es', 'Exportar CSV', 'Exportar'],
+  ] as const) {
+    await open(page, '/reports');
+    await switchLanguage(page, language);
+    const widgets: any[] = await api.call(
+      'GET',
+      `/dashboards/${(await api.call<any[]>('GET', '/dashboards'))[0].id}/widgets`,
+    );
+    // Spending by category has an uncategorized row, which the app names
+    for (const type of ['summary', 'spending', 'spending-trends', 'calendar']) {
+      await open(page, `/reports/widget/${widgets.find((w) => w.type === type).id}`);
+      files[language].push(await exported(page, exportCsv));
+    }
+    await open(page, '/reports/custom');
+    await expect(page.getByRole('button', { name: exportReport, exact: true })).toBeEnabled();
+    files[language].push(await exported(page, exportReport));
+  }
+  expect(files.en[1]).toContain('category,group,spent_cents,monthly_average_cents,currency');
+  expect(files.en[1]).toContain('Uncategorized,');
+  expect(files.es).toEqual(files.en);
 });

@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   Plus,
   ChevronRight,
@@ -22,7 +23,7 @@ import { totalAndChange } from '../utils/balanceConversion';
 import NetWorthMini from '../components/dashboard/NetWorthMini';
 import { ACCOUNT_TYPE_GROUPS, type Account, type AccountTypeGroup } from '../types';
 import { AccountIcon } from '../components/accounts/AccountIcon';
-import { accountTypeInfo, accountTypeLabel } from '../utils/accountTypes';
+import { accountTypeGroupLabel, accountTypeInfo, accountTypeLabel } from '../utils/accountTypes';
 import { groupTotal, listAccountsByGroup } from '../utils/accountGroups';
 import { format, subMonths } from 'date-fns';
 import { useBalanceRates } from '../hooks/useExchangeRates';
@@ -36,20 +37,22 @@ function groupAccountsByType(accounts: Account[]) {
     list.push(a);
     groups.set(group, list);
   }
-  return ACCOUNT_TYPE_GROUPS.filter((g) => groups.has(g.value)).map((g) => ({
-    label: g.label,
-    accounts: groups.get(g.value)!,
+  return ACCOUNT_TYPE_GROUPS.filter((group) => groups.has(group)).map((group) => ({
+    group,
+    accounts: groups.get(group)!,
   }));
 }
 
 interface AccountGroupProps {
-  label: string;
+  group: AccountTypeGroup;
   accounts: Account[];
   balancesAgo: Record<string, number>;
 }
 
 /** One account inside a card: icon, name, type and its own balance; opens the account */
 function AccountLine({ account }: { account: Account }) {
+  // The type's name follows the App Language
+  useTranslation('accounts');
   const navigate = useNavigate();
   return (
     <div
@@ -80,18 +83,17 @@ function AccountLine({ account }: { account: Account }) {
  * each account does.
  */
 function AccountGroupCard({ name, accounts }: { name: string; accounts: Account[] }) {
+  const { t } = useTranslation('accounts');
   const { rates, today } = useBalanceRates();
   const { currency, total, complete } = groupTotal(accounts, useViewingCurrency(), today, rates);
   return (
     <Card padding="none">
-      <section aria-label={`${name} group`}>
+      <section aria-label={t('page.groupCard', { name })}>
         <div className="flex items-center justify-between gap-3 px-5 py-3.5 border-b border-border">
           <div className="flex items-baseline gap-2.5 min-w-0">
             <h2 className="text-base font-semibold text-text truncate">{name}</h2>
             <span className="text-xs text-text-tertiary shrink-0">
-              {complete
-                ? 'Group'
-                : 'Group · balances in the other currency left out: no exchange rate yet'}
+              {complete ? t('page.group') : t('page.groupIncomplete')}
             </span>
           </div>
           <span
@@ -110,7 +112,8 @@ function AccountGroupCard({ name, accounts }: { name: string; accounts: Account[
   );
 }
 
-function AccountTypeSection({ label, accounts, balancesAgo }: AccountGroupProps) {
+function AccountTypeSection({ group, accounts, balancesAgo }: AccountGroupProps) {
+  const { t } = useTranslation('accounts');
   const [collapsed, setCollapsed] = useState(false);
   // In the viewing currency, like net worth: today's balances at today's rate, the month-ago
   // ones at the rate of that day. Each account below keeps its own balance.
@@ -129,28 +132,33 @@ function AccountTypeSection({ label, accounts, balancesAgo }: AccountGroupProps)
     <Card padding="none">
       <button
         onClick={() => setCollapsed(!collapsed)}
-        className={`w-full flex items-center justify-between px-5 py-3.5 hover:bg-hover transition-colors ${
+        className={`w-full flex items-center justify-between max-md:gap-3 px-5 py-3.5 hover:bg-hover transition-colors ${
           collapsed ? 'rounded-lg' : 'rounded-t-lg border-b border-border'
         }`}
       >
-        <div className="flex items-center gap-2.5">
+        {/* On a phone the change wraps under the name rather than squeezing it */}
+        <div className="flex items-center gap-2.5 min-w-0 text-left max-md:flex-wrap max-md:gap-x-2 max-md:gap-y-0.5">
           <span className="text-text-tertiary">
             {collapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
           </span>
-          <span className="text-base font-semibold text-text">{label}</span>
+          <span className="text-base font-semibold text-text max-md:whitespace-nowrap">
+            {accountTypeGroupLabel(group)}
+          </span>
           {change !== 0 && (
             <span
-              className={`flex items-center gap-1 text-xs tabular-nums ${change >= 0 ? 'text-positive' : 'text-negative'}`}
+              className={`flex items-center gap-1 text-xs tabular-nums whitespace-nowrap ${change >= 0 ? 'text-positive' : 'text-negative'}`}
             >
               {change >= 0 ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
               {change >= 0 ? '+' : ''}
               {formatCurrency(change, viewing)} ({Math.abs(changePct).toFixed(1)}%)
             </span>
           )}
-          <span className="text-xs text-text-tertiary">past month</span>
+          <span className="text-xs text-text-tertiary whitespace-nowrap">
+            {t('page.pastMonth')}
+          </span>
         </div>
         <span
-          className={`text-base font-semibold tabular-nums ${total < 0 ? 'text-negative' : 'text-text'}`}
+          className={`text-base font-semibold tabular-nums shrink-0 ${total < 0 ? 'text-negative' : 'text-text'}`}
           data-testid="account-type-total"
         >
           {formatCurrency(total, viewing)}
@@ -168,6 +176,7 @@ function AccountTypeSection({ label, accounts, balancesAgo }: AccountGroupProps)
 }
 
 export default function AccountsPage() {
+  const { t } = useTranslation('accounts');
   const { data: accounts = [], isLoading } = useAccounts();
   const { data: balancesAgo = {} } = useBalancesAgo();
   const [addOpen, setAddOpen] = useState(false);
@@ -201,9 +210,9 @@ export default function AccountsPage() {
   return (
     <div className="flex flex-col h-full bg-surface">
       <div className="px-6 py-4 border-b border-border shrink-0 flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-text">Accounts</h1>
+        <h1 className="text-lg font-semibold text-text">{t('page.title')}</h1>
         <Button size="sm" onClick={() => setAddOpen(true)}>
-          <Plus size={14} /> Add Account
+          <Plus size={14} /> {t('page.add')}
         </Button>
       </div>
 
@@ -211,16 +220,16 @@ export default function AccountsPage() {
         <div className="flex-1 flex items-center justify-center overflow-y-auto">
           <EmptyState
             icon={<Landmark size={26} />}
-            title="Add the accounts you want to track"
-            description="Checking, savings, credit cards, loans, investments or your home: each account keeps its own balance and transactions, and together they make up your net worth."
+            title={t('page.emptyTitle')}
+            description={t('page.emptyDescription')}
             learnMoreHref={docsUrl('accounts')}
             actions={
               <>
                 <Button onClick={() => setAddOpen(true)}>
-                  <Plus size={14} /> Add your first account
+                  <Plus size={14} /> {t('page.addFirst')}
                 </Button>
                 <ButtonLink variant="secondary" to="/settings?tab=connections">
-                  <Link2 size={14} /> Connect a bank
+                  <Link2 size={14} /> {t('page.connectBank')}
                 </ButtonLink>
               </>
             }
@@ -245,8 +254,8 @@ export default function AccountsPage() {
             ))}
             {byType.map((g) => (
               <AccountTypeSection
-                key={g.label}
-                label={g.label}
+                key={g.group}
+                group={g.group}
                 accounts={g.accounts}
                 balancesAgo={balancesAgo}
               />

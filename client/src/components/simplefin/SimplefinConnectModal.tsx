@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { Loader2, CheckCircle2, Link2 } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
@@ -45,6 +46,7 @@ export function SimplefinConnectModal(props: Props) {
 }
 
 function SimplefinConnectModalDialog({ isOpen, onClose, initialSetupResult }: Props) {
+  const { t } = useTranslation('settings');
   const [step, setStep] = useState<Step>('token');
   const [token, setToken] = useState('');
   const [setupResult, setSetupResult] = useState<SimplefinSetupResult | null>(null);
@@ -134,26 +136,29 @@ function SimplefinConnectModalDialog({ isOpen, onClose, initialSetupResult }: Pr
   }
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} title="Connect via SimpleFIN" size="lg">
+    <Modal isOpen={isOpen} onClose={handleClose} title={t('banks.simplefin.modalTitle')} size="lg">
       {step === 'token' && (
         <div className="space-y-5">
           <div className="text-center py-4">
             <div className="w-16 h-16 rounded-lg bg-brand-50 flex items-center justify-center mx-auto mb-4">
               <Link2 size={32} className="text-brand-600" />
             </div>
-            <h3 className="text-sm font-semibold text-text">Connect with SimpleFIN Bridge</h3>
+            <h3 className="text-sm font-semibold text-text">{t('banks.simplefin.modalHeading')}</h3>
             <p className="text-xs text-text-secondary mt-2 max-w-sm mx-auto leading-relaxed">
-              Visit{' '}
-              <a
-                href="https://beta-bridge.simplefin.org/simplefin/create"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-brand-600 underline"
-              >
-                SimpleFIN Bridge
-              </a>{' '}
-              to create a setup token, then paste it below. SimpleFIN costs $1.50/month paid
-              directly to them.
+              <Trans
+                t={t}
+                i18nKey="banks.simplefin.modalIntro"
+                components={{
+                  bridge: (
+                    <a
+                      href="https://beta-bridge.simplefin.org/simplefin/create"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-brand-600 underline"
+                    />
+                  ),
+                }}
+              />
             </p>
           </div>
 
@@ -162,17 +167,18 @@ function SimplefinConnectModalDialog({ isOpen, onClose, initialSetupResult }: Pr
               type="text"
               value={token}
               onChange={(e) => setToken(e.target.value)}
-              placeholder="Paste your SimpleFIN setup token..."
+              aria-label={t('banks.simplefin.token')}
+              placeholder={t('banks.simplefin.tokenPlaceholder')}
               className="w-full text-sm border border-border rounded-md px-3 py-2 bg-surface text-text focus:outline-none focus:ring-1 focus:ring-brand-600 focus:border-brand-600 font-mono"
             />
             <div className="flex justify-center">
               <Button onClick={handleSetup} disabled={!token.trim() || setupSimplefin.isPending}>
                 {setupSimplefin.isPending ? (
                   <>
-                    <Loader2 size={16} className="animate-spin" /> Connecting...
+                    <Loader2 size={16} className="animate-spin" /> {t('banks.simplefin.connecting')}
                   </>
                 ) : (
-                  'Connect'
+                  t('banks.simplefin.connect')
                 )}
               </Button>
             </div>
@@ -180,8 +186,7 @@ function SimplefinConnectModalDialog({ isOpen, onClose, initialSetupResult }: Pr
 
           {setupSimplefin.isError && (
             <p className="text-xs text-negative text-center">
-              {(setupSimplefin.error as any)?.message ||
-                'Failed to connect. Check your setup token and try again.'}
+              {(setupSimplefin.error as any)?.message || t('banks.simplefin.connectError')}
             </p>
           )}
         </div>
@@ -191,9 +196,7 @@ function SimplefinConnectModalDialog({ isOpen, onClose, initialSetupResult }: Pr
         <div className="space-y-4">
           <div>
             <h3 className="text-sm font-semibold text-text">{setupResult.connectionName}</h3>
-            <p className="text-xs text-text-secondary mt-0.5">
-              Choose how to set up each discovered account.
-            </p>
+            <p className="text-xs text-text-secondary mt-0.5">{t('banks.mapping.intro')}</p>
           </div>
 
           <div className="space-y-3 max-h-80 overflow-y-auto">
@@ -216,13 +219,13 @@ function SimplefinConnectModalDialog({ isOpen, onClose, initialSetupResult }: Pr
 
           <div className="flex justify-end gap-3 pt-2">
             <Button variant="secondary" onClick={handleClose}>
-              Cancel
+              {t('ui.cancel', { ns: 'common' })}
             </Button>
             <Button
               onClick={handleSaveAndSync}
               disabled={mappings.every((m) => m.action === 'skip')}
             >
-              Save & Sync
+              {t('banks.mapping.saveAndSync')}
             </Button>
           </div>
         </div>
@@ -231,10 +234,8 @@ function SimplefinConnectModalDialog({ isOpen, onClose, initialSetupResult }: Pr
       {step === 'syncing' && (
         <div className="text-center py-10">
           <Loader2 size={40} className="animate-spin text-brand-500 mx-auto mb-4" />
-          <h3 className="text-sm font-semibold text-text">Syncing Transactions</h3>
-          <p className="text-xs text-text-secondary mt-1">
-            Importing your transactions. This may take a moment...
-          </p>
+          <h3 className="text-sm font-semibold text-text">{t('banks.connect.syncingTitle')}</h3>
+          <p className="text-xs text-text-secondary mt-1">{t('banks.connect.syncingDetail')}</p>
         </div>
       )}
 
@@ -243,15 +244,17 @@ function SimplefinConnectModalDialog({ isOpen, onClose, initialSetupResult }: Pr
           <div className="w-16 h-16 rounded-full bg-positive-subtle flex items-center justify-center mx-auto mb-4">
             <CheckCircle2 size={32} className="text-positive" />
           </div>
-          <h3 className="text-sm font-semibold text-text">Connection Complete</h3>
+          <h3 className="text-sm font-semibold text-text">{t('banks.connect.doneTitle')}</h3>
           {syncSummary && (
             <p className="text-xs text-text-secondary mt-1">
-              Imported {syncSummary.added} transaction{syncSummary.added !== 1 ? 's' : ''} across{' '}
-              {syncSummary.accounts} account{syncSummary.accounts !== 1 ? 's' : ''}.
+              {t('banks.connect.imported', {
+                count: syncSummary.added,
+                accounts: t('banks.connect.accountCount', { count: syncSummary.accounts }),
+              })}
             </p>
           )}
           <Button onClick={handleClose} className="mt-6">
-            Done
+            {t('banks.done')}
           </Button>
         </div>
       )}
@@ -274,6 +277,7 @@ function SimplefinAccountMappingCard({
   linkedAccountIds,
   onChange,
 }: SimplefinAccountMappingCardProps) {
+  const { t } = useTranslation('settings');
   const availableAccounts = existingAccounts.filter(
     (a) => !a.closedAt && (!linkedAccountIds.has(a.id) || mapping.accountId === a.id),
   );
@@ -287,7 +291,7 @@ function SimplefinAccountMappingCard({
         </span>
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex gap-2 max-md:flex-wrap">
         <button
           onClick={() =>
             onChange({ action: 'create', accountName: account.name, accountType: 'checking' })
@@ -298,7 +302,7 @@ function SimplefinAccountMappingCard({
               : 'bg-surface text-text-secondary border border-border hover:bg-surface-alt'
           }`}
         >
-          Create New
+          {t('banks.mapping.create')}
         </button>
         <button
           onClick={() => onChange({ action: 'link' })}
@@ -309,7 +313,7 @@ function SimplefinAccountMappingCard({
               : 'bg-surface text-text-secondary border border-border hover:bg-surface-alt disabled:opacity-40 disabled:cursor-not-allowed'
           }`}
         >
-          Link Existing
+          {t('banks.mapping.link')}
         </button>
         <button
           onClick={() => onChange({ action: 'skip' })}
@@ -319,17 +323,18 @@ function SimplefinAccountMappingCard({
               : 'bg-surface text-text-secondary border border-border hover:bg-surface-alt'
           }`}
         >
-          Skip
+          {t('banks.mapping.skip')}
         </button>
       </div>
 
       {mapping.action === 'link' && (
         <select
+          aria-label={t('banks.mapping.linkTo', { name: account.name })}
           value={mapping.accountId ?? ''}
           onChange={(e) => onChange({ accountId: e.target.value })}
           className="w-full text-sm border border-border rounded-md px-3 py-1.5 bg-surface text-text focus:outline-none focus:ring-1 focus:ring-brand-600 focus:border-brand-600"
         >
-          <option value="">Select an account...</option>
+          <option value="">{t('banks.mapping.selectAccount')}</option>
           {availableAccounts.map((a) => (
             <option key={a.id} value={a.id}>
               {a.name} ({formatCurrency(a.balance)})
@@ -343,7 +348,8 @@ function SimplefinAccountMappingCard({
           type="text"
           value={mapping.accountName}
           onChange={(e) => onChange({ accountName: e.target.value })}
-          placeholder="Account name"
+          placeholder={t('banks.mapping.accountName')}
+          aria-label={t('banks.mapping.accountName')}
           className="w-full text-sm border border-border rounded-md px-3 py-1.5 bg-surface text-text focus:outline-none focus:ring-1 focus:ring-brand-600 focus:border-brand-600"
         />
       )}

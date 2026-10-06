@@ -22,162 +22,129 @@ export type AccountTypeGroup = 'cash' | 'credit' | 'investments' | 'property' | 
 
 export interface AccountTypeInfo {
   value: AccountType;
-  label: string;
   group: AccountTypeGroup;
   /** Debts: the balance is what's owed, stored as a negative number */
   liability: boolean;
   /** Everyday spending accounts; the rest default to off budget */
   onBudget: boolean;
-  /** Example shown under the type picker */
-  hint: string;
 }
 
 export const ACCOUNT_TYPES: AccountTypeInfo[] = [
   {
     value: 'checking',
-    label: 'Checking',
     group: 'cash',
     liability: false,
     onBudget: true,
-    hint: 'Everyday bank account',
   },
   {
     value: 'savings',
-    label: 'Savings',
     group: 'cash',
     liability: false,
     onBudget: true,
-    hint: 'Savings, money market, CDs',
   },
   {
     value: 'cash',
-    label: 'Cash',
     group: 'cash',
     liability: false,
     onBudget: true,
-    hint: 'Wallet or petty cash',
   },
   {
     value: 'credit',
-    label: 'Credit Card',
     group: 'credit',
     liability: true,
     onBudget: true,
-    hint: 'Credit or charge card',
   },
   {
     value: 'line_of_credit',
-    label: 'Line of Credit',
     group: 'credit',
     liability: true,
     onBudget: true,
-    hint: 'Personal line of credit or HELOC',
   },
   {
     value: 'investment',
-    label: 'Brokerage',
     group: 'investments',
     liability: false,
     onBudget: false,
-    hint: 'Taxable investment account',
   },
   {
     value: 'retirement',
-    label: 'Retirement',
     group: 'investments',
     liability: false,
     onBudget: false,
-    hint: '401(k), IRA, Roth, pension',
   },
   {
     value: 'crypto',
-    label: 'Crypto',
     group: 'investments',
     liability: false,
     onBudget: false,
-    hint: 'Exchange account or wallet',
   },
   {
     value: 'real_estate',
-    label: 'Real Estate',
     group: 'property',
     liability: false,
     onBudget: false,
-    hint: 'Home, rental or land',
   },
   {
     value: 'vehicle',
-    label: 'Vehicle',
     group: 'property',
     liability: false,
     onBudget: false,
-    hint: 'Car, motorcycle, boat, RV',
   },
   {
     value: 'valuables',
-    label: 'Valuables',
     group: 'property',
     liability: false,
     onBudget: false,
-    hint: 'Jewelry, art, collectibles, precious metals',
   },
   {
     value: 'mortgage',
-    label: 'Mortgage',
     group: 'loans',
     liability: true,
     onBudget: false,
-    hint: 'Home loan',
   },
   {
     value: 'auto_loan',
-    label: 'Auto Loan',
     group: 'loans',
     liability: true,
     onBudget: false,
-    hint: 'Car or vehicle loan',
   },
   {
     value: 'student_loan',
-    label: 'Student Loan',
     group: 'loans',
     liability: true,
     onBudget: false,
-    hint: 'Federal or private student loan',
   },
   {
     value: 'loan',
-    label: 'Other Loan',
     group: 'loans',
     liability: true,
     onBudget: false,
-    hint: 'Personal, medical or family loan',
   },
   {
     value: 'other_asset',
-    label: 'Other Asset',
     group: 'other',
     liability: false,
     onBudget: false,
-    hint: 'Anything else you own',
   },
   {
     value: 'other_liability',
-    label: 'Other Liability',
     group: 'other',
     liability: true,
     onBudget: false,
-    hint: 'Anything else you owe',
   },
 ];
 
-export const ACCOUNT_TYPE_GROUPS: { value: AccountTypeGroup; label: string }[] = [
-  { value: 'cash', label: 'Cash' },
-  { value: 'credit', label: 'Credit' },
-  { value: 'investments', label: 'Investments' },
-  { value: 'property', label: 'Property' },
-  { value: 'loans', label: 'Loans' },
-  { value: 'other', label: 'Other' },
+/**
+ * The six groups of account types, in the order they are listed. Their names are in the
+ * `accounts` catalog (`accountTypeGroupLabel` in utils/accountTypes.ts).
+ */
+export const ACCOUNT_TYPE_GROUPS: AccountTypeGroup[] = [
+  'cash',
+  'credit',
+  'investments',
+  'property',
+  'loans',
+  'other',
 ];
 
 export interface Transaction {
@@ -301,10 +268,13 @@ export interface BudgetSummary {
 }
 
 // Keep in sync with CURRENCIES in server/src/utils/currency.ts
-/** The currencies an account can hold: Uruguayan pesos and US dollars. No others exist. */
+/**
+ * The currencies an account can hold: Uruguayan pesos and US dollars. No others exist. Their
+ * names are `currency` in the common catalog.
+ */
 export const CURRENCIES = [
-  { value: 'UYU', label: 'Pesos', symbol: '$' },
-  { value: 'USD', label: 'Dollars', symbol: 'US$' },
+  { value: 'UYU', symbol: '$' },
+  { value: 'USD', symbol: 'US$' },
 ] as const;
 
 export type Currency = (typeof CURRENCIES)[number]['value'];
@@ -521,6 +491,16 @@ export type RuleCondition =
 
 export type RuleConditionOp = RuleCondition['op'];
 
+/** The operators a condition on field `F` can have (`F` is one field, not a union) */
+export type RuleOpsOf<F extends RuleConditionField, C = RuleCondition> = C extends {
+  field: infer CF;
+  op: infer Op;
+}
+  ? F extends CF
+    ? Op
+    : never
+  : never;
+
 export interface RuleSplitPart {
   kind: 'fixed' | 'percent' | 'remainder';
   /** cents for fixed, 0–100 for percent, unused for remainder */
@@ -578,15 +558,16 @@ export type RecurrenceRule =
   | { type: 'semiannually'; anchorDay: number }
   | { type: 'yearly'; anchorMonth: number; anchorDay: number };
 
-export const RECURRENCE_TYPE_LABELS: { value: RecurrenceType; label: string }[] = [
-  { value: 'once', label: 'One Time' },
-  { value: 'weekly', label: 'Weekly' },
-  { value: 'biweekly', label: 'Every 2 Weeks' },
-  { value: 'semimonthly', label: 'Twice a Month' },
-  { value: 'monthly', label: 'Monthly' },
-  { value: 'quarterly', label: 'Quarterly' },
-  { value: 'semiannually', label: 'Every 6 Months' },
-  { value: 'yearly', label: 'Yearly' },
+/** Every frequency, in the order the form lists them (their names: `frequencyLabel`) */
+export const RECURRENCE_TYPES: RecurrenceType[] = [
+  'once',
+  'weekly',
+  'biweekly',
+  'semimonthly',
+  'monthly',
+  'quarterly',
+  'semiannually',
+  'yearly',
 ];
 
 export interface Schedule {

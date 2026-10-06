@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { Plus, ChevronDown, ChevronRight, Target } from 'lucide-react';
 import { differenceInCalendarDays, differenceInCalendarMonths, format, parseISO } from 'date-fns';
@@ -24,12 +25,15 @@ function scheduleOf(goal: Goal, remaining: number) {
   const target = parseISO(goal.targetDate);
   const today = new Date();
   const days = differenceInCalendarDays(target, today);
-  const date = format(target, 'MMM d, yyyy');
-  if (remaining === 0) return { date, overdue: false, perMonth: null };
-  if (days < 0) return { date, overdue: true, perMonth: null };
+  if (remaining === 0) return { date: target, overdue: false, perMonth: null };
+  if (days < 0) return { date: target, overdue: true, perMonth: null };
   const months = Math.max(1, differenceInCalendarMonths(target, today));
   // Rounded up to whole pesos or dollars, so following it always gets there on time
-  return { date, overdue: false, perMonth: Math.ceil(remaining / months / 100) * 100 };
+  return {
+    date: target,
+    overdue: false,
+    perMonth: Math.ceil(remaining / months / 100) * 100,
+  };
 }
 
 function GoalIcon({ goal }: { goal: Goal }) {
@@ -56,12 +60,19 @@ function GoalRow({
   onEdit: () => void;
   onDelete: () => void;
 }) {
+  const { t } = useTranslation('goals');
   // Everything on a goal's card is in the goal's own currency
   const currency = goal.currency;
   const { pct, remaining } = progressOf(goal);
   const complete = remaining === 0 && goal.targetAmount > 0;
   const schedule = scheduleOf(goal, remaining);
-  const details = [schedule && `Target ${schedule.date}`, accountName].filter(Boolean).join(' · ');
+  const details = [
+    schedule &&
+      t('card.target', { date: format(schedule.date, t('datePattern.medium', { ns: 'common' })) }),
+    accountName,
+  ]
+    .filter(Boolean)
+    .join(' · ');
 
   return (
     <div
@@ -79,14 +90,14 @@ function GoalRow({
             {formatCurrency(goal.currentAmount, currency)}
           </span>
           <span className="text-xs text-text-tertiary tabular-nums block mt-0.5">
-            of {formatCurrency(goal.targetAmount, currency)}
+            {t('card.ofTarget', { amount: formatCurrency(goal.targetAmount, currency) })}
           </span>
         </div>
         <div onClick={(e) => e.stopPropagation()}>
           <RowMenu
             items={[
-              { label: 'Edit goal', onClick: onEdit },
-              { label: 'Delete goal', onClick: onDelete, danger: true },
+              { label: t('card.edit'), onClick: onEdit },
+              { label: t('card.delete'), onClick: onDelete, danger: true },
             ]}
           />
         </div>
@@ -102,21 +113,23 @@ function GoalRow({
         <div className="flex items-center justify-between mt-1.5 text-xs">
           <span className={complete ? 'text-positive font-medium' : 'text-text-secondary'}>
             {complete ? (
-              'Goal reached'
+              t('card.reached')
             ) : schedule?.overdue ? (
               <span className="text-negative">
-                Past target date · {formatCurrency(remaining, currency)} to go
+                {t('card.overdue', { amount: formatCurrency(remaining, currency) })}
               </span>
+            ) : schedule?.perMonth != null ? (
+              <Trans
+                t={t}
+                i18nKey="card.toGoPerMonth"
+                values={{
+                  amount: formatCurrency(remaining, currency),
+                  perMonth: formatCurrency(schedule.perMonth, currency),
+                }}
+                components={{ small: <span className="text-text-tertiary" /> }}
+              />
             ) : (
-              <>
-                {formatCurrency(remaining, currency)} to go
-                {schedule?.perMonth != null && (
-                  <span className="text-text-tertiary">
-                    {' '}
-                    · {formatCurrency(schedule.perMonth, currency)}/mo to reach it on time
-                  </span>
-                )}
-              </>
+              t('card.toGo', { amount: formatCurrency(remaining, currency) })
             )}
           </span>
           <span className="tabular-nums text-text-tertiary">{Math.floor(pct)}%</span>
@@ -141,6 +154,7 @@ function GoalGroup({
   onDelete: (g: Goal) => void;
   defaultCollapsed?: boolean;
 }) {
+  const { t } = useTranslation('goals');
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
   // One currency: the group's own total. Mixed: pesos, dollar goals at today's rate
   const first = goals[0]?.currency ?? HOME_CURRENCY;
@@ -164,7 +178,7 @@ function GoalGroup({
           </span>
           <span className="text-base font-semibold text-text">{label}</span>
           <span className="text-xs text-text-tertiary">
-            {goals.length} goal{goals.length !== 1 ? 's' : ''}
+            {t('group.count', { count: goals.length })}
           </span>
         </div>
         <span className="text-base font-semibold tabular-nums text-text">
@@ -189,6 +203,7 @@ function GoalGroup({
 }
 
 export default function GoalsPage() {
+  const { t } = useTranslation('goals');
   const { data: goals = [], isLoading } = useGoals();
   const { data: accounts = [] } = useAccounts();
   const createGoal = useCreateGoal();
@@ -227,9 +242,9 @@ export default function GoalsPage() {
   return (
     <div className="flex flex-col h-full bg-surface">
       <div className="px-6 py-4 border-b border-border shrink-0 flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-text">Goals</h1>
+        <h1 className="text-lg font-semibold text-text">{t('page.title')}</h1>
         <Button size="sm" onClick={() => setAddOpen(true)}>
-          <Plus size={14} /> Add Goal
+          <Plus size={14} /> {t('page.add')}
         </Button>
       </div>
 
@@ -237,12 +252,12 @@ export default function GoalsPage() {
         <div className="flex-1 flex items-center justify-center overflow-y-auto">
           <EmptyState
             icon={<Target size={26} />}
-            title="Save for what matters"
-            description="Set a target like an emergency fund, a trip or a new car, and see how close you are and how much to set aside each month."
+            title={t('page.emptyTitle')}
+            description={t('page.emptyDescription')}
             learnMoreHref={docsUrl('goals')}
             actions={
               <Button onClick={() => setAddOpen(true)}>
-                <Plus size={14} /> Add Goal
+                <Plus size={14} /> {t('page.add')}
               </Button>
             }
           />
@@ -254,38 +269,40 @@ export default function GoalsPage() {
               variant="hero"
               cards={[
                 {
-                  label: 'Saved',
+                  label: t('summary.saved'),
                   value: formatCurrency(summary.saved),
-                  sub: `${summary.percent}% of target`,
+                  sub: t('summary.percentOfTarget', { percent: summary.percent }),
                 },
-                { label: 'Target', value: formatCurrency(summary.target) },
-                { label: 'Left to save', value: formatCurrency(summary.leftToSave) },
+                { label: t('summary.target'), value: formatCurrency(summary.target) },
+                { label: t('summary.leftToSave'), value: formatCurrency(summary.leftToSave) },
                 {
-                  label: 'Goals reached',
-                  value: `${completed.length} of ${goals.length}`,
+                  label: t('summary.reached'),
+                  value: t('summary.reachedOf', {
+                    reached: completed.length,
+                    total: goals.length,
+                  }),
                   tone: completed.length > 0 ? 'positive' : undefined,
                 },
               ]}
             />
-            {converted && (
-              <p className="text-xs text-text-tertiary">
-                Totals are in pesos, with dollar goals converted at today&apos;s exchange rate.
-              </p>
-            )}
+            {converted && <p className="text-xs text-text-tertiary">{t('summary.converted')}</p>}
             {summary.notCounted > 0 && (
               <p role="status" className="text-xs text-text-secondary">
-                {summary.notCounted === 1
-                  ? '1 dollar goal is'
-                  : `${summary.notCounted} dollar goals are`}{' '}
-                not in these totals because there is no exchange rate yet.{' '}
-                <Link to="/settings?tab=rates" className="text-brand-600 hover:underline">
-                  Enter rates
-                </Link>
+                <Trans
+                  t={t}
+                  i18nKey="summary.notCounted"
+                  count={summary.notCounted}
+                  components={{
+                    rates: (
+                      <Link to="/settings?tab=rates" className="text-brand-600 hover:underline" />
+                    ),
+                  }}
+                />
               </p>
             )}
             {inProgress.length > 0 && (
               <GoalGroup
-                label="In progress"
+                label={t('page.inProgress')}
                 goals={inProgress}
                 accountNames={accountNames}
                 onEdit={setEditGoal}
@@ -294,7 +311,7 @@ export default function GoalsPage() {
             )}
             {completed.length > 0 && (
               <GoalGroup
-                label="Completed"
+                label={t('page.completed')}
                 goals={completed}
                 accountNames={accountNames}
                 onEdit={setEditGoal}
@@ -327,9 +344,9 @@ export default function GoalsPage() {
         onConfirm={() => {
           if (deleting) deleteGoal.mutate(deleting.id);
         }}
-        title="Delete Goal"
-        message={`Delete "${deleting?.name ?? ''}"? This cannot be undone.`}
-        confirmLabel="Delete"
+        title={t('page.deleteTitle')}
+        message={t('page.deleteMessage', { name: deleting?.name ?? '' })}
+        confirmLabel={t('page.delete')}
         danger
       />
     </div>

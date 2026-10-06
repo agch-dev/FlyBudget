@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ChevronRight, ChevronDown } from 'lucide-react';
 import { useCategories } from '../../hooks/useCategories';
 import { usePreferencesStore } from '../../store/preferencesStore';
@@ -16,6 +17,7 @@ export default function CategoryTreePicker({
   onCategoryChange,
   onGroupChange,
 }: Props) {
+  const { t } = useTranslation('reports');
   const showCategoryIcons = usePreferencesStore((s) => s.showCategoryIcons);
   const { data: groups = [] } = useCategories();
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -77,13 +79,20 @@ export default function CategoryTreePicker({
         onClick={selectAll}
         className={`text-xs px-1.5 py-0.5 rounded ${allSelected ? 'text-brand-600 font-medium' : 'text-text-tertiary hover:text-text-secondary'}`}
       >
-        {allSelected ? 'All selected' : 'Select all'}
+        {allSelected ? t('allSelected') : t('selectAll')}
       </button>
       {groups.map((g) => (
         <div key={g.id}>
           <div className="flex items-center gap-1 py-0.5">
             <button
               onClick={() => toggleExpand(g.id)}
+              aria-expanded={expanded.has(g.id)}
+              aria-label={t(
+                expanded.has(g.id) ? 'builder.hideCategories' : 'builder.showCategories',
+                {
+                  group: g.name,
+                },
+              )}
               className="text-text-tertiary hover:text-text-secondary p-0.5"
             >
               {expanded.has(g.id) ? (

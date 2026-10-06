@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Check, LayoutGrid, Plus } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
@@ -24,6 +25,7 @@ import { dashboardDateRange, encodeRangeParam } from '../utils/dateRange';
 type DashboardModal = 'new' | 'rename' | 'delete' | null;
 
 export default function ReportsPage() {
+  const { t } = useTranslation('reports');
   const [searchParams, setSearchParams] = useSearchParams();
   const { data: pages = [], isLoading: pagesLoading } = useDashboards();
   const { data: reports = [] } = useSavedReports();
@@ -50,7 +52,7 @@ export default function ReportsPage() {
     <div className="flex flex-col h-full bg-surface">
       <div className="px-6 pt-4 border-b border-border shrink-0">
         <div className="flex items-center justify-between gap-4 flex-wrap">
-          <h1 className="text-lg font-semibold text-text shrink-0">Reports</h1>
+          <h1 className="text-lg font-semibold text-text shrink-0">{t('page.title')}</h1>
           {active && (
             <div className="flex items-center gap-2 flex-wrap">
               <ViewingCurrencySwitch />
@@ -62,7 +64,7 @@ export default function ReportsPage() {
                   onClick={() => setEditing(!editing)}
                 >
                   {editing ? <Check size={13} /> : <LayoutGrid size={13} />}
-                  {editing ? 'Done' : 'Edit layout'}
+                  {editing ? t('page.done') : t('page.editLayout')}
                 </Button>
               </div>
               <AddWidgetMenu pageId={active.id} reports={reports} />
@@ -71,7 +73,7 @@ export default function ReportsPage() {
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-brand-600 rounded-md hover:bg-brand-700 shadow-xs transition-colors"
               >
                 <Plus size={13} />
-                Custom Report
+                {t('page.customReport')}
               </Link>
             </div>
           )}
@@ -93,8 +95,8 @@ export default function ReportsPage() {
           ))}
           <button
             onClick={() => setModal('new')}
-            aria-label="New dashboard"
-            title="New dashboard"
+            aria-label={t('page.newDashboard')}
+            title={t('page.newDashboard')}
             className="ml-1 p-1.5 rounded text-text-tertiary hover:text-text-secondary hover:bg-hover transition-colors cursor-pointer"
           >
             <Plus size={15} />
@@ -103,9 +105,9 @@ export default function ReportsPage() {
             <div className="ml-auto pl-2">
               <RowMenu
                 items={[
-                  { label: 'Rename dashboard…', onClick: () => setModal('rename') },
+                  { label: t('page.renameDashboard'), onClick: () => setModal('rename') },
                   {
-                    label: 'Delete dashboard',
+                    label: t('page.deleteDashboard'),
                     danger: true,
                     hidden: pages.length <= 1,
                     onClick: () => setModal('delete'),
@@ -120,7 +122,7 @@ export default function ReportsPage() {
       <div className="flex-1 overflow-y-auto px-6 py-6 bg-page">
         {active && (
           <div className="flex items-center gap-x-3 gap-y-1 flex-wrap mb-4">
-            <span className="text-xs font-medium text-text-secondary">Date range</span>
+            <span className="text-xs font-medium text-text-secondary">{t('dateRange')}</span>
             <DateRangeControl
               value={dashboardRange}
               onChange={(dateRange) =>
@@ -129,9 +131,7 @@ export default function ReportsPage() {
             />
             {ownRangeCount > 0 && (
               <span className="text-xs text-text-tertiary">
-                {ownRangeCount === 1
-                  ? '1 widget keeps its own dates'
-                  : `${ownRangeCount} widgets keep their own dates`}
+                {t('page.ownDates', { count: ownRangeCount })}
               </span>
             )}
           </div>
@@ -143,11 +143,8 @@ export default function ReportsPage() {
         ) : active && widgets.length === 0 ? (
           <div className="flex flex-col items-center justify-center text-center py-20 gap-3 px-6">
             <LayoutGrid size={26} className="text-brand-600" aria-hidden />
-            <p className="text-base font-semibold text-text">This dashboard is empty</p>
-            <p className="text-sm text-text-tertiary max-w-sm">
-              Add charts like net worth, spending trends or a transaction calendar, or build your
-              own report and pin it here.
-            </p>
+            <p className="text-base font-semibold text-text">{t('page.emptyTitle')}</p>
+            <p className="text-sm text-text-tertiary max-w-sm">{t('page.emptyDescription')}</p>
             <AddWidgetMenu pageId={active.id} reports={reports} />
           </div>
         ) : (
@@ -167,10 +164,10 @@ export default function ReportsPage() {
       {newModal.value && (
         <NameModal
           isOpen={newModal.isOpen}
-          title="New dashboard"
-          label="Dashboard name"
-          placeholder="e.g. Yearly review"
-          submitLabel="Create"
+          title={t('page.newDashboard')}
+          label={t('page.dashboardName')}
+          placeholder={t('page.dashboardNamePlaceholder')}
+          submitLabel={t('create')}
           onClose={() => setModal(null)}
           onSave={(name) =>
             createDashboard.mutate(name, {
@@ -185,10 +182,10 @@ export default function ReportsPage() {
       {renameModal.value && (
         <NameModal
           isOpen={renameModal.isOpen}
-          title="Rename dashboard"
-          label="Dashboard name"
+          title={t('page.renameDashboardTitle')}
+          label={t('page.dashboardName')}
           initialName={renameModal.value.name}
-          submitLabel="Rename"
+          submitLabel={t('rename')}
           onClose={() => setModal(null)}
           onSave={(name) =>
             updateDashboard.mutate(
@@ -211,9 +208,9 @@ export default function ReportsPage() {
               },
             })
           }
-          title="Delete dashboard"
-          message={`Delete "${active.name}" and its widgets? Saved custom reports are kept.`}
-          confirmLabel="Delete"
+          title={t('page.deleteDashboard')}
+          message={t('page.deleteDashboardMessage', { name: active.name })}
+          confirmLabel={t('delete')}
           danger
         />
       )}

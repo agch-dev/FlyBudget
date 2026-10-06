@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { format, parseISO, subDays, addDays } from 'date-fns';
 import { Modal } from '../ui/Modal';
 import { Input } from '../ui/Input';
@@ -14,6 +15,7 @@ interface Props {
 }
 
 export default function OccurrenceMatchModal({ isOpen, onClose, occurrence }: Props) {
+  const { t } = useTranslation('recurring');
   const [search, setSearch] = useState('');
   const matchOcc = useMatchOccurrence();
 
@@ -67,13 +69,18 @@ export default function OccurrenceMatchModal({ isOpen, onClose, occurrence }: Pr
   if (!occurrence) return null;
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Match to Transaction" size="lg">
+    <Modal isOpen={isOpen} onClose={onClose} title={t('match.title')} size="lg">
       <div className="space-y-4">
         <div className="bg-surface-alt rounded-lg px-4 py-3 border border-border-light">
           <p className="text-sm font-medium text-text">{occurrence.scheduleName}</p>
           <p className="text-xs text-text-tertiary mt-0.5">
-            Expected: {format(parseISO(occurrence.expectedDate), 'MMM d, yyyy')} ·{' '}
-            {formatCurrency(occurrence.expectedAmount, currency)}
+            {t('match.expected', {
+              date: format(
+                parseISO(occurrence.expectedDate),
+                t('datePattern.medium', { ns: 'common' }),
+              ),
+              amount: formatCurrency(occurrence.expectedAmount, currency),
+            })}
           </p>
         </div>
 
@@ -81,14 +88,12 @@ export default function OccurrenceMatchModal({ isOpen, onClose, occurrence }: Pr
           type="text"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Filter by payee or notes…"
+          placeholder={t('match.filter')}
         />
 
         <div className="max-h-80 overflow-y-auto">
           {filtered.length === 0 ? (
-            <p className="text-sm text-text-tertiary text-center py-8">
-              No matching transactions found.
-            </p>
+            <p className="text-sm text-text-tertiary text-center py-8">{t('match.none')}</p>
           ) : (
             <div className="divide-y divide-border-light">
               {filtered.map((tx) => (
@@ -99,7 +104,7 @@ export default function OccurrenceMatchModal({ isOpen, onClose, occurrence }: Pr
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-text truncate">{tx.payeeName || '—'}</p>
                     <p className="text-xs text-text-tertiary">
-                      {format(parseISO(tx.date), 'MMM d, yyyy')}
+                      {format(parseISO(tx.date), t('datePattern.medium', { ns: 'common' }))}
                     </p>
                   </div>
                   <span
@@ -111,7 +116,7 @@ export default function OccurrenceMatchModal({ isOpen, onClose, occurrence }: Pr
                     onClick={() => handleMatch(tx.id)}
                     className="px-3 py-1 text-xs font-medium text-brand-600 bg-brand-50 rounded-md hover:bg-brand-100 transition-colors"
                   >
-                    Match
+                    {t('match.match')}
                   </button>
                 </div>
               ))}

@@ -4,9 +4,11 @@ import { IS_DEMO } from '../demo/isDemo';
 import type { ImportMemory } from '../utils/csv';
 import { toggleGroupOpen } from '../utils/accountGroups';
 import { HOME_CURRENCY, type Currency } from '../types';
+import { browserLanguage, detectLanguage, type Language } from '../i18n/language';
 
 export type Theme = 'light' | 'dark' | 'system';
-export type DateFormatOption = 'MMM d, yyyy' | 'MM/dd/yyyy' | 'dd/MM/yyyy' | 'yyyy-MM-dd';
+export type DateFormatOption =
+  'MMM d, yyyy' | 'd MMM yyyy' | 'MM/dd/yyyy' | 'dd/MM/yyyy' | 'yyyy-MM-dd';
 export type SidebarMode = 'persistent' | 'auto-hide';
 
 interface PreferencesState {
@@ -34,6 +36,11 @@ interface PreferencesState {
    * reports, cash flow and net worth on this device. Never the Budget, which is in pesos.
    */
   viewingCurrency: Currency;
+  /**
+   * The App Language (GLOSSARY.md): the language of the app's own text on this device. A
+   * device that never chose gets the browser's language. utils/applyLanguage.ts applies it.
+   */
+  language: Language;
   setTheme: (theme: Theme) => void;
   setDateFormat: (format: DateFormatOption) => void;
   setSavingsGoal: (goal: number) => void;
@@ -48,13 +55,26 @@ interface PreferencesState {
   setCsvImportConventions: (accountId: string, conventions: ImportMemory) => void;
   toggleAccountGroup: (name: string) => void;
   setViewingCurrency: (currency: Currency) => void;
+  setLanguage: (language: Language) => void;
 }
+
+/**
+ * The date format of a device that has never chosen one: day first ("5 oct 2026") when the
+ * device starts in Spanish. Switching language later never changes the date format.
+ */
+export function defaultDateFormat(language: Language): DateFormatOption {
+  return language === 'es' ? 'd MMM yyyy' : 'MMM d, yyyy';
+}
+
+/** What this device starts in, until the user chooses: the browser's language */
+const startingLanguage = detectLanguage(browserLanguage());
 
 const PREFERENCES_KEY = 'budget-preferences';
 
 /**
  * Brings preferences saved by an earlier version up to date. Version 1 removed the currency
- * symbol: each account now has its own currency (pesos `$` or dollars `US$`).
+ * symbol: each account now has its own currency (pesos `$` or dollars `US$`). Preferences
+ * saved before the App Language existed have no `language` and get the browser's.
  */
 export function migratePreferences(saved: unknown): Partial<PreferencesState> {
   if (!saved || typeof saved !== 'object') return {};
@@ -66,7 +86,7 @@ export const usePreferencesStore = create<PreferencesState>()(
   persist(
     (set) => ({
       theme: 'light',
-      dateFormat: 'MMM d, yyyy',
+      dateFormat: defaultDateFormat(startingLanguage),
       savingsGoal: 20,
       sidebarMode: 'persistent',
       showMerchantIcons: true,
@@ -79,6 +99,7 @@ export const usePreferencesStore = create<PreferencesState>()(
       csvImportConventions: {},
       openAccountGroups: [],
       viewingCurrency: HOME_CURRENCY,
+      language: startingLanguage,
       setTheme: (theme) => set({ theme }),
       setDateFormat: (dateFormat) => set({ dateFormat }),
       setSavingsGoal: (savingsGoal) => set({ savingsGoal }),
@@ -97,6 +118,7 @@ export const usePreferencesStore = create<PreferencesState>()(
       toggleAccountGroup: (name) =>
         set((state) => ({ openAccountGroups: toggleGroupOpen(state.openAccountGroups, name) })),
       setViewingCurrency: (viewingCurrency) => set({ viewingCurrency }),
+      setLanguage: (language) => set({ language }),
     }),
     {
       name: PREFERENCES_KEY,

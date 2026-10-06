@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useId } from 'react';
 import { createPortal } from 'react-dom';
 import { NavLink } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Plus, Building2, Link2, ChevronDown, ChevronRight } from 'lucide-react';
 import { useAccounts } from '../../hooks/useAccounts';
 import { usePlaidStatus } from '../../hooks/usePlaid';
@@ -47,6 +48,7 @@ function AccountRow({ account, nested }: { account: Account; nested?: boolean })
  * with their own balances underneath. It goes nowhere: a group has no page.
  */
 function GroupRow({ name, accounts }: { name: string; accounts: Account[] }) {
+  const { t } = useTranslation();
   const open = usePreferencesStore((s) => s.openAccountGroups.includes(name));
   const toggle = usePreferencesStore((s) => s.toggleAccountGroup);
   const { rates, today } = useBalanceRates();
@@ -59,9 +61,7 @@ function GroupRow({ name, accounts }: { name: string; accounts: Account[] }) {
         onClick={() => toggle(name)}
         aria-expanded={open}
         aria-controls={listId}
-        title={
-          complete ? undefined : 'Balances in the other currency are left out: no exchange rate yet'
-        }
+        title={complete ? undefined : t('sidebar.groupIncomplete')}
         className="flex items-center justify-between w-full pl-1.5 pr-3 py-0.5 max-md:min-h-11 rounded-md text-[12px] text-left text-sidebar-text/70 hover:bg-sidebar-hover hover:text-sidebar-text-hi transition-all duration-150"
       >
         <span className="flex items-center gap-0.5 min-w-0">
@@ -99,6 +99,7 @@ function AccountRows({ accounts }: { accounts: Account[] }) {
 }
 
 export function SidebarAccountList() {
+  const { t } = useTranslation();
   const { data: accounts = [] } = useAccounts();
   const { data: plaidStatus } = usePlaidStatus();
   const plaidConfigured = plaidStatus?.configured ?? false;
@@ -171,7 +172,7 @@ export function SidebarAccountList() {
           to="/accounts"
           className="flex items-center justify-between py-1.5 text-[13px] font-bold text-sidebar-text-hi hover:text-sidebar-text-hi transition-colors"
         >
-          <span>All accounts</span>
+          <span>{t('sidebar.allAccounts')}</span>
           <span className="tabular-nums ml-2">{formatCurrency(allTotal, viewing)}</span>
         </NavLink>
 
@@ -181,7 +182,7 @@ export function SidebarAccountList() {
             onClick={() => setForBudgetOpen((o) => !o)}
             className="flex items-center justify-between w-full py-1.5 text-[13px] font-semibold text-sidebar-text-hi border-b border-sidebar-text/20 hover:text-sidebar-text-hi transition-colors"
           >
-            <span>For budget</span>
+            <span>{t('sidebar.forBudget')}</span>
             <span className="flex items-center gap-1">
               <span className="tabular-nums text-[12px]">
                 {formatCurrency(onBudgetTotal, viewing)}
@@ -193,7 +194,7 @@ export function SidebarAccountList() {
             <div className="mt-0.5 space-y-0">
               <AccountRows accounts={onBudget} />
               {onBudget.length === 0 && (
-                <p className="pl-5 py-1 text-xs text-sidebar-text/50">No accounts yet</p>
+                <p className="pl-5 py-1 text-xs text-sidebar-text/50">{t('sidebar.noAccounts')}</p>
               )}
             </div>
           )}
@@ -206,7 +207,7 @@ export function SidebarAccountList() {
               onClick={() => setOffBudgetOpen((o) => !o)}
               className="flex items-center justify-between w-full py-1.5 text-[13px] font-semibold text-sidebar-text-hi border-b border-sidebar-text/20 hover:text-sidebar-text-hi transition-colors"
             >
-              <span>Off budget</span>
+              <span>{t('sidebar.offBudget')}</span>
               <span className="flex items-center gap-1">
                 <span className="tabular-nums text-[12px]">
                   {formatCurrency(offBudgetTotal, viewing)}
@@ -230,7 +231,7 @@ export function SidebarAccountList() {
             className="flex items-center gap-1.5 px-3 py-1.5 text-[13px] text-sidebar-text hover:text-sidebar-text-hi transition-colors"
           >
             <Plus size={14} />
-            <span>Add account</span>
+            <span>{t('sidebar.addAccount')}</span>
           </button>
 
           {/* Portaled so the sidebar's scroll area can't clip it */}
@@ -249,7 +250,7 @@ export function SidebarAccountList() {
                   className="flex items-center gap-2 w-full px-3 py-2 text-left text-sm whitespace-nowrap text-text-secondary hover:bg-hover hover:text-text transition-colors"
                 >
                   <Plus size={14} className="shrink-0" />
-                  Add Manual Account
+                  {t('sidebar.addManualAccount')}
                 </button>
                 <button
                   onClick={() => {
@@ -260,7 +261,7 @@ export function SidebarAccountList() {
                   className="flex items-center gap-2 w-full px-3 py-2 text-left text-sm whitespace-nowrap text-text-secondary hover:bg-hover hover:text-text transition-colors"
                 >
                   <Building2 size={14} className="shrink-0" />
-                  Connect via Plaid
+                  {t('sidebar.connectPlaid')}
                 </button>
                 <button
                   onClick={() => {
@@ -270,7 +271,7 @@ export function SidebarAccountList() {
                   className="flex items-center gap-2 w-full px-3 py-2 text-left text-sm whitespace-nowrap text-text-secondary hover:bg-hover hover:text-text transition-colors"
                 >
                   <Link2 size={14} className="shrink-0" />
-                  Connect via SimpleFIN
+                  {t('sidebar.connectSimplefin')}
                 </button>
               </div>,
               document.body,

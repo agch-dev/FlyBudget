@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { format, startOfMonth, endOfMonth, subMonths, startOfYear } from 'date-fns';
 import { Search, X } from 'lucide-react';
 import type { TransactionQueryParams } from '../../types';
@@ -51,12 +52,7 @@ export function filtersToParams(f: FilterState, accountId?: string): Transaction
   };
 }
 
-const DATE_PRESETS: { value: DatePreset; label: string }[] = [
-  { value: 'this-month', label: 'This Month' },
-  { value: 'last-3', label: 'Last 3 Months' },
-  { value: 'this-year', label: 'This Year' },
-  { value: 'all', label: 'All Time' },
-];
+const DATE_PRESETS: DatePreset[] = ['this-month', 'last-3', 'this-year', 'all'];
 
 interface Props {
   state: FilterState;
@@ -66,6 +62,7 @@ interface Props {
 }
 
 export function TransactionFilters({ state, onChange, categoryName, externalMonth }: Props) {
+  const { t } = useTranslation('transactions');
   const [rawSearch, setRawSearch] = useState(state.search);
 
   useEffect(() => {
@@ -86,7 +83,8 @@ export function TransactionFilters({ state, onChange, categoryName, externalMont
           type="text"
           value={rawSearch}
           onChange={handleSearchChange}
-          placeholder="Search payee or notes…"
+          placeholder={t('filters.search')}
+          aria-label={t('filters.search')}
           className="w-full pl-8 pr-3 py-1.5 text-sm border border-border rounded-full bg-surface text-text focus:border-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-600"
         />
         {rawSearch && (
@@ -95,6 +93,7 @@ export function TransactionFilters({ state, onChange, categoryName, externalMont
               setRawSearch('');
               onChange({ ...state, search: '' });
             }}
+            aria-label={t('filters.clearSearch')}
             className="absolute right-2 text-text-tertiary hover:text-text-secondary"
           >
             <X size={13} />
@@ -104,10 +103,10 @@ export function TransactionFilters({ state, onChange, categoryName, externalMont
 
       {state.categoryId && (
         <div className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium bg-brand-50 text-brand-700 rounded-full border border-brand-200">
-          <span>{categoryName || 'Category'}</span>
+          <span>{categoryName || t('field.category')}</span>
           <button
             onClick={() => onChange({ ...state, categoryId: null })}
-            aria-label="Clear category filter"
+            aria-label={t('filters.clearCategory')}
             className="hover:text-brand-900 max-md:min-w-8 max-md:min-h-8 flex items-center justify-center"
           >
             <X size={12} />
@@ -116,17 +115,17 @@ export function TransactionFilters({ state, onChange, categoryName, externalMont
       )}
 
       <div className="flex gap-0 border-b border-transparent max-md:max-w-full max-md:overflow-x-auto [scrollbar-width:none]">
-        {DATE_PRESETS.map((p) => (
+        {DATE_PRESETS.map((preset) => (
           <button
-            key={p.value}
-            onClick={() => onChange({ ...state, datePreset: p.value })}
+            key={preset}
+            onClick={() => onChange({ ...state, datePreset: preset })}
             className={`px-2.5 py-1 max-md:min-h-11 max-md:text-sm whitespace-nowrap shrink-0 text-xs font-medium transition-colors border-b-2 -mb-px ${
-              !externalMonth && state.datePreset === p.value
+              !externalMonth && state.datePreset === preset
                 ? 'border-brand-600 text-brand-600'
                 : 'border-transparent text-text-tertiary hover:text-text-secondary'
             }`}
           >
-            {p.label}
+            {t(`filters.datePreset.${preset}`)}
           </button>
         ))}
       </div>

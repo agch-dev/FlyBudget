@@ -1,4 +1,6 @@
 import { format, parseISO } from 'date-fns';
+import { useTranslation } from 'react-i18next';
+import { t as translate } from '../../i18n';
 import { ChartNoAxesColumn } from 'lucide-react';
 import { useViewingMoney } from '../../hooks/useViewingCurrency';
 import { CATEGORY_COLORS } from '../../utils/chartColors';
@@ -15,7 +17,10 @@ export interface TooltipSummary {
 /** `summary` for CurrencyTooltip: the sum of every series at the hovered point. */
 export const sumSeries = (payload: any[]): TooltipSummary | null =>
   payload.length > 1
-    ? { label: 'Total', value: payload.reduce((s, p) => s + (Number(p.value) || 0), 0) }
+    ? {
+        label: translate('reports:total'),
+        value: payload.reduce((s, p) => s + (Number(p.value) || 0), 0),
+      }
     : null;
 
 export const TOOLTIP_CLASS = 'bg-surface border border-border rounded-md shadow-hover px-3 py-2';
@@ -61,6 +66,7 @@ export function CurrencyTooltip({
  * for single-color line and area charts).
  */
 export function ShareTooltip({ active, payload, label, total, noSwatch }: any) {
+  const { t } = useTranslation('reports');
   const money = useViewingMoney();
   if (!active || !payload?.length) return null;
   const p = payload[0];
@@ -77,7 +83,10 @@ export function ShareTooltip({ active, payload, label, total, noSwatch }: any) {
       <p className="text-sm font-semibold text-text tabular-nums">{money.format(value)}</p>
       {total > 0 && (
         <p className="text-xs text-text-tertiary tabular-nums">
-          {((value / total) * 100).toFixed(1)}% of {money.format(total)}
+          {t('chart.shareOf', {
+            percent: ((value / total) * 100).toFixed(1),
+            total: money.format(total),
+          })}
         </p>
       )}
     </div>
@@ -95,13 +104,10 @@ export function ChartSkeleton() {
 }
 
 /** A chart with nothing to draw: says so, and what would fill it */
-export function EmptyState({
-  message = 'No data for this period',
-  hint = 'Add transactions, or pick a longer date range.',
-}: {
-  message?: string;
-  hint?: string;
-}) {
+export function EmptyState({ message, hint }: { message?: string; hint?: string }) {
+  const { t } = useTranslation('reports');
+  message ??= t('chart.noData');
+  hint ??= t('chart.noDataHint');
   return (
     <div className="h-full min-h-24 flex flex-col items-center justify-center text-center gap-1 px-4">
       <ChartNoAxesColumn size={20} className="text-text-disabled mb-1" aria-hidden />

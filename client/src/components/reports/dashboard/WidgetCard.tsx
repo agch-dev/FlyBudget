@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Pin, Snowflake } from 'lucide-react';
 import RowMenu from '../../ui/RowMenu';
 import type { RowMenuItem } from '../../ui/RowMenu';
@@ -7,7 +8,7 @@ import { Modal, useModalValue } from '../../ui/Modal';
 import { Button } from '../../ui/Button';
 import { DateRangeControl } from '../DateRangeControl';
 import ReportChartArea from '../ReportChartArea';
-import { BUILTIN_REPORTS, BuiltinReportChart } from '../BuiltinReport';
+import { BuiltinReportChart } from '../BuiltinReport';
 import { ChartSkeleton } from '../ChartHelpers';
 import NameModal from './NameModal';
 import { useCustomReportData } from '../../../hooks/useCustomReports';
@@ -41,6 +42,7 @@ interface Props {
 }
 
 export default function WidgetCard({ widget, report, pages, dashboardRange, editing }: Props) {
+  const { t } = useTranslation('reports');
   const navigate = useNavigate();
   const updateWidget = useUpdateWidget();
   const deleteWidget = useDeleteWidget();
@@ -58,7 +60,7 @@ export default function WidgetCard({ widget, report, pages, dashboardRange, edit
   const { range, source } = widgetDateRange(widget.meta.dateRange, dashboardRange);
   const title = isCustom
     ? (report?.name ?? '')
-    : widget.meta.name || BUILTIN_REPORTS[widget.type].label;
+    : widget.meta.name || t(`builtin.${widget.type}.label`);
 
   const openPath = isCustom
     ? `/reports/custom/${widget.customReportId}?dashboard=${widget.pageId}&range=${encodeRangeParam(range)}`
@@ -71,27 +73,34 @@ export default function WidgetCard({ widget, report, pages, dashboardRange, edit
   }
 
   const menu: RowMenuItem[] = [
-    { label: isCustom ? 'Edit report' : 'Open', onClick: () => navigate(openPath) },
-    { label: 'Rename…', onClick: () => setRenameOpen(true), hidden: isCustom },
-    { label: 'Date range…', onClick: () => setRangeOpen(true) },
     {
-      label: 'Freeze dates',
+      label: isCustom ? t('widget.editReport') : t('widget.open'),
+      onClick: () => navigate(openPath),
+    },
+    { label: t('widget.rename'), onClick: () => setRenameOpen(true), hidden: isCustom },
+    { label: t('widget.dateRange'), onClick: () => setRangeOpen(true) },
+    {
+      label: t('widget.freeze'),
       onClick: () => setOwnRange(freezeDateRange(range)),
       hidden: source === 'frozen',
     },
-    { label: 'Unfreeze', onClick: () => setOwnRange(undefined), hidden: source !== 'frozen' },
     {
-      label: 'Use dashboard range',
+      label: t('widget.unfreeze'),
+      onClick: () => setOwnRange(undefined),
+      hidden: source !== 'frozen',
+    },
+    {
+      label: t('widget.useDashboardRange'),
       onClick: () => setOwnRange(undefined),
       hidden: source !== 'own',
     },
     ...pages
       .filter((p) => p.id !== widget.pageId)
       .map((p) => ({
-        label: `Move to ${p.name}`,
+        label: t('widget.moveTo', { name: p.name }),
         onClick: () => updateWidget.mutate({ widget, data: { pageId: p.id } }),
       })),
-    { label: 'Remove from dashboard', danger: true, onClick: () => deleteWidget.mutate(widget) },
+    { label: t('widget.remove'), danger: true, onClick: () => deleteWidget.mutate(widget) },
   ];
 
   return (
@@ -115,10 +124,10 @@ export default function WidgetCard({ widget, report, pages, dashboardRange, edit
             </p>
             <p className="flex items-center gap-1 text-[11px] text-text-tertiary">
               {source === 'frozen' && (
-                <Snowflake size={10} className="text-brand-500" aria-label="Frozen" />
+                <Snowflake size={10} className="text-brand-500" aria-label={t('widget.frozen')} />
               )}
               {source === 'own' && (
-                <Pin size={10} className="text-brand-500" aria-label="Own date range" />
+                <Pin size={10} className="text-brand-500" aria-label={t('widget.ownRange')} />
               )}
               {formatDateRange(range)}
             </p>
@@ -168,10 +177,10 @@ export default function WidgetCard({ widget, report, pages, dashboardRange, edit
         {renameModal.value && (
           <NameModal
             isOpen={renameModal.isOpen}
-            title="Rename widget"
-            label="Name"
+            title={t('widget.renameTitle')}
+            label={t('name')}
             initialName={title}
-            submitLabel="Rename"
+            submitLabel={t('rename')}
             onClose={() => setRenameOpen(false)}
             onSave={(name) => {
               updateWidget.mutate({ widget, data: { meta: { ...widget.meta, name } } });
@@ -228,6 +237,7 @@ function DateRangeModal({
   onClose: () => void;
   onSave: (range: ReportDateRange | undefined) => void;
 }) {
+  const { t } = useTranslation('reports');
   const [follow, setFollow] = useState(!own);
   const [value, setValue] = useState(() => widgetDateRange(own, dashboardRange).range);
   const option = (active: boolean) =>
@@ -238,32 +248,30 @@ function DateRangeModal({
     }`;
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Date range" size="md">
+    <Modal isOpen={isOpen} onClose={onClose} title={t('dateRange')} size="md">
       <div className="flex gap-2 mb-4">
         <button className={option(follow)} onClick={() => setFollow(true)}>
-          <p className="font-medium">Follow dashboard</p>
+          <p className="font-medium">{t('widget.followDashboard')}</p>
           <p className="text-xs text-text-tertiary">{formatDateRange(dashboardRange)}</p>
         </button>
         <button className={option(!follow)} onClick={() => setFollow(false)}>
-          <p className="font-medium">Own date range</p>
-          <p className="text-xs text-text-tertiary">Ignores the dashboard's range</p>
+          <p className="font-medium">{t('widget.ownRange')}</p>
+          <p className="text-xs text-text-tertiary">{t('widget.ownRangeHint')}</p>
         </button>
       </div>
       {!follow && (
         <>
           <DateRangeControl value={value} onChange={setValue} />
           <p className="text-xs text-text-tertiary mt-3">
-            {isFrozen(value)
-              ? 'Frozen: this widget keeps showing these months.'
-              : 'Live: this widget moves forward with the current month.'}
+            {isFrozen(value) ? t('widget.frozenNote') : t('widget.liveNote')}
           </p>
         </>
       )}
       <div className="flex justify-end gap-2 mt-4">
         <Button variant="secondary" onClick={onClose}>
-          Cancel
+          {t('ui.cancel', { ns: 'common' })}
         </Button>
-        <Button onClick={() => onSave(follow ? undefined : value)}>Save</Button>
+        <Button onClick={() => onSave(follow ? undefined : value)}>{t('save')}</Button>
       </div>
     </Modal>
   );

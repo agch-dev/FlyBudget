@@ -317,6 +317,22 @@ test.describe('dialogs and touch targets', () => {
     }
   });
 
+  test('the language switch is full-size, on the first-run screen and in Settings', async ({
+    page,
+    api,
+  }) => {
+    await open(page, '/welcome');
+    const language = page.getByRole('radiogroup', { name: 'App language' });
+    for (const name of ['English', 'Español']) {
+      await expectTouchSize(language.getByRole('radio', { name }));
+    }
+    await api.createAccount('Checking');
+    await open(page, '/settings?tab=preferences');
+    for (const name of ['English', 'Español']) {
+      await expectTouchSize(language.getByRole('radio', { name }));
+    }
+  });
+
   test('an account group row in the menu is a full-size control', async ({ page, api }) => {
     await api.createAccount('Visa pesos', 150_000, 'checking', { groupName: 'Visa Itaú' });
     await api.createAccount('Visa dolares', 0, 'checking', { groupName: 'Visa Itaú' });

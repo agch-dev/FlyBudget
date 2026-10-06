@@ -1,6 +1,7 @@
 import fs from 'fs';
 import type { Page } from '@playwright/test';
 import { test, expect, open, isoDay } from './fixtures';
+import { xlsx } from './xlsx';
 
 // Getting data in (CSV import) and out (CSV export, full backup) and restoring it.
 
@@ -36,55 +37,6 @@ const CARD_CSV =
   '19/08/2026,XXXXX-0000,Supermercado,"0,00","1.343,28","0,00",\r\n' +
   '20/08/2026,,Pago Automatico,"0,00","-13.821,26","0,00",\r\n' +
   '25/08/2026,XXXXX-0000,Farmacia,"0,00","610,00","0,00",\r\n';
-
-/** An .xlsx workbook with one sheet (a zip of XML files, stored uncompressed) */
-function xlsx(rows: (string | number)[][]): Buffer {
-  const cell = (value: string | number) =>
-    typeof value === 'number'
-      ? `<c><v>${value}</v></c>`
-      : `<c t="inlineStr"><is><t>${value}</t></is></c>`;
-  const files: Record<string, string> = {
-    'xl/workbook.xml':
-      '<workbook xmlns:r="r"><sheets><sheet name="Estado de Cuenta" sheetId="1" r:id="rId1"/></sheets></workbook>',
-    'xl/_rels/workbook.xml.rels':
-      '<Relationships><Relationship Id="rId1" Target="worksheets/sheet1.xml"/></Relationships>',
-    'xl/worksheets/sheet1.xml': `<worksheet><sheetData>${rows
-      .map((row) => `<row>${row.map(cell).join('')}</row>`)
-      .join('')}</sheetData></worksheet>`,
-  };
-  const parts: Buffer[] = [];
-  const directory: Buffer[] = [];
-  let at = 0;
-  for (const [name, text] of Object.entries(files)) {
-    const data = Buffer.from(text, 'utf8');
-    const entry = Buffer.alloc(26);
-    entry.writeUInt16LE(20, 0);
-    entry.writeUInt32LE(data.length, 14);
-    entry.writeUInt32LE(data.length, 18);
-    entry.writeUInt16LE(Buffer.byteLength(name), 22);
-    const local = Buffer.concat([
-      Buffer.from('PK\x03\x04', 'latin1'),
-      entry,
-      Buffer.from(name),
-      data,
-    ]);
-    const where = Buffer.alloc(14);
-    where.writeUInt32LE(at, 10);
-    directory.push(
-      Buffer.concat([Buffer.from('PK\x01\x02\x14\x00', 'latin1'), entry, where, Buffer.from(name)]),
-    );
-    parts.push(local);
-    at += local.length;
-  }
-  const central = Buffer.concat(directory);
-  const end = Buffer.alloc(22);
-  end.write('PK\x05\x06', 'latin1');
-  end.writeUInt16LE(directory.length, 8);
-  end.writeUInt16LE(directory.length, 10);
-  end.writeUInt32LE(central.length, 12);
-  end.writeUInt32LE(at, 16);
-  return Buffer.concat([...parts, central, end]);
-}
 
 test.describe('CSV import', () => {
   test('maps columns and imports every row, even tricky ones', async ({ page, api }) => {
@@ -228,7 +180,7 @@ test.describe('CSV import', () => {
     await expect(dialog).toContainText(
       '5 transactions found. 4 duplicates detected. 1 will be imported.',
     );
-    await dialog.getByRole('button', { name: 'Import 1 Transactions' }).click();
+    await dialog.getByRole('button', { name: 'Import 1 Transaction' }).click();
     await expect(dialog).toContainText('1 imported, 0 skipped');
     expect(await api.transactions(`?account_id=${checking.id}&from=2025-01-01`)).toHaveLength(5);
   });
@@ -301,7 +253,7 @@ test.describe('CSV import', () => {
 
     // The preview follows the choices: month first, 25/03 is no date and 05/03 is 3 May
     await dialog.getByLabel('Dates').selectOption('month-first');
-    await expect(dialog).toContainText('1 transactions found');
+    await expect(dialog).toContainText('1 transaction found');
     await expect(dialog.getByRole('alert')).toContainText(
       'Row 2: Can\'t read the date "25/03/2026"',
     );

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
+import { Trans, useTranslation } from 'react-i18next';
 import { PencilLine, Loader2, ShieldCheck, ChevronRight, Clock } from 'lucide-react';
 import logoUrl from '/logo.png';
 import { useAccounts } from '../hooks/useAccounts';
@@ -14,6 +15,7 @@ import { HelpFooter } from '../components/layout/HelpFooter';
 import { ExternalLink } from '../components/ui/ExternalLink';
 import { PlaidLogo, SimplefinLogo } from '../components/ui/BankLogos';
 import { BrandName } from '../components/ui/BrandName';
+import { LanguageSwitch } from '../components/ui/LanguageSwitch';
 import { docsUrl } from '../utils/project';
 
 interface OptionProps {
@@ -30,6 +32,7 @@ interface OptionProps {
 
 /** One way to add accounts. All three look alike: none is pushed over the others. */
 function SetupOption({ icon, title, tag, time, description, action, onClick }: OptionProps) {
+  const { t } = useTranslation('accounts');
   return (
     <button
       onClick={onClick}
@@ -48,7 +51,7 @@ function SetupOption({ icon, title, tag, time, description, action, onClick }: O
         </span>
         <span className="inline-flex items-center gap-1 bg-surface-alt text-text-secondary text-[11px] font-medium px-2 py-0.5 rounded-md">
           <Clock size={11} aria-hidden />
-          <span className="sr-only">Setup time:</span> {time}
+          <span className="sr-only">{t('welcome.setupTime')}</span> {time}
         </span>
       </span>
       <span className="text-xs text-text-tertiary mt-2 leading-relaxed flex-1">{description}</span>
@@ -60,6 +63,7 @@ function SetupOption({ icon, title, tag, time, description, action, onClick }: O
 }
 
 export default function WelcomePage() {
+  const { t } = useTranslation('accounts');
   const { data: accounts = [], isLoading } = useAccounts();
   const { data: plaidStatus } = usePlaidStatus();
   const plaidConfigured = plaidStatus?.configured ?? false;
@@ -87,57 +91,58 @@ export default function WelcomePage() {
   return (
     <div className="h-dvh overflow-y-auto bg-page">
       <div className="min-h-full flex flex-col items-center px-4 sm:px-6">
+        {/* This screen comes before Settings can be reached */}
+        <div className="w-full flex justify-end pt-3">
+          <LanguageSwitch />
+        </div>
         <main className="flex-1 w-full max-w-3xl flex flex-col justify-center py-10 text-center">
           <img src={logoUrl} alt="" className="w-20 h-20 mx-auto mb-5" />
 
           <h1 className="text-2xl sm:text-3xl font-semibold text-text tracking-tight">
-            Welcome to <BrandName />!
+            <Trans t={t} i18nKey="welcome.title" components={{ brand: <BrandName /> }} />
           </h1>
           <p className="text-sm sm:text-base text-text-secondary mt-2 max-w-lg mx-auto">
-            A budget that shows where your money goes and gives every dollar a job. Start by adding
-            the accounts you want to track.
+            {t('welcome.intro')}
           </p>
 
           <div className="grid gap-4 mt-8 grid-cols-1 sm:grid-cols-3">
             <SetupOption
               icon={<PlaidLogo size={24} className="text-text" />}
-              title="Connect with Plaid"
-              tag="Free"
-              time="~10 min + approval"
-              description="Set it up once and new transactions arrive on their own. Create a free Plaid developer account; Plaid then approves access to your real banks."
-              action="Connect Plaid"
+              title={t('welcome.plaid.title')}
+              tag={t('welcome.plaid.tag')}
+              time={t('welcome.plaid.time')}
+              description={t('welcome.plaid.description')}
+              action={t('welcome.plaid.action')}
               onClick={() => (plaidConfigured ? setShowPlaid(true) : setShowPlaidSetup(true))}
             />
             <SetupOption
               icon={<SimplefinLogo size={26} />}
-              title="Connect with SimpleFIN"
-              tag="$1.50/month"
-              time="~5 min"
-              description="Set it up once and new transactions arrive on their own, through SimpleFIN Bridge (thousands of banks). Paid directly to SimpleFIN."
-              action="Connect SimpleFIN"
+              title={t('welcome.simplefin.title')}
+              tag={t('welcome.simplefin.tag')}
+              time={t('welcome.simplefin.time')}
+              description={t('welcome.simplefin.description')}
+              action={t('welcome.simplefin.action')}
               onClick={() => setShowSimplefin(true)}
             />
             <SetupOption
               icon={<PencilLine size={20} className="text-text-secondary" />}
-              title="Add accounts manually"
-              tag="No bank link"
-              time="~1 min each"
-              description="You add each account and its balance yourself. Transactions are manual too: download CSV files from your bank and import them yourself, or enter each one by hand. Nothing updates on its own."
-              action="Add manually"
+              title={t('welcome.manual.title')}
+              tag={t('welcome.manual.tag')}
+              time={t('welcome.manual.time')}
+              description={t('welcome.manual.description')}
+              action={t('welcome.manual.action')}
               onClick={() => setShowManual(true)}
             />
           </div>
 
           <p className="mt-6 flex items-center justify-center gap-1.5 text-xs text-text-tertiary">
             <ShieldCheck size={14} className="text-positive shrink-0" aria-hidden />
-            {mode === 'server'
-              ? 'Your budget is stored on your own server. No FlyBudget account, no tracking.'
-              : 'Your budget stays on this computer. No FlyBudget account, no tracking.'}{' '}
+            {mode === 'server' ? t('welcome.storedOnServer') : t('welcome.storedHere')}{' '}
             <ExternalLink
               href={docsUrl('bank-sync')}
               className="font-medium text-brand-600 hover:text-brand-700"
             >
-              Compare bank options
+              {t('welcome.compareBanks')}
             </ExternalLink>
           </p>
 
@@ -148,7 +153,7 @@ export default function WelcomePage() {
             }}
             className="mt-6 mx-auto text-sm text-text-tertiary hover:text-text-secondary underline-offset-4 hover:underline transition-colors max-md:min-h-11"
           >
-            Skip for now and look around
+            {t('welcome.skip')}
           </button>
         </main>
 

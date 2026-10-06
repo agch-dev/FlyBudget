@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
 import type { TransferSuggestion } from '../api/transferSuggestions';
+import { setLanguage } from '../i18n';
 import { suggestionCountLabel, suggestionsForAccount } from './transferSuggestions';
 
 const account = fc.constantFrom('checking', 'savings', 'dollars', 'card');
@@ -56,5 +57,11 @@ describe('suggestionCountLabel', () => {
   it('counts in the singular and the plural', () => {
     expect(suggestionCountLabel(1)).toBe('1 possible transfer');
     expect(suggestionCountLabel(3)).toBe('3 possible transfers');
+  });
+
+  it('counts in Spanish', () => {
+    setLanguage('es');
+    expect(suggestionCountLabel(1)).toBe('1 posible transferencia');
+    expect(suggestionCountLabel(3)).toBe('3 posibles transferencias');
   });
 });

@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { format, subMonths, subDays, startOfYear } from 'date-fns';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { useNetWorth } from '../../hooks/useReports';
@@ -29,14 +30,7 @@ function MiniTooltip({ active, payload, label }: any) {
 
 type Preset = '1m' | '3m' | '6m' | 'ytd' | '1y' | 'all';
 
-const PRESETS: { value: Preset; label: string }[] = [
-  { value: '1m', label: '1 month' },
-  { value: '3m', label: '3 months' },
-  { value: '6m', label: '6 months' },
-  { value: 'ytd', label: 'Year to date' },
-  { value: '1y', label: '1 year' },
-  { value: 'all', label: 'All time' },
-];
+const PRESETS: Preset[] = ['1m', '3m', '6m', 'ytd', '1y', 'all'];
 
 function computeRange(preset: Preset): {
   from: string;
@@ -81,6 +75,7 @@ function computeRange(preset: Preset): {
 }
 
 export default function NetWorthMini() {
+  const { t, i18n } = useTranslation('reports');
   const money = useViewingMoney();
   const [preset, setPreset] = useState<Preset>('1m');
 
@@ -89,7 +84,12 @@ export default function NetWorthMini() {
   const { data: accounts, isLoading: accountsLoading } = useAccounts();
   const noAccounts = !accountsLoading && accounts?.length === 0;
 
-  const dateLabels = useMemo(() => formatDateAxisLabels(data.map((d) => d.month)), [data]);
+  // Month names follow the App Language
+  const language = i18n.language;
+  const dateLabels = useMemo(
+    () => formatDateAxisLabels(data.map((d) => d.month)),
+    [data, language],
+  );
   const xAxis = useXAxisLayout({
     labels: dateLabels,
     kind: 'point',
@@ -113,7 +113,7 @@ export default function NetWorthMini() {
   // What the total is made of, when part of it is in dollars: "$150,000 + US$3,200"
   const last = data[data.length - 1];
   const breakdown = breakdownLine(last?.native, money.currency, last?.leftOut);
-  const other = money.currency === HOME_CURRENCY ? 'Dollars' : 'Pesos';
+  const other = money.currency === HOME_CURRENCY ? 'USD' : 'UYU';
   const first = data.length > 0 ? data[0].netWorth : latest;
   const change = latest - first;
   const pct = first !== 0 ? (change / Math.abs(first)) * 100 : 0;
@@ -132,10 +132,10 @@ export default function NetWorthMini() {
 
   return (
     <div>
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between max-md:flex-wrap max-md:gap-3">
         <div>
           <p className="text-xs font-medium text-text-tertiary uppercase tracking-wide">
-            Net Worth
+            {t('home.netWorth.title')}
           </p>
           <p
             className={`text-3xl font-semibold tabular-nums mt-1 ${latest >= 0 ? 'text-text' : 'text-negative'}`}
@@ -148,17 +148,15 @@ export default function NetWorthMini() {
               data-testid="net-worth-breakdown"
               title={
                 last?.leftOut?.length
-                  ? `${other} are not in the total above: there is no exchange rate to convert them. Enter one in Settings → Exchange rates`
-                  : `${other} are counted at today's exchange rate`
+                  ? t(`home.netWorth.leftOut.${other}`)
+                  : t(`home.netWorth.counted.${other}`)
               }
             >
               {breakdown}
             </p>
           )}
           {noAccounts && (
-            <p className="text-sm text-text-tertiary mt-1">
-              What you own minus what you owe, across all your accounts.
-            </p>
+            <p className="text-sm text-text-tertiary mt-1">{t('home.netWorth.explanation')}</p>
           )}
           {data.length > 1 && !noAccounts && (
             <p
@@ -172,20 +170,20 @@ export default function NetWorthMini() {
 
         {noAccounts ? (
           <ButtonLink size="sm" to="/accounts?add=1">
-            Add an account
+            {t('home.netWorth.addAccount')}
           </ButtonLink>
         ) : (
-          <div className="flex flex-wrap items-center justify-end gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2 max-md:justify-start">
             <ViewingCurrencySwitch />
             <select
-              aria-label="Net worth period"
+              aria-label={t('home.netWorth.periodLabel')}
               value={preset}
               onChange={(e) => setPreset(e.target.value as Preset)}
               className="text-sm border border-border rounded-lg px-3 py-1.5 bg-surface text-text cursor-pointer focus:outline-none focus:ring-1 focus:ring-brand-600"
             >
               {PRESETS.map((p) => (
-                <option key={p.value} value={p.value}>
-                  {p.label}
+                <option key={p} value={p}>
+                  {t(`home.netWorth.period.${p}`)}
                 </option>
               ))}
             </select>
@@ -210,7 +208,7 @@ export default function NetWorthMini() {
               <Area
                 type="monotone"
                 dataKey="netWorth"
-                name="Net Worth"
+                name={t('home.netWorth.title')}
                 stroke={chartColors.brand}
                 strokeWidth={2}
                 fill="url(#gNetMini)"

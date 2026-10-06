@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   startOfMonth,
   endOfMonth,
@@ -12,7 +13,6 @@ import {
 } from 'date-fns';
 import type { ScheduleOccurrence, OccurrenceDisplayStatus } from '../../types';
 
-const DAY_HEADERS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MAX_CHIPS = 3;
 
 const CHIP_COLORS: Record<OccurrenceDisplayStatus, string> = {
@@ -42,6 +42,7 @@ interface Props {
 
 /** Month grid; navigation lives in the parent card header. */
 export default function Calendar({ month, occurrences, onDateClick }: Props) {
+  const { t } = useTranslation('recurring');
   const monthDate = parseISO(`${month}-01`);
 
   const days = useMemo(() => {
@@ -62,12 +63,13 @@ export default function Calendar({ month, occurrences, onDateClick }: Props) {
 
   return (
     <div className="grid grid-cols-7 gap-px bg-border-light rounded-lg overflow-hidden border border-border-light">
-      {DAY_HEADERS.map((d) => (
+      {/* The first week's days name the columns: Sunday first in both languages */}
+      {days.slice(0, 7).map((day) => (
         <div
-          key={d}
-          className="bg-surface-alt py-2 text-center text-xs font-medium text-text-tertiary"
+          key={day.getDay()}
+          className="bg-surface-alt py-2 text-center text-xs font-medium text-text-tertiary capitalize"
         >
-          {d}
+          {format(day, 'EEE')}
         </div>
       ))}
       {days.map((day) => {
@@ -114,7 +116,7 @@ export default function Calendar({ month, occurrences, onDateClick }: Props) {
             ))}
             {dayOccs.length > MAX_CHIPS && (
               <span className="max-md:hidden text-[11px] text-text-tertiary px-1">
-                +{dayOccs.length - MAX_CHIPS} more
+                {t('monthly.more', { more: dayOccs.length - MAX_CHIPS })}
               </span>
             )}
           </div>

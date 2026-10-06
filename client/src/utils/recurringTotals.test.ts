@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
 import { expectedNote, occurrenceTotals, type OccurrenceAmounts } from './recurringTotals';
+import { setLanguage } from '../i18n';
 import type { Currency } from '../types';
 
 const occurrence = (o: Partial<OccurrenceAmounts>): OccurrenceAmounts => ({
@@ -92,6 +93,11 @@ describe('occurrenceTotals', () => {
 describe('expectedNote', () => {
   it("says what a dollar bill still to come is in pesos at today's rate", () => {
     expect(expectedNote(netflix, 'UYU', '2026-03-10')).toBe("$600 at today's exchange rate");
+  });
+
+  it('says it in Spanish', () => {
+    setLanguage('es');
+    expect(expectedNote(netflix, 'UYU', '2026-03-10')).toBe('$600 al tipo de cambio de hoy');
   });
 
   it('names the date for a bill already due', () => {

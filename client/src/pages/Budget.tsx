@@ -1,5 +1,6 @@
 import { useState, useRef, useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import { Trans, useTranslation } from 'react-i18next';
 import { format, parseISO, addMonths, subMonths } from 'date-fns';
 import { ChevronLeft, ChevronRight, ChevronDown, Eye, Lightbulb } from 'lucide-react';
 import { useAppStore } from '../store/appStore';
@@ -87,6 +88,7 @@ function CategoryRow({
   onCancel,
   onApplyBulk,
 }: CategoryRowProps) {
+  const { t } = useTranslation('budget');
   const showCategoryIcons = usePreferencesStore((s) => s.showCategoryIcons);
   // Offline: amounts can't be saved, so they can't be edited (and an open editor closes)
   const canSave = useCanSave();
@@ -120,7 +122,7 @@ function CategoryRow({
             <>
               <AmountInput
                 cents={cat.budgeted}
-                label={`Planned for ${cat.name}`}
+                label={t('plannedFor', { category: cat.name })}
                 onSave={onSave}
                 onCancel={onCancel}
               />
@@ -136,8 +138,11 @@ function CategoryRow({
             <button
               onClick={() => onStartEdit(cat.id)}
               disabled={!canSave}
-              title={canSave ? undefined : 'Saving is paused until FlyBudget reconnects'}
-              aria-label={`Planned for ${cat.name}: ${formatCurrency(cat.budgeted)}`}
+              title={canSave ? undefined : t('hint.savingPaused', { ns: 'connection' })}
+              aria-label={t('plannedForAmount', {
+                category: cat.name,
+                amount: formatCurrency(cat.budgeted),
+              })}
               className="tabular-nums text-sm rounded px-2 py-0.5 min-w-[5.5rem] text-right border border-border bg-surface transition-colors hover:border-text-tertiary cursor-text disabled:cursor-not-allowed disabled:opacity-60"
             >
               <span className="text-text-secondary">{formatCurrency(cat.budgeted)}</span>
@@ -186,6 +191,7 @@ function IncomeGroupSection({
   onApplyBulk,
   showAll,
 }: IncomeGroupProps) {
+  const { t } = useTranslation('budget');
   const [collapsed, setCollapsed] = useState(false);
   const [showUnbudgeted, setShowUnbudgeted] = useState(false);
 
@@ -257,8 +263,9 @@ function IncomeGroupSection({
                   className="flex items-center gap-1.5 text-xs text-text-tertiary hover:text-text-secondary"
                 >
                   <Eye size={12} />
-                  {showUnbudgeted ? 'Hide' : 'Show'} {inactive.length} inactive{' '}
-                  {inactive.length === 1 ? 'category' : 'categories'}
+                  {t(showUnbudgeted ? 'inactive.hide' : 'inactive.show', {
+                    count: inactive.length,
+                  })}
                 </button>
               </td>
             </tr>
@@ -293,6 +300,7 @@ function BudgetTypeSection({
   onApplyBulk,
   showAll,
 }: BudgetTypeSectionProps) {
+  const { t } = useTranslation('budget');
   const [collapsed, setCollapsed] = useState(false);
   const [showUnbudgeted, setShowUnbudgeted] = useState(false);
 
@@ -370,8 +378,9 @@ function BudgetTypeSection({
                   className="flex items-center gap-1.5 text-xs text-text-tertiary hover:text-text-secondary"
                 >
                   <Eye size={12} />
-                  {showUnbudgeted ? 'Hide' : 'Show'} {inactive.length} inactive{' '}
-                  {inactive.length === 1 ? 'category' : 'categories'}
+                  {t(showUnbudgeted ? 'inactive.hide' : 'inactive.show', {
+                    count: inactive.length,
+                  })}
                 </button>
               </td>
             </tr>
@@ -382,14 +391,11 @@ function BudgetTypeSection({
   );
 }
 
-const BUDGET_TYPES: { key: BudgetType; label: string }[] = [
-  { key: 'fixed', label: 'Fixed' },
-  { key: 'flexible', label: 'Flexible' },
-  { key: 'non_monthly', label: 'Non-Monthly' },
-  { key: 'savings', label: 'Savings/Investments' },
-];
+/** The sections expenses are listed in, in order (named by `budgetType` in the catalog) */
+const BUDGET_TYPES: BudgetType[] = ['fixed', 'flexible', 'non_monthly', 'savings'];
 
 export default function BudgetPage() {
+  const { t } = useTranslation('budget');
   const { selectedMonth, setSelectedMonth } = useAppStore();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [incomeCollapsed, setIncomeCollapsed] = useState(false);
@@ -411,9 +417,9 @@ export default function BudgetPage() {
 
   const expensesByType = useMemo(
     () =>
-      BUDGET_TYPES.map((t) => ({
-        ...t,
-        categories: allExpenseCats.filter((c) => c.budgetType === t.key),
+      BUDGET_TYPES.map((key) => ({
+        key,
+        categories: allExpenseCats.filter((c) => c.budgetType === key),
       })).filter((bt) => bt.categories.length > 0),
     [allExpenseCats],
   );
@@ -480,27 +486,27 @@ export default function BudgetPage() {
       <div className="px-6 py-4 border-b border-border shrink-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1">
-            <span className="text-lg font-semibold text-text">
-              {format(monthDate, 'MMMM yyyy')}
+            <span className="inline-block text-lg font-semibold text-text first-letter:uppercase">
+              {format(monthDate, t('datePattern.monthYear', { ns: 'common' }))}
             </span>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setSelectedMonth(format(subMonths(monthDate, 1), 'yyyy-MM'))}
-              aria-label="Previous month"
+              aria-label={t('nav.previousMonth')}
               className="p-1.5 max-md:min-w-11 max-md:min-h-11 flex items-center justify-center rounded-md hover:bg-surface-alt text-text-tertiary hover:text-text-secondary transition-colors"
             >
               <ChevronLeft size={18} />
             </button>
             <button
               onClick={() => setSelectedMonth(format(addMonths(monthDate, 1), 'yyyy-MM'))}
-              aria-label="Next month"
+              aria-label={t('nav.nextMonth')}
               className="p-1.5 max-md:min-w-11 max-md:min-h-11 flex items-center justify-center rounded-md hover:bg-surface-alt text-text-tertiary hover:text-text-secondary transition-colors"
             >
               <ChevronRight size={18} />
             </button>
             <Button variant="secondary" size="sm" onClick={goToToday}>
-              Today
+              {t('nav.today')}
             </Button>
           </div>
         </div>
@@ -510,16 +516,22 @@ export default function BudgetPage() {
         <div className="flex items-start gap-3 px-6 py-3 bg-brand-50 border-b border-border-light text-sm text-text-secondary shrink-0">
           <Lightbulb size={16} className="text-brand-600 shrink-0 mt-0.5" aria-hidden />
           <p>
-            Nothing is planned for {format(monthDate, 'MMMM')} yet. {isPhone ? 'Tap' : 'Click'} an
-            amount in the <strong className="font-medium text-text">Planned</strong> column to set
-            what you expect to earn and spend in each category. Categories you leave empty are
-            tucked away once you've planned something.{' '}
-            <ExternalLink
-              href={docsUrl('budgeting')}
-              className="font-medium text-brand-600 hover:text-brand-700"
-            >
-              How budgeting works
-            </ExternalLink>
+            <Trans
+              t={t}
+              i18nKey={isPhone ? 'nothingPlanned.tap' : 'nothingPlanned.click'}
+              values={{ month: format(monthDate, 'MMMM') }}
+              components={{
+                strong: <strong className="font-medium text-text" />,
+                guide: (
+                  <ExternalLink
+                    href={docsUrl('budgeting')}
+                    className="font-medium text-brand-600 hover:text-brand-700"
+                  >
+                    {null}
+                  </ExternalLink>
+                ),
+              }}
+            />
           </p>
         </div>
       )}
@@ -542,7 +554,7 @@ export default function BudgetPage() {
                 })),
                 ...expensesByType.map((bt) => ({
                   key: bt.key,
-                  label: bt.label,
+                  label: t(`budgetType.${bt.key}`),
                   isIncome: false,
                   categories: bt.categories,
                 })),
@@ -572,18 +584,18 @@ export default function BudgetPage() {
                         {incomeCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
                       </span>
                       <span className="text-xs font-semibold text-text-tertiary uppercase tracking-wide">
-                        Income
+                        {t('sections.income')}
                       </span>
                     </div>
                   </td>
                   <td className="py-2 px-3 text-right text-xs font-semibold text-text-tertiary">
-                    Planned
+                    {t('columns.planned')}
                   </td>
                   <td className="py-2 px-3 text-right text-xs font-semibold text-text-tertiary">
-                    Actual
+                    {t('columns.actual')}
                   </td>
                   <td className="py-2 pl-3 pr-6 text-right text-xs font-bold text-text">
-                    Remaining
+                    {t('columns.remaining')}
                   </td>
                 </tr>
 
@@ -605,7 +617,9 @@ export default function BudgetPage() {
 
                     {/* Total Income row */}
                     <tr className="bg-surface border-y border-border">
-                      <td className="py-2 px-4 text-sm font-bold text-text">Total Income</td>
+                      <td className="py-2 px-4 text-sm font-bold text-text">
+                        {t('sections.totalIncome')}
+                      </td>
                       <td className="py-2 px-3 text-right tabular-nums text-sm font-semibold text-text-secondary">
                         {formatCurrency(incomeTotals.budgeted)}
                       </td>
@@ -628,18 +642,18 @@ export default function BudgetPage() {
                         {expensesCollapsed ? <ChevronRight size={14} /> : <ChevronDown size={14} />}
                       </span>
                       <span className="text-xs font-semibold text-text-tertiary uppercase tracking-wide">
-                        Expenses
+                        {t('sections.expenses')}
                       </span>
                     </div>
                   </td>
                   <td className="py-2 px-3 text-right text-xs font-semibold text-text-tertiary">
-                    Planned
+                    {t('columns.planned')}
                   </td>
                   <td className="py-2 px-3 text-right text-xs font-semibold text-text-tertiary">
-                    Actual
+                    {t('columns.actual')}
                   </td>
                   <td className="py-2 pl-3 pr-6 text-right text-xs font-bold text-text">
-                    Remaining
+                    {t('columns.remaining')}
                   </td>
                 </tr>
 
@@ -649,7 +663,7 @@ export default function BudgetPage() {
                       <BudgetTypeSection
                         key={bt.key}
                         budgetType={bt.key}
-                        label={bt.label}
+                        label={t(`budgetType.${bt.key}`)}
                         categories={bt.categories}
                         editingId={editingId}
                         month={selectedMonth}
@@ -663,7 +677,9 @@ export default function BudgetPage() {
 
                     {/* Total Expenses row */}
                     <tr className="bg-surface border-y border-border">
-                      <td className="py-2 px-4 text-sm font-bold text-text">Total Expenses</td>
+                      <td className="py-2 px-4 text-sm font-bold text-text">
+                        {t('sections.totalExpenses')}
+                      </td>
                       <td className="py-2 px-3 text-right tabular-nums text-sm font-semibold text-text-secondary">
                         {formatCurrency(expenseTotals.budgeted)}
                       </td>
@@ -682,13 +698,18 @@ export default function BudgetPage() {
                 {groups.length === 0 && (
                   <tr>
                     <td colSpan={4} className="py-16 text-center text-sm text-text-tertiary">
-                      No categories yet.{' '}
-                      <Link
-                        to="/settings?tab=categories"
-                        className="font-medium text-brand-600 hover:text-brand-700"
-                      >
-                        Add some in Settings
-                      </Link>
+                      <Trans
+                        t={t}
+                        i18nKey="noCategories"
+                        components={{
+                          settings: (
+                            <Link
+                              to="/settings?tab=categories"
+                              className="font-medium text-brand-600 hover:text-brand-700"
+                            />
+                          ),
+                        }}
+                      />
                     </td>
                   </tr>
                 )}

@@ -1,4 +1,5 @@
 import type { Currency } from '../types';
+import { t } from '../i18n';
 
 export type Delimiter = ',' | ';';
 /** How a bank writes 5 March 2026 with numbers: 05/03/2026 (day first) or 03/05/2026 */
@@ -557,8 +558,8 @@ export function readImportRows(
   rawRows.forEach((raw, i) => {
     const amountCells = amountColumns.map((idx) => (idx === -1 ? '' : (raw[idx] ?? '')));
     if (amountCells.every((cell) => cell === '')) return;
-    const problem = (what: string, cell: string) => {
-      problems.push({ row: i + 1, message: `Can't read the ${what} "${cell}"` });
+    const problem = (what: 'date' | 'amount' | 'currency', cell: string) => {
+      problems.push({ row: i + 1, message: t(`import:problems.${what}`, { cell }) });
     };
 
     const dateCell = raw[dateIdx] ?? '';

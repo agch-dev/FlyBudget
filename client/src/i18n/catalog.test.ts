@@ -1,0 +1,52 @@
+import { describe, expect, it } from 'vitest';
+import { CATALOGS, NAMESPACES, catalogKeys } from './catalog';
+
+const text = (catalog: object, key: string): string =>
+  key.split('.').reduce((node, part) => (node as Record<string, object>)[part], catalog) as never;
+
+/** The `{{names}}` and `<tags>` a sentence has, which its translation must have too */
+const slots = (sentence: string) => (sentence.match(/\{\{\s*\w+\s*\}\}|<\/?\w+>/g) ?? []).sort();
+
+describe.each(NAMESPACES)('the %s catalog', (ns) => {
+  const english = catalogKeys(CATALOGS.en[ns]);
+  const spanish = catalogKeys(CATALOGS.es[ns]);
+
+  it('has no Spanish key that English lacks', () => {
+    expect(spanish.filter((key) => !english.includes(key))).toEqual([]);
+  });
+
+  it('has every English key in Spanish', () => {
+    expect(english.filter((key) => !spanish.includes(key))).toEqual([]);
+  });
+
+  it('keeps the same placeholders and tags in both languages', () => {
+    const different = spanish
+      .filter((key) => english.includes(key))
+      .filter(
+        (key) =>
+          slots(text(CATALOGS.en[ns], key)).join() !== slots(text(CATALOGS.es[ns], key)).join(),
+      );
+    expect(different).toEqual([]);
+  });
+
+  it('writes counts with both plural forms (_one and _other)', () => {
+    for (const keys of [english, spanish]) {
+      const one = keys.filter((k) => k.endsWith('_one')).map((k) => k.replace(/_one$/, ''));
+      const other = keys.filter((k) => k.endsWith('_other')).map((k) => k.replace(/_other$/, ''));
+      expect(one).toEqual(other);
+    }
+  });
+
+  // `Trans` reads a sentence as HTML, where these elements have no content: the words inside
+  // `<link>Add account</link>` would land outside the link. Name the tag something else.
+  it('names no tag after an HTML element that cannot have content', () => {
+    const empty = /<(area|base|br|col|embed|hr|img|input|link|meta|source|track|wbr)>/;
+    expect(english.filter((key) => empty.test(text(CATALOGS.en[ns], key)))).toEqual([]);
+  });
+});
+
+describe('catalogKeys', () => {
+  it('lists nested keys as dotted paths', () => {
+    expect(catalogKeys({ b: { d: 'x', c: 'y' }, a: 'z' })).toEqual(['a', 'b.c', 'b.d']);
+  });
+});

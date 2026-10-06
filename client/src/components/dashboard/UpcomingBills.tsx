@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { format, addDays, parseISO, differenceInCalendarDays } from 'date-fns';
 import { useScheduleOccurrences } from '../../hooks/useSchedules';
 // A native amount: each bill is shown in its own account's currency
@@ -13,6 +14,7 @@ import { ButtonLink } from '../ui/Button';
 import { useSchedules } from '../../hooks/useSchedules';
 
 export default function UpcomingBills() {
+  const { t } = useTranslation('reports');
   const viewingCurrency = useViewingCurrency();
   const today = format(new Date(), 'yyyy-MM-dd');
   const thirtyDaysOut = format(addDays(new Date(), 30), 'yyyy-MM-dd');
@@ -49,9 +51,9 @@ export default function UpcomingBills() {
   return (
     <Card>
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-semibold text-text">Upcoming Bills</h3>
+        <h3 className="text-sm font-semibold text-text">{t('home.bills.title')}</h3>
         <Link to="/recurring" className="text-xs text-brand-600 hover:text-brand-700 font-medium">
-          View all
+          {t('viewAll')}
         </Link>
       </div>
 
@@ -60,17 +62,17 @@ export default function UpcomingBills() {
           <EmptyState
             compact
             icon={<CalendarClock size={20} />}
-            title="Track your bills and paychecks"
-            description="Add rent, subscriptions and income that repeat, or let FlyBudget find them in your transactions."
+            title={t('home.bills.emptyTitle')}
+            description={t('home.bills.emptyDescription')}
             actions={
               <ButtonLink size="sm" to="/recurring?add=1">
-                Add recurring
+                {t('home.bills.addRecurring')}
               </ButtonLink>
             }
           />
         ) : (
           <p className="text-sm text-text-tertiary py-6 text-center">
-            Nothing due in the next 30 days.
+            {t('home.bills.nothingDue')}
           </p>
         )
       ) : (
@@ -79,6 +81,10 @@ export default function UpcomingBills() {
             // Calendar days: tomorrow is 1 day away even late in the evening
             const daysUntil = differenceInCalendarDays(parseISO(occ.expectedDate), new Date());
             const isWaiting = occ.displayStatus === 'waiting';
+            const date = format(
+              parseISO(occ.expectedDate),
+              t('datePattern.dayMonth', { ns: 'common' }),
+            );
             return (
               <div
                 key={`${occ.scheduleId}-${occ.id}-${i}`}
@@ -94,14 +100,13 @@ export default function UpcomingBills() {
                     {occ.scheduleName}
                   </p>
                   <p className="text-xs text-text-tertiary">
-                    {format(parseISO(occ.expectedDate), 'MMM d')}
                     {isWaiting
-                      ? ` · ${Math.abs(daysUntil)}d overdue`
+                      ? t('home.bills.overdue', { date, days: Math.abs(daysUntil) })
                       : daysUntil === 0
-                        ? ' · Today'
+                        ? t('home.bills.today', { date })
                         : daysUntil === 1
-                          ? ' · Tomorrow'
-                          : ` · in ${daysUntil}d`}
+                          ? t('home.bills.tomorrow', { date })
+                          : t('home.bills.inDays', { date, days: daysUntil })}
                   </p>
                 </div>
                 <span

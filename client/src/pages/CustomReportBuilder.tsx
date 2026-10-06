@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { ArrowLeft, Save, Download } from 'lucide-react';
 import ReportBuilderSidebar from '../components/reports/ReportBuilderSidebar';
 import ReportChartArea from '../components/reports/ReportChartArea';
@@ -29,6 +30,7 @@ const defaultConfig = (): CustomReportConfig => ({
 });
 
 export default function CustomReportBuilder() {
+  const { t } = useTranslation('reports');
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   // The dashboard this report was started from; a new report is added to it on save
@@ -122,20 +124,22 @@ export default function CustomReportBuilder() {
         <div className="flex items-center gap-3">
           <Link
             to={dashboardPageId ? `/reports?dashboard=${dashboardPageId}` : '/reports'}
+            aria-label={t('builder.back')}
+            title={t('builder.back')}
             className="text-text-tertiary hover:text-text-secondary transition-colors"
           >
             <ArrowLeft size={16} />
           </Link>
-          <h1 className="text-lg font-semibold text-text">{reportName || 'Custom Report'}</h1>
+          <h1 className="text-lg font-semibold text-text">{reportName || t('builder.title')}</h1>
           <SavedReportsList activeId={id} />
         </div>
         <div className="flex items-center gap-2">
           <ViewingCurrencySwitch />
           <Button variant="secondary" size="sm" onClick={handleExport} disabled={!data}>
-            <Download size={13} /> Export
+            <Download size={13} /> {t('builder.export')}
           </Button>
           <Button size="sm" onClick={() => setSaveOpen(true)}>
-            <Save size={13} /> {id ? 'Update' : 'Save'}
+            <Save size={13} /> {id ? t('update') : t('save')}
           </Button>
         </div>
       </div>

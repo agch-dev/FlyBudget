@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { format, parseISO } from 'date-fns';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
@@ -30,11 +31,12 @@ export function BudgetAmountSheet({
   onSave,
   onApplyBulk,
 }: Props) {
+  const { t } = useTranslation('budget');
   return (
     <Modal
       isOpen={category !== null}
       onClose={onClose}
-      title={category ? `Plan ${category.name}` : 'Plan'}
+      title={category ? t('sheet.title', { category: category.name }) : t('sheet.titlePlain')}
       size="sm"
     >
       {category && (
@@ -61,6 +63,7 @@ function SheetBody({
   onSave,
   onApplyBulk,
 }: Omit<Props, 'category'> & { category: BudgetCategory }) {
+  const { t } = useTranslation('budget');
   const [raw, setRaw] = useState(category.budgeted ? centsToInput(category.budgeted) : '');
   const [allYear, setAllYear] = useState(false);
   const { data: history } = useCategoryHistory(category.id, month);
@@ -75,23 +78,29 @@ function SheetBody({
     onClose();
   }
 
-  const suggestions = [
-    { label: isIncome ? 'Earned last month' : 'Spent last month', cents: history?.lastMonth },
-    { label: 'Monthly average', cents: history?.average },
-  ].filter((s): s is { label: string; cents: number } => !!s.cents);
+  const offered: { label: string; cents: number | undefined }[] = [
+    {
+      label: isIncome ? t('history.earnedLastMonth') : t('history.spentLastMonth'),
+      cents: history?.lastMonth,
+    },
+    { label: t('history.monthlyAverage'), cents: history?.average },
+  ];
+  const suggestions = offered.filter((s): s is { label: string; cents: number } => !!s.cents);
 
   return (
     <form onSubmit={save} className="grid gap-4">
-      <p className="text-sm text-text-secondary">{format(parseISO(`${month}-01`), 'MMMM yyyy')}</p>
+      <p className="text-sm text-text-secondary first-letter:uppercase">
+        {format(parseISO(`${month}-01`), t('datePattern.monthYear', { ns: 'common' }))}
+      </p>
       <label className="grid gap-1">
-        <span className="text-sm font-medium text-text-secondary">Planned</span>
+        <span className="text-sm font-medium text-text-secondary">{t('columns.planned')}</span>
         <input
           autoFocus
           type="number"
           inputMode="decimal"
           min="0"
           step="0.01"
-          aria-label={`Planned for ${category.name}`}
+          aria-label={t('plannedFor', { category: category.name })}
           value={raw}
           onChange={(e) => setRaw(e.target.value)}
           placeholder="0.00"
@@ -124,16 +133,16 @@ function SheetBody({
           onChange={(e) => setAllYear(e.target.checked)}
           className="h-5 w-5 accent-brand-600"
         />
-        Use this amount for the next 12 months
+        {t('sheet.nextTwelveMonths')}
       </label>
 
       <SavingPausedHint />
       <div className="flex gap-2">
         <Button type="button" variant="secondary" className="min-h-11 flex-1" onClick={onClose}>
-          Cancel
+          {t('ui.cancel', { ns: 'common' })}
         </Button>
         <Button type="submit" className="min-h-11 flex-1" disabled={!canSave}>
-          Save
+          {t('sheet.save')}
         </Button>
       </div>
     </form>

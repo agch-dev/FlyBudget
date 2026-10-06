@@ -4,19 +4,73 @@ import {
   addYears,
   differenceInCalendarDays,
   endOfMonth,
+  format,
   parseISO,
   startOfMonth,
 } from 'date-fns';
+import { t } from '../../i18n';
 import {
   HOME_CURRENCY,
-  RECURRENCE_TYPE_LABELS,
+  RECURRENCE_TYPES,
   type AmountType,
   type Currency,
+  type DiscoveredSchedule,
+  type OccurrenceDisplayStatus,
+  type RecurrenceType,
   type ScheduleOccurrence,
 } from '../../types';
 import type { RecurringBadgeStatus } from './StatusBadge';
 
-export const FREQ_LABEL = new Map(RECURRENCE_TYPE_LABELS.map((f) => [f.value, f.label]));
+export { RECURRENCE_TYPES };
+
+/** How often an item repeats: "Monthly", "Cada 2 semanas" */
+export const frequencyLabel = (type: RecurrenceType): string => t(`recurring:frequency.${type}`);
+
+/** The words on a status badge */
+export const statusLabel = (status: RecurringBadgeStatus): string =>
+  t(`recurring:status.${status}`);
+
+/**
+ * How far a pending date is from today ("3 days overdue", "Tomorrow", "in 9 days"); null for
+ * an item that is no longer pending. `daysUntil` is negative for a date that has passed.
+ */
+export function dueText(status: OccurrenceDisplayStatus, daysUntil: number): string | null {
+  if (status === 'waiting') return t('recurring:due.overdue', { count: Math.abs(daysUntil) });
+  if (status !== 'upcoming' && status !== 'due') return null;
+  if (daysUntil === 0) return t('recurring:due.today');
+  if (daysUntil === 1) return t('recurring:due.tomorrow');
+  return t('recurring:due.inDays', { count: daysUntil });
+}
+
+/** A weekday's name in the App Language, 0 = Sunday */
+const weekdayName = (day: number) => format(new Date(2023, 0, 1 + day), 'EEEE');
+
+/** When a recurring item that was found repeats, like Actual's getRecurringDescription. */
+export function describeDiscovered(item: DiscoveredSchedule): string {
+  const r = item.recurrenceRule;
+  const exact = item.exactDate;
+  if (r.type === 'weekly' || r.type === 'biweekly') {
+    const weekday = weekdayName(r.anchorDay);
+    if (r.type === 'weekly')
+      return t(exact ? 'recurring:discover.weekly' : 'recurring:discover.weeklyApprox', {
+        weekday,
+      });
+    return t(exact ? 'recurring:discover.biweekly' : 'recurring:discover.biweeklyApprox', {
+      weekday,
+    });
+  }
+  if (r.type === 'monthly') {
+    if (r.anchorDay >= 31)
+      return t(
+        exact ? 'recurring:discover.monthlyLastDay' : 'recurring:discover.monthlyLastDayApprox',
+      );
+    return t(exact ? 'recurring:discover.monthly' : 'recurring:discover.monthlyApprox', {
+      count: r.anchorDay,
+      ordinal: true,
+    });
+  }
+  return frequencyLabel(item.recurrenceType);
+}
 
 /**
  * Actual-style amount: `~` prefix when not exact, `+` prefix for income. Pass the recurring
@@ -50,15 +104,16 @@ export function amountNeedsConfirming(
 
 export const DEFAULT_UPCOMING_LENGTH = '7';
 
-export const UPCOMING_PRESETS: { value: string; label: string }[] = [
-  { value: '1', label: '1 day' },
-  { value: '7', label: '1 week' },
-  { value: '14', label: '2 weeks' },
-  { value: 'oneMonth', label: '1 month' },
-  { value: 'currentMonth', label: 'End of the current month' },
-];
+export const UPCOMING_PRESETS = ['1', '7', '14', 'oneMonth', 'currentMonth'] as const;
+type UpcomingPreset = (typeof UPCOMING_PRESETS)[number];
 
-export const isCustomUpcomingLength = (v: string) => !UPCOMING_PRESETS.some((p) => p.value === v);
+const isUpcomingPreset = (v: string): v is UpcomingPreset =>
+  (UPCOMING_PRESETS as readonly string[]).includes(v);
+
+export const isCustomUpcomingLength = (v: string) => !isUpcomingPreset(v);
+
+export const UPCOMING_UNITS = ['day', 'week', 'month', 'year'] as const;
+type UpcomingUnit = (typeof UPCOMING_UNITS)[number];
 
 /** Number of days after today that still count as "upcoming". */
 export function getUpcomingDays(
@@ -91,11 +146,11 @@ export function getUpcomingDays(
 }
 
 export function describeUpcomingLength(length: string): string {
-  const preset = UPCOMING_PRESETS.find((p) => p.value === length);
-  if (preset) return preset.label;
+  if (isUpcomingPreset(length)) return t(`recurring:upcoming.preset.${length}`);
   const [num, unit] = length.split('-');
-  const n = Math.max(1, parseInt(num, 10) || 1);
-  return `${n} ${unit}${n === 1 ? '' : 's'}`;
+  const count = Math.max(1, parseInt(num, 10) || 1);
+  const known = UPCOMING_UNITS.find((u): u is UpcomingUnit => u === unit) ?? 'day';
+  return t(`recurring:upcoming.length.${known}`, { count });
 }
 
 /**

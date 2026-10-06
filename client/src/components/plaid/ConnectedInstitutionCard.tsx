@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { RefreshCw, Unlink, AlertTriangle, Loader2 } from 'lucide-react';
 import { SyncStatusBadge } from './SyncStatusBadge';
 import { HostedLinkWaiting } from './HostedLinkWaiting';
@@ -14,6 +15,7 @@ interface Props {
 }
 
 export function ConnectedInstitutionCard({ item }: Props) {
+  const { t } = useTranslation('settings');
   const [showDisconnect, setShowDisconnect] = useState(false);
   const syncItem = useSyncItem();
   const disconnectItem = useDisconnectItem();
@@ -38,7 +40,7 @@ export function ConnectedInstitutionCard({ item }: Props) {
   return (
     <>
       <div className="bg-surface border border-border-light rounded-lg p-5 space-y-4 shadow-card">
-        <div className="flex items-start justify-between">
+        <div className="flex items-start justify-between max-md:flex-wrap max-md:gap-2">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-brand-600 flex items-center justify-center text-white font-semibold text-sm">
               {initial}
@@ -50,7 +52,9 @@ export function ConnectedInstitutionCard({ item }: Props) {
           </div>
           {item.lastSyncedAt && (
             <span className="text-xs text-text-tertiary">
-              Last synced {formatDistanceToNow(new Date(item.lastSyncedAt), { addSuffix: true })}
+              {t('banks.lastSynced', {
+                when: formatDistanceToNow(new Date(item.lastSyncedAt), { addSuffix: true }),
+              })}
             </span>
           )}
         </div>
@@ -79,10 +83,7 @@ export function ConnectedInstitutionCard({ item }: Props) {
         {item.syncStatus === 'login_required' && (
           <div className="flex items-start gap-2 bg-caution-subtle border border-caution/10 rounded-md px-3 py-2">
             <AlertTriangle size={14} className="text-caution mt-0.5 shrink-0" />
-            <p className="text-xs text-caution">
-              Your bank requires you to re-authenticate. Click "Reconnect" to update your
-              credentials.
-            </p>
+            <p className="text-xs text-caution">{t('banks.plaid.loginRequired')}</p>
           </div>
         )}
 
@@ -98,22 +99,22 @@ export function ConnectedInstitutionCard({ item }: Props) {
                   {acct.mask && <span className="text-text-tertiary ml-1">****{acct.mask}</span>}
                 </span>
                 <span className="text-text-tertiary">
-                  {acct.accountName ? `→ ${acct.accountName}` : 'Not linked'}
+                  {acct.accountName ? `→ ${acct.accountName}` : t('banks.notLinked')}
                 </span>
               </div>
             ))}
           </div>
         )}
 
-        <div className="flex items-center gap-2 pt-1">
+        <div className="flex items-center gap-2 pt-1 max-md:flex-wrap">
           <Button variant="secondary" size="sm" onClick={handleSync} disabled={isSyncing}>
             {isSyncing ? (
               <>
-                <Loader2 size={12} className="animate-spin" /> Syncing...
+                <Loader2 size={12} className="animate-spin" /> {t('banks.syncing')}
               </>
             ) : (
               <>
-                <RefreshCw size={12} /> Sync Now
+                <RefreshCw size={12} /> {t('banks.syncNow')}
               </>
             )}
           </Button>
@@ -124,7 +125,7 @@ export function ConnectedInstitutionCard({ item }: Props) {
               disabled={reconnect.state.phase === 'starting'}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-caution bg-caution-subtle border border-caution/20 rounded-md hover:opacity-80 disabled:opacity-50 transition-colors"
             >
-              Reconnect
+              {t('banks.reconnect')}
             </button>
           )}
 
@@ -132,14 +133,17 @@ export function ConnectedInstitutionCard({ item }: Props) {
             onClick={() => setShowDisconnect(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-negative hover:bg-negative-subtle rounded-md transition-colors ml-auto"
           >
-            <Unlink size={12} /> Disconnect
+            <Unlink size={12} /> {t('banks.disconnect')}
           </button>
         </div>
 
         {syncItem.isSuccess && syncItem.data && (
           <p className="text-xs text-positive">
-            Synced: {syncItem.data.added} added, {syncItem.data.modified} modified,{' '}
-            {syncItem.data.removed} removed.
+            {t('banks.syncResult', {
+              added: syncItem.data.added,
+              modified: syncItem.data.modified,
+              removed: syncItem.data.removed,
+            })}
           </p>
         )}
       </div>
@@ -148,9 +152,9 @@ export function ConnectedInstitutionCard({ item }: Props) {
         isOpen={showDisconnect}
         onClose={() => setShowDisconnect(false)}
         onConfirm={handleDisconnect}
-        title="Disconnect Institution"
-        message={`Are you sure you want to disconnect ${item.institutionName}? This revokes FlyBudget's access to this bank at Plaid. Your existing accounts and transactions will not be deleted.`}
-        confirmLabel="Disconnect"
+        title={t('banks.plaid.disconnectTitle')}
+        message={t('banks.plaid.disconnectMessage', { name: item.institutionName })}
+        confirmLabel={t('banks.disconnect')}
         danger
       />
     </>

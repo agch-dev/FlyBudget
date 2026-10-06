@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { CurrencyInput } from '../ui/CurrencyInput';
@@ -9,7 +10,7 @@ import { useCanSave } from '../../hooks/useConnection';
 import { SavingPausedHint } from '../connection/SavingPausedHint';
 import { formatCurrency } from '../../utils/currency';
 import { formCurrency, targetNeedsConfirming } from '../../utils/goals';
-import { CURRENCIES, HOME_CURRENCY, type Currency, type Goal } from '../../types';
+import { HOME_CURRENCY, type Currency, type Goal } from '../../types';
 
 const ICONS = ['🎯', '🏠', '✈️', '🚗', '💰', '🎓', '💍', '🏖️', '📱', '🛡️', '🎁', '⭐'];
 const COLORS = [
@@ -40,6 +41,7 @@ interface Props {
 }
 
 export function GoalFormModal({ isOpen, onClose, onSave, editGoal }: Props) {
+  const { t } = useTranslation('goals');
   const { data: accounts = [] } = useAccounts();
   const canSave = useCanSave();
 
@@ -70,8 +72,6 @@ export function GoalFormModal({ isOpen, onClose, onSave, editGoal }: Props) {
 
   const { currency, locked } = formCurrency(accountId, accounts, chosenCurrency);
   const linkedAccount = accounts.find((a) => a.id === accountId);
-  const currencyName = (c: Currency) =>
-    CURRENCIES.find((x) => x.value === c)?.label.toLowerCase() ?? c;
 
   function changeAccount(id: string) {
     setAccountId(id);
@@ -105,37 +105,36 @@ export function GoalFormModal({ isOpen, onClose, onSave, editGoal }: Props) {
   }
 
   if (confirming && editGoal) {
-    const was = editGoal.currency ?? HOME_CURRENCY;
     return (
-      <Modal isOpen={isOpen} onClose={onClose} title="Check the target" size="sm">
+      <Modal isOpen={isOpen} onClose={onClose} title={t('checkTarget.title')} size="sm">
         <div className="space-y-4">
           <p className="text-sm text-text-secondary">
-            {linkedAccount?.name ?? 'The linked account'} is in {currencyName(currency)}, so this
-            goal changes from {currencyName(was)} to {currencyName(currency)}. Its amounts keep
-            their numbers and are not converted.
+            {t(`checkTarget.account.${currency}`, {
+              account: linkedAccount?.name ?? t('checkTarget.linkedAccount'),
+            })}
           </p>
           <dl className="text-sm rounded-md border border-border-light divide-y divide-border-light">
             <div className="flex justify-between px-3 py-2">
-              <dt className="text-text-secondary">Target</dt>
+              <dt className="text-text-secondary">{t('form.target')}</dt>
               <dd className="font-medium tabular-nums text-text">
                 {formatCurrency(targetAmount, currency)}
               </dd>
             </div>
             <div className="flex justify-between px-3 py-2">
-              <dt className="text-text-secondary">Saved so far</dt>
+              <dt className="text-text-secondary">{t('form.saved')}</dt>
               <dd className="font-medium tabular-nums text-text">
                 {formatCurrency(currentAmount, currency)}
               </dd>
             </div>
           </dl>
-          <p className="text-sm text-text-secondary">Is that the right target?</p>
+          <p className="text-sm text-text-secondary">{t('checkTarget.question')}</p>
           <SavingPausedHint className="text-right" />
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="secondary" onClick={() => setConfirming(false)}>
-              Change amounts
+              {t('checkTarget.change')}
             </Button>
             <Button onClick={save} disabled={!canSave}>
-              Yes, save
+              {t('checkTarget.save')}
             </Button>
           </div>
         </div>
@@ -144,15 +143,20 @@ export function GoalFormModal({ isOpen, onClose, onSave, editGoal }: Props) {
   }
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={editGoal ? 'Edit Goal' : 'Add Goal'} size="sm">
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={editGoal ? t('form.editTitle') : t('form.addTitle')}
+      size="sm"
+    >
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="space-y-1.5">
-          <label className="text-sm font-medium text-text-secondary">Name</label>
+          <label className="text-sm font-medium text-text-secondary">{t('form.name')}</label>
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="e.g. Emergency Fund"
-            aria-label="Name"
+            placeholder={t('form.namePlaceholder')}
+            aria-label={t('form.name')}
             className="w-full px-3 py-2 text-sm border border-border rounded-md bg-surface text-text focus:outline-none focus:ring-1 focus:ring-brand-600 focus:border-brand-600"
             autoFocus
           />
@@ -160,32 +164,32 @@ export function GoalFormModal({ isOpen, onClose, onSave, editGoal }: Props) {
 
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-text-secondary">Target</label>
+            <label className="text-sm font-medium text-text-secondary">{t('form.target')}</label>
             <CurrencyInput
               value={targetAmount}
               onChange={setTargetAmount}
               currency={currency}
               className="w-full"
-              aria-label="Target"
+              aria-label={t('form.target')}
             />
           </div>
           <div className="space-y-1.5">
-            <label className="text-sm font-medium text-text-secondary">Saved so far</label>
+            <label className="text-sm font-medium text-text-secondary">{t('form.saved')}</label>
             <CurrencyInput
               value={currentAmount}
               onChange={setCurrentAmount}
               currency={currency}
               className="w-full"
-              aria-label="Saved so far"
+              aria-label={t('form.saved')}
             />
           </div>
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-sm font-medium text-text-secondary">Target date (optional)</label>
+          <label className="text-sm font-medium text-text-secondary">{t('form.targetDate')}</label>
           <input
             type="date"
-            aria-label="Target date"
+            aria-label={t('form.targetDateLabel')}
             value={targetDate}
             onChange={(e) => setTargetDate(e.target.value)}
             className="w-full px-3 py-2 text-sm border border-border rounded-md bg-surface text-text focus:outline-none focus:ring-1 focus:ring-brand-600 focus:border-brand-600"
@@ -193,16 +197,14 @@ export function GoalFormModal({ isOpen, onClose, onSave, editGoal }: Props) {
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-sm font-medium text-text-secondary">
-            Linked account (optional)
-          </label>
+          <label className="text-sm font-medium text-text-secondary">{t('form.account')}</label>
           <select
-            aria-label="Linked account"
+            aria-label={t('form.accountLabel')}
             value={accountId}
             onChange={(e) => changeAccount(e.target.value)}
             className="w-full px-3 py-2 text-sm border border-border rounded-md bg-surface text-text focus:outline-none focus:ring-1 focus:ring-brand-600 focus:border-brand-600"
           >
-            <option value="">None</option>
+            <option value="">{t('form.noAccount')}</option>
             {accounts
               .filter((a) => !a.closedAt)
               .map((a) => (
@@ -217,11 +219,11 @@ export function GoalFormModal({ isOpen, onClose, onSave, editGoal }: Props) {
           value={currency}
           onChange={setChosenCurrency}
           locked={locked}
-          lockedHint="A goal is in its linked account's currency."
+          lockedHint={t('form.currencyLocked')}
         />
 
         <div className="space-y-1.5">
-          <label className="text-sm font-medium text-text-secondary">Icon</label>
+          <label className="text-sm font-medium text-text-secondary">{t('form.icon')}</label>
           <div className="flex flex-wrap gap-1.5">
             {ICONS.map((i) => (
               <button
@@ -240,14 +242,14 @@ export function GoalFormModal({ isOpen, onClose, onSave, editGoal }: Props) {
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-sm font-medium text-text-secondary">Color</label>
+          <label className="text-sm font-medium text-text-secondary">{t('form.color')}</label>
           <div className="flex gap-2">
             {COLORS.map((c) => (
               <button
                 key={c}
                 type="button"
                 onClick={() => setColor(c)}
-                aria-label={`Color ${c}`}
+                aria-label={t('form.colorOption', { color: c })}
                 aria-pressed={color === c}
                 className={`w-7 h-7 rounded-full border-2 transition-all ${
                   color === c ? 'border-text scale-110' : 'border-transparent'
@@ -261,10 +263,10 @@ export function GoalFormModal({ isOpen, onClose, onSave, editGoal }: Props) {
         <SavingPausedHint className="text-right" />
         <div className="flex justify-end gap-2 pt-2">
           <Button type="button" variant="secondary" onClick={onClose}>
-            Cancel
+            {t('form.cancel')}
           </Button>
           <Button type="submit" disabled={!name.trim() || targetAmount <= 0 || !canSave}>
-            {editGoal ? 'Save' : 'Add Goal'}
+            {editGoal ? t('form.save') : t('form.add')}
           </Button>
         </div>
       </form>

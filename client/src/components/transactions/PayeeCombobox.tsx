@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { Payee } from '../../types';
 
 interface PayeeValue {
@@ -16,6 +17,7 @@ interface Props {
 }
 
 export function PayeeCombobox({ value, onChange, payees, className = '', fieldClassName }: Props) {
+  const { t } = useTranslation('transactions');
   const large = fieldClassName !== undefined;
   const [query, setQuery] = useState(value.name);
   const [open, setOpen] = useState(false);
@@ -59,8 +61,8 @@ export function PayeeCombobox({ value, onChange, payees, className = '', fieldCl
         value={query}
         onChange={handleChange}
         onFocus={() => setOpen(true)}
-        placeholder="Payee"
-        aria-label="Payee"
+        placeholder={t('field.payee')}
+        aria-label={t('field.payee')}
         className={
           fieldClassName ??
           `block w-full bg-transparent text-sm text-text placeholder-text-tertiary focus:outline-none ${className}`
@@ -85,7 +87,7 @@ export function PayeeCombobox({ value, onChange, payees, className = '', fieldCl
           ))}
           {query && !exactMatch && (
             <div className="px-3 py-1.5 text-xs text-text-tertiary border-t border-border-light">
-              New payee: "{query}"
+              {t('picker.newPayee', { name: query })}
             </div>
           )}
         </div>

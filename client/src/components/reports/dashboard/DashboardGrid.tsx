@@ -1,5 +1,5 @@
-import { useCallback, useMemo } from 'react';
-import ReactGridLayout, { useContainerWidth } from 'react-grid-layout';
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import ReactGridLayout from 'react-grid-layout';
 import type { Layout } from 'react-grid-layout';
 import WidgetCard, { NO_DRAG_CLASS } from './WidgetCard';
 import { useSaveLayout } from '../../../hooks/useDashboards';
@@ -30,6 +30,27 @@ const MIN_SIZE: Record<DashboardWidget['type'], { minW: number; minH: number }> 
   'custom-report': { minW: 3, minH: 3 },
 };
 
+/**
+ * The width the grid has to fill, measured before the first paint and on every resize. The
+ * grid isn't drawn until it is known: drawn at a guessed width, a phone could get the desktop
+ * layout (react-grid-layout's own `useContainerWidth` starts at 1280px and, opened from another
+ * page, sometimes kept it).
+ */
+function useGridWidth() {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState<number | null>(null);
+  useLayoutEffect(() => {
+    const node = containerRef.current;
+    if (!node) return;
+    const measure = () => setWidth(Math.round(node.getBoundingClientRect().width));
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+  return { containerRef, width: width ?? 0, mounted: width !== null && width > 0 };
+}
+
 interface Props {
   pageId: string;
   widgets: DashboardWidget[];
@@ -47,7 +68,7 @@ export default function DashboardGrid({
   dashboardRange,
   editing,
 }: Props) {
-  const { width, containerRef, mounted } = useContainerWidth();
+  const { width, containerRef, mounted } = useGridWidth();
   const saveLayout = useSaveLayout();
   const mobile = width < MOBILE_WIDTH;
   const reportsById = useMemo(() => new Map(reports.map((r) => [r.id, r])), [reports]);

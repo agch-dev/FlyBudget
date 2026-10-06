@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { format, parseISO } from 'date-fns';
 import { ArrowLeftRight, ChevronDown, ChevronRight } from 'lucide-react';
 import {
@@ -26,6 +27,7 @@ interface Props {
  * user says so; "Not a transfer" stops that pair from being suggested again.
  */
 export function TransferSuggestions({ accountId, accountName }: Props) {
+  const { t } = useTranslation('transactions');
   const { data } = useTransferSuggestions();
   const link = useLinkTransfer();
   const dismiss = useDismissTransferSuggestion();
@@ -38,34 +40,32 @@ export function TransferSuggestions({ accountId, accountName }: Props) {
   if (suggestions.length === 0) return null;
 
   const busy = link.isPending || dismiss.isPending;
-  const nameOf = (id: string) => accountName(id) ?? 'Closed account';
+  const nameOf = (id: string) => accountName(id) ?? t('term.closedAccount');
 
-  const side = (t: TransferSuggestionSide) => (
+  const side = (s: TransferSuggestionSide) => (
     <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-sm">
       <span className="text-xs text-text-tertiary w-24 shrink-0 tabular-nums">
-        {format(parseISO(t.date), 'MMM d, yyyy')}
+        {format(parseISO(s.date), t('datePattern.medium', { ns: 'common' }))}
       </span>
       <span className="flex-1 min-w-0 truncate text-text">
-        {t.payeeName || 'No payee'}
-        <span className="text-xs text-text-tertiary"> · {nameOf(t.accountId)}</span>
+        {s.payeeName || t('term.noPayee')}
+        <span className="text-xs text-text-tertiary"> · {nameOf(s.accountId)}</span>
       </span>
-      <span className={`font-medium tabular-nums ${t.amount > 0 ? 'text-positive' : 'text-text'}`}>
-        {t.amount > 0 ? '+' : ''}
-        {formatCurrency(t.amount, t.currency)}
+      <span className={`font-medium tabular-nums ${s.amount > 0 ? 'text-positive' : 'text-text'}`}>
+        {s.amount > 0 ? '+' : ''}
+        {formatCurrency(s.amount, s.currency)}
       </span>
     </div>
   );
 
   return (
-    <section aria-label="Possible transfers" className="border-b border-border bg-brand-50/60">
+    <section aria-label={t('suggestions.label')} className="border-b border-border bg-brand-50/60">
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-4 py-1 max-md:py-0">
         <ArrowLeftRight size={15} className="text-brand-600 shrink-0" aria-hidden />
         <span className="text-sm font-medium text-text">
           {suggestionCountLabel(suggestions.length)}
         </span>
-        <span className="text-xs text-text-secondary">
-          Money that left one account and arrived in another.
-        </span>
+        <span className="text-xs text-text-secondary">{t('suggestions.explanation')}</span>
         <Button
           variant="ghost"
           size="sm"
@@ -74,7 +74,7 @@ export function TransferSuggestions({ accountId, accountName }: Props) {
           aria-controls="transfer-suggestions"
           onClick={() => setExpanded(!expanded)}
         >
-          {expanded ? 'Hide' : 'Review'}
+          {expanded ? t('suggestions.hide') : t('suggestions.review')}
           {expanded ? (
             <ChevronDown size={14} aria-hidden />
           ) : (
@@ -90,7 +90,10 @@ export function TransferSuggestions({ accountId, accountName }: Props) {
         >
           {suggestions.map(({ outflow, inflow, rate }) => {
             const key = `${outflow.id}:${inflow.id}`;
-            const named = `${outflow.payeeName || 'No payee'} and ${inflow.payeeName || 'No payee'}`;
+            const named = {
+              outflow: outflow.payeeName || t('term.noPayee'),
+              inflow: inflow.payeeName || t('term.noPayee'),
+            };
             return (
               <li
                 key={key}
@@ -111,24 +114,24 @@ export function TransferSuggestions({ accountId, accountName }: Props) {
                   <Button
                     size="sm"
                     disabled={!canSave || busy}
-                    aria-label={`Link as transfer: ${named}`}
+                    aria-label={t('suggestions.linkNamed', named)}
                     onClick={() => {
                       setRefused(key);
                       link.mutate({ id: outflow.id, otherTransactionId: inflow.id });
                     }}
                   >
-                    Link as transfer
+                    {t('suggestions.link')}
                   </Button>
                   <Button
                     variant="secondary"
                     size="sm"
                     disabled={!canSave || busy}
-                    aria-label={`Not a transfer: ${named}`}
+                    aria-label={t('suggestions.dismissNamed', named)}
                     onClick={() =>
                       dismiss.mutate({ id: outflow.id, otherTransactionId: inflow.id })
                     }
                   >
-                    Not a transfer
+                    {t('suggestions.dismiss')}
                   </Button>
                 </div>
               </li>

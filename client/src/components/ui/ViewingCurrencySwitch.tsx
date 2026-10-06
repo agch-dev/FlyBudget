@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { usePreferencesStore } from '../../store/preferencesStore';
 import { CURRENCIES } from '../../types';
 
@@ -7,13 +8,14 @@ import { CURRENCIES } from '../../types';
  * preference of this device. The Budget and each account's own amounts don't follow it.
  */
 export function ViewingCurrencySwitch({ className = '' }: { className?: string }) {
+  const { t } = useTranslation();
   const viewing = usePreferencesStore((s) => s.viewingCurrency);
   const setViewing = usePreferencesStore((s) => s.setViewingCurrency);
   return (
     <div
       role="radiogroup"
-      aria-label="Viewing currency"
-      title="Show totals in pesos or in dollars. The Budget is always in pesos."
+      aria-label={t('viewingCurrency.label')}
+      title={t('viewingCurrency.hint')}
       className={`inline-flex shrink-0 rounded-md border border-border bg-surface p-0.5 ${className}`}
     >
       {CURRENCIES.map((c) => {
@@ -24,7 +26,7 @@ export function ViewingCurrencySwitch({ className = '' }: { className?: string }
             type="button"
             role="radio"
             aria-checked={selected}
-            aria-label={c.label}
+            aria-label={t(`currency.${c.value}`)}
             onClick={() => setViewing(c.value)}
             className={`px-2.5 py-1 max-md:min-h-11 max-md:min-w-11 text-xs rounded tabular-nums whitespace-nowrap transition-colors cursor-pointer ${
               selected

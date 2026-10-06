@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as api from '../api/dashboards';
 import { useUndoStore } from '../store/undoStore';
+import { t } from '../i18n';
 import type { DashboardPage, DashboardWidget } from '../types';
 
 const widgetsKey = (pageId: string) => ['dashboards', pageId, 'widgets'];
@@ -96,7 +97,7 @@ export function useUpdateWidget() {
       // Moves between dashboards aren't undoable; date range and name edits are
       if (!data.meta) return;
       useUndoStore.getState().push({
-        description: 'Edit report widget',
+        description: () => t('reports:undo.editWidget'),
         undo: async () => {
           await api.updateWidget(widget.id, { meta: widget.meta });
           qc.invalidateQueries({ queryKey: ['dashboards'] });
@@ -118,7 +119,7 @@ export function useDeleteWidget() {
       qc.invalidateQueries({ queryKey: widgetsKey(widget.pageId) });
       let restoredId = widget.id;
       useUndoStore.getState().push({
-        description: 'Remove report widget',
+        description: () => t('reports:undo.removeWidget'),
         undo: async () => {
           const restored = await api.addWidget(widget.pageId, {
             type: widget.type,

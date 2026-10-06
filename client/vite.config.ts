@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import { readFileSync, rmSync } from 'fs';
 import path from 'path';
 import { defineConfig, normalizePath, type Plugin } from 'vite';
@@ -115,6 +116,8 @@ export default defineConfig(({ mode }) => ({
   // so both use relative paths
   base: mode === 'electron' || mode === 'demo' ? './' : '/',
   define: { __FLYBUDGET_VERSION__: JSON.stringify(version) },
+  // Unit tests run in English (src/i18n/testSetup.ts)
+  test: { setupFiles: ['src/i18n/testSetup.ts'] },
   worker: {
     format: 'es',
     plugins: () => (mode === 'demo' ? [demoServerModules()] : []),

@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { migratePreferences, resetPreferences, usePreferencesStore } from './preferencesStore';
+import {
+  defaultDateFormat,
+  migratePreferences,
+  resetPreferences,
+  usePreferencesStore,
+} from './preferencesStore';
 
 describe('stored preferences', () => {
   it('drops the currency symbol saved by earlier versions and keeps the rest', () => {
@@ -27,5 +32,29 @@ describe('stored preferences', () => {
 
   it('keeps pesos for preferences saved before the switch existed', () => {
     expect(migratePreferences({ theme: 'dark' })).not.toHaveProperty('viewingCurrency');
+  });
+
+  it('starts in the language of the browser, and remembers a choice', () => {
+    // Tests run with an English browser language (or none)
+    expect(usePreferencesStore.getState().language).toBe('en');
+    usePreferencesStore.getState().setLanguage('es');
+    expect(usePreferencesStore.getState().language).toBe('es');
+    resetPreferences();
+    expect(usePreferencesStore.getState().language).toBe('en');
+  });
+
+  it('writes dates day first on a device that starts in Spanish', () => {
+    expect(defaultDateFormat('es')).toBe('d MMM yyyy');
+    expect(defaultDateFormat('en')).toBe('MMM d, yyyy');
+  });
+
+  it('keeps the date format when the language is switched', () => {
+    expect(usePreferencesStore.getState().dateFormat).toBe('MMM d, yyyy');
+    usePreferencesStore.getState().setLanguage('es');
+    expect(usePreferencesStore.getState().dateFormat).toBe('MMM d, yyyy');
+    usePreferencesStore.getState().setDateFormat('yyyy-MM-dd');
+    usePreferencesStore.getState().setLanguage('en');
+    expect(usePreferencesStore.getState().dateFormat).toBe('yyyy-MM-dd');
+    resetPreferences();
   });
 });

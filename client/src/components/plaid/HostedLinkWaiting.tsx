@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { ExternalLink, Loader2, ShieldCheck } from 'lucide-react';
 import { Button } from '../ui/Button';
 
@@ -9,26 +10,25 @@ export function HostedLinkWaiting({
   onReopen: () => void;
   onCancel: () => void;
 }) {
+  const { t } = useTranslation('settings');
   return (
     <div className="text-center space-y-4 py-2">
       <Loader2 size={28} className="animate-spin text-brand-600 mx-auto" />
       <div>
-        <h3 className="text-sm font-semibold text-text">Finish connecting in your browser</h3>
+        <h3 className="text-sm font-semibold text-text">{t('banks.hostedLink.title')}</h3>
         <p className="text-xs text-text-secondary mt-1 max-w-sm mx-auto leading-relaxed">
-          Plaid opened in your web browser. Log in to your bank there — FlyBudget will continue
-          automatically when you&apos;re done.
+          {t('banks.hostedLink.detail')}
         </p>
       </div>
       <p className="inline-flex items-center gap-1.5 text-[11px] text-text-tertiary">
-        <ShieldCheck size={12} /> Your bank login happens on Plaid&apos;s secure site, never in
-        FlyBudget.
+        <ShieldCheck size={12} /> {t('banks.hostedLink.secure')}
       </p>
-      <div className="flex justify-center gap-2">
+      <div className="flex justify-center gap-2 max-md:flex-wrap">
         <Button variant="secondary" onClick={onReopen}>
-          <ExternalLink size={14} /> Open Plaid again
+          <ExternalLink size={14} /> {t('banks.hostedLink.reopen')}
         </Button>
         <Button variant="secondary" onClick={onCancel}>
-          Cancel
+          {t('ui.cancel', { ns: 'common' })}
         </Button>
       </div>
     </div>

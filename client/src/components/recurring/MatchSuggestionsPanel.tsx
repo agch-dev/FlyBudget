@@ -1,10 +1,12 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ChevronDown, ChevronRight, Check, X } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { useMatchSuggestions, useMatchOccurrence, useDismissMatch } from '../../hooks/useSchedules';
 import { formatCurrency } from '../../utils/currency';
 
 export default function MatchSuggestionsPanel() {
+  const { t } = useTranslation('recurring');
   const { data: suggestions = [] } = useMatchSuggestions();
   const matchOcc = useMatchOccurrence();
   const dismissMatch = useDismissMatch();
@@ -17,15 +19,12 @@ export default function MatchSuggestionsPanel() {
   return (
     <div className="shrink-0 bg-brand-600 text-white">
       <div className="flex items-center justify-between px-6 py-2 text-sm font-medium">
-        <span>
-          {totalCandidates} transaction{totalCandidates !== 1 ? 's' : ''} may match your recurring
-          items
-        </span>
+        <span>{t('suggestions.mayMatch', { count: totalCandidates })}</span>
         <button
           onClick={() => setExpanded(!expanded)}
           className="flex items-center gap-1 underline underline-offset-2 hover:opacity-80 cursor-pointer"
         >
-          {expanded ? 'Hide' : 'Review now'}
+          {expanded ? t('suggestions.hide') : t('suggestions.review')}
           {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
         </button>
       </div>
@@ -37,7 +36,7 @@ export default function MatchSuggestionsPanel() {
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-sm font-medium text-text">{sg.scheduleName}</span>
                 <span className="text-xs text-text-tertiary">
-                  {format(parseISO(sg.expectedDate), 'MMM d')} ·{' '}
+                  {format(parseISO(sg.expectedDate), t('datePattern.dayMonth', { ns: 'common' }))} ·{' '}
                   {formatCurrency(sg.expectedAmount, sg.currency)}
                 </span>
               </div>
@@ -48,10 +47,12 @@ export default function MatchSuggestionsPanel() {
                     <div className="flex-1 min-w-0">
                       <span className="text-text-secondary">{c.payeeName || '—'}</span>
                       <span className="text-text-tertiary ml-2 text-xs">
-                        {format(parseISO(c.date), 'MMM d')} ·{' '}
+                        {format(parseISO(c.date), t('datePattern.dayMonth', { ns: 'common' }))} ·{' '}
                         {formatCurrency(c.amount, sg.currency)}
                       </span>
-                      <span className="text-text-tertiary ml-2 text-xs">({c.score}% match)</span>
+                      <span className="text-text-tertiary ml-2 text-xs">
+                        {t('suggestions.score', { score: c.score })}
+                      </span>
                     </div>
                     <button
                       onClick={() =>
@@ -61,7 +62,8 @@ export default function MatchSuggestionsPanel() {
                         })
                       }
                       className="p-1 rounded text-positive hover:bg-positive-subtle transition-colors"
-                      title="Accept match"
+                      title={t('suggestions.accept')}
+                      aria-label={t('suggestions.accept')}
                     >
                       <Check size={14} />
                     </button>
@@ -73,7 +75,8 @@ export default function MatchSuggestionsPanel() {
                         })
                       }
                       className="p-1 rounded text-text-tertiary hover:text-negative hover:bg-negative-subtle transition-colors"
-                      title="Dismiss"
+                      title={t('suggestions.dismiss')}
+                      aria-label={t('suggestions.dismiss')}
                     >
                       <X size={14} />
                     </button>

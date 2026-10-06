@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { BrowserRouter, HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AppShell } from './components/layout/AppShell';
 import { AuthGate } from './components/auth/AuthGate';
@@ -26,6 +27,9 @@ const isElectron = Boolean((window as any).__API_BASE__);
 const Router = isElectron || IS_DEMO ? HashRouter : BrowserRouter;
 
 export default function App() {
+  // Re-render the whole app when the App Language changes: dates are written with date-fns'
+  // default locale, which components that only format dates would not notice changing
+  useTranslation();
   return (
     <AuthGate>
       <Router>

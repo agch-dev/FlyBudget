@@ -1,3 +1,5 @@
+import { t } from '../i18n';
+
 // Pure helpers for the connection layer (store/connectionStore.ts): when to retry,
 // what counts as "can't reach the server", and how to describe a connection.
 
@@ -74,6 +76,6 @@ export function describeUserAgent(userAgent: string | null | undefined): string 
               : /Linux/.test(ua)
                 ? 'Linux'
                 : null;
-  if (browser && os) return `${browser} on ${os}`;
-  return browser ?? os ?? 'Unknown browser';
+  if (browser && os) return t('settings:server.devices.browserOn', { browser, os });
+  return browser ?? os ?? t('settings:server.devices.unknown');
 }

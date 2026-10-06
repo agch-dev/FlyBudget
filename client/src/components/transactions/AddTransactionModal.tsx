@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { format, isValid as isValidDate, parseISO } from 'date-fns';
 import { MinusCircle, PlusCircle, ChevronDown } from 'lucide-react';
 import { Modal } from '../ui/Modal';
@@ -23,6 +24,7 @@ const inputClass =
   'block w-full rounded-md border border-border px-3 py-2 text-sm text-text bg-surface placeholder-text-disabled focus:border-brand-600 focus:outline-none focus:ring-1 focus:ring-brand-600';
 
 export function AddTransactionModal({ isOpen, onClose }: Props) {
+  const { t } = useTranslation('transactions');
   const [type, setType] = useState<'debit' | 'credit'>('debit');
   const [amount, setAmount] = useState(0);
   /** The other account's side of a transfer between currencies, in that account's currency */
@@ -60,9 +62,14 @@ export function AddTransactionModal({ isOpen, onClose }: Props) {
   // A debit moves money out of this account, a credit brings it in
   const leavesHere = type === 'debit';
   const sideLabel = (leaving: boolean, account: Account) =>
-    `Amount ${leaving ? 'leaving' : 'arriving in'} ${account.name} (${currencySymbol(account.currency)})`;
+    t(leaving ? 'form.amountLeavingAccount' : 'form.amountArrivingAccount', {
+      account: account.name,
+      symbol: currencySymbol(account.currency),
+    });
   const sideName = (leaving: boolean, account: Account) =>
-    `Amount ${leaving ? 'leaving' : 'arriving'} (${currencySymbol(account.currency)})`;
+    t(leaving ? 'form.amountLeaving' : 'form.amountArriving', {
+      symbol: currencySymbol(account.currency),
+    });
 
   const hasConfirmedMerchant = payeeId !== null;
   const dateValid = date !== '' && /^\d{4}-\d{2}-\d{2}$/.test(date) && isValidDate(parseISO(date));
@@ -145,7 +152,7 @@ export function AddTransactionModal({ isOpen, onClose }: Props) {
   }
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Add transaction" size="md">
+    <Modal isOpen={isOpen} onClose={onClose} title={t('add.title')} size="md">
       <div className="space-y-5">
         {/* Debit / Credit toggle */}
         <div className="flex gap-1 bg-surface-alt rounded-lg p-1">
@@ -159,7 +166,7 @@ export function AddTransactionModal({ isOpen, onClose }: Props) {
             }`}
           >
             <MinusCircle size={15} />
-            Debit
+            {t('add.debit')}
           </button>
           <button
             type="button"
@@ -171,7 +178,7 @@ export function AddTransactionModal({ isOpen, onClose }: Props) {
             }`}
           >
             <PlusCircle size={15} />
-            Credit
+            {t('add.credit')}
           </button>
         </div>
 
@@ -179,8 +186,9 @@ export function AddTransactionModal({ isOpen, onClose }: Props) {
         <div>
           <label className="block text-sm font-medium text-text mb-1">
             {otherCurrency && selectedAccount
-              ? `${sideLabel(leavesHere, selectedAccount)} *`
-              : 'Amount *'}
+              ? sideLabel(leavesHere, selectedAccount)
+              : t('field.amount')}{' '}
+            *
           </label>
           <CurrencyInput
             value={amount}
@@ -189,7 +197,9 @@ export function AddTransactionModal({ isOpen, onClose }: Props) {
             placeholder={`${currencySymbol(selectedAccount?.currency)}0.00`}
             currency={selectedAccount?.currency}
             aria-label={
-              otherCurrency && selectedAccount ? sideName(leavesHere, selectedAccount) : 'Amount'
+              otherCurrency && selectedAccount
+                ? sideName(leavesHere, selectedAccount)
+                : t('field.amount')
             }
           />
         </div>
@@ -220,7 +230,9 @@ export function AddTransactionModal({ isOpen, onClose }: Props) {
         {/* Merchant (a transfer has none: it's named after the other account) */}
         {!transferToId && (
           <div>
-            <label className="block text-sm font-medium text-text mb-1">Merchant *</label>
+            <label className="block text-sm font-medium text-text mb-1">
+              {t('field.merchant')} *
+            </label>
             <MerchantSelect
               value={{ id: payeeId, name: payeeName }}
               onChange={(v) => {
@@ -233,9 +245,10 @@ export function AddTransactionModal({ isOpen, onClose }: Props) {
 
         {/* Date */}
         <div>
-          <label className="block text-sm font-medium text-text mb-1">Date *</label>
+          <label className="block text-sm font-medium text-text mb-1">{t('field.date')} *</label>
           <input
             type="date"
+            aria-label={t('field.date')}
             value={date}
             onChange={(e) => setDate(e.target.value)}
             className={inputClass}
@@ -244,7 +257,7 @@ export function AddTransactionModal({ isOpen, onClose }: Props) {
 
         {/* Account */}
         <div>
-          <label className="block text-sm font-medium text-text mb-1">Account *</label>
+          <label className="block text-sm font-medium text-text mb-1">{t('field.account')} *</label>
           <div ref={accountRef} className="relative">
             <button
               type="button"
@@ -262,7 +275,7 @@ export function AddTransactionModal({ isOpen, onClose }: Props) {
                     <span className="text-text">{selectedAccount.name}</span>
                   </>
                 ) : (
-                  <span className="text-text-disabled">Select account...</span>
+                  <span className="text-text-disabled">{t('add.selectAccount')}</span>
                 )}
               </span>
               <ChevronDown size={14} className="text-text-tertiary shrink-0" />
@@ -275,7 +288,7 @@ export function AddTransactionModal({ isOpen, onClose }: Props) {
                 {onBudgetAccounts.length > 0 && (
                   <>
                     <div className="px-3 py-1.5 text-xs font-medium text-text-tertiary bg-surface-alt">
-                      On Budget
+                      {t('add.onBudget')}
                     </div>
                     {onBudgetAccounts.map((a) => (
                       <button
@@ -303,7 +316,7 @@ export function AddTransactionModal({ isOpen, onClose }: Props) {
                 {offBudgetAccounts.length > 0 && (
                   <>
                     <div className="px-3 py-1.5 text-xs font-medium text-text-tertiary bg-surface-alt">
-                      Off Budget
+                      {t('add.offBudget')}
                     </div>
                     {offBudgetAccounts.map((a) => (
                       <button
@@ -335,7 +348,7 @@ export function AddTransactionModal({ isOpen, onClose }: Props) {
 
         {/* Category */}
         <div>
-          <label className="block text-sm font-medium text-text mb-1">Category</label>
+          <label className="block text-sm font-medium text-text mb-1">{t('field.category')}</label>
           <CategorySelectButton
             value={categoryId}
             onChange={setCategoryId}
@@ -346,12 +359,13 @@ export function AddTransactionModal({ isOpen, onClose }: Props) {
 
         {/* Notes */}
         <div>
-          <label className="block text-sm font-medium text-text mb-1">Notes</label>
+          <label className="block text-sm font-medium text-text mb-1">{t('field.notes')}</label>
           <input
             type="text"
+            aria-label={t('field.notes')}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="Add a note..."
+            placeholder={t('add.notesPlaceholder')}
             className={inputClass}
           />
         </div>
@@ -360,14 +374,18 @@ export function AddTransactionModal({ isOpen, onClose }: Props) {
         <SavedOnDeviceHint className="text-right" />
         <div className="flex justify-end gap-3 pt-2">
           <Button variant="secondary" size="md" onClick={onClose}>
-            Cancel
+            {t('form.cancel')}
           </Button>
           <Button
             size="md"
             onClick={handleSubmit}
             disabled={!isValid || newTx.pending || !newTx.allowed}
           >
-            {newTx.pending ? 'Adding...' : newTx.onDevice ? 'Save on device' : 'Add transaction'}
+            {newTx.pending
+              ? t('add.adding')
+              : newTx.onDevice
+                ? t('form.saveOnDevice')
+                : t('add.title')}
           </Button>
         </div>
       </div>

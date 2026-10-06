@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { useTranslation } from 'react-i18next';
 import { MoreVertical } from 'lucide-react';
 import { PHONE_MAX_WIDTH } from '../../hooks/useIsPhone';
 
@@ -15,12 +16,13 @@ const MENU_W = 200;
 /** ⋮ button that opens a portal popover of actions. Closes on outside click, scroll, or ESC. */
 export default function RowMenu({
   items,
-  label = 'Actions',
+  label,
 }: {
   items: RowMenuItem[];
   /** The button's accessible name, e.g. "Actions for Rent" when a page has several */
   label?: string;
 }) {
+  const { t } = useTranslation();
   const btnRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
@@ -67,7 +69,7 @@ export default function RowMenu({
       <button
         ref={btnRef}
         onClick={toggle}
-        aria-label={label}
+        aria-label={label ?? t('ui.actions')}
         aria-haspopup="menu"
         aria-expanded={pos !== null}
         className={`p-1 max-md:min-w-11 max-md:min-h-11 flex items-center justify-center rounded text-text-tertiary hover:text-text-secondary hover:bg-hover transition-colors cursor-pointer ${

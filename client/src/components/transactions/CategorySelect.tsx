@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { usePreferencesStore } from '../../store/preferencesStore';
 import type { Account, CategoryGroup } from '../../types';
 
@@ -22,14 +23,15 @@ export function CategorySelect({
   currentAccountId,
   className = '',
   fieldClassName,
-  label = 'Category',
+  label,
 }: Props) {
+  const { t } = useTranslation('transactions');
   const showCategoryIcons = usePreferencesStore((s) => s.showCategoryIcons);
   const transferAccounts = accounts?.filter((a) => a.id !== currentAccountId && !a.closedAt) ?? [];
 
   return (
     <select
-      aria-label={label}
+      aria-label={label ?? t('field.category')}
       value={value ?? ''}
       onChange={(e) => onChange(e.target.value || null)}
       className={
@@ -37,7 +39,7 @@ export function CategorySelect({
         `block w-full bg-transparent text-sm text-text focus:outline-none ${className}`
       }
     >
-      <option value="">Uncategorized</option>
+      <option value="">{t('term.uncategorized')}</option>
       {groups.map((g) => (
         <optgroup key={g.id} label={g.name}>
           {g.categories.map((c) => (
@@ -49,10 +51,10 @@ export function CategorySelect({
         </optgroup>
       ))}
       {transferAccounts.length > 0 && (
-        <optgroup label="Transfer">
+        <optgroup label={t('term.transfer')}>
           {transferAccounts.map((a) => (
             <option key={a.id} value={`transfer:${a.id}`}>
-              Transfer: {a.name}
+              {t('term.transferTo', { account: a.name })}
             </option>
           ))}
         </optgroup>

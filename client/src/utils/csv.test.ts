@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
+import { setLanguage } from '../i18n';
 import {
   decodeCsvBytes,
   detectDelimiter,
@@ -403,6 +404,19 @@ describe('readImportRows', () => {
       ['2026-03-25', -123456],
     ]);
     expect(fixed.problems.map((p) => p.row)).toEqual([3]);
+  });
+
+  it('says in Spanish what it cannot read', () => {
+    setLanguage('es');
+    const rows = [
+      ['05/03/2026', 'Cafe', '-120,00'],
+      ['25/03/2026', 'Super', '-1.234,56'],
+    ];
+    const read = readImportRows(rows, ['date', 'payee', 'amount'], american);
+    expect(read.problems.map((p) => p.message)).toEqual([
+      'No se puede leer el monto "-120,00"',
+      'No se puede leer la fecha "25/03/2026"',
+    ]);
   });
 
   it('skips empty rows and rows with no amount without reporting them', () => {

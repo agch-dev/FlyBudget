@@ -1,4 +1,9 @@
-/** Centered card with the logo, used for sign-in, setup and reconnecting. */
+import { LanguageSwitch } from '../ui/LanguageSwitch';
+
+/**
+ * Centered card with the logo, used for sign-in, setup and reconnecting. These screens come
+ * before Settings can be reached, so the App Language switch is on them.
+ */
 export function AuthScreen({
   title,
   subtitle,
@@ -21,6 +26,9 @@ export function AuthScreen({
           )}
         </div>
         {children}
+        <div className="flex justify-center mt-6">
+          <LanguageSwitch />
+        </div>
       </div>
     </div>
   );

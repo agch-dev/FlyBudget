@@ -1,5 +1,7 @@
 import { useId, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { format, formatDistanceToNow, parseISO } from 'date-fns';
+import { t as translate } from '../../i18n';
 import { ArrowLeftRight, Loader2, Pencil, Plus, RefreshCw } from 'lucide-react';
 import type { ExchangeRate } from '../../api/exchangeRates';
 import { IS_DEMO } from '../../demo/isDemo';
@@ -22,8 +24,10 @@ const inputClass =
 const NO_RATES: ExchangeRate[] = [];
 
 const todayIso = () => format(new Date(), 'yyyy-MM-dd');
-const dayLabel = (date: string) => format(parseISO(date), 'EEE d MMM yyyy');
-const monthLabel = (month: string) => format(parseISO(`${month}-01`), 'MMMM yyyy');
+// Called while rendering, so they follow the App Language
+const dayLabel = (date: string) => format(parseISO(date), translate('datePattern.ratesDay'));
+const monthLabel = (month: string) =>
+  format(parseISO(`${month}-01`), translate('datePattern.monthYear'));
 
 /**
  * Settings → Exchange rates: pesos per dollar, one rate per date. Shows today's rate, when
@@ -31,6 +35,7 @@ const monthLabel = (month: string) => format(parseISO(`${month}-01`), 'MMMM yyyy
  * the latest, and any date's rate can be entered or corrected by hand.
  */
 export function ExchangeRates() {
+  const { t } = useTranslation('settings');
   const { data, isLoading, isError } = useExchangeRates();
   const refresh = useRefreshExchangeRates();
   const canSave = useCanSave();
@@ -53,49 +58,49 @@ export function ExchangeRates() {
       ) : (
         <RefreshCw size={13} aria-hidden />
       )}
-      {refresh.isPending ? 'Refreshing…' : 'Refresh'}
+      {refresh.isPending ? t('rates.refreshing') : t('rates.refresh')}
     </Button>
   );
   const enterButton = (
     <Button variant="secondary" size="sm" onClick={() => setEditDate('')}>
-      <Plus size={13} aria-hidden /> Enter a rate
+      <Plus size={13} aria-hidden /> {t('rates.enter')}
     </Button>
   );
 
   return (
     <div className="max-w-xl space-y-8">
       <section>
-        <h2 className="text-sm font-semibold text-text">Exchange rates</h2>
-        <p className="text-sm text-text-secondary mt-1 leading-relaxed">
-          Pesos per dollar: the interbank rate, one per day. Weekends and holidays use the rate of
-          the business day before.
-        </p>
+        <h2 className="text-sm font-semibold text-text">{t('rates.title')}</h2>
+        <p className="text-sm text-text-secondary mt-1 leading-relaxed">{t('rates.description')}</p>
 
         {isLoading ? (
-          <p className="mt-4 text-sm text-text-tertiary">Loading…</p>
+          <p className="mt-4 text-sm text-text-tertiary">{t('loading')}</p>
         ) : isError ? (
           <p role="alert" className="mt-4 text-sm text-negative">
-            Couldn't load the exchange rates.
+            {t('rates.loadError')}
           </p>
         ) : (
           <div className="mt-4 p-4 rounded-lg border border-border-light bg-surface-alt">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <p className="text-xs font-medium text-text-tertiary">Today's rate</p>
+                <p className="text-xs font-medium text-text-tertiary">{t('rates.today')}</p>
                 {current ? (
                   <>
                     <p className="text-2xl font-semibold text-text tabular-nums mt-0.5">
                       $ {formatRate(current.rate)}
-                      <span className="text-sm font-normal text-text-secondary"> per US$ 1</span>
+                      <span className="text-sm font-normal text-text-secondary">
+                        {' '}
+                        {t('rates.perDollar')}
+                      </span>
                     </p>
                     {current.date !== todayIso() && (
                       <p className="text-xs text-text-tertiary mt-0.5">
-                        The rate of {dayLabel(current.date)}, the latest there is
+                        {t('rates.latest', { day: dayLabel(current.date) })}
                       </p>
                     )}
                   </>
                 ) : (
-                  <p className="text-sm text-text-secondary mt-1">No rate yet</p>
+                  <p className="text-sm text-text-secondary mt-1">{t('rates.noRate')}</p>
                 )}
               </div>
               <div className="flex flex-wrap gap-2">
@@ -105,11 +110,11 @@ export function ExchangeRates() {
             </div>
             <p className="text-xs text-text-tertiary mt-3">
               {data?.lastFetchedAt
-                ? `Last fetched ${formatDistanceToNow(parseISO(data.lastFetchedAt), { addSuffix: true })}`
-                : 'Never fetched'}
-              {IS_DEMO
-                ? '. The demo never fetches rates; in the app, FlyBudget fetches them about once a day.'
-                : '. FlyBudget fetches new rates about once a day, when it starts.'}
+                ? t('rates.lastFetched', {
+                    when: formatDistanceToNow(parseISO(data.lastFetchedAt), { addSuffix: true }),
+                  })
+                : t('rates.neverFetched')}{' '}
+              {IS_DEMO ? t('rates.fetchPolicyDemo') : t('rates.fetchPolicy')}
             </p>
             {refresh.isError && (
               <p role="alert" className="text-xs text-negative mt-2">
@@ -123,17 +128,13 @@ export function ExchangeRates() {
 
       {data && (
         <section>
-          <h2 className="text-sm font-semibold text-text">Rates by month</h2>
+          <h2 className="text-sm font-semibold text-text">{t('rates.byMonth')}</h2>
           {months.length === 0 ? (
             <EmptyState
               compact
               icon={<ArrowLeftRight size={18} />}
-              title="No exchange rates yet"
-              description={
-                IS_DEMO
-                  ? 'Rates for converting between pesos and dollars go here. Enter one by hand to try it.'
-                  : 'Rates for converting between pesos and dollars go here. Refresh to fetch them, or enter one by hand.'
-              }
+              title={t('rates.emptyTitle')}
+              description={IS_DEMO ? t('rates.emptyDemo') : t('rates.empty')}
               actions={
                 <>
                   {refreshButton}
@@ -147,13 +148,13 @@ export function ExchangeRates() {
                 <details
                   key={month}
                   open={i === 0}
-                  aria-label={`Rates of ${monthLabel(month)}`}
+                  aria-label={t('rates.monthRates', { month: monthLabel(month) })}
                   className="group rounded-lg border border-border-light"
                 >
                   <summary className="flex items-center justify-between gap-3 px-4 py-2.5 max-md:min-h-11 cursor-pointer text-sm font-medium text-text hover:bg-surface-alt rounded-lg">
                     {monthLabel(month)}
                     <span className="text-xs font-normal text-text-tertiary">
-                      {inMonth.length} {inMonth.length === 1 ? 'rate' : 'rates'}
+                      {t('rates.rateCount', { count: inMonth.length })}
                     </span>
                   </summary>
                   <ul className="border-t border-border-light divide-y divide-border-light">
@@ -163,14 +164,14 @@ export function ExchangeRates() {
                           {dayLabel(r.date)}
                           {r.manual && (
                             <span className="ml-2 inline-block px-1.5 py-0.5 rounded-full text-[11px] font-medium bg-caution-subtle text-caution">
-                              Entered by hand
+                              {t('rates.manual')}
                             </span>
                           )}
                         </span>
                         <span className="tabular-nums text-text">{formatRate(r.rate)}</span>
                         <button
                           type="button"
-                          aria-label={`Edit the rate of ${dayLabel(r.date)}`}
+                          aria-label={t('rates.editDay', { day: dayLabel(r.date) })}
                           onClick={() => setEditDate(r.date)}
                           className="p-1.5 max-md:min-w-11 max-md:min-h-11 flex items-center justify-center rounded-md text-text-tertiary hover:text-text-secondary hover:bg-surface-alt transition-colors cursor-pointer"
                         >
@@ -201,6 +202,7 @@ function EditRateModal({
   rates: ExchangeRate[];
   onClose: () => void;
 }) {
+  const { t } = useTranslation('settings');
   const save = useSaveExchangeRate();
   const canSave = useCanSave();
   const dateId = useId();
@@ -235,13 +237,13 @@ function EditRateModal({
     <Modal
       isOpen={date !== null}
       onClose={onClose}
-      title={date ? 'Correct a rate' : 'Enter a rate'}
+      title={date ? t('rates.correctTitle') : t('rates.enter')}
       size="sm"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label htmlFor={dateId} className="block text-sm font-medium text-text-secondary mb-1.5">
-            Date
+            {t('rates.date')}
           </label>
           <input
             id={dateId}
@@ -255,7 +257,7 @@ function EditRateModal({
         </div>
         <div>
           <label htmlFor={rateId} className="block text-sm font-medium text-text-secondary mb-1.5">
-            Pesos per dollar
+            {t('rates.pesosPerDollar')}
           </label>
           <input
             id={rateId}
@@ -269,8 +271,8 @@ function EditRateModal({
           />
           <p className="text-xs text-text-tertiary mt-1.5">
             {existing
-              ? `Replaces ${formatRate(existing.rate)}. A rate entered by hand is kept when rates are fetched.`
-              : 'A rate entered by hand is kept when rates are fetched.'}
+              ? t('rates.replaces', { rate: formatRate(existing.rate) })
+              : t('rates.keptByHand')}
           </p>
         </div>
         {save.isError && (
@@ -281,10 +283,10 @@ function EditRateModal({
         <SavingPausedHint />
         <div className="flex justify-end gap-2">
           <Button variant="secondary" onClick={onClose}>
-            Cancel
+            {t('ui.cancel', { ns: 'common' })}
           </Button>
           <Button type="submit" disabled={rate === null || !dayOk || !canSave || save.isPending}>
-            {save.isPending ? 'Saving…' : 'Save rate'}
+            {save.isPending ? t('saving') : t('rates.save')}
           </Button>
         </div>
       </form>

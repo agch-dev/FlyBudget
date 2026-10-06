@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { setLanguage } from '../i18n';
 import fc from 'fast-check';
 import {
   estimatedDatesLabel,
@@ -94,21 +95,26 @@ describe('parseRateInput', () => {
 
 describe('estimatedDatesLabel', () => {
   it('names up to three dates', () => {
-    expect(estimatedDatesLabel(['2023-11-10'])).toBe('10 Nov 2023');
-    expect(estimatedDatesLabel(['2023-02-01', '2023-11-10'])).toBe('1 Feb 2023 and 10 Nov 2023');
+    expect(estimatedDatesLabel(['2023-11-10'])).toBe('Nov 10, 2023');
+    expect(estimatedDatesLabel(['2023-02-01', '2023-11-10'])).toBe('Feb 1, 2023 and Nov 10, 2023');
     expect(estimatedDatesLabel(['2022-12-31', '2023-02-01', '2023-11-10'])).toBe(
-      '31 Dec 2022, 1 Feb 2023 and 10 Nov 2023',
+      'Dec 31, 2022, Feb 1, 2023 and Nov 10, 2023',
     );
+  });
+
+  it('writes each date the way the App Language does', () => {
+    setLanguage('es');
+    expect(estimatedDatesLabel(['2023-11-10'])).toBe('10 nov 2023');
   });
 
   it('gives the range for more, whatever order they come in', () => {
     expect(estimatedDatesLabel(['2023-02-01', '2021-03-12', '2022-07-04', '2023-11-10'])).toBe(
-      '4 dates from 12 Mar 2021 to 10 Nov 2023',
+      '4 dates from Mar 12, 2021 to Nov 10, 2023',
     );
   });
 
   it('counts a repeated date once', () => {
-    expect(estimatedDatesLabel(['2023-11-10', '2023-11-10'])).toBe('10 Nov 2023');
+    expect(estimatedDatesLabel(['2023-11-10', '2023-11-10'])).toBe('Nov 10, 2023');
   });
 
   it('always mentions the first and last date (property-based)', () => {
@@ -131,7 +137,7 @@ describe('ratesNotice', () => {
 
   it('says amounts are estimated when an earlier rate is missing but another one is stored', () => {
     expect(ratesNotice({ dates: ['2023-11-10'], notCounted: false })).toEqual({
-      title: 'No exchange rate for 10 Nov 2023.',
+      title: 'No exchange rate for Nov 10, 2023.',
       detail:
         'Dollar amounts on that date are converted at the closest rate available, so totals are estimated.',
     });
@@ -148,6 +154,32 @@ describe('ratesNotice', () => {
         );
         expect(notice.title + notice.detail).not.toMatch(/closest|estimated/);
       }),
+    );
+  });
+});
+
+describe('the rates notice in Spanish', () => {
+  it('names the dates with Spanish months and joins them with "y"', () => {
+    setLanguage('es');
+    expect(estimatedDatesLabel(['2023-11-10'])).toBe('10 nov 2023');
+    expect(estimatedDatesLabel(['2022-12-31', '2023-02-01', '2023-11-10'])).toBe(
+      '31 dic 2022, 1 feb 2023 y 10 nov 2023',
+    );
+    expect(estimatedDatesLabel(['2023-02-01', '2021-03-12', '2022-07-04', '2023-11-10'])).toBe(
+      '4 fechas entre el 12 mar 2021 y el 10 nov 2023',
+    );
+  });
+
+  it('speaks of one date or several', () => {
+    setLanguage('es');
+    expect(ratesNotice({ dates: ['2023-11-10'] })).toEqual({
+      title: 'No hay tipo de cambio para 10 nov 2023.',
+      detail:
+        'Los montos en dólares de esa fecha se convierten al tipo de cambio más cercano disponible, así que los totales son estimados.',
+    });
+    expect(ratesNotice({ dates: ['2023-02-01', '2023-11-10'] })?.detail).toContain('esas fechas');
+    expect(ratesNotice({ dates: [], notCounted: true })?.title).toBe(
+      'Todavía no hay ningún tipo de cambio guardado.',
     );
   });
 });

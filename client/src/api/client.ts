@@ -1,13 +1,15 @@
 import { API_BASE } from './base';
 import { reportNetworkFailure, reportServerReachable } from '../store/connectionStore';
 import { isUnreachableResponse } from '../utils/connection';
+import { t } from '../i18n';
+import { serverErrorMessage } from './serverErrors';
 
 export const AUTH_REQUIRED_EVENT = 'flybudget:auth-required';
 
 /** The request never reached FlyBudget's server (it's restarting, stopped, or offline). */
 export class NetworkError extends Error {
   constructor() {
-    super("Can't reach FlyBudget right now. Nothing was saved; try again once it reconnects.");
+    super(t('connection:networkError'));
     this.name = 'NetworkError';
   }
 }
@@ -48,12 +50,18 @@ export async function apiFetch<T>(path: string, options?: RequestInit): Promise<
     if (res.status === 401 && !path.startsWith('/auth/')) {
       window.dispatchEvent(new Event(AUTH_REQUIRED_EVENT));
     }
-    // Validation failures send an object of field errors, not a message
+    // Validation failures send an object of field errors, not a message. The server's
+    // messages are English; the few the app translates are in serverErrors.ts
     const message =
       typeof body.error === 'string'
-        ? body.error
+        ? serverErrorMessage({
+            method: (options?.method ?? 'GET').toUpperCase(),
+            path,
+            status: res.status,
+            message: body.error,
+          })
         : body.error
-          ? 'Some of the values entered are invalid'
+          ? t('errors.invalidValues')
           : res.statusText;
     throw new ApiError(message, res.status);
   }

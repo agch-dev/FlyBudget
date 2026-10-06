@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { Snowflake } from 'lucide-react';
 import { DATE_PRESETS, computeDateRange, resolveDateRange } from '../../utils/dateRange';
 import type { ReportDateRange } from '../../types';
@@ -16,6 +17,7 @@ export function DateRangeControl({
   value: ReportDateRange;
   onChange: (range: ReportDateRange) => void;
 }) {
+  const { t } = useTranslation('reports');
   const frozen = value.preset === 'custom';
 
   function setMonth(end: 'from' | 'to', month: string) {
@@ -30,12 +32,12 @@ export function DateRangeControl({
 
   return (
     <div className="flex items-center gap-2 flex-wrap">
-      <div className="flex gap-0">
+      <div className="flex gap-0 max-md:flex-wrap">
         {DATE_PRESETS.filter((p) => p.id !== 'custom').map((p) => (
           <button
             type="button"
             key={p.id}
-            title={p.long}
+            title={t(`datePreset.long.${p.id}`)}
             aria-pressed={value.preset === p.id}
             onClick={() => onChange({ preset: p.id, ...computeDateRange(p.id) })}
             className={`px-2.5 py-1 text-xs font-medium transition-colors border-b-2 cursor-pointer ${
@@ -44,13 +46,13 @@ export function DateRangeControl({
                 : 'border-transparent text-text-tertiary hover:text-text-secondary'
             }`}
           >
-            {p.label}
+            {t(`datePreset.short.${p.id}`)}
           </button>
         ))}
         <button
           type="button"
           aria-pressed={frozen}
-          title="Keep these dates fixed instead of moving with the current month"
+          title={t('rangeControl.freezeHint')}
           onClick={() => !frozen && onChange({ ...resolveDateRange(value), preset: 'custom' })}
           className={`flex items-center gap-1 px-2.5 py-1 text-xs font-medium transition-colors border-b-2 cursor-pointer ${
             frozen
@@ -58,22 +60,22 @@ export function DateRangeControl({
               : 'border-transparent text-text-tertiary hover:text-text-secondary'
           }`}
         >
-          <Snowflake size={11} /> Frozen
+          <Snowflake size={11} /> {t('rangeControl.frozen')}
         </button>
       </div>
       {frozen && (
         <div className="flex items-center gap-1.5">
           <input
             type="month"
-            aria-label="From month"
+            aria-label={t('rangeControl.fromMonth')}
             value={value.from}
             onChange={(e) => setMonth('from', e.target.value)}
             className={MONTH_INPUT}
           />
-          <span className="text-xs text-text-tertiary">to</span>
+          <span className="text-xs text-text-tertiary">{t('rangeControl.to')}</span>
           <input
             type="month"
-            aria-label="To month"
+            aria-label={t('rangeControl.toMonth')}
             value={value.to}
             onChange={(e) => setMonth('to', e.target.value)}
             className={MONTH_INPUT}
