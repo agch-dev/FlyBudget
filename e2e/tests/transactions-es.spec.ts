@@ -101,6 +101,30 @@ test.describe('el registro de una cuenta', () => {
     expect(await api.balance(checking.id)).toBe(90_000);
   });
 
+  test('editar una transacción conciliada lo explica en español', async ({ page, api }) => {
+    const { checking } = await setup(api);
+    const bakery = (await api.createTransaction({
+      accountId: checking.id,
+      date: isoDay(),
+      amount: -1_250,
+      payeeName: 'Panadería',
+    })) as { id: string };
+    await open(page, `/accounts/${checking.id}`);
+    await openDetails(page, 'Panadería');
+
+    // Meanwhile, on another device, it is reconciled
+    await api.call('PUT', `/accounts/${checking.id}/reconcile`, { transactionIds: [bakery.id] });
+
+    const notes = panel(page).getByRole('textbox', { name: 'Notas' });
+    await notes.fill('bizcochos');
+    await notes.blur();
+    await expect(panel(page).getByRole('alert')).toHaveText(
+      'No se puede modificar una transacción conciliada',
+    );
+    await expect(panel(page)).not.toContainText('Cannot modify a reconciled transaction');
+    expect((await api.transactions(`?account_id=${checking.id}`))[0].notes).toBeNull();
+  });
+
   test('una búsqueda sin resultados lo dice en español', async ({ page, api }) => {
     const { checking } = await setup(api);
     await api.createTransaction({
