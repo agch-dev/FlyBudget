@@ -1,5 +1,6 @@
 import { apiFetch } from './client';
 import type { Account, AccountType, Currency } from '../types';
+import type { ImportMemory } from '../utils/csv';
 
 export const getAccounts = () => apiFetch<Account[]>('/accounts');
 
@@ -33,3 +34,13 @@ export const reorderAccounts = (ids: string[]) =>
   apiFetch<{ ok: boolean }>('/accounts/reorder', { method: 'PUT', body: JSON.stringify({ ids }) });
 
 export const getBalancesAgo = () => apiFetch<Record<string, number>>('/accounts/balances-ago');
+
+/** How this account's bank files are read, from its last import (null before the first) */
+export const getImportSettings = (id: string) =>
+  apiFetch<{ settings: ImportMemory | null }>(`/accounts/${id}/import-settings`);
+
+export const saveImportSettings = (id: string, settings: ImportMemory) =>
+  apiFetch<{ settings: ImportMemory }>(`/accounts/${id}/import-settings`, {
+    method: 'PUT',
+    body: JSON.stringify(settings),
+  });

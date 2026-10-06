@@ -27,7 +27,10 @@ interface PreferencesState {
   setupSkipped: boolean;
   /** The getting started checklist on the dashboard was hidden */
   gettingStartedHidden: boolean;
-  /** Import choices (date order, decimal mark, columns, card choices) last used for each account, by account id */
+  /**
+   * Import choices last used for each account, by account id, from before they were stored on
+   * the server. Only read, for an account the server has none for (utils/importMemory.ts)
+   */
   csvImportConventions: Record<string, ImportMemory>;
   /** Account Groups expanded in the sidebar on this device, by name; the rest are closed */
   openAccountGroups: string[];
@@ -52,7 +55,6 @@ interface PreferencesState {
   setKeepOfflineCopy: (keep: boolean) => void;
   setSetupSkipped: (skipped: boolean) => void;
   setGettingStartedHidden: (hidden: boolean) => void;
-  setCsvImportConventions: (accountId: string, conventions: ImportMemory) => void;
   toggleAccountGroup: (name: string) => void;
   setViewingCurrency: (currency: Currency) => void;
   setLanguage: (language: Language) => void;
@@ -111,10 +113,6 @@ export const usePreferencesStore = create<PreferencesState>()(
       setKeepOfflineCopy: (keepOfflineCopy) => set({ keepOfflineCopy }),
       setSetupSkipped: (setupSkipped) => set({ setupSkipped }),
       setGettingStartedHidden: (gettingStartedHidden) => set({ gettingStartedHidden }),
-      setCsvImportConventions: (accountId, conventions) =>
-        set((state) => ({
-          csvImportConventions: { ...state.csvImportConventions, [accountId]: conventions },
-        })),
       toggleAccountGroup: (name) =>
         set((state) => ({ openAccountGroups: toggleGroupOpen(state.openAccountGroups, name) })),
       setViewingCurrency: (viewingCurrency) => set({ viewingCurrency }),

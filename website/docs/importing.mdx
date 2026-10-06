@@ -75,9 +75,10 @@ Banks don't agree on how to write a date or an amount, so the import has two cho
 FlyBudget guesses both from the file: a date with a day above 12 shows the order, and an amount
 with cents shows the decimal mark. When nothing in the file tells (every day is 12 or lower, no
 amount has cents), it picks month first and point, so check the choices the first time you import
-from a bank. Once an import succeeds, FlyBudget remembers the choices for that account on this
-device and uses them for its next file, along with how you mapped the columns (for files with the
-same headers).
+from a bank. Once an import succeeds, FlyBudget remembers the choices for that account and uses
+them for its next file, along with how you mapped the columns (for files with the same headers).
+They're saved with the account, so they're the same on every device and browser you use, and
+they're part of your backups.
 
 In an Excel file, amounts stored as numbers are read exactly whatever you choose; the choices
 apply to dates and amounts the file stores as text.

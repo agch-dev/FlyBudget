@@ -2,12 +2,45 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import * as accountsApi from '../api/accounts';
 import { useUndoStore } from '../store/undoStore';
 import type { Account } from '../types';
+import type { ImportMemory } from '../utils/csv';
 import { t } from '../i18n';
 
 export function useAccounts() {
   return useQuery({
     queryKey: ['accounts'],
     queryFn: accountsApi.getAccounts,
+  });
+}
+
+/** Under 'accounts', so the offline copy keeps it with the rest of the budget */
+export const importSettingsKey = (accountId: string) =>
+  ['accounts', accountId, 'import-settings'] as const;
+
+export const importSettingsQuery = (accountId: string) => ({
+  queryKey: importSettingsKey(accountId),
+  queryFn: () => accountsApi.getImportSettings(accountId),
+});
+
+/** How the account's bank files were read last time; loaded while the import dialog is open */
+export function useImportSettings(accountId: string, enabled: boolean) {
+  return useQuery({ ...importSettingsQuery(accountId), enabled });
+}
+
+/**
+ * Remembers an import's choices for the account. Shown at once (the next file opened uses
+ * them); a save that fails is put back to what the server has, and never undoes the import.
+ */
+export function useSaveImportSettings() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ accountId, settings }: { accountId: string; settings: ImportMemory }) =>
+      accountsApi.saveImportSettings(accountId, settings),
+    onMutate: async ({ accountId, settings }) => {
+      await qc.cancelQueries({ queryKey: importSettingsKey(accountId) });
+      qc.setQueryData(importSettingsKey(accountId), { settings });
+    },
+    onSuccess: (saved, { accountId }) => qc.setQueryData(importSettingsKey(accountId), saved),
+    onError: (_, { accountId }) => qc.invalidateQueries({ queryKey: importSettingsKey(accountId) }),
   });
 }
 

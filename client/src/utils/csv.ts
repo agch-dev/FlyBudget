@@ -14,8 +14,9 @@ export interface ImportConventions {
 }
 
 /**
- * What the import dialog remembers for an account once an import succeeds, on this device:
- * its conventions, how its columns were mapped, and the choices of a card statement.
+ * What the import dialog remembers for an account once an import succeeds, on the server
+ * (`ImportSettings` in server/src/utils/importSettings.ts; see utils/importMemory.ts): its
+ * conventions, how its columns were mapped, and the choices of a card statement.
  */
 export interface ImportMemory extends ImportConventions {
   /** The file's header line and the role chosen for each column; used when a file has the same headers */

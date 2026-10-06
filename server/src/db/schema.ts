@@ -36,6 +36,11 @@ export const accounts = sqliteTable('accounts', {
    * account names it, and two devices typing the same name end up in the same group
    */
   groupName: text('group_name'),
+  /**
+   * How this account's bank files are read, from its last import (JSON `ImportSettings`,
+   * utils/importSettings.ts; read with `readImportSettings`). Null = never imported
+   */
+  importSettings: text('import_settings'),
   createdAt: text('created_at')
     .notNull()
     .default(sql`(datetime('now'))`),
