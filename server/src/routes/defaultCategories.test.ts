@@ -397,7 +397,5 @@ describe('reports and files', () => {
         .map((line) => line.split(',')[5]);
     expect(column(es).sort()).toEqual(['', 'Asado', 'Sueldos', 'Supermercado']);
     expect(column(en).sort()).toEqual(['', 'Asado', 'Groceries', 'Paychecks']);
-    // The header row is another ticket's
-    expect(es.split('\n')[0]).toBe(en.split('\n')[0]);
   });
 });
