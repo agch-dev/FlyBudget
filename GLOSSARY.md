@@ -65,6 +65,6 @@ _Spanish_: Idioma de la app
 ### Budget
 
 **Default Category**:
-A category or category group whose name is one the app supplies, in either language. Its name is the app's own text, so each device shows it in its App Language. Renaming it makes it an ordinary category whose name is what the user typed; giving it a supplied name again makes it a default category again.
+A category, category group or report dashboard (the "Overview" one) whose name is one the app supplies, in either language. Its name is the app's own text, so each device shows it in its App Language. Renaming it makes it an ordinary one whose name is what the user typed; giving it a supplied name again makes it a default one again.
 _Avoid_: Seeded category, built-in category, system category
 _Spanish_: Categoría predeterminada
