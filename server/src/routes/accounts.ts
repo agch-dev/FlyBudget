@@ -10,6 +10,7 @@ import { currencySchema, HOME_CURRENCY } from '../utils/currency.js';
 import { groupNameSchema, resolveGroupName } from '../utils/accountGroups.js';
 import { accountTransactionSum, inAccountBalance } from '../services/balances.js';
 import { CURRENCY_LOCK_MESSAGE, currencyLockLookup } from '../services/accountCurrency.js';
+import { refusal } from '../utils/refusals.js';
 
 export const accountsRouter = Router();
 
@@ -185,7 +186,7 @@ accountsRouter.put('/:id', (req, res) => {
       .get();
     const lock = currencyLockLookup()(req.params.id);
     if (current && current.currency !== parsed.data.currency && lock) {
-      return res.status(409).json({ error: CURRENCY_LOCK_MESSAGE[lock] });
+      return res.status(409).json(refusal(`currency_locked_${lock}`, CURRENCY_LOCK_MESSAGE[lock]));
     }
   }
 

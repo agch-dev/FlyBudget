@@ -360,6 +360,10 @@ const es: Translation<typeof en> = {
     applyTo_one: 'Aplicar a {{total}} transacción',
     applyTo_other: 'Aplicar a {{total}} transacciones',
   },
+  errors: {
+    regexInvalid: 'La expresión regular no es válida',
+    regexTooLong: 'Una expresión regular puede tener como máximo {{max}} caracteres',
+  },
 };
 
 export default es;

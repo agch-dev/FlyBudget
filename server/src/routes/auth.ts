@@ -24,6 +24,7 @@ import {
   verifyDeviceToken,
 } from '../auth/sessions.js';
 import { checkSetupCode, clearSetupCode, setupCode } from '../auth/setupCode.js';
+import { refusal } from '../utils/refusals.js';
 
 // Login for server mode (Docker / self-hosted). Modeled on Actual Budget's server:
 // the first visitor creates the server password, and everything else requires a
@@ -33,6 +34,15 @@ import { checkSetupCode, clearSetupCode, setupCode } from '../auth/setupCode.js'
 export const authRouter = Router();
 
 const password = z.string().min(MIN_PASSWORD_LENGTH).max(MAX_PASSWORD_LENGTH);
+
+/** "Password must be 8-256 characters", for the password being set or the new one */
+const passwordLength = (what: 'Password' | 'New password') =>
+  refusal(
+    'password_length',
+    `${what} must be ${MIN_PASSWORD_LENGTH}-${MAX_PASSWORD_LENGTH} characters`,
+    { min: MIN_PASSWORD_LENGTH, max: MAX_PASSWORD_LENGTH },
+  );
+const ALREADY_SET = refusal('password_already_set', 'A password has already been set');
 
 /**
  * Slows password guessing: failed attempts are limited per IP, or per trusted device
@@ -49,7 +59,7 @@ const authRateLimit = rateLimit({
   },
   standardHeaders: 'draft-8',
   legacyHeaders: false,
-  message: { error: 'Too many attempts. Wait 15 minutes and try again.' },
+  message: refusal('too_many_attempts', 'Too many attempts. Wait 15 minutes and try again.'),
 });
 
 const sessionToken = (req: Request) => readCookie(req.headers.cookie, SESSION_COOKIE);
@@ -98,16 +108,14 @@ authRouter.post('/setup', authRateLimit, async (req, res) => {
     .object({ password, setupCode: z.string().max(100).optional() })
     .safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({
-      error: `Password must be ${MIN_PASSWORD_LENGTH}-${MAX_PASSWORD_LENGTH} characters`,
-    });
+    return res.status(400).json(passwordLength('Password'));
   }
-  if (isPasswordSet()) return res.status(409).json({ error: 'A password has already been set' });
+  if (isPasswordSet()) return res.status(409).json(ALREADY_SET);
   if (!checkSetupCode(parsed.data.setupCode)) {
-    return res.status(403).json({ error: 'Incorrect setup code' });
+    return res.status(403).json(refusal('incorrect_setup_code', 'Incorrect setup code'));
   }
   if (!(await setInitialPassword(parsed.data.password))) {
-    return res.status(409).json({ error: 'A password has already been set' });
+    return res.status(409).json(ALREADY_SET);
   }
   clearSetupCode();
   startSession(req, res);
@@ -118,7 +126,7 @@ authRouter.post('/login', authRateLimit, async (req, res) => {
   if (!serverMode) return res.status(404).json({ error: 'Not found' });
   const parsed = z.object({ password: z.string().max(MAX_PASSWORD_LENGTH) }).safeParse(req.body);
   if (!parsed.success || !(await checkPassword(parsed.data.password))) {
-    return res.status(401).json({ error: 'Incorrect password' });
+    return res.status(401).json(refusal('incorrect_password', 'Incorrect password'));
   }
   startSession(req, res);
   res.status(204).send();
@@ -138,12 +146,12 @@ authRouter.post('/change-password', authRateLimit, async (req, res) => {
     .object({ currentPassword: z.string().max(MAX_PASSWORD_LENGTH), newPassword: password })
     .safeParse(req.body);
   if (!parsed.success) {
-    return res.status(400).json({
-      error: `New password must be ${MIN_PASSWORD_LENGTH}-${MAX_PASSWORD_LENGTH} characters`,
-    });
+    return res.status(400).json(passwordLength('New password'));
   }
   if (!(await checkPassword(parsed.data.currentPassword))) {
-    return res.status(401).json({ error: 'Current password is incorrect' });
+    return res
+      .status(401)
+      .json(refusal('incorrect_current_password', 'Current password is incorrect'));
   }
   await changePassword(parsed.data.newPassword, token);
   // The new password voids every device cookie; this browser gets a fresh one

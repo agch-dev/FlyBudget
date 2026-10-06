@@ -70,11 +70,21 @@ export function unlinkTransfer(id: string): LinkResult {
     const side = loadSide(id);
     if (!side) return NOT_FOUND;
     if (!side.transferTransactionId) {
-      return { ok: false, status: 400, error: 'This transaction is not a transfer' };
+      return {
+        ok: false,
+        status: 400,
+        error: 'This transaction is not a transfer',
+        code: 'not_a_transfer',
+      };
     }
     const other = loadSide(side.transferTransactionId);
     if (side.reconciled === 1 || other?.reconciled === 1) {
-      return { ok: false, status: 403, error: 'Cannot modify a reconciled transaction' };
+      return {
+        ok: false,
+        status: 403,
+        error: 'Cannot modify a reconciled transaction',
+        code: 'transaction_reconciled',
+      };
     }
     for (const t of [side, other]) {
       if (!t) continue;

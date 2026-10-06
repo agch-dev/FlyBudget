@@ -13,6 +13,7 @@ import {
   metaSchemaFor,
   nextPosition,
 } from '../services/dashboardService.js';
+import { refusal } from '../utils/refusals.js';
 import { shownName, storedName } from '../services/defaultNames.js';
 import { requestLanguage, type Language } from '../utils/language.js';
 
@@ -122,7 +123,8 @@ dashboardsRouter.put('/:id', (req, res) => {
 
 dashboardsRouter.delete('/:id', (req, res) => {
   const total = db.select({ value: count() }).from(dashboardPages).get()?.value ?? 0;
-  if (total <= 1) return res.status(400).json({ error: 'Cannot delete the last dashboard' });
+  if (total <= 1)
+    return res.status(400).json(refusal('last_dashboard', 'Cannot delete the last dashboard'));
   db.delete(dashboardPages).where(eq(dashboardPages.id, req.params.id)).run();
   res.status(204).send();
 });

@@ -11,6 +11,7 @@ import {
 import { listRates } from '../services/exchangeRateService.js';
 import { eq, and, gte, lte } from 'drizzle-orm';
 import { isRealDate } from '../utils/validation.js';
+import { refusal } from '../utils/refusals.js';
 import { shownName } from '../services/defaultNames.js';
 import { requestLanguage } from '../utils/language.js';
 import { csvText } from '../services/csvText.js';
@@ -140,7 +141,7 @@ exportRouter.post('/restore', express.json({ limit: RESTORE_BODY_LIMIT }), async
   try {
     data = parseBackup(req.body);
   } catch (err) {
-    if (err instanceof InvalidBackupError) return res.status(400).json({ error: err.message });
+    if (err instanceof InvalidBackupError) return res.status(400).json(err.refusal);
     throw err;
   }
   const safetyCopy = await saveSafetyCopy();
@@ -150,6 +151,8 @@ exportRouter.post('/restore', express.json({ limit: RESTORE_BODY_LIMIT }), async
   } catch (err) {
     // e.g. a row pointing at an account that isn't in the file: nothing was changed
     console.error('Restore failed:', err);
-    res.status(400).json({ error: 'The backup is inconsistent, so nothing was restored' });
+    res
+      .status(400)
+      .json(refusal('backup_inconsistent', 'The backup is inconsistent, so nothing was restored'));
   }
 });

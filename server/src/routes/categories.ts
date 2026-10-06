@@ -4,6 +4,7 @@ import { categories, categoryGroups, transactions, budgetMonths } from '../db/sc
 import { eq, sql } from 'drizzle-orm';
 import { nanoid } from 'nanoid';
 import { z } from 'zod';
+import { refusal } from '../utils/refusals.js';
 import { shownName, storedName } from '../services/defaultNames.js';
 import { requestLanguage, type Language } from '../utils/language.js';
 
@@ -158,7 +159,9 @@ categoriesRouter.get('/:id/transaction-count', (req, res) => {
 categoriesRouter.delete('/:id', (req, res) => {
   const reassignTo = typeof req.query.reassignTo === 'string' ? req.query.reassignTo : undefined;
 
-  if (reassignTo === req.params.id) return res.status(400).json({ error: 'Pick another category' });
+  if (reassignTo === req.params.id) {
+    return res.status(400).json(refusal('pick_another_category', 'Pick another category'));
+  }
   if (reassignTo && !db.select().from(categories).where(eq(categories.id, reassignTo)).get()) {
     return res.status(400).json({ error: 'Unknown category' });
   }

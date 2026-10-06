@@ -22,11 +22,30 @@ import {
   planRules,
   testConditions,
 } from '../services/ruleService.js';
+import { coded, refusal, validationRefusal } from '../utils/refusals.js';
 
 export const rulesRouter = Router();
 
 // Regexes run against every transaction; keep them short to limit catastrophic backtracking
-const regexSchema = z.string().min(1).max(200).refine(isValidRegex, 'Invalid regular expression');
+const MAX_REGEX_LENGTH = 200;
+const regexSchema = z
+  .string()
+  .min(1)
+  .refine(
+    (pattern) => pattern.length <= MAX_REGEX_LENGTH,
+    coded(
+      refusal(
+        'rule_regex_too_long',
+        `A regular expression can be at most ${MAX_REGEX_LENGTH} characters`,
+        { max: MAX_REGEX_LENGTH },
+      ),
+    ),
+  )
+  .refine(isValidRegex, coded(refusal('rule_regex_invalid', 'Invalid regular expression')));
+
+/** What a body that didn't parse answers: a coded refusal for a bad regex, else the fields */
+const invalid = (error: z.ZodError) =>
+  validationRefusal(error.issues) ?? { error: error.flatten() };
 
 function isValidRegex(pattern: string): boolean {
   try {
@@ -128,14 +147,14 @@ rulesRouter.get('/', (_req, res) => {
 // Transactions a set of conditions matches (live preview in the rule editor)
 rulesRouter.post('/test', (req, res) => {
   const parsed = z.object({ conditionsOp, conditions }).safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+  if (!parsed.success) return res.status(400).json(invalid(parsed.error));
   res.json(testConditions(parsed.data.conditionsOp, parsed.data.conditions));
 });
 
 // Dry run over existing transactions: every enabled rule, or just `ruleIds`
 rulesRouter.post('/preview', (req, res) => {
   const parsed = planSchema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+  if (!parsed.success) return res.status(400).json(invalid(parsed.error));
   res.json(planRules(parsed.data));
 });
 
@@ -144,14 +163,14 @@ rulesRouter.post('/apply', (req, res) => {
   const parsed = planSchema
     .extend({ transactionIds: z.array(id).max(100_000) })
     .safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+  if (!parsed.success) return res.status(400).json(invalid(parsed.error));
   res.json({ updated: applyRules(parsed.data) });
 });
 
 // Reorder rules — body: { ids: string[] } in desired order.
 rulesRouter.put('/reorder', (req, res) => {
   const parsed = z.object({ ids: z.array(id).max(10_000) }).safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+  if (!parsed.success) return res.status(400).json(invalid(parsed.error));
 
   db.transaction(() => {
     parsed.data.ids.forEach((ruleId, i) => {
@@ -163,7 +182,7 @@ rulesRouter.put('/reorder', (req, res) => {
 
 rulesRouter.post('/', (req, res) => {
   const parsed = ruleSchema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+  if (!parsed.success) return res.status(400).json(invalid(parsed.error));
 
   const { conditionsOp, conditions, actions, enabled, sortOrder } = parsed.data;
   const row = {
@@ -181,7 +200,7 @@ rulesRouter.post('/', (req, res) => {
 
 rulesRouter.put('/:id', (req, res) => {
   const parsed = ruleUpdateSchema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+  if (!parsed.success) return res.status(400).json(invalid(parsed.error));
 
   const update = serialize(parsed.data);
   if (Object.keys(update).length) {

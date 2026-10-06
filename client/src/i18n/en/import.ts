@@ -114,6 +114,8 @@ export default {
   },
   errors: {
     readFile: 'Could not read the file',
+    // A refusal of the server's, by code (api/serverErrors.ts)
+    tooManyRows: 'A file can have at most {{max}} rows: import it in parts',
     noRows: 'Could not find any rows in the file',
     dateRequired: 'Date column is required',
     amountRequired: 'At least one amount column is required',

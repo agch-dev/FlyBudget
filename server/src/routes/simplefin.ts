@@ -12,12 +12,13 @@ import {
   connectionNameFromResponse,
   simpleFinBalanceToCents,
   InvalidSetupTokenError,
-  simplefinErrorMessage,
+  simplefinRefusal,
 } from '../services/simplefinService.js';
 import {
   syncSimplefinConnection,
   syncAllSimplefinConnections,
 } from '../services/simplefinSyncService.js';
+import { refusal } from '../utils/refusals.js';
 
 export const simplefinRouter = Router();
 
@@ -102,7 +103,7 @@ simplefinRouter.post('/setup', async (req, res) => {
     logError('SimpleFIN setup error', err);
     res
       .status(err instanceof InvalidSetupTokenError ? 400 : 502)
-      .json({ error: simplefinErrorMessage(err, 'Could not reach SimpleFIN. Try again later.') });
+      .json(simplefinRefusal(err, 'Could not reach SimpleFIN. Try again later.'));
   }
 });
 
@@ -186,7 +187,7 @@ simplefinRouter.post('/connections/:id/sync', async (req, res) => {
     res.json(result);
   } catch (err: any) {
     logError('SimpleFIN sync error', err);
-    res.status(500).json({ error: 'Sync failed' });
+    res.status(500).json(refusal('sync_failed', 'Sync failed'));
   }
 });
 
@@ -196,7 +197,7 @@ simplefinRouter.post('/sync-all', async (_req, res) => {
     res.json({ results });
   } catch (err: any) {
     logError('SimpleFIN sync error', err);
-    res.status(500).json({ error: 'Sync failed' });
+    res.status(500).json(refusal('sync_failed', 'Sync failed'));
   }
 });
 

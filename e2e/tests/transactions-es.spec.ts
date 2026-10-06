@@ -176,7 +176,7 @@ test.describe('transferencias', () => {
     await expect(dialog).toContainText('Elegí la transacción donde llegó este dinero.');
     await expect(dialog).not.toContainText(ENGLISH);
 
-    // The server refuses in English; the app says it in Spanish
+    // The server's refusal carries a code; the app says it in Spanish
     await dialog.getByRole('button', { name: /DEPOSITO/ }).click();
     await expect(dialog.getByRole('alert')).toHaveText(
       'Estas cuentas tienen la misma moneda, así que las dos transacciones tienen que ser por el mismo monto',
@@ -185,6 +185,42 @@ test.describe('transferencias', () => {
     await dialog.getByRole('button', { name: /TRASPASO DE CUENTA/ }).click();
     await expect(dialog).toBeHidden();
     await expect(row(page, 'TRASPASO A CAJA')).toContainText('Transferencia');
+  });
+
+  test('una transacción conciliada no se puede cambiar, y lo dice en español', async ({
+    page,
+    api,
+  }) => {
+    const { checking, savings } = await setup(api);
+    const add = (accountId: string, amount: number, payeeName: string) =>
+      api.createTransaction({ accountId, date: isoDay(), amount, payeeName }) as Promise<{
+        id: string;
+      }>;
+    await add(checking.id, -25_000, 'TRASPASO A CAJA');
+    const reconciled = await add(savings.id, 25_000, 'TRASPASO DE CUENTA');
+    const gone = await add(savings.id, 25_000, 'OTRO DEPOSITO');
+
+    await open(page, `/accounts/${checking.id}`);
+    await openDetails(page, 'TRASPASO A CAJA');
+    await panel(page).getByRole('button', { name: 'Vincular como transferencia' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Vincular como transferencia' });
+    await expect(dialog.getByRole('button', { name: /TRASPASO DE CUENTA/ })).toBeVisible();
+
+    // Meanwhile, on another device: one is reconciled and the other deleted
+    await api.call('PUT', `/accounts/${savings.id}/reconcile`, { transactionIds: [reconciled.id] });
+    await api.call('DELETE', `/transactions/${gone.id}`);
+
+    // A refusal with a code reads as its Spanish sentence
+    await dialog.getByRole('button', { name: /TRASPASO DE CUENTA/ }).click();
+    await expect(dialog.getByRole('alert')).toHaveText(
+      'No se puede modificar una transacción conciliada',
+    );
+    await expect(dialog).not.toContainText('Cannot modify a reconciled transaction');
+
+    // One without a code reads as the generic sentence, never as the server's English
+    await dialog.getByRole('button', { name: /OTRO DEPOSITO/ }).click();
+    await expect(dialog.getByRole('alert')).toHaveText('No se pudo completar la acción');
+    await expect(dialog).not.toContainText('Not found');
   });
 
   test('las sugerencias de transferencia se revisan y se confirman', async ({ page, api }) => {

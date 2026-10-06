@@ -17,11 +17,12 @@ export default {
   errors: {
     tooShort: 'Use at least {{min}} characters.',
     mismatch: "The passwords don't match.",
-    // The server's own refusals (api/serverErrors.ts): the English is the server's text
+    // The server's refusals, by code (api/serverErrors.ts): the English is the server's own
     incorrectPassword: 'Incorrect password',
     incorrectCurrentPassword: 'Current password is incorrect',
     incorrectSetupCode: 'Incorrect setup code',
     passwordLength: 'New password must be {{min}}-{{max}} characters',
+    passwordAlreadySet: 'A password has already been set',
     tooManyAttempts: 'Too many attempts. Wait 15 minutes and try again.',
   },
 } as const;

@@ -103,6 +103,7 @@ const es: Translation<typeof en> = {
   },
   errors: {
     readFile: 'No se pudo leer el archivo',
+    tooManyRows: 'Un archivo puede tener como máximo {{max}} filas: importalo en partes',
     noRows: 'No se encontró ninguna fila en el archivo',
     dateRequired: 'La columna de fecha es obligatoria',
     amountRequired: 'Se necesita al menos una columna de monto',

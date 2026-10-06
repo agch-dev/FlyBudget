@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import fc from 'fast-check';
+import { setLanguage } from '../i18n';
 import {
   OFFLINE_QUERY_KEYS,
   SNAPSHOT_MAX_AGE_MS,
@@ -9,6 +10,7 @@ import {
   isOfflineQuery,
   mergeSavedQueries,
   outboxEntryFor,
+  refusedBecause,
   sendable,
   snapshotUsable,
   type OutboxItem,
@@ -101,6 +103,11 @@ const transferItem = fc.record({
     .filter((d) => d.fromAccountId !== d.toAccountId),
 });
 const item: fc.Arbitrary<OutboxItem> = fc.oneof(txItem, transferItem);
+/** What the server refused an item with: sometimes nothing readable at all */
+const refused = fc.record(
+  { error: fc.string(), code: fc.constantFrom('transaction_reconciled', 'made_up') },
+  { requiredKeys: [] },
+);
 
 describe('waiting transactions (property-based)', () => {
   it('shows a transfer as money out of one account and into the other, summing to zero', () => {
@@ -140,14 +147,49 @@ describe('waiting transactions (property-based)', () => {
 
   it('sends oldest first and holds back refused items', () => {
     fc.assert(
-      fc.property(fc.array(fc.tuple(item, fc.option(fc.string()))), (pairs) => {
-        const items = pairs.map(([i, error]) => (error === null ? i : { ...i, error }));
+      fc.property(fc.array(fc.tuple(item, fc.option(refused))), (pairs) => {
+        const items = pairs.map(([i, why]) => (why === null ? i : { ...i, refused: why }));
         const out = sendable(items);
-        expect(out.every((i) => !i.error)).toBe(true);
-        expect(out).toHaveLength(items.filter((i) => !i.error).length);
+        expect(out.every((i) => !i.refused)).toBe(true);
+        expect(out).toHaveLength(items.filter((i) => !i.refused).length);
         for (let k = 1; k < out.length; k++) {
           expect(out[k - 1].savedAt).toBeLessThanOrEqual(out[k].savedAt);
         }
+      }),
+    );
+  });
+
+  it('still holds back an item an earlier version kept with its sentence', () => {
+    fc.assert(
+      fc.property(item, fc.string({ minLength: 1 }), (i, error) => {
+        expect(sendable([{ ...i, error }])).toEqual([]);
+        expect(refusedBecause({ ...i, error })).toBe(error);
+      }),
+    );
+  });
+
+  it('says why an item was refused in the language shown when it is looked at', () => {
+    fc.assert(
+      fc.property(item, (i) => {
+        const kept: OutboxItem = {
+          ...i,
+          refused: {
+            error: 'Cannot modify a reconciled transaction',
+            code: 'transaction_reconciled',
+          },
+        };
+        const uncoded: OutboxItem = { ...i, refused: { error: 'Account not found' } };
+        const unreadable: OutboxItem = { ...i, refused: {} };
+
+        expect(refusedBecause(kept)).toBe('Cannot modify a reconciled transaction');
+        expect(refusedBecause(uncoded)).toBe('Account not found');
+        expect(refusedBecause(unreadable)).toBe("Couldn't be saved");
+
+        setLanguage('es');
+        expect(refusedBecause(kept)).toBe('No se puede modificar una transacción conciliada');
+        expect(refusedBecause(uncoded)).toBe('No se pudo completar la acción');
+        expect(refusedBecause(unreadable)).toBe('No se pudo completar la acción');
+        setLanguage('en');
       }),
     );
   });

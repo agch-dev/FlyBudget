@@ -179,7 +179,7 @@ export default {
     close: 'Close account "{{name}}"',
     reorder: 'Reorder accounts',
   },
-  /** Server refusals the app translates (api/serverErrors.ts): the server's own sentences */
+  /** The server's refusals, by code (api/serverErrors.ts): the English is the server's own */
   errors: {
     currencyLocked: {
       transactions: "An account's currency can't change once it has transactions",

@@ -11,6 +11,7 @@ import {
   type RateSource,
 } from '../services/exchangeRateService.js';
 import { isRealDate } from '../utils/validation.js';
+import { refusal, RefusalError } from '../utils/refusals.js';
 
 // /api/exchange-rates: the stored rates (Settings → Exchange rates). Only the server ever
 // contacts the source, and only for POST /refresh; `source` is passed in so the in-browser
@@ -38,9 +39,16 @@ export function createExchangeRatesRouter(source: RateSource) {
     } catch (err) {
       console.error('Exchange rates: could not fetch:', err);
       // Not a 502-504: the page reads those as "FlyBudget's own server is unreachable"
-      return res.status(500).json({
-        error: "Couldn't get exchange rates right now. The rates already stored are kept.",
-      });
+      return res
+        .status(500)
+        .json(
+          err instanceof RefusalError
+            ? err.refusal
+            : refusal(
+                'rates_refresh_failed',
+                "Couldn't get exchange rates right now. The rates already stored are kept.",
+              ),
+        );
     }
     res.json(ratesOverview());
   });
@@ -51,7 +59,7 @@ export function createExchangeRatesRouter(source: RateSource) {
     // A day of slack: the browser may be a time zone ahead of the server
     const latest = format(addDays(new Date(), 1), 'yyyy-MM-dd');
     if (!isRealDate(date) || date > latest) {
-      return res.status(400).json({ error: 'Choose a date up to today' });
+      return res.status(400).json(refusal('rate_date_in_future', 'Choose a date up to today'));
     }
     const parsed = manualRate.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });

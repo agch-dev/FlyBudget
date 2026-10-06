@@ -7,7 +7,7 @@ import { discardWaiting, retryWaiting, sendWaiting, useOutbox } from '../../offl
 import { useConnectionStore } from '../../store/connectionStore';
 import { formatCurrency } from '../../utils/currency';
 import type { Currency } from '../../types';
-import { outboxEntryFor, type OutboxItem } from '../../utils/offline';
+import { isRefused, outboxEntryFor, refusedBecause, type OutboxItem } from '../../utils/offline';
 import { ConfirmModal } from '../ui/ConfirmModal';
 
 interface Props {
@@ -96,11 +96,11 @@ export function WaitingTransactions({
               {entry.amount > 0 ? '+' : ''}
               {formatCurrency(entry.amount, accountCurrency(entry.accountId))}
             </span>
-            {item.error ? (
+            {isRefused(item) ? (
               <span className="basis-full flex flex-wrap items-center gap-2 text-xs">
                 <span className="flex items-center gap-1 text-negative">
                   <AlertCircle size={12} aria-hidden />{' '}
-                  {t('waiting.notSaved', { error: item.error })}
+                  {t('waiting.notSaved', { error: refusedBecause(item) })}
                 </span>
                 <button
                   onClick={() => void retryWaiting(item.id).then(() => sendWaiting(qc))}

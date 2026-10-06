@@ -146,6 +146,22 @@ test("bank connections can't be set up in the demo", async ({ page }) => {
   expect(status).toBe(403);
 });
 
+test("the demo's API refuses with the same codes as a real server", async ({ page }) => {
+  await openDemo(page);
+  const refusal = await page.evaluate(async () => {
+    const res = await fetch('/api/exchange-rates/2999-01-01', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rate: 40 }),
+    });
+    return { status: res.status, body: await res.json() };
+  });
+  expect(refusal).toEqual({
+    status: 400,
+    body: { error: 'Choose a date up to today', code: 'rate_date_in_future' },
+  });
+});
+
 test('the payment waiting to be matched can be confirmed', async ({ page }) => {
   await openDemo(page, '/recurring');
   await page.getByRole('button', { name: 'Review now' }).click();

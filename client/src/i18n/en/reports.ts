@@ -495,4 +495,8 @@ export default {
     editReport: 'Edit report',
     deleteReport: 'Delete report "{{name}}"',
   },
+  /** The server's refusals, by code (api/serverErrors.ts): the English is the server's own */
+  errors: {
+    lastDashboard: 'Cannot delete the last dashboard',
+  },
 } as const;
