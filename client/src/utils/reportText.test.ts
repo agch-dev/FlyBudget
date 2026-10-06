@@ -3,6 +3,7 @@ import { setLanguage } from '../i18n';
 import { formatDateRange } from './dateRange';
 import { formatDateAxisLabels, formatDateLabel } from './chartTicks';
 import { comparisonLabels, groupName } from './reportText';
+import { customReportCsvRows } from './exportCsv';
 import { CSV_DELETED_CATEGORY, CSV_UNCATEGORIZED } from './exportCsv';
 
 // What the reports say in each App Language. Expected text is written by hand, not built
@@ -77,17 +78,63 @@ describe('comparisonLabels', () => {
 });
 
 describe('groupName', () => {
-  it("translates the server's names for what has no category or payee", () => {
-    expect(groupName('Uncategorized')).toBe('Uncategorized');
+  it('writes the label of a group the server sends no name for: no category, or no payee', () => {
+    expect(groupName(null, 'category')).toBe('Uncategorized');
+    expect(groupName(null, 'categoryGroup')).toBe('Uncategorized');
+    expect(groupName(null, 'payee')).toBe('Unknown');
     setLanguage('es');
-    expect(groupName('Uncategorized')).toBe('Sin categoría');
-    expect(groupName('Unknown')).toBe('Desconocido');
+    expect(groupName(null, 'category')).toBe('Sin categoría');
+    expect(groupName(null, 'categoryGroup')).toBe('Sin categoría');
+    expect(groupName(null, 'payee')).toBe('Sin beneficiario');
   });
 
-  it('leaves the names the user chose alone', () => {
+  it('shows every name the server sends as it is', () => {
     setLanguage('es');
-    expect(groupName('Groceries')).toBe('Groceries');
-    expect(groupName('Income')).toBe('Income');
+    expect(groupName('Supermercado', 'category')).toBe('Supermercado');
+    // A category or payee really called that: a name, not the label
+    expect(groupName('Uncategorized', 'category')).toBe('Uncategorized');
+    expect(groupName('Unknown', 'payee')).toBe('Unknown');
+  });
+});
+
+describe('customReportCsvRows', () => {
+  it('totals: one row per group, an unnamed one under the file’s English label', () => {
+    const rows = customReportCsvRows(
+      {
+        mode: 'total',
+        data: [
+          { name: 'Supermercado', id: 'a', value: 5000 },
+          { name: null, id: null, value: 700 },
+        ],
+      },
+      'category',
+    );
+    expect(rows).toEqual([
+      { name: 'Supermercado', amount_cents: 5000 },
+      { name: 'Uncategorized', amount_cents: 700 },
+    ]);
+  });
+
+  it('over time: one column per group, named as shown, with 0 where a month has nothing', () => {
+    setLanguage('es');
+    const rows = customReportCsvRows(
+      {
+        mode: 'time',
+        groups: [
+          { key: 'g0', name: 'Corner Market' },
+          { key: 'g1', name: null },
+        ],
+        data: [
+          { month: '2026-02', g0: 100 },
+          { month: '2026-03', g0: 200, g1: 50 },
+        ],
+      },
+      'payee',
+    );
+    expect(rows).toEqual([
+      { month: '2026-02', 'Corner Market': 100, Unknown: 0 },
+      { month: '2026-03', 'Corner Market': 200, Unknown: 50 },
+    ]);
   });
 });
 

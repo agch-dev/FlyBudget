@@ -2,13 +2,15 @@ import { useTranslation } from 'react-i18next';
 import { useViewingMoney } from '../../hooks/useViewingCurrency';
 import { monthLabel } from './ChartHelpers';
 import { groupName } from '../../utils/reportText';
-import type { CustomReportData } from '../../types';
+import type { CustomReportData, ReportGroupBy } from '../../types';
 
 interface Props {
   data: CustomReportData;
+  /** What the rows are grouped by: it decides the label of a group with no name */
+  groupBy: ReportGroupBy;
 }
 
-export default function ReportTable({ data }: Props) {
+export default function ReportTable({ data, groupBy }: Props) {
   const { t } = useTranslation('reports');
   const money = useViewingMoney();
   if (data.mode === 'total') {
@@ -26,7 +28,7 @@ export default function ReportTable({ data }: Props) {
           <tbody>
             {data.data.map((row, i) => (
               <tr key={i} className="border-b border-border-light hover:bg-hover">
-                <td className="py-2 px-3 text-text-secondary">{groupName(row.name)}</td>
+                <td className="py-2 px-3 text-text-secondary">{groupName(row.name, groupBy)}</td>
                 <td
                   className={`py-2 px-3 text-right tabular-nums font-medium ${row.value < 0 ? 'text-negative' : 'text-text'}`}
                 >
@@ -58,10 +60,10 @@ export default function ReportTable({ data }: Props) {
             </th>
             {data.groups.map((g) => (
               <th
-                key={g}
+                key={g.key}
                 className="text-right py-2 px-3 font-semibold text-text-secondary whitespace-nowrap"
               >
-                {groupName(g)}
+                {groupName(g.name, groupBy)}
               </th>
             ))}
           </tr>
@@ -73,10 +75,10 @@ export default function ReportTable({ data }: Props) {
                 {monthLabel(row.month as string)}
               </td>
               {data.groups.map((g) => {
-                const val = (row[g] as number) || 0;
+                const val = (row[g.key] as number) || 0;
                 return (
                   <td
-                    key={g}
+                    key={g.key}
                     className={`py-2 px-3 text-right tabular-nums ${val < 0 ? 'text-negative' : 'text-text-secondary'}`}
                   >
                     {val !== 0 ? money.format(val) : '—'}

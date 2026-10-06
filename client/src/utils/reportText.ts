@@ -1,5 +1,6 @@
 import { format, subYears } from 'date-fns';
 import { t } from '../i18n';
+import type { ReportGroupBy } from '../types';
 
 // Text the reports build from data the server sends in English. The server's own text is
 // never translated where it is stored or exported, only where it is shown.
@@ -62,11 +63,11 @@ export function comparisonLabels(
 }
 
 /**
- * A custom report's group as it is shown: the names the server gives to what has no category
- * ("Uncategorized") or no payee ("Unknown") are translated, every other name is the user's own.
+ * A custom report's group as it is shown. The server names groups (default categories in the
+ * App Language) and sends no name for what has no category or no payee: that label is the
+ * app's own text.
  */
-export function groupName(name: string): string {
-  if (name === 'Uncategorized') return t('reports:uncategorized');
-  if (name === 'Unknown') return t('reports:unknownPayee');
-  return name;
+export function groupName(name: string | null, groupBy: ReportGroupBy): string {
+  if (name !== null) return name;
+  return groupBy === 'payee' ? t('reports:unknownPayee') : t('reports:uncategorized');
 }

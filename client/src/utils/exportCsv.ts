@@ -1,10 +1,31 @@
-import type { Currency } from '../types';
+import type { Currency, CustomReportData, ReportGroupBy } from '../types';
 import { currencySymbol } from './currency';
 
 // Exported files read the same in every App Language: their header row and the names the app
 // supplies are English (the table on screen is translated).
 export const CSV_UNCATEGORIZED = 'Uncategorized';
 export const CSV_DELETED_CATEGORY = 'Deleted category';
+export const CSV_UNKNOWN_PAYEE = 'Unknown';
+
+/**
+ * A custom report as the rows of its CSV file: a row per group, or over time a row per month
+ * with a column per group. A group with no name (no category, no payee) gets the file's label.
+ */
+export function customReportCsvRows(
+  data: CustomReportData,
+  groupBy: ReportGroupBy,
+): Record<string, unknown>[] {
+  const named = (name: string | null) =>
+    name ?? (groupBy === 'payee' ? CSV_UNKNOWN_PAYEE : CSV_UNCATEGORIZED);
+  if (data.mode === 'total') {
+    return data.data.map((d) => ({ name: named(d.name), amount_cents: d.value }));
+  }
+  return data.data.map((d) => {
+    const row: Record<string, unknown> = { month: d.month };
+    for (const g of data.groups) row[named(g.name)] = d[g.key] ?? 0;
+    return row;
+  });
+}
 
 /**
  * Rows of amounts in one currency (a report in the viewing currency), each saying which: a

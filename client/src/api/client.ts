@@ -3,6 +3,7 @@ import { reportNetworkFailure, reportServerReachable } from '../store/connection
 import { isUnreachableResponse } from '../utils/connection';
 import { t } from '../i18n';
 import { serverErrorMessage } from './serverErrors';
+import { languageHeaders } from './requestLanguage';
 
 export const AUTH_REQUIRED_EVENT = 'flybudget:auth-required';
 
@@ -29,7 +30,7 @@ export async function apiFetch<T>(path: string, options?: RequestInit): Promise<
   let res: Response;
   try {
     res = await fetch(`${API_BASE}${path}`, {
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...languageHeaders() },
       ...options,
     });
   } catch (err) {

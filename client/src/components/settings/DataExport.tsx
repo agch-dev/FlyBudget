@@ -5,6 +5,7 @@ import { Download, Upload } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { ConfirmModal } from '../ui/ConfirmModal';
 import { restoreBackup } from '../../api/backup';
+import { withLanguage } from '../../api/requestLanguage';
 import { IS_DEMO, downloadFromApi } from '../../demo/demoApi';
 
 const API_BASE = '/api/export';
@@ -76,7 +77,8 @@ export function DataExport() {
     if (from) params.set('from', from);
     if (to) params.set('to', to);
     const qs = params.toString();
-    download(`${API_BASE}/transactions/csv${qs ? `?${qs}` : ''}`);
+    // The file names default categories in the App Language
+    download(withLanguage(`${API_BASE}/transactions/csv${qs ? `?${qs}` : ''}`));
   }
 
   return (

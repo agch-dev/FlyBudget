@@ -20,7 +20,7 @@ const es: Translation<typeof en> = {
   transactions: 'Transacciones',
   monthlyAverage: 'Promedio mensual',
   uncategorized: 'Sin categoría',
-  unknownPayee: 'Desconocido',
+  unknownPayee: 'Sin beneficiario',
   deletedCategory: 'Categoría eliminada',
   viewAll: 'Ver todo',
   dateRange: 'Rango de fechas',

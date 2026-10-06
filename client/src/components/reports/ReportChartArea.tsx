@@ -36,7 +36,7 @@ import { useXAxisLayout } from '../../hooks/useXAxisLayout';
 // Plot insets for the charts below: left margin (16) + default y-axis width (60), right margin (16)
 const INSET = { left: 76, right: 16 };
 import type { PieSectorDataItem } from 'recharts';
-import type { CustomReportConfig, CustomReportData } from '../../types';
+import type { CustomReportConfig, CustomReportData, ReportGroupBy } from '../../types';
 
 interface Props {
   config: CustomReportConfig;
@@ -58,8 +58,9 @@ export default function ReportChartArea({ config, data, isLoading }: Props) {
       </div>
     );
 
-  if (config.chartType === 'table') return <ReportTable data={data} />;
-  if (config.chartType === 'donut' && data.mode === 'total') return <DonutView data={data} />;
+  if (config.chartType === 'table') return <ReportTable data={data} groupBy={config.groupBy} />;
+  if (config.chartType === 'donut' && data.mode === 'total')
+    return <DonutView config={config} data={data} />;
   if (data.mode === 'total') return <TotalChartView config={config} data={data} />;
   return <TimeChartView config={config} data={data} />;
 }
@@ -68,10 +69,13 @@ export default function ReportChartArea({ config, data, isLoading }: Props) {
  * Totals as positive amounts, each with the color its slice or bar is drawn in and the name it
  * is shown under.
  */
-function withColors(rows: Extract<CustomReportData, { mode: 'total' }>['data']) {
+function withColors(
+  rows: Extract<CustomReportData, { mode: 'total' }>['data'],
+  groupBy: ReportGroupBy,
+) {
   return rows.map((d, i) => ({
     ...d,
-    name: groupName(d.name),
+    name: groupName(d.name, groupBy),
     value: Math.abs(d.value),
     color: EXPENSE_COLORS[i % EXPENSE_COLORS.length],
   }));
@@ -124,9 +128,15 @@ function InactiveSlice({
   );
 }
 
-function DonutView({ data }: { data: Extract<CustomReportData, { mode: 'total' }> }) {
+function DonutView({
+  config,
+  data,
+}: {
+  config: CustomReportConfig;
+  data: Extract<CustomReportData, { mode: 'total' }>;
+}) {
   useTranslation('reports');
-  const chartData = withColors(data.data);
+  const chartData = withColors(data.data, config.groupBy);
   if (!chartData.length) return <EmptyState />;
   const total = chartData.reduce((s, d) => s + d.value, 0);
 
@@ -171,7 +181,10 @@ function TotalChartView({
   const { t, i18n } = useTranslation('reports');
   const language = i18n.language;
   const money = useViewingMoney();
-  const chartData = useMemo(() => withColors(data.data), [data, language]);
+  const chartData = useMemo(
+    () => withColors(data.data, config.groupBy),
+    [data, config.groupBy, language],
+  );
   const total = useMemo(() => chartData.reduce((s, d) => s + d.value, 0), [chartData]);
   const chartType = singlePointType(config.chartType, chartData.length);
   // Month groups arrive as "2025-06"; show them like the other charts ("Jun 25"). Checking the
@@ -281,9 +294,9 @@ function TimeChartView({
             <Legend wrapperStyle={{ fontSize: 11 }} />
             {groups.map((g, i) => (
               <Bar
-                key={g}
-                dataKey={g}
-                name={groupName(g)}
+                key={g.key}
+                dataKey={g.key}
+                name={groupName(g.name, config.groupBy)}
                 stackId="a"
                 fill={EXPENSE_COLORS[i % EXPENSE_COLORS.length]}
               />
@@ -315,10 +328,10 @@ function TimeChartView({
             if (chartType === 'area')
               return (
                 <Area
-                  key={g}
+                  key={g.key}
                   type="monotone"
-                  dataKey={g}
-                  name={groupName(g)}
+                  dataKey={g.key}
+                  name={groupName(g.name, config.groupBy)}
                   stroke={color}
                   fill={color}
                   fillOpacity={0.1}
@@ -327,10 +340,10 @@ function TimeChartView({
             if (chartType === 'line')
               return (
                 <Line
-                  key={g}
+                  key={g.key}
                   type="monotone"
-                  dataKey={g}
-                  name={groupName(g)}
+                  dataKey={g.key}
+                  name={groupName(g.name, config.groupBy)}
                   stroke={color}
                   strokeWidth={2}
                   dot={{ r: 2 }}
@@ -338,9 +351,9 @@ function TimeChartView({
               );
             return (
               <Bar
-                key={g}
-                dataKey={g}
-                name={groupName(g)}
+                key={g.key}
+                dataKey={g.key}
+                name={groupName(g.name, config.groupBy)}
                 fill={color}
                 radius={[2, 2, 0, 0]}
                 maxBarSize={32}
