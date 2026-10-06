@@ -1,4 +1,5 @@
 import type { Currency } from '../utils/currency.js';
+import type { RefusalCode } from '../utils/refusals.js';
 
 // Which two existing transactions can be linked as a transfer. Pure: the database side is in
 // transferLinkService.ts.
@@ -16,22 +17,42 @@ export interface LinkSide {
   transferTransactionId: string | null;
 }
 
-/** Why a link or unlink was refused: an HTTP status and a message for the user */
+/**
+ * Why a link or unlink was refused: an HTTP status, a message for the user and, for a reason
+ * the user can act on, its code (utils/refusals.ts)
+ */
 export interface LinkRefusal {
   status: 400 | 403 | 404;
   error: string;
+  code?: RefusalCode;
 }
 
-const refuse = (status: LinkRefusal['status'], error: string): LinkRefusal => ({ status, error });
+const refuse = (status: LinkRefusal['status'], code: RefusalCode, error: string): LinkRefusal => ({
+  status,
+  error,
+  code,
+});
+
+/** What a route answers a refused link with */
+export const refusalBody = ({ error, code }: LinkRefusal) => (code ? { error, code } : { error });
 
 /** Why this transaction can't be either side of a new transfer, whatever the other side is */
 export function sideRefusal(t: LinkSide): LinkRefusal | null {
-  if (t.reconciled === 1) return refuse(403, 'Cannot modify a reconciled transaction');
+  if (t.reconciled === 1)
+    return refuse(403, 'transaction_reconciled', 'Cannot modify a reconciled transaction');
   if (t.isParent === 1 || t.parentTransactionId) {
-    return refuse(400, 'A split transaction and its parts cannot be linked as a transfer');
+    return refuse(
+      400,
+      'link_split',
+      'A split transaction and its parts cannot be linked as a transfer',
+    );
   }
   if (t.transferTransactionId) {
-    return refuse(400, 'This transaction is already a transfer: unlink it first');
+    return refuse(
+      400,
+      'link_already_transfer',
+      'This transaction is already a transfer: unlink it first',
+    );
   }
   return null;
 }
@@ -45,17 +66,23 @@ export function linkRefusal(a: LinkSide, b: LinkSide): LinkRefusal | null {
   const side = sideRefusal(a) ?? sideRefusal(b);
   if (side) return side;
   if (a.id === b.id || a.accountId === b.accountId) {
-    return refuse(400, 'A transfer needs two transactions in different accounts');
+    return refuse(
+      400,
+      'link_different_accounts',
+      'A transfer needs two transactions in different accounts',
+    );
   }
   if (Math.sign(a.amount) * Math.sign(b.amount) !== -1) {
     return refuse(
       400,
+      'link_outflow_and_inflow',
       'A transfer needs money leaving one account and arriving in the other: choose an outflow and an inflow',
     );
   }
   if (a.currency === b.currency && a.amount !== -b.amount) {
     return refuse(
       400,
+      'link_same_amount',
       'These accounts have the same currency, so both transactions must be for the same amount',
     );
   }

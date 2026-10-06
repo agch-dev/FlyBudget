@@ -18,6 +18,7 @@ import {
 } from '../services/plaidService.js';
 import { syncPlaidItem, syncAllItems } from '../services/plaidSyncService.js';
 import { cancelHostedLink, pollHostedLink, startHostedLink } from '../services/plaidHostedLink.js';
+import { refusal } from '../utils/refusals.js';
 
 export const plaidRouter = Router();
 
@@ -56,7 +57,7 @@ const accountExists = (id: string) =>
 
 function requirePlaid(res: any): boolean {
   if (!isPlaidConfigured()) {
-    res.status(503).json({ error: 'Plaid is not configured' });
+    res.status(503).json(refusal('plaid_not_configured', 'Plaid is not configured'));
     return false;
   }
   return true;
@@ -164,6 +165,10 @@ function plaidErrorMessage(err: any, fallback: string): string {
   return err?.response?.data?.error_message ?? fallback;
 }
 
+/** Connecting through Plaid failed: Plaid's own words when it gave any, under one code */
+const linkFailed = (err: unknown, fallback: string) =>
+  refusal('plaid_link_failed', plaidErrorMessage(err, fallback));
+
 // Start connecting a new bank: returns Plaid's hosted URL for the user's browser
 plaidRouter.post('/hosted-link', async (_req, res) => {
   if (!requirePlaid(res)) return;
@@ -171,7 +176,7 @@ plaidRouter.post('/hosted-link', async (_req, res) => {
     res.json(await startHostedLink({ kind: 'new' }));
   } catch (err: any) {
     logError('Plaid hosted-link error', err);
-    res.status(502).json({ error: plaidErrorMessage(err, 'Could not start connecting to Plaid') });
+    res.status(502).json(linkFailed(err, 'Could not start connecting to Plaid'));
   }
 });
 
@@ -189,9 +194,7 @@ plaidRouter.post('/items/:itemId/hosted-link', async (req, res) => {
     res.json(await startHostedLink({ kind: 'update', itemId }, item.accessToken));
   } catch (err: any) {
     logError('Plaid hosted-link (update) error', err);
-    res
-      .status(502)
-      .json({ error: plaidErrorMessage(err, 'Could not start reconnecting to Plaid') });
+    res.status(502).json(linkFailed(err, 'Could not start reconnecting to Plaid'));
   }
 });
 
@@ -213,7 +216,7 @@ plaidRouter.get('/hosted-link/:sessionId', async (req, res) => {
     res.json(result);
   } catch (err: any) {
     logError('Plaid hosted-link poll error', err);
-    res.status(502).json({ error: plaidErrorMessage(err, 'Could not finish connecting to Plaid') });
+    res.status(502).json(linkFailed(err, 'Could not finish connecting to Plaid'));
   }
 });
 
@@ -300,7 +303,7 @@ plaidRouter.post('/items/:itemId/sync', async (req, res) => {
     res.json(result);
   } catch (err: any) {
     logError('Plaid sync error', err);
-    res.status(500).json({ error: 'Sync failed' });
+    res.status(500).json(refusal('sync_failed', 'Sync failed'));
   }
 });
 
@@ -311,7 +314,7 @@ plaidRouter.post('/sync-all', async (_req, res) => {
     res.json({ results });
   } catch (err: any) {
     logError('Plaid sync error', err);
-    res.status(500).json({ error: 'Sync failed' });
+    res.status(500).json(refusal('sync_failed', 'Sync failed'));
   }
 });
 
@@ -374,10 +377,14 @@ plaidRouter.delete('/items/:itemId', async (req, res) => {
         const code = err?.response?.data?.error_code;
         if (code !== 'ITEM_NOT_FOUND' && code !== 'INVALID_ACCESS_TOKEN') {
           logError('Plaid item remove error', err);
-          return res.status(502).json({
-            error:
-              'Could not revoke access at Plaid, so the connection was kept. Check your internet connection and try again.',
-          });
+          return res
+            .status(502)
+            .json(
+              refusal(
+                'plaid_revoke_failed',
+                'Could not revoke access at Plaid, so the connection was kept. Check your internet connection and try again.',
+              ),
+            );
         }
       }
     }

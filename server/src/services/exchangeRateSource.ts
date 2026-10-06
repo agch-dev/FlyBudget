@@ -1,6 +1,7 @@
 import { isRealDate } from '../utils/validation.js';
 import { parseRatesResponse, type DateRange, type RatePoint } from './exchangeRates.js';
 import { readTextLimited, safeFetch } from './safeFetch.js';
+import { refusal, RefusalError } from '../utils/refusals.js';
 
 // The one place FlyBudget contacts the exchange rate source: the interbank pesos-per-dollar
 // rate for a range of dates, one entry per Uruguayan business day.
@@ -47,5 +48,10 @@ export async function fetchRatesFromSource(
 
 /** For when fetching is switched off (`FLYBUDGET_EXCHANGE_RATES=off`): never asks anyone. */
 export const ratesDisabledSource = async (_range: DateRange): Promise<RatePoint[]> => {
-  throw new Error('Fetching exchange rates is switched off (FLYBUDGET_EXCHANGE_RATES=off)');
+  throw new RefusalError(
+    refusal(
+      'rates_fetching_off',
+      'Fetching exchange rates is switched off (FLYBUDGET_EXCHANGE_RATES=off)',
+    ),
+  );
 };
