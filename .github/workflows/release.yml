@@ -16,7 +16,7 @@ name: Release
 #   FlyBudget-Linux-amd64.deb, FlyBudget-Linux-arm64.deb
 #
 # Verify a download with:
-#   gh attestation verify FlyBudget-Windows-Setup.exe -R dtymoszenko/FlyBudget
+#   gh attestation verify FlyBudget-Windows-Setup.exe -R agch-dev/FlyBudget
 
 on:
   push:

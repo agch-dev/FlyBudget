@@ -17,14 +17,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/dtymoszenko/flybudget.git"
+    "url": "git+https://github.com/agch-dev/FlyBudget.git"
   },
   "keywords": [],
   "author": "David Tymoszenko",
   "bugs": {
-    "url": "https://github.com/dtymoszenko/flybudget/issues"
+    "url": "https://github.com/agch-dev/FlyBudget/issues"
   },
-  "homepage": "https://github.com/dtymoszenko/flybudget#readme",
+  "homepage": "https://github.com/agch-dev/FlyBudget#readme",
   "devDependencies": {
     "concurrently": "^10.0.5",
     "cross-env": "^10.1.0",

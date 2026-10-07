@@ -47,7 +47,7 @@ npm run electron:build  # full build pipeline with electron-builder
 docker build -t flybudget .   # Dockerfile at the root; docker-compose.yml is the example users run
 ```
 
-The image bundles the server with esbuild (only `better-sqlite3` stays in `node_modules`), serves the built client, runs as the `node` user with data in `/data`, and sets `FLYBUDGET_SERVER_MODE=true`. `.github/workflows/docker.yml` builds and smoke-tests the container on every PR and publishes `ghcr.io/dtymoszenko/flybudget` (amd64 + arm64, with provenance) on `v*` tags. User docs: `website/community/self-hosting.mdx`.
+The image bundles the server with esbuild (only `better-sqlite3` stays in `node_modules`), serves the built client, runs as the `node` user with data in `/data`, and sets `FLYBUDGET_SERVER_MODE=true`. `.github/workflows/docker.yml` builds and smoke-tests the container on every PR and publishes `ghcr.io/agch-dev/flybudget-fork` (amd64 + arm64, with provenance) on `v*` tags. User docs: `website/community/self-hosting.mdx`.
 
 **Formatting** (Prettier, checked in CI):
 
@@ -418,6 +418,8 @@ FlyBudget may one day sync one budget between devices that also work offline (de
 - **Keep business logic in pure modules** (like `rulesEngine.ts` and `utils/recurrence.ts`, with the database side in a separate service such as `ruleService.ts`), taking data in and returning results without touching the database or the clock directly, so the same logic can run on any device and be re-run after a merge.
 
 ## License and contributions
+
+**This repository is an unofficial soft fork** of `dtymoszenko/FlyBudget` (`docs/adr/0003-unofficial-soft-fork-keeps-the-name.md`): upstream is merged in regularly, so every identifier keeps the FlyBudget name (`FLYBUDGET_*`, cookies, `appId`/`productName`, file names, the brand in the app). The fork shows only where users look: the README, `SECURITY.md`, `project.ts`'s links, package metadata, and its own releases and image. It takes no contributions: `cla.yml` is switched off in the repository settings. `website/` is never deployed from the fork.
 
 FlyBudget is **AGPL-3.0-only** (`LICENSE`; every `package.json` says so). Outside contributors accept the Contributor License Agreement (`CLA.md`) with a one-line PR comment; `.github/workflows/cla.yml` checks it and sets a **CLA** status (it runs on `pull_request_target`, so it must never check out or run PR code, or interpolate comment text into its script). The CLA's version is in its acceptance sentence: changing the terms means a new version and sentence. Settings links to the license and to `SOURCE_CODE_URL` (`client/src/utils/project.ts`), which forks running a modified FlyBudget for others should point at their own source (AGPL section 13). Don't add dependencies whose licenses are incompatible with AGPL-3.0.
 

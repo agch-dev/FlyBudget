@@ -12,10 +12,16 @@ fixes land on `main` and ship in the next release; older releases are not patche
 
 ## Reporting a Vulnerability
 
+This repository is an unofficial fork of
+[FlyBudget](https://github.com/dtymoszenko/FlyBudget). If the problem also affects the original
+FlyBudget, report it there, following
+[its security policy](https://github.com/dtymoszenko/FlyBudget/security/policy). Report it here
+only if it is in something this fork adds (currencies, exchange rates, Spanish, its imports).
+
 **Please do not open a public issue for security problems.**
 
 Report privately through GitHub: go to the
-[Security tab](https://github.com/dtymoszenko/FlyBudget/security) →
+[Security tab](https://github.com/agch-dev/FlyBudget/security) →
 **Report a vulnerability**. Please include:
 
 - what the issue is and where (file, endpoint, or screen)
@@ -90,7 +96,7 @@ lives on your server, and:
   cache, base images are pinned by digest, npm registry signatures are verified
   during the build, each image has an SBOM and signed SLSA build provenance, and
   images are scanned for known vulnerabilities (Grype) weekly
-  (`gh attestation verify oci://ghcr.io/dtymoszenko/flybudget:<version> -R dtymoszenko/FlyBudget`)
+  (`gh attestation verify oci://ghcr.io/agch-dev/flybudget-fork:<version> -R agch-dev/FlyBudget`)
 
 Run it behind an HTTPS reverse proxy before exposing it to the internet.
 
@@ -147,7 +153,7 @@ Access tokens are never sent to the app's own UI, logs, or backup exports.
   and the app refuses to start if its files have been modified (asar integrity).
 - Releases are built by GitHub Actions and signed with Sigstore, with SLSA build
   provenance. Verify a download with:
-  `gh attestation verify FlyBudget-Windows-Setup.exe -R dtymoszenko/FlyBudget` (the same
+  `gh attestation verify FlyBudget-Windows-Setup.exe -R agch-dev/FlyBudget` (the same
   for the macOS and Linux files; each release also has `SHA256SUMS.txt`)
 
 ### Development and supply chain
