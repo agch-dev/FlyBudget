@@ -1,6 +1,6 @@
 /** The desktop sidebar's width, in pixels: dragged by its edge, remembered per device */
-export const SIDEBAR_DEFAULT_WIDTH = 208;
-export const SIDEBAR_MIN_WIDTH = 200;
+export const SIDEBAR_DEFAULT_WIDTH = 240;
+export const SIDEBAR_MIN_WIDTH = 240;
 export const SIDEBAR_MAX_WIDTH = 320;
 /** How far one arrow key press moves the edge */
 export const SIDEBAR_WIDTH_STEP = 16;

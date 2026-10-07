@@ -21,12 +21,13 @@ import { usePreferencesStore } from '../../store/preferencesStore';
 import { SidebarAccountList } from './SidebarAccountList';
 import { ServerStatus } from './ServerStatus';
 import { DOCS_URL } from '../../utils/project';
-import { BrandName } from '../ui/BrandName';
+import { BrandName, ForkBadge } from '../ui/BrandName';
 import {
   SIDEBAR_DEFAULT_WIDTH,
   SIDEBAR_MAX_WIDTH,
   SIDEBAR_MIN_WIDTH,
   SIDEBAR_WIDTH_STEP,
+  clampSidebarWidth,
 } from '../../utils/sidebarWidth';
 import logoUrl from '/logo.png';
 
@@ -65,7 +66,7 @@ function NavItem({ to, icon, label, collapsed }: NavItemProps) {
 
 export function Sidebar() {
   const sidebarMode = usePreferencesStore((s) => s.sidebarMode);
-  const width = usePreferencesStore((s) => s.sidebarWidth);
+  const width = usePreferencesStore((s) => clampSidebarWidth(s.sidebarWidth));
 
   // Tracked in both modes, so unpinning keeps the sidebar open until the pointer leaves it
   const [hovered, setHovered] = useState(false);
@@ -202,6 +203,9 @@ function SidebarContent({
           }`}
           flyClassName="text-brand-500"
           budgetClassName="text-sidebar-text-hi"
+        />
+        <ForkBadge
+          className={`-ml-1 transition-opacity duration-200 ${isExpanded ? 'opacity-100' : 'opacity-0'}`}
         />
         <div
           className={`ml-auto -mr-1.5 flex items-center gap-0.5 transition-opacity duration-200 ${
@@ -371,7 +375,7 @@ export function SidebarDrawer({ open, onClose }: { open: boolean; onClose: () =>
         inert={!open}
         // Hidden once closed (so nothing inside can be reached), but only after sliding out;
         // visible straight away when opening, so focus can move in
-        className={`fixed inset-y-0 left-0 z-50 w-[208px] max-w-[85vw] overflow-hidden duration-200 ${
+        className={`fixed inset-y-0 left-0 z-50 w-[240px] max-w-[85vw] overflow-hidden duration-200 ${
           open
             ? 'visible translate-x-0 shadow-xl transition-[translate]'
             : 'invisible -translate-x-full transition-[translate,visibility]'
