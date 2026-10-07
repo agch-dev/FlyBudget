@@ -4,7 +4,7 @@ import { createHash, randomInt, timingSafeEqual } from 'crypto';
 // Until a password is set, whoever reaches the server first could set it, including
 // a malicious website using DNS rebinding. Setup therefore also needs this code,
 // which is only printed in the server log, so only someone with access to the
-// server (`docker logs flybudget`) can complete it. It lives in memory: a restart
+// server (`docker logs flybudget-uy`) can complete it. It lives in memory: a restart
 // prints a new one, and it's discarded once the password is set.
 
 // 32 characters without look-alikes (0/O, 1/I): 16 characters = 80 random bits

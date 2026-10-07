@@ -11,7 +11,7 @@ const es: Translation<typeof en> = {
     '<strong>La conexión no es segura.</strong> Tu contraseña viajaría sin cifrar. Continuá solo en una red de confianza.',
   setupCode: 'Código de configuración',
   setupCodeHint:
-    'Aparece en el registro del servidor. Con Docker, ejecutá <code>docker logs flybudget</code>.',
+    'Aparece en el registro del servidor. Con Docker, ejecutá <code>docker logs flybudget-uy</code>.',
   password: 'Contraseña',
   newPassword: 'Contraseña nueva',
   confirmPassword: 'Confirmar contraseña',
