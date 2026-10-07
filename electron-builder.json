@@ -73,7 +73,7 @@
     "executableName": "flybudget",
     "synopsis": "Budgeting that keeps your financial data on your computer",
     "description": "FlyBudget is a free, open-source budgeting app. Plan every dollar, track your accounts, and keep your financial data on your own computer.",
-    "maintainer": "David Tymoszenko <dtymoszenko@users.noreply.github.com>",
+    "maintainer": "agch-dev <agch-dev@users.noreply.github.com>",
     "vendor": "FlyBudget",
     "syncDesktopName": true
   },

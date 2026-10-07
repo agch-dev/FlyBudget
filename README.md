@@ -8,6 +8,13 @@
 
 <h3 align="center">Plan your money. Keep it private.</h3>
 
+> [!IMPORTANT]
+> **This is an unofficial, personal fork of [FlyBudget](https://github.com/dtymoszenko/FlyBudget)**
+> that adds Uruguayan pesos and dollars and a Spanish interface ([what it adds](#this-fork)). It is
+> an experiment and may stop being maintained once FlyBudget supports multiple currencies, which
+> is on its roadmap. **Use the [original FlyBudget](https://github.com/dtymoszenko/FlyBudget)**:
+> its website, demo and user guide, linked below, describe the original app, not this fork.
+
 <p align="center">
   A free, open-source budgeting app. Plan every dollar, track every account, and keep your
   financial data on your own computer or server.<br />
@@ -21,12 +28,9 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/dtymoszenko/FlyBudget/actions/workflows/ci.yml"><img src="https://github.com/dtymoszenko/FlyBudget/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
-  <a href="https://github.com/dtymoszenko/FlyBudget/actions/workflows/github-code-scanning/codeql"><img src="https://github.com/dtymoszenko/FlyBudget/actions/workflows/github-code-scanning/codeql/badge.svg" alt="CodeQL" /></a>
-  <a href="https://scorecard.dev/viewer/?uri=github.com/dtymoszenko/FlyBudget"><img src="https://api.scorecard.dev/projects/github.com/dtymoszenko/FlyBudget/badge" alt="OpenSSF Scorecard" /></a>
-  <a href="LICENSE"><img src="https://img.shields.io/github/license/dtymoszenko/FlyBudget" alt="License: AGPL-3.0" /></a>
-  <a href="https://github.com/dtymoszenko/FlyBudget/releases"><img src="https://img.shields.io/github/v/release/dtymoszenko/FlyBudget?include_prereleases&sort=semver" alt="Latest release" /></a>
-  <a href="https://github.com/dtymoszenko/FlyBudget/stargazers"><img src="https://img.shields.io/github/stars/dtymoszenko/FlyBudget?style=social" alt="GitHub stars" /></a>
+  <a href="https://github.com/agch-dev/FlyBudget/actions/workflows/ci.yml"><img src="https://github.com/agch-dev/FlyBudget/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/github/license/agch-dev/FlyBudget" alt="License: AGPL-3.0" /></a>
+  <a href="https://github.com/agch-dev/FlyBudget/releases"><img src="https://img.shields.io/github/v/release/agch-dev/FlyBudget?include_prereleases&sort=semver" alt="Latest release" /></a>
 </p>
 
 <p align="center">
@@ -34,7 +38,7 @@
   <a href="https://flybudget.org/tour/intro">Tour</a> ·
   <a href="https://flybudget.org/docs/getting-started">User guide</a> ·
   <a href="https://flybudget.org/community/security">Security</a> ·
-  <a href="#roadmap">Roadmap</a> ·
+  <a href="#this-fork">This fork</a> ·
   <a href="CONTRIBUTING.md">Contributing</a>
 </p>
 
@@ -78,13 +82,14 @@
 real app in your browser with a sample budget. Nothing leaves your browser, and closing the tab
 wipes it.
 
-**2. Install the desktop app.**
+**2. Install the desktop app.** These are this fork's builds; the original's are on
+[its download page](https://flybudget.org/download).
 
-| Platform    | Download                                                                                                                                                                                                                                                                               | Requires                   |
-| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
-| **Windows** | [Installer (.exe)](https://github.com/dtymoszenko/FlyBudget/releases/latest/download/FlyBudget-Windows-Setup.exe)                                                                                                                                                                      | Windows 10 or 11, 64-bit   |
-| **macOS**   | [Apple silicon (.dmg)](https://github.com/dtymoszenko/FlyBudget/releases/latest/download/FlyBudget-macOS-arm64.dmg) · [Intel (.dmg)](https://github.com/dtymoszenko/FlyBudget/releases/latest/download/FlyBudget-macOS-x64.dmg)                                                        | macOS 12 Monterey or later |
-| **Linux**   | [.deb](https://github.com/dtymoszenko/FlyBudget/releases/latest/download/FlyBudget-Linux-amd64.deb) · [.AppImage](https://github.com/dtymoszenko/FlyBudget/releases/latest/download/FlyBudget-Linux-x86_64.AppImage) · [ARM](https://github.com/dtymoszenko/FlyBudget/releases/latest) | 64-bit, x86 or ARM         |
+| Platform    | Download                                                                                                                                                                                                                                                                      | Requires                   |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------- |
+| **Windows** | [Installer (.exe)](https://github.com/agch-dev/FlyBudget/releases/latest/download/FlyBudget-Windows-Setup.exe)                                                                                                                                                                | Windows 10 or 11, 64-bit   |
+| **macOS**   | [Apple silicon (.dmg)](https://github.com/agch-dev/FlyBudget/releases/latest/download/FlyBudget-macOS-arm64.dmg) · [Intel (.dmg)](https://github.com/agch-dev/FlyBudget/releases/latest/download/FlyBudget-macOS-x64.dmg)                                                     | macOS 12 Monterey or later |
+| **Linux**   | [.deb](https://github.com/agch-dev/FlyBudget/releases/latest/download/FlyBudget-Linux-amd64.deb) · [.AppImage](https://github.com/agch-dev/FlyBudget/releases/latest/download/FlyBudget-Linux-x86_64.AppImage) · [ARM](https://github.com/agch-dev/FlyBudget/releases/latest) | 64-bit, x86 or ARM         |
 
 The installers aren't signed with a paid Windows or Apple certificate yet, so your computer may
 ask you to confirm the first time you open FlyBudget. The
@@ -104,7 +109,7 @@ Run FlyBudget on your own server, protected by a password, and open it from any 
 including your phone:
 
 ```bash
-curl -O https://raw.githubusercontent.com/dtymoszenko/FlyBudget/main/docker-compose.yml
+curl -O https://raw.githubusercontent.com/agch-dev/FlyBudget/main/docker-compose.yml
 openssl rand -base64 32 > flybudget_data_key.txt   # encryption key for bank credentials
 sudo chown 1000:1000 flybudget_data_key.txt && sudo chmod 400 flybudget_data_key.txt
 docker compose up -d
@@ -112,7 +117,8 @@ docker logs flybudget                              # prints the one-time setup c
 ```
 
 Open `http://<your-server>:3001`, enter the setup code and choose your password. Images are
-published for amd64 and arm64 as `ghcr.io/dtymoszenko/flybudget`. The
+published for amd64 and arm64 as `ghcr.io/agch-dev/flybudget-fork` (the original's are
+`ghcr.io/dtymoszenko/flybudget`). The
 [self-hosting guide](https://flybudget.org/community/self-hosting) covers HTTPS, backups and
 updates.
 
@@ -243,7 +249,7 @@ as a feature, not an afterthought:
   from GitHub Actions. Check that a file was built from this repository:
 
   ```bash
-  gh attestation verify FlyBudget-Windows-Setup.exe -R dtymoszenko/FlyBudget
+  gh attestation verify FlyBudget-Windows-Setup.exe -R agch-dev/FlyBudget
   ```
 
 - ✅ **A careful supply chain.** Dependency install scripts never run, npm registry signatures
@@ -251,7 +257,7 @@ as a feature, not an afterthought:
 
 Read the full model in [SECURITY.md](SECURITY.md) or on the
 [security page](https://flybudget.org/community/security). Found a problem? Please
-[report it privately](https://github.com/dtymoszenko/FlyBudget/security/advisories/new).
+[report it privately](https://github.com/agch-dev/FlyBudget/security/advisories/new).
 
 ## 💙 Built with care
 
@@ -273,7 +279,7 @@ Read the full model in [SECURITY.md](SECURITY.md) or on the
 You'll need Node.js and npm.
 
 ```bash
-git clone https://github.com/dtymoszenko/FlyBudget.git
+git clone https://github.com/agch-dev/FlyBudget.git
 cd FlyBudget
 npm ci && npm ci --prefix client && npm ci --prefix server
 npm run dev          # opens on http://localhost:5173
@@ -285,36 +291,45 @@ Electron. See [CONTRIBUTING.md](CONTRIBUTING.md) for the checks to run before a 
 
 </details>
 
-<a id="roadmap"></a>
+<a id="this-fork"></a>
 
-## 🗺️ Roadmap
+## 🇺🇾 This fork
 
-Ideas we're considering (not promises):
+This fork adapts FlyBudget for budgets in Uruguay. Next to everything the original does, it adds:
 
-- Imports from YNAB and other budgeting apps
-- Investment projections and forecasting, and a FIRE calculator
-- Envelope budgeting
-- Syncing one budget between devices that also work offline
-- MCP support
-- Bank connections for European banks
-- Multiple currencies
+- **Pesos and dollars.** Every account holds Uruguayan pesos or US dollars; the budget is planned
+  in pesos, and totals, reports and net worth convert at each day's exchange rate (fetched
+  automatically or entered by hand in Settings → Exchange rates).
+- **Account Groups**, to show the pesos and dollars sides of one card or bank together.
+- **Transfers between currencies**, with the exchange rate they imply, and suggestions for
+  transactions that look like the two sides of a transfer.
+- **Goals and recurring items in either currency.**
+- **Spanish** (Uruguayan), chosen per device, including the default categories and CSV files.
+- **Imports from Uruguayan banks** (Santander, Itaú) and from Excel files, with statements in both
+  currencies.
 
-Have an idea? [Open an issue](https://github.com/dtymoszenko/FlyBudget/issues).
+FlyBudget's own roadmap includes multiple currencies. When it ships, it will likely work
+differently from this fork, and this fork may stop being maintained. The original's user guide
+does not describe the features above.
+
+Found a bug? If it also happens in the original FlyBudget, please
+[report it there](https://github.com/dtymoszenko/FlyBudget/issues). Bugs in what this fork adds go
+to [this fork's issues](https://github.com/agch-dev/FlyBudget/issues).
 
 ## 🤝 Contributing
 
-Contributions are welcome, from bug reports to pull requests. See
-[CONTRIBUTING.md](CONTRIBUTING.md) for setup, the checks to run and commit conventions. Before
-your first pull request is merged, you'll be asked to accept the
-[Contributor License Agreement](CLA.md) with a one-line comment.
+This fork doesn't take contributions. To improve FlyBudget, contribute to
+[the original](https://github.com/dtymoszenko/FlyBudget): see its CONTRIBUTING.md and its
+Contributor License Agreement.
 
 ## 📄 License
 
-FlyBudget is free software under the [GNU Affero General Public License v3.0](LICENSE)
+FlyBudget is created by [David Tymoszenko](https://github.com/dtymoszenko). It and this fork are
+free software under the [GNU Affero General Public License v3.0](LICENSE)
 (AGPL-3.0-only). You can use, study, share and modify it. If you run a modified version for
 other people over a network, you must share your source code with them too.
 
 <p align="center">
   <br />
-  If FlyBudget helps you, a ⭐ helps other people find it.
+  If FlyBudget helps you, a ⭐ on <a href="https://github.com/dtymoszenko/FlyBudget">the original</a> helps other people find it.
 </p>
