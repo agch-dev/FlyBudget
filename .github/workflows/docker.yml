@@ -120,7 +120,7 @@ jobs:
 
           # The backup command from the self-hosting guide
           docker exec flybudget-uy node backup.cjs
-          docker cp flybudget:/data/backups ./backups
+          docker cp flybudget-uy:/data/backups ./backups
           python3 -c "import glob, sqlite3; db = sqlite3.connect(glob.glob('backups/*.db')[0]); assert db.execute('SELECT name FROM accounts').fetchall() == [('Checking',)]"
 
           # The password reset command from the guide
@@ -130,7 +130,7 @@ jobs:
 
           # The restore steps from the guide bring back the data and the password
           docker compose stop
-          docker run --rm --volumes-from flybudget -v "$PWD/backups":/backups alpine \
+          docker run --rm --volumes-from flybudget-uy -v "$PWD/backups":/backups alpine \
             sh -c 'rm -f /data/budget.db-wal /data/budget.db-shm && cp /backups/*.db /data/budget.db && chown 1000:1000 /data/budget.db'
           docker compose start
           docker compose up -d --wait --wait-timeout 180
