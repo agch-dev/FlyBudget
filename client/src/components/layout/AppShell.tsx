@@ -11,7 +11,7 @@ import { ConnectionBanner } from '../connection/ConnectionBanner';
 import { DemoBanner } from '../demo/DemoBanner';
 import { EstimatedRatesBanner } from './EstimatedRatesBanner';
 import { Sidebar, SidebarDrawer } from './Sidebar';
-import { BrandName } from '../ui/BrandName';
+import { BrandName, ForkBadge } from '../ui/BrandName';
 import logoUrl from '/logo.png';
 
 export function AppShell() {
@@ -110,6 +110,7 @@ function PhoneShell() {
             flyClassName="text-brand-500"
             budgetClassName="text-sidebar-text-hi"
           />
+          <ForkBadge />
         </header>
         <DemoBanner />
         <ConnectionBanner />

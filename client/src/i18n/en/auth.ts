@@ -8,7 +8,8 @@ export default {
   insecure:
     '<strong>Not a secure connection.</strong> Your password would travel unencrypted. Only continue on a network you trust.',
   setupCode: 'Setup code',
-  setupCodeHint: 'Printed in the server log. With Docker, run <code>docker logs flybudget</code>.',
+  setupCodeHint:
+    'Printed in the server log. With Docker, run <code>docker logs flybudget-uy</code>.',
   password: 'Password',
   newPassword: 'New password',
   confirmPassword: 'Confirm password',

@@ -4,6 +4,7 @@ import { IS_DEMO } from '../demo/isDemo';
 import type { ImportMemory } from '../utils/csv';
 import { toggleGroupOpen } from '../utils/accountGroups';
 import { HOME_CURRENCY, type Currency } from '../types';
+import { SIDEBAR_DEFAULT_WIDTH, clampSidebarWidth } from '../utils/sidebarWidth';
 import { browserLanguage, detectLanguage, type Language } from '../i18n/language';
 
 export type Theme = 'light' | 'dark' | 'system';
@@ -16,6 +17,8 @@ interface PreferencesState {
   dateFormat: DateFormatOption;
   savingsGoal: number;
   sidebarMode: SidebarMode;
+  /** The desktop sidebar's width in pixels, dragged by its edge (utils/sidebarWidth.ts) */
+  sidebarWidth: number;
   showMerchantIcons: boolean;
   showCategoryIcons: boolean;
   showAccountIcons: boolean;
@@ -45,6 +48,7 @@ interface PreferencesState {
   setDateFormat: (format: DateFormatOption) => void;
   setSavingsGoal: (goal: number) => void;
   setSidebarMode: (mode: SidebarMode) => void;
+  setSidebarWidth: (width: number) => void;
   setShowMerchantIcons: (show: boolean) => void;
   setShowCategoryIcons: (show: boolean) => void;
   setShowAccountIcons: (show: boolean) => void;
@@ -89,6 +93,7 @@ export const usePreferencesStore = create<PreferencesState>()(
       dateFormat: defaultDateFormat(startingLanguage),
       savingsGoal: 20,
       sidebarMode: 'persistent',
+      sidebarWidth: SIDEBAR_DEFAULT_WIDTH,
       showMerchantIcons: true,
       showCategoryIcons: true,
       showAccountIcons: true,
@@ -104,6 +109,7 @@ export const usePreferencesStore = create<PreferencesState>()(
       setDateFormat: (dateFormat) => set({ dateFormat }),
       setSavingsGoal: (savingsGoal) => set({ savingsGoal }),
       setSidebarMode: (sidebarMode) => set({ sidebarMode }),
+      setSidebarWidth: (width) => set({ sidebarWidth: clampSidebarWidth(width) }),
       setShowMerchantIcons: (showMerchantIcons) => set({ showMerchantIcons }),
       setShowCategoryIcons: (showCategoryIcons) => set({ showCategoryIcons }),
       setShowAccountIcons: (showAccountIcons) => set({ showAccountIcons }),

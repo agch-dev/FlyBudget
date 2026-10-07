@@ -77,13 +77,13 @@ export function ReconnectScreen({ mode, onRetry }: { mode: AppMode; onRetry: () 
               <div>
                 <p>{t('reconnect.checkContainer')}</p>
                 <pre className="mt-1 px-2 py-1.5 rounded bg-surface-alt font-mono text-[11px] overflow-x-auto">
-                  docker ps --filter name=flybudget
+                  docker ps --filter name=flybudget-uy
                 </pre>
               </div>
               <div>
                 <p>{t('reconnect.seeLogs')}</p>
                 <pre className="mt-1 px-2 py-1.5 rounded bg-surface-alt font-mono text-[11px] overflow-x-auto">
-                  docker logs --tail 50 flybudget
+                  docker logs --tail 50 flybudget-uy
                 </pre>
               </div>
               <p>{t('reconnect.proxy')}</p>

@@ -3,7 +3,8 @@ name: Release
 # Pushing a version tag like v1.0.0 builds the desktop app for Windows, macOS and Linux,
 # checks that each one starts, signs every file with Sigstore (keyless, via GitHub OIDC)
 # with SLSA build provenance, and publishes them together as a GitHub release. Tags with a
-# suffix (e.g. v1.1.0-beta.1) are marked as betas ("pre-release" on GitHub).
+# suffix (e.g. v1.1.0-beta.1) are marked as betas ("pre-release" on GitHub), except this
+# fork's own versions (v0.1.0-uy.1): those are normal releases, so releases/latest finds them.
 #
 # Manual runs and PRs that touch packaging only build and check (and, for manual runs,
 # sign): they never publish anything.
@@ -187,6 +188,6 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: |
           flags=(--generate-notes --title "FlyBudget $TAG")
-          # v1.0.0 → normal release; tags with a suffix (v1.1.0-beta.1) → marked as a beta
-          [[ "$TAG" == *-* ]] && flags+=(--prerelease)
+          # v1.0.0 and the fork's v1.0.0-uy.1 → normal release; other suffixes (v1.1.0-beta.1) → a beta
+          [[ "$TAG" == *-* && "$TAG" != *-uy.* ]] && flags+=(--prerelease)
           gh release create "$TAG" release/* --repo "$GITHUB_REPOSITORY" "${flags[@]}"

@@ -113,10 +113,11 @@ curl -O https://raw.githubusercontent.com/agch-dev/FlyBudget/main/docker-compose
 openssl rand -base64 32 > flybudget_data_key.txt   # encryption key for bank credentials
 sudo chown 1000:1000 flybudget_data_key.txt && sudo chmod 400 flybudget_data_key.txt
 docker compose up -d
-docker logs flybudget                              # prints the one-time setup code
+docker logs flybudget-uy                           # prints the one-time setup code
 ```
 
-Open `http://<your-server>:3001`, enter the setup code and choose your password. Images are
+Open `http://<your-server>:3002`, enter the setup code and choose your password. The fork uses
+port 3002 (the original uses 3001), so both can run on one server. Images are
 published for amd64 and arm64 as `ghcr.io/agch-dev/flybudget-fork` (the original's are
 `ghcr.io/dtymoszenko/flybudget`). The
 [self-hosting guide](https://flybudget.org/community/self-hosting) covers HTTPS, backups and

@@ -58,13 +58,13 @@ WORKDIR /app
 COPY --from=build /src/dist/ ./
 COPY --from=build /src/client/dist/ ./client/
 COPY --from=build /src/server/src/db/migrations/ ./migrations/
-# Maintenance: `docker exec flybudget node backup.cjs` / `node reset-password.cjs`
+# Maintenance: `docker exec flybudget-uy node backup.cjs` / `node reset-password.cjs`
 COPY docker/backup.cjs docker/reset-password.cjs ./
 
 ENV NODE_ENV=production \
     FLYBUDGET_SERVER_MODE=true \
     FLYBUDGET_HOST=0.0.0.0 \
-    PORT=3001 \
+    PORT=3002 \
     DB_PATH=/data/budget.db \
     MIGRATIONS_PATH=/app/migrations \
     CLIENT_DIST=/app/client
@@ -72,7 +72,7 @@ ENV NODE_ENV=production \
 # Runs as the image's unprivileged "node" user (uid 1000), never root
 USER node
 VOLUME /data
-EXPOSE 3001
+EXPOSE 3002
 
 HEALTHCHECK --interval=60s --timeout=10s --start-period=20s --retries=3 \
   CMD ["node", "-e", "fetch('http://127.0.0.1:'+process.env.PORT+'/api/health').then(r=>{process.exitCode=r.ok?0:1},()=>{process.exitCode=1})"]
