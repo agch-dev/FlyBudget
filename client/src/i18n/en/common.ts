@@ -31,6 +31,7 @@ export default {
     couldNotRead: 'Could not read that image.',
   },
   sidebar: {
+    resize: 'Resize sidebar',
     help: 'Help & docs',
     helpNewTab: 'Help & docs (opens in a new tab)',
     openMenu: 'Open menu',

@@ -29,6 +29,7 @@ const es: Translation<typeof en> = {
     couldNotRead: 'No se pudo leer esa imagen.',
   },
   sidebar: {
+    resize: 'Cambiar el ancho de la barra lateral',
     help: 'Ayuda y documentación',
     helpNewTab: 'Ayuda y documentación (se abre en una pestaña nueva)',
     openMenu: 'Abrir menú',
