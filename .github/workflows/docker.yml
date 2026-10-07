@@ -20,7 +20,7 @@ on:
     branches: [main]
     tags: ['v*']
   pull_request:
-  workflow_dispatch: # run on a tag (gh workflow run docker.yml --ref vX.Y.Z-uy.N) to publish it
+  workflow_dispatch: # publish a tag again after its run failed (gh workflow run docker.yml --ref vX.Y.Z-uy.N)
   schedule:
     - cron: '0 6 * * 1' # weekly vulnerability scan of the image
 
