@@ -139,9 +139,9 @@ export default function PayeesPage() {
   return (
     <div className="flex flex-col h-full bg-surface">
       <div className="px-6 py-4 border-b border-border shrink-0">
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center justify-between gap-4 max-md:flex-wrap max-md:gap-y-3">
           <h1 className="text-lg font-semibold text-text">{t('title')}</h1>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 max-md:w-full max-md:min-w-0 max-md:flex-wrap">
             {selected.size >= 2 && (
               <button
                 onClick={() => setShowMerge(true)}
@@ -151,7 +151,7 @@ export default function PayeesPage() {
                 {t('mergeSelected', { total: selected.size })}
               </button>
             )}
-            <div className="relative">
+            <div className="relative max-md:flex-1 max-md:min-w-0">
               <Search
                 size={14}
                 className="absolute left-2.5 top-1/2 -translate-y-1/2 text-text-tertiary"
@@ -161,7 +161,7 @@ export default function PayeesPage() {
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder={t('search')}
                 aria-label={t('search')}
-                className="pl-8 pr-3 py-1.5 text-sm border border-border rounded-full bg-surface text-text focus:outline-none focus:ring-1 focus:ring-brand-600 focus:border-brand-600"
+                className="pl-8 pr-3 py-1.5 max-md:w-full text-sm border border-border rounded-full bg-surface text-text focus:outline-none focus:ring-1 focus:ring-brand-600 focus:border-brand-600"
               />
             </div>
           </div>
