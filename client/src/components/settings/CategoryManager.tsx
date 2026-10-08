@@ -271,6 +271,7 @@ function GroupCard({
                   type="button"
                   onClick={() => setShowNewCatEmojiPicker(!showNewCatEmojiPicker)}
                   className="text-base w-8 h-8 flex items-center justify-center rounded border border-border-light hover:bg-hover transition-colors"
+                  aria-label="Pick icon"
                   title="Pick icon"
                 >
                   {newCategoryIcon || '📦'}

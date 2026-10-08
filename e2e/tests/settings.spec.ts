@@ -26,6 +26,60 @@ test.describe('categories', () => {
     expect(pets.categories.map((c) => c.name)).toEqual(['Vet Bills']);
   });
 
+  test('picks an icon for a new category', async ({ page, api }) => {
+    // The last group's form sits at the bottom of its card, which clips what overflows it
+    await page.getByRole('button', { name: 'Create Category' }).last().click();
+    await page.getByPlaceholder('Category name...').fill('Dog Walker');
+    await page.getByRole('button', { name: 'Pick icon' }).click();
+
+    const picker = page.locator('aside.EmojiPickerReact');
+    await expect(picker.getByRole('button', { name: 'grinning face', exact: true })).toBeVisible();
+    // Emojis come from the device's font: nothing is loaded from a CDN, which the CSP blocks
+    await expect(picker.locator('img')).toHaveCount(0);
+
+    // The whole picker is on screen and on top, not cut off by the card
+    const box = (await picker.boundingBox())!;
+    const viewport = page.viewportSize()!;
+    expect(box.y).toBeGreaterThanOrEqual(0);
+    expect(box.y + box.height).toBeLessThanOrEqual(viewport.height);
+    for (const [x, y] of [
+      [box.x + 4, box.y + 4],
+      [box.x + box.width - 4, box.y + box.height - 4],
+    ]) {
+      const onTop = await picker.evaluate(
+        (el, [px, py]) => el.contains(document.elementFromPoint(px, py)),
+        [x, y],
+      );
+      expect(onTop).toBe(true);
+    }
+
+    await picker.getByRole('textbox', { name: 'Type to search for an emoji' }).fill('dog face');
+    await picker.getByRole('button', { name: 'dog face', exact: true }).click();
+    await expect(picker).toBeHidden();
+    await expect(page.getByRole('button', { name: 'Pick icon' })).toHaveText('🐶');
+
+    await page.getByRole('button', { name: 'Add category' }).click();
+    await expect(page.getByRole('button', { name: 'Edit Dog Walker' })).toBeVisible();
+    await expect.poll(async () => (await api.category('Dog Walker'))?.icon).toBe('🐶');
+  });
+
+  test('changes a category icon in the edit dialog', async ({ page, api }) => {
+    await page.getByRole('button', { name: 'Edit Parking' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Edit Category' });
+    await dialog.getByRole('button', { name: 'Change icon' }).click();
+
+    // Choosing an emoji in the picker (portaled outside the dialog) keeps the dialog open
+    const picker = page.locator('aside.EmojiPickerReact');
+    await picker.getByRole('textbox', { name: 'Type to search for an emoji' }).fill('dog face');
+    await picker.getByRole('button', { name: 'dog face', exact: true }).click();
+    await expect(picker).toBeHidden();
+    await expect(dialog.getByRole('button', { name: 'Change icon' })).toHaveText('🐶');
+
+    await dialog.getByRole('button', { name: 'Save' }).click();
+    await expect(dialog).toBeHidden();
+    await expect.poll(async () => (await api.category('Parking'))?.icon).toBe('🐶');
+  });
+
   test('renames a category from the keyboard', async ({ page, api }) => {
     await page.getByRole('button', { name: 'Edit Parking' }).focus();
     await page.keyboard.press('Enter');
