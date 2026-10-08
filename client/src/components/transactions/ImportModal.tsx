@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Trans, useTranslation } from 'react-i18next';
 import { Upload, AlertTriangle, CheckCircle, X } from 'lucide-react';
 import { Modal } from '../ui/Modal';
@@ -19,6 +20,7 @@ import {
   type DateOrder,
   type DecimalSeparator,
   type ImportConventions,
+  type ImportMemory,
   type ImportProblem,
   type ReadImportRow,
 } from '../../utils/csv';
@@ -34,7 +36,14 @@ import { defaultDestination, destinationAccounts, isCardType } from '../../utils
 import { usePreferencesStore } from '../../store/preferencesStore';
 import { importPreview } from '../../api/transactions';
 import { useImportConfirm } from '../../hooks/useTransactions';
-import { useAccounts } from '../../hooks/useAccounts';
+import {
+  importSettingsKey,
+  importSettingsQuery,
+  useAccounts,
+  useImportSettings,
+  useSaveImportSettings,
+} from '../../hooks/useAccounts';
+import { nextImportMemory, rememberedImport } from '../../utils/importMemory';
 import { formatCurrency } from '../../utils/currency';
 import type { Currency, ImportPreviewRow } from '../../types';
 import type { ImportRow } from '../../api/transactions';
@@ -50,6 +59,9 @@ type Step = 'upload' | 'map' | 'preview' | 'done';
 
 /** A row of the preview: where it goes and in which currency */
 type PreviewRow = ImportPreviewRow & { accountId: string; currency: Currency };
+
+/** How long a chosen file waits for the account's remembered settings before it opens without them */
+const SETTINGS_WAIT_MS = 4000;
 
 /** Unreadable rows listed before "and N more" */
 const PROBLEMS_SHOWN = 5;
@@ -100,7 +112,13 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
   const [chargesPositive, setChargesPositive] = useState(false);
   /** Where rows of the other currency go; null = not imported */
   const [otherAccountId, setOtherAccountId] = useState<string | null>(null);
-  const rememberChoices = usePreferencesStore((s) => s.setCsvImportConventions);
+  // What this account's last import used, from the server (loaded as the dialog opens)
+  const queryClient = useQueryClient();
+  // Loaded early so a file opens at once; `loadMemory` reads the answer when a file is chosen
+  useImportSettings(accountId, isOpen);
+  const saveSettings = useSaveImportSettings();
+  /** The remembered choices the current file was opened with */
+  const memory = useRef<ImportMemory | undefined>(undefined);
   // Only the latest file, and the answer to the latest preview request, are shown
   const fileRequest = useRef(0);
   const previewRequest = useRef(0);
@@ -122,6 +140,7 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
     setConventions(DEFAULT_CONVENTIONS);
     setChargesPositive(false);
     setOtherAccountId(null);
+    memory.current = undefined;
     fileRequest.current++;
     previewRequest.current++;
     setPreviewRows([]);
@@ -136,29 +155,58 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
     onClose();
   }
 
+  /**
+   * The choices remembered for this account: the server's (the copy loaded when the dialog
+   * opened, else the cached one while offline), else this device's from before they moved
+   */
+  async function loadMemory(): Promise<ImportMemory | undefined> {
+    let saved: ImportMemory | null | undefined;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      // A server that stops answering mid-request mustn't keep the file from opening
+      const late = new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error('timeout')), SETTINGS_WAIT_MS);
+      });
+      const answer = queryClient.fetchQuery({ ...importSettingsQuery(accountId), retry: false });
+      saved = (await Promise.race([answer, late])).settings;
+    } catch {
+      saved = queryClient.getQueryData<{ settings: ImportMemory | null }>(
+        importSettingsKey(accountId),
+      )?.settings;
+    } finally {
+      clearTimeout(timer);
+    }
+    return rememberedImport(
+      saved,
+      usePreferencesStore.getState().csvImportConventions[accountId],
+      // Until the accounts load, no remembered account can be told apart from a deleted one
+      accounts && new Set(accounts.map((a) => a.id)),
+    );
+  }
+
   /** Shows one sheet of the file with the choices remembered for this account, else guessed */
   function showSheet(sheet: Cell[][]) {
-    const memory = usePreferencesStore.getState().csvImportConventions[accountId];
+    const remembered = memory.current;
     const table = readTable(sheetText(sheet, 'point'));
     const body = sheet.slice(table.preamble.length + 1);
     // What this account's files used last time, else what this file's text suggests (the
     // lines above the headers too: a statement's period often has a day above 12)
     const written = sheet.map((row) => row.map((cell) => (typeof cell === 'number' ? '' : cell)));
-    const using: ImportConventions = memory
-      ? { dateOrder: memory.dateOrder, decimal: memory.decimal }
+    const using: ImportConventions = remembered
+      ? { dateOrder: remembered.dateOrder, decimal: remembered.decimal }
       : guessConventions(written);
     const rows = sheetText(body, using.decimal);
     const sameHeaders =
-      memory?.columns?.headers.length === table.headers.length &&
-      memory.columns.headers.every((h, i) => h === table.headers[i]);
-    const columns = sameHeaders ? memory!.columns!.roles : guessRoles(table.headers, rows);
+      remembered?.columns?.headers.length === table.headers.length &&
+      remembered.columns.headers.every((h, i) => h === table.headers[i]);
+    const columns = sameHeaders ? remembered!.columns!.roles : guessRoles(table.headers, rows);
 
     setHeaders(table.headers);
     setCells(body);
     setRoles(columns);
     setConventions(using);
     setChargesPositive(
-      memory?.chargesPositive ??
+      remembered?.chargesPositive ??
         (!!account &&
           isCardType(account.type) &&
           hasSignedAmountColumn(columns) &&
@@ -166,9 +214,9 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
     );
     const destinations = account ? destinationAccounts(account, accounts ?? [], otherCurrency) : [];
     setOtherAccountId(
-      memory?.otherAccountId === null
+      remembered?.otherAccountId === null
         ? null
-        : (destinations.find((a) => a.id === memory?.otherAccountId)?.id ??
+        : (destinations.find((a) => a.id === remembered?.otherAccountId)?.id ??
             (account ? defaultDestination(account, accounts ?? [], otherCurrency) : null)),
     );
   }
@@ -196,6 +244,9 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
       setError(t('errors.noRows'));
       return;
     }
+    const remembered = await loadMemory();
+    if (request !== fileRequest.current) return;
+    memory.current = remembered;
     // A workbook's transactions aren't always on its first sheet (Itaú's card summary)
     const withTable = loaded.findIndex((s) => readTable(sheetText(s.rows, 'point')).recognized);
     const at = Math.max(withTable, 0);
@@ -360,14 +411,17 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
       }
     }
 
-    const memory = usePreferencesStore.getState().csvImportConventions[accountId];
-    rememberChoices(accountId, {
-      ...memory,
-      ...conventions,
-      columns: { headers, roles },
-      ...(signedAmounts ? { chargesPositive } : {}),
-      ...(otherCount > 0 ? { otherAccountId } : {}),
+    // Remembered for the next file, on every device. Only a save: if it fails, the import
+    // still stands and the next file is opened with the earlier choices
+    const settings = nextImportMemory(memory.current, {
+      conventions,
+      headers,
+      roles,
+      chargesPositive: signedAmounts ? chargesPositive : undefined,
+      otherAccountId: otherCount > 0 ? otherAccountId : undefined,
     });
+    memory.current = settings;
+    if (canSave) saveSettings.mutate({ accountId, settings });
     setResult(total);
     setStep('done');
   }

@@ -1,6 +1,6 @@
 import fs from 'fs';
 import type { Page } from '@playwright/test';
-import { test, expect, open, isoDay } from './fixtures';
+import { test, expect, open, isoDay, openAsTheApp } from './fixtures';
 import { xlsx } from './xlsx';
 
 // Getting data in (CSV import) and out (CSV export, full backup) and restoring it.
@@ -227,6 +227,77 @@ test.describe('CSV import', () => {
     await expect(dialog.getByLabel('Decimals')).toHaveValue('comma');
     await dialog.getByRole('button', { name: 'Preview' }).click();
     await expect(dialog.getByRole('row', { name: /Kiosco/ })).toContainText('2026-03-04');
+  });
+
+  test("an account's import settings follow it to another browser", async ({
+    page,
+    api,
+    browser,
+    baseURL,
+  }) => {
+    const caja = await api.createAccount('Caja de ahorro', 0);
+    await open(page, `/accounts/${caja.id}`);
+    let dialog = await importCsv(page, URUGUAYAN_CSV);
+    await expect(dialog.getByLabel('Dates')).toHaveValue('day-first');
+    // A column chosen by hand is remembered too (here: leave money in out)
+    await dialog.getByRole('combobox', { name: 'Column Crédito' }).selectOption('skip');
+    await dialog.getByRole('button', { name: 'Preview' }).click();
+    await dialog.getByRole('button', { name: 'Import 1 Transaction' }).click();
+    await expect(dialog).toContainText('1 imported, 0 skipped');
+    await dialog.getByRole('button', { name: 'Done' }).click();
+
+    // Stored with the account, not in this browser
+    await expect
+      .poll(async () => (await api.call('GET', `/accounts/${caja.id}/import-settings`)).settings)
+      .toMatchObject({ dateOrder: 'day-first', decimal: 'comma' });
+    const prefs = await page.evaluate(() => localStorage.getItem('budget-preferences'));
+    expect(JSON.parse(prefs ?? '{}').state?.csvImportConventions ?? {}).toEqual({});
+
+    // Another browser (a phone, another computer) with nothing stored opens a file with
+    // nothing to guess from (4 March or 3 April? 150 or 1.50?) the way this account's were read
+    const other = await browser.newContext();
+    try {
+      await openAsTheApp(other, baseURL!);
+      const phone = await other.newPage();
+      await open(phone, `/accounts/${caja.id}`);
+      dialog = await importCsv(
+        phone,
+        'Fecha;Descripción;Débito;Crédito\r\n04/03/2026;Kiosco;150;\r\n',
+      );
+      await expect(dialog.getByLabel('Dates')).toHaveValue('day-first');
+      await expect(dialog.getByLabel('Decimals')).toHaveValue('comma');
+      await expect(dialog.getByRole('combobox', { name: 'Column Crédito' })).toHaveValue('skip');
+      await dialog.getByRole('button', { name: 'Preview' }).click();
+      await expect(dialog.getByRole('row', { name: /Kiosco/ })).toContainText('2026-03-04');
+    } finally {
+      await other.close();
+    }
+  });
+
+  test("this device's settings from before carry over to the server", async ({ page, api }) => {
+    const caja = await api.createAccount('Caja de ahorro', 0);
+    // Saved in this browser by an earlier version of the app
+    await page.addInitScript((id) => {
+      const KEY = 'budget-preferences';
+      const saved = JSON.parse(localStorage.getItem(KEY) ?? 'null') ?? { state: {}, version: 1 };
+      saved.state.csvImportConventions ??= {
+        [id]: { dateOrder: 'day-first', decimal: 'comma' },
+      };
+      localStorage.setItem(KEY, JSON.stringify(saved));
+    }, caja.id);
+    await open(page, `/accounts/${caja.id}`);
+    const dialog = await importCsv(
+      page,
+      'Fecha;Descripción;Débito;Crédito\r\n04/03/2026;Kiosco;150;\r\n',
+    );
+    await expect(dialog.getByLabel('Dates')).toHaveValue('day-first');
+    await expect(dialog.getByLabel('Decimals')).toHaveValue('comma');
+    await dialog.getByRole('button', { name: 'Preview' }).click();
+    await dialog.getByRole('button', { name: 'Import 1 Transaction' }).click();
+    await expect(dialog).toContainText('1 imported, 0 skipped');
+    await expect
+      .poll(async () => (await api.call('GET', `/accounts/${caja.id}/import-settings`)).settings)
+      .toMatchObject({ dateOrder: 'day-first', decimal: 'comma' });
   });
 
   test('a wrong date or decimal choice shows before anything is imported', async ({

@@ -11,6 +11,7 @@ import { groupNameSchema, resolveGroupName } from '../utils/accountGroups.js';
 import { accountTransactionSum, inAccountBalance } from '../services/balances.js';
 import { CURRENCY_LOCK_MESSAGE, currencyLockLookup } from '../services/accountCurrency.js';
 import { refusal } from '../utils/refusals.js';
+import { importSettingsSchema, readImportSettings } from '../utils/importSettings.js';
 
 export const accountsRouter = Router();
 
@@ -50,13 +51,20 @@ function groupNameFor(name: string | null, accountId?: string): string | null {
 }
 
 /**
+ * An account as the API sends it: import settings have their own route, so the list stays
+ * small and only the import dialog reads them
+ */
+const withoutImportSettings = ({ importSettings: _, ...account }: typeof accounts.$inferSelect) =>
+  account;
+
+/**
  * `currencyLockedBy` tells the edit dialog whether the currency can still change, and why
  * not. `hasTransactions` stays for an app that was loaded before `currencyLockedBy` existed.
  */
 function withBalance(account: typeof accounts.$inferSelect, lockOf = currencyLockLookup()) {
   const currencyLockedBy = lockOf(account.id);
   return {
-    ...account,
+    ...withoutImportSettings(account),
     balance: account.startingBalance + accountTransactionSum(account.id),
     hasTransactions: currencyLockedBy === 'transactions',
     currencyLockedBy,
@@ -87,7 +95,7 @@ accountsRouter.get('/', (_req, res) => {
   const lockOf = currencyLockLookup();
   res.json(
     rows.map((a) => ({
-      ...a,
+      ...withoutImportSettings(a),
       balance: a.startingBalance + (sumMap.get(a.id) ?? 0),
       hasTransactions: sumMap.has(a.id),
       currencyLockedBy: lockOf(a.id),
@@ -169,6 +177,31 @@ accountsRouter.put('/:id/reconcile', (req, res) => {
     .run();
 
   res.json({ reconciled: result.changes });
+});
+
+/** How this account's bank files are read, from its last import (null before the first) */
+accountsRouter.get('/:id/import-settings', (req, res) => {
+  const account = db
+    .select({ importSettings: accounts.importSettings })
+    .from(accounts)
+    .where(eq(accounts.id, req.params.id))
+    .get();
+  if (!account) return res.status(404).json({ error: 'Not found' });
+  // Settings stored in an older shape (or restored from a backup) read as none, never a 500
+  res.json({ settings: readImportSettings(account.importSettings) });
+});
+
+accountsRouter.put('/:id/import-settings', (req, res) => {
+  const parsed = importSettingsSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+
+  const result = db
+    .update(accounts)
+    .set({ importSettings: JSON.stringify(parsed.data) })
+    .where(eq(accounts.id, req.params.id))
+    .run();
+  if (!result.changes) return res.status(404).json({ error: 'Not found' });
+  res.json({ settings: parsed.data });
 });
 
 accountsRouter.put('/:id', (req, res) => {

@@ -3,6 +3,7 @@ import {
   test as base,
   expect,
   type APIRequestContext,
+  type BrowserContext,
   type Locator,
   type Page,
 } from '@playwright/test';
@@ -101,6 +102,31 @@ type Fixtures = {
   language: AppLanguage | null;
 };
 
+/**
+ * Sets a browser context up the way the desktop app's window is: the preload's API address,
+ * the per-launch token and the pinned App Language. The `context` fixture does this; a test
+ * that needs a second browser (another device, with its own storage) calls it on a new context.
+ */
+export async function openAsTheApp(
+  context: BrowserContext,
+  baseURL: string,
+  language: AppLanguage | null = 'en',
+) {
+  if (language) await pinLanguage(context, language);
+  await context.addInitScript((apiBase) => {
+    (window as unknown as { __API_BASE__: string }).__API_BASE__ = apiBase;
+  }, `${baseURL}/api`);
+  await context.addCookies([
+    {
+      name: 'flybudget_token',
+      value: token(),
+      url: baseURL,
+      httpOnly: true,
+      sameSite: 'Strict',
+    },
+  ]);
+}
+
 export const test = base.extend<Fixtures>({
   language: ['en', { option: true }],
 
@@ -121,19 +147,7 @@ export const test = base.extend<Fixtures>({
   ],
 
   context: async ({ context, baseURL, language }, use) => {
-    if (language) await pinLanguage(context, language);
-    await context.addInitScript((apiBase) => {
-      (window as unknown as { __API_BASE__: string }).__API_BASE__ = apiBase;
-    }, `${baseURL}/api`);
-    await context.addCookies([
-      {
-        name: 'flybudget_token',
-        value: token(),
-        url: baseURL!,
-        httpOnly: true,
-        sameSite: 'Strict',
-      },
-    ]);
+    await openAsTheApp(context, baseURL!, language);
     await use(context);
   },
 
