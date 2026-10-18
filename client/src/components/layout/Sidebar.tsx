@@ -34,6 +34,7 @@ function NavItem({ to, icon, label, collapsed }: NavItemProps) {
   return (
     <NavLink
       to={to}
+      data-nav-to={to}
       title={collapsed ? label : undefined}
       className={({ isActive }) =>
         // Phones (the drawer): full-size touch targets
@@ -62,15 +63,20 @@ export function Sidebar() {
 
   // Tracked in both modes, so unpinning keeps the sidebar open until the pointer leaves it
   const [hovered, setHovered] = useState(false);
-  const handleMouseEnter = useCallback(() => setHovered(true), []);
+  // Escape collapses it but keeps focus where it is, until the next focus or hover
+  const [dismissed, setDismissed] = useState(false);
+  const handleMouseEnter = useCallback(() => {
+    setHovered(true);
+    setDismissed(false);
+  }, []);
   const handleMouseLeave = useCallback(() => setHovered(false), []);
 
-  // Keyboard focus opens it like hovering does, so everything in it (including the pin) can
-  // be reached and seen. Mouse clicks don't count, or the sidebar would stay open after
-  // clicking a link and moving the pointer away.
+  // Keyboard focus opens it like hovering does. Mouse clicks don't, or it would stay open
+  // after clicking a link and moving the pointer away.
   const [keyboardFocus, setKeyboardFocus] = useState(false);
   useEffect(() => {
     const onFocusIn = (e: FocusEvent) => {
+      setDismissed(false);
       const target = e.target as Element;
       const inside =
         !!asideRef.current?.contains(target) || // Its menus are portaled out of it and marked
@@ -90,21 +96,37 @@ export function Sidebar() {
   }, []);
 
   const isAutoHide = sidebarMode === 'auto-hide';
-  const isExpanded = isAutoHide ? hovered || keyboardFocus : true;
+  const isExpanded = isAutoHide ? (hovered || keyboardFocus) && !dismissed : true;
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    const target = e.target as Element;
+
+    // Keys from its portaled menus bubble here through React, but Escape there closes the menu
+    if (e.key !== 'Escape' || e.defaultPrevented || !asideRef.current?.contains(target)) return;
+    if (!isExpanded || !isAutoHide) return;
+
+    // Don't leave focus on a control the collapsed strip hides
+    const hidden = target.closest<HTMLElement>('[data-escape-to]');
+    if (hidden) {
+      asideRef.current
+        .querySelector<HTMLElement>(`[data-nav-to="${hidden.dataset.escapeTo}"]`)
+        ?.focus();
+    }
+    setDismissed(true); // After focus(), whose focusin would reopen it
+  };
 
   return (
     <aside
       ref={asideRef}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
+      onKeyDown={handleKeyDown}
       className={
         isAutoHide
           ? 'w-16 shrink-0 h-screen relative z-30'
           : 'w-[208px] shrink-0 h-screen overflow-clip border-r border-sidebar-border'
       }
     >
-      {/* overflow-clip, not hidden: a hidden box can still be scrolled, and focusing something
-          past its edge would slide the content sideways */}
       <div
         className={
           isAutoHide
@@ -142,6 +164,7 @@ function SidebarContent({ isExpanded, onClose }: { isExpanded: boolean; onClose?
           budgetClassName="text-sidebar-text-hi"
         />
         <div
+          data-escape-to="/dashboard"
           className={`ml-auto -mr-1.5 flex items-center gap-0.5 transition-opacity duration-200 ${
             isExpanded ? 'opacity-100' : 'opacity-0 pointer-events-none'
           }`}
@@ -231,6 +254,7 @@ function SidebarContent({ isExpanded, onClose }: { isExpanded: boolean; onClose?
 
       {/* Account list */}
       <div
+        data-escape-to="/accounts"
         className={`flex-1 flex flex-col min-h-0 overflow-hidden transition-opacity duration-200 ${
           isExpanded ? 'opacity-100' : 'opacity-0 pointer-events-none'
         }`}
