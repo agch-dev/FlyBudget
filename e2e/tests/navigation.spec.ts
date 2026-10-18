@@ -69,3 +69,44 @@ test('unknown routes inside the app fall back gracefully', async ({ page, api })
   await open(page, '/');
   await expect(page).toHaveURL(/#\/dashboard$/);
 });
+
+test('the unpinned sidebar works from the keyboard', async ({ page, api }) => {
+  await api.createAccount('Everyday Checking');
+  await open(page, '/dashboard');
+  const sidebar = page.getByRole('complementary');
+  const pin = sidebar.getByRole('button', { name: 'Pin sidebar' });
+
+  await pin.click();
+  await expect(pin).toHaveAttribute('aria-pressed', 'false');
+  // Starts over, so Tab begins at the top of the page (the setting is kept)
+  await page.reload();
+  await page.mouse.move(900, 400);
+  // Collapsed: the links' names are hidden
+  await expect(sidebar.getByText('Dashboard', { exact: true })).toHaveCSS('opacity', '0');
+
+  // The first Tab offers a way past the sidebar
+  await page.keyboard.press('Tab');
+  const skip = page.getByRole('link', { name: 'Skip to main content' });
+  await expect(skip).toBeFocused();
+  await expect(skip).toBeInViewport();
+  await page.keyboard.press('Enter');
+  await expect(page.getByRole('main')).toBeFocused();
+
+  // Tabbing into the sidebar opens it, so its header buttons are visible (not scrolled into
+  // the 64px strip) and it can be pinned again
+  await page.keyboard.press('Shift+Tab');
+  await expect(sidebar.getByRole('button', { name: /^Server status/ })).toBeFocused();
+  await expect(sidebar.getByText('Dashboard', { exact: true })).toHaveCSS('opacity', '1');
+  await skip.focus();
+  await page.keyboard.press('Tab');
+  await expect(sidebar.getByRole('link', { name: /Help & docs/ })).toBeFocused();
+  await page.keyboard.press('Tab');
+  await page.keyboard.press('Tab');
+  await expect(sidebar.getByRole('link', { name: 'Dashboard' })).toBeFocused();
+  await page.keyboard.press('Shift+Tab');
+  await expect(pin).toBeFocused();
+  const box = (await pin.boundingBox())!;
+  expect(box.x + box.width).toBeLessThanOrEqual(208);
+  await page.keyboard.press('Enter');
+  await expect(pin).toHaveAttribute('aria-pressed', 'true');
+});
