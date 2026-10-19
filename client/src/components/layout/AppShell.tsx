@@ -91,7 +91,6 @@ function PhoneShell() {
     <div className="flex flex-col h-dvh bg-page overflow-hidden">
       <SidebarDrawer open={open} onClose={close} />
       <div inert={open} className="flex-1 min-h-0 flex flex-col">
-        <SkipToContent />
         <header className="shrink-0 flex items-center gap-2 h-12 px-2 bg-sidebar-bg border-b border-sidebar-border">
           <button
             ref={menuButton}
