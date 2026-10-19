@@ -30,12 +30,8 @@ const MIN_SIZE: Record<DashboardWidget['type'], { minW: number; minH: number }> 
   'custom-report': { minW: 3, minH: 3 },
 };
 
-/**
- * The width the grid has to fill, measured before the first paint and on every resize. The
- * grid isn't drawn until it is known: drawn at a guessed width, a phone could get the desktop
- * layout (react-grid-layout's own `useContainerWidth` starts at 1280px and, opened from another
- * page, sometimes kept it).
- */
+/** The grid's real width, measured before it's drawn so a phone never gets the desktop layout
+ * (react-grid-layout's own hook guesses 1280px at first). */
 function useGridWidth() {
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState<number | null>(null);
