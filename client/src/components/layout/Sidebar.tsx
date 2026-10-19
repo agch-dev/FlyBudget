@@ -74,6 +74,8 @@ export function Sidebar() {
           : 'w-[208px] shrink-0 h-screen overflow-clip border-r border-sidebar-border'
       }
     >
+      {/* overflow-clip, not hidden: a hidden box can still be scrolled, and focusing something
+          past its edge would slide the content sideways */}
       <div
         className={
           isAutoHide
