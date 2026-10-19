@@ -192,7 +192,7 @@ export function SidebarAccountList() {
               <div
                 ref={menuRef}
                 id={menuId}
-                // Focus in here keeps the auto-hide sidebar open (see Sidebar)
+                // Focus in here keeps the auto-hide sidebar open (see useAutoHideExpansion)
                 data-sidebar-popup
                 className="fixed z-50 min-w-48 w-max bg-surface rounded-md border border-border shadow-hover py-1 animate-menu-in"
                 style={menuPos}

@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useRef } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -19,6 +19,7 @@ import {
 import { usePreferencesStore } from '../../store/preferencesStore';
 import { SidebarAccountList } from './SidebarAccountList';
 import { ServerStatus } from './ServerStatus';
+import { useAutoHideExpansion } from './useAutoHideExpansion';
 import { DOCS_URL } from '../../utils/project';
 import { BrandName } from '../ui/BrandName';
 import logoUrl from '/logo.png';
@@ -60,67 +61,13 @@ function NavItem({ to, icon, label, collapsed }: NavItemProps) {
 export function Sidebar() {
   const sidebarMode = usePreferencesStore((s) => s.sidebarMode);
   const asideRef = useRef<HTMLElement>(null);
-
-  // Tracked in both modes, so unpinning keeps the sidebar open until the pointer leaves it
-  const [hovered, setHovered] = useState(false);
-  // Escape collapses it but keeps focus where it is, until the next focus or hover
-  const [dismissed, setDismissed] = useState(false);
-  const handleMouseEnter = useCallback(() => {
-    setHovered(true);
-    setDismissed(false);
-  }, []);
-  const handleMouseLeave = useCallback(() => setHovered(false), []);
-
-  // Keyboard focus opens it like hovering does. Mouse clicks don't, or it would stay open
-  // after clicking a link and moving the pointer away.
-  const [keyboardFocus, setKeyboardFocus] = useState(false);
-  useEffect(() => {
-    const onFocusIn = (e: FocusEvent) => {
-      setDismissed(false);
-      const target = e.target as Element;
-      const inside =
-        !!asideRef.current?.contains(target) || // Its menus are portaled out of it and marked
-        !!target.closest?.('[data-sidebar-popup]');
-      setKeyboardFocus(inside && target.matches(':focus-visible'));
-    };
-    // Focus going nowhere (clicking empty space, or leaving the window)
-    const onFocusOut = (e: FocusEvent) => {
-      if (!e.relatedTarget) setKeyboardFocus(false);
-    };
-    document.addEventListener('focusin', onFocusIn);
-    document.addEventListener('focusout', onFocusOut);
-    return () => {
-      document.removeEventListener('focusin', onFocusIn);
-      document.removeEventListener('focusout', onFocusOut);
-    };
-  }, []);
-
   const isAutoHide = sidebarMode === 'auto-hide';
-  const isExpanded = isAutoHide ? (hovered || keyboardFocus) && !dismissed : true;
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    const target = e.target as Element;
-
-    // Keys from its portaled menus bubble here through React, but Escape there closes the menu
-    if (e.key !== 'Escape' || e.defaultPrevented || !asideRef.current?.contains(target)) return;
-    if (!isExpanded || !isAutoHide) return;
-
-    // Don't leave focus on a control the collapsed strip hides
-    const hidden = target.closest<HTMLElement>('[data-escape-to]');
-    if (hidden) {
-      asideRef.current
-        .querySelector<HTMLElement>(`[data-nav-to="${hidden.dataset.escapeTo}"]`)
-        ?.focus();
-    }
-    setDismissed(true); // After focus(), whose focusin would reopen it
-  };
+  const { isExpanded, ...expansionHandlers } = useAutoHideExpansion(asideRef, isAutoHide);
 
   return (
     <aside
       ref={asideRef}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-      onKeyDown={handleKeyDown}
+      {...expansionHandlers}
       className={
         isAutoHide
           ? 'w-16 shrink-0 h-screen relative z-30'
