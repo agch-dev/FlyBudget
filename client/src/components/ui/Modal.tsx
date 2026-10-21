@@ -64,8 +64,6 @@ export function Modal({ isOpen, onClose, title, children, size = 'md' }: Props) 
 
   if (!mounted) return null;
 
-  // While fading out it's already gone for screen readers and the keyboard: another dialog
-  // can open before the fade ends, and only that one is there
   return createPortal(
     <div
       inert={closing}
