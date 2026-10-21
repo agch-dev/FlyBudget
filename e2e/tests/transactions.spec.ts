@@ -192,6 +192,47 @@ test.describe('account register', () => {
     await expect(page.getByText('Transaction Details')).toBeHidden();
   });
 
+  test('keeps a date typed while the notes are still saving', async ({ page, api }) => {
+    const { checking } = await setup(api);
+    const tx = await api.createTransaction({
+      accountId: checking.id,
+      date: isoDay(),
+      amount: -1_999,
+      payeeName: 'Streamflix',
+    });
+    // Hold the notes save until the new date is typed
+    let releaseNotes!: () => void;
+    const notesHeld = new Promise<void>((resolve) => (releaseNotes = resolve));
+    await page.route(`**/api/transactions/${tx.id}`, async (route) => {
+      if (route.request().method() === 'PUT' && route.request().postData()?.includes('notes')) {
+        await notesHeld;
+      }
+      await route.continue();
+    });
+    await open(page, `/accounts/${checking.id}`);
+    await row(page, 'Streamflix').click();
+    const panel = page.getByRole('complementary', { name: 'Transaction details' });
+
+    await panel.getByRole('textbox', { name: 'Notes' }).fill('family plan');
+    await panel.getByRole('textbox', { name: 'Notes' }).blur();
+    await panel.getByRole('textbox', { name: 'Date' }).fill(otherDayThisMonth());
+    // The notes save finishes and the register refetches before the date field loses focus
+    const refetched = page.waitForResponse(
+      (r) => r.request().method() === 'GET' && /\/api\/transactions\?/.test(r.url()),
+    );
+    releaseNotes();
+    await refetched;
+    await page.evaluate(
+      () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+    );
+    await expect(panel.getByRole('textbox', { name: 'Date' })).toHaveValue(otherDayThisMonth());
+    await panel.getByRole('textbox', { name: 'Date' }).blur();
+
+    await expect
+      .poll(async () => (await api.transactions(`?account_id=${checking.id}`))[0])
+      .toMatchObject({ id: tx.id, notes: 'family plan', date: otherDayThisMonth() });
+  });
+
   test('deletes a transaction after confirming', async ({ page, api }) => {
     const { checking } = await setup(api);
     await api.createTransaction({

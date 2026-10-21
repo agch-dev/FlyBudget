@@ -70,12 +70,15 @@ export function TransactionDetailPanel({
   const [ruleDraft, setRuleDraft] = useState<RuleInput | null>(null);
   const ruleModal = useModalValue(ruleDraft);
 
-  useEffect(() => {
-    setLocalDate(tx.date);
-    setLocalNotes(tx.notes ?? '');
-    setLocalPayee({ id: tx.payeeId, name: tx.payeeName ?? '' });
-    setShowCategoryPicker(false);
-  }, [tx.id, tx.date, tx.notes, tx.payeeId, tx.payeeName]);
+  // Each field follows the server only when its own value changes (undo, a sync), so the
+  // refetch after saving one field never wipes another the user is still typing in
+  useEffect(() => setLocalDate(tx.date), [tx.id, tx.date]);
+  useEffect(() => setLocalNotes(tx.notes ?? ''), [tx.id, tx.notes]);
+  useEffect(
+    () => setLocalPayee({ id: tx.payeeId, name: tx.payeeName ?? '' }),
+    [tx.id, tx.payeeId, tx.payeeName],
+  );
+  useEffect(() => setShowCategoryPicker(false), [tx.id]);
 
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
