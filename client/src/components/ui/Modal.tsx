@@ -64,8 +64,14 @@ export function Modal({ isOpen, onClose, title, children, size = 'md' }: Props) 
 
   if (!mounted) return null;
 
+  // While fading out it's already gone for screen readers and the keyboard: another dialog
+  // can open before the fade ends, and only that one is there
   return createPortal(
-    <div className={`fixed inset-0 z-50 overflow-y-auto ${closing ? 'pointer-events-none' : ''}`}>
+    <div
+      inert={closing}
+      aria-hidden={closing || undefined}
+      className={`fixed inset-0 z-50 overflow-y-auto ${closing ? 'pointer-events-none' : ''}`}
+    >
       <div
         className={`fixed inset-0 bg-black/30 backdrop-blur-sm cursor-pointer ${closing ? 'animate-fade-out' : 'animate-fade-in'}`}
         onClick={onClose}
