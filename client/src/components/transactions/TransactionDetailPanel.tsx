@@ -3,6 +3,7 @@ import { X, Lock, Trash2, Repeat, Unlink, Wand2 } from 'lucide-react';
 import { useUpdateTransaction, useDeleteTransaction } from '../../hooks/useTransactions';
 import { useTransferToAccount, useUnlinkTransfer } from '../../hooks/useTransfers';
 import { useCanSave } from '../../hooks/useConnection';
+import { useServerValue } from '../../hooks/useServerValue';
 import { useSchedules, useUnmatchByTransaction } from '../../hooks/useSchedules';
 import { CategoryPicker } from './CategoryPicker';
 import { PayeeCombobox } from './PayeeCombobox';
@@ -39,6 +40,13 @@ interface Props {
   onClose: () => void;
 }
 
+/** A payee typed by name (no id yet) shows the server's payee once the names match */
+function samePayee(local: PayeeValue, server: PayeeValue) {
+  return local.name === server.name && (local.id === server.id || local.id === null);
+}
+
+type PayeeValue = { id: string | null; name: string };
+
 export function TransactionDetailPanel({
   transaction: tx,
   categoryMap,
@@ -62,22 +70,19 @@ export function TransactionDetailPanel({
   const linkedSchedule = tx.scheduleId ? schedules.find((s) => s.id === tx.scheduleId) : null;
   const freqMap = new Map(RECURRENCE_TYPE_LABELS.map((f) => [f.value, f.label]));
 
-  const [localDate, setLocalDate] = useState(tx.date);
-  const [localNotes, setLocalNotes] = useState(tx.notes ?? '');
-  const [localPayee, setLocalPayee] = useState({ id: tx.payeeId, name: tx.payeeName ?? '' });
+  // A reload (after saving another field, or this one) never wipes what the user is typing
+  const [localDate, setLocalDate] = useServerValue(tx.date, tx.id);
+  const [localNotes, setLocalNotes] = useServerValue(tx.notes ?? '', tx.id);
+  const [localPayee, setLocalPayee] = useServerValue(
+    { id: tx.payeeId, name: tx.payeeName ?? '' },
+    tx.id,
+    samePayee,
+  );
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [ruleDraft, setRuleDraft] = useState<RuleInput | null>(null);
   const ruleModal = useModalValue(ruleDraft);
 
-  // Each field follows the server only when its own value changes (undo, a sync), so the
-  // refetch after saving one field never wipes another the user is still typing in
-  useEffect(() => setLocalDate(tx.date), [tx.id, tx.date]);
-  useEffect(() => setLocalNotes(tx.notes ?? ''), [tx.id, tx.notes]);
-  useEffect(
-    () => setLocalPayee({ id: tx.payeeId, name: tx.payeeName ?? '' }),
-    [tx.id, tx.payeeId, tx.payeeName],
-  );
   useEffect(() => setShowCategoryPicker(false), [tx.id]);
 
   useEffect(() => {

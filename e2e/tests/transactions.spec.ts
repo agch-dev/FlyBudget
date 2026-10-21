@@ -233,6 +233,47 @@ test.describe('account register', () => {
       .toMatchObject({ id: tx.id, notes: 'family plan', date: otherDayThisMonth() });
   });
 
+  test('keeps notes typed while their earlier save is still finishing', async ({ page, api }) => {
+    const { checking } = await setup(api);
+    const tx = await api.createTransaction({
+      accountId: checking.id,
+      date: isoDay(),
+      amount: -1_999,
+      payeeName: 'Streamflix',
+    });
+    // Hold the first notes save until more has been typed
+    let releaseSave!: () => void;
+    const saveHeld = new Promise<void>((resolve) => (releaseSave = resolve));
+    await page.route(`**/api/transactions/${tx.id}`, async (route) => {
+      if (route.request().method() === 'PUT') await saveHeld;
+      await route.continue();
+    });
+    await open(page, `/accounts/${checking.id}`);
+    await row(page, 'Streamflix').click();
+    const notes = page
+      .getByRole('complementary', { name: 'Transaction details' })
+      .getByRole('textbox', { name: 'Notes' });
+
+    await notes.fill('family plan');
+    await notes.blur();
+    await notes.fill('family plan, shared');
+    // The first save finishes and the register refetches while the notes are still being typed
+    const refetched = page.waitForResponse(
+      (r) => r.request().method() === 'GET' && /\/api\/transactions\?/.test(r.url()),
+    );
+    releaseSave();
+    await refetched;
+    await page.evaluate(
+      () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+    );
+    await expect(notes).toHaveValue('family plan, shared');
+    await notes.blur();
+
+    await expect
+      .poll(async () => (await api.transactions(`?account_id=${checking.id}`))[0])
+      .toMatchObject({ id: tx.id, notes: 'family plan, shared' });
+  });
+
   test('deletes a transaction after confirming', async ({ page, api }) => {
     const { checking } = await setup(api);
     await api.createTransaction({
