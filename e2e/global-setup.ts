@@ -247,9 +247,12 @@ export default async function globalSetup() {
     ['client-web', undefined],
     ['client-demo', 'demo'],
   ] as const) {
-    // E2E_SKIP_BUILD reuses the build of this checkout's last run (faster while writing tests)
+    // E2E_SKIP_BUILD reuses the build of this checkout's last run (faster while writing tests).
+    // Look for a file, not the folder: macOS empties old files in the temp directory but
+    // leaves the folders, which would serve an empty build.
     const cached = buildCache(target);
-    if (!process.env.E2E_SKIP_BUILD || !fs.existsSync(cached)) buildClient(cached, mode);
+    const built = fs.existsSync(path.join(cached, 'index.html'));
+    if (!process.env.E2E_SKIP_BUILD || !built) buildClient(cached, mode);
     fs.cpSync(cached, path.join(dir, target), { recursive: true });
   }
 
