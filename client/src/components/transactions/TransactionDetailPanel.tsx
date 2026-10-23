@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { X, Lock, Trash2, Repeat, Unlink, Wand2 } from 'lucide-react';
 import { useUpdateTransaction, useDeleteTransaction } from '../../hooks/useTransactions';
 import { useTransferToAccount, useUnlinkTransfer } from '../../hooks/useTransfers';
@@ -27,8 +27,7 @@ import type {
   RuleInput,
 } from '../../types';
 
-/** Fields saved when they lose focus, which keep what was typed if the save fails */
-type TypedField = 'date' | 'payee' | 'notes';
+type EditedField = 'date' | 'payee' | 'notes' | 'category';
 
 interface Props {
   transaction: Transaction;
@@ -72,8 +71,8 @@ export function TransactionDetailPanel({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [ruleDraft, setRuleDraft] = useState<RuleInput | null>(null);
   const ruleModal = useModalValue(ruleDraft);
-  const [unsaved, setUnsaved] = useState<Partial<Record<TypedField, boolean>>>({});
-  const markUnsaved = (field: TypedField, failed: boolean) =>
+  const [unsaved, setUnsaved] = useState<Partial<Record<EditedField, boolean>>>({});
+  const markUnsaved = (field: EditedField, failed: boolean) =>
     setUnsaved((u) => (!!u[field] === failed ? u : { ...u, [field]: failed }));
 
   // Each field follows the server only when its own value changes (undo, a sync), so the
@@ -91,6 +90,7 @@ export function TransactionDetailPanel({
     markUnsaved('payee', false);
   }, [tx.id, tx.payeeId, tx.payeeName]);
   useEffect(() => setShowCategoryPicker(false), [tx.id]);
+  useEffect(() => markUnsaved('category', false), [tx.id, tx.categoryId, tx.transferTransactionId]);
 
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
@@ -114,13 +114,17 @@ export function TransactionDetailPanel({
   const transferAccounts =
     canSave && !tx.isAdjustment ? accounts.filter((a) => a.id !== tx.accountId && !a.closedAt) : [];
 
-  /** Saves one typed field; a failed save keeps the text and says so under the field */
-  function saveField(field: TypedField, data: Parameters<typeof updateTx.mutate>[0]['data']) {
-    // mutateAsync, since mutate's own callbacks only run for the latest call
-    updateTx.mutateAsync({ id: tx.id, data }).then(
+  /** Says under the field when its save fails (typed fields keep the text) */
+  function trackSave(field: EditedField, save: Promise<unknown>) {
+    // Takes mutateAsync's promise, since mutate's own callbacks only run for the latest call
+    save.then(
       () => markUnsaved(field, false),
       () => markUnsaved(field, true),
     );
+  }
+
+  function saveField(field: EditedField, data: Parameters<typeof updateTx.mutate>[0]['data']) {
+    trackSave(field, updateTx.mutateAsync({ id: tx.id, data }));
   }
 
   function saveDate() {
@@ -146,9 +150,10 @@ export function TransactionDetailPanel({
   function handleCategoryChange(catId: string | null) {
     if (catId?.startsWith('transfer:')) {
       // Links the matching transaction in that account, or creates it
-      transferTo.mutate({ id: tx.id, accountId: catId.slice('transfer:'.length) });
+      const accountId = catId.slice('transfer:'.length);
+      trackSave('category', transferTo.mutateAsync({ id: tx.id, accountId }));
     } else {
-      updateTx.mutate({ id: tx.id, data: { categoryId: catId } });
+      saveField('category', { categoryId: catId });
     }
     setShowCategoryPicker(false);
   }
@@ -309,6 +314,7 @@ export function TransactionDetailPanel({
                   transferAccounts={transferAccounts}
                 />
               )}
+              {unsaved.category && <NotSaved retry="Pick it again to retry." />}
             </div>
           )}
         </div>
@@ -407,10 +413,17 @@ export function TransactionDetailPanel({
   );
 }
 
-function NotSaved() {
+function NotSaved({ retry = 'Leave the field again to retry.' }: { retry?: string }) {
+  const ref = useRef<HTMLParagraphElement>(null);
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => ref.current?.scrollIntoView({ block: 'nearest' }));
+    return () => cancelAnimationFrame(frame);
+  }, []);
+
   return (
-    <p role="alert" className="mt-1 text-xs text-negative">
-      Couldn't save this change. Leave the field again to retry.
+    <p ref={ref} role="alert" className="mt-1 text-xs text-negative">
+      Couldn't save this change. {retry}
     </p>
   );
 }

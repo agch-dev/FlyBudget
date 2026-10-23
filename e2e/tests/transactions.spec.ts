@@ -269,6 +269,75 @@ test.describe('account register', () => {
       .toMatchObject({ id: tx.id, notes: 'family plan' });
   });
 
+  test('says when a category picked in the detail panel could not be saved', async ({
+    page,
+    api,
+  }) => {
+    const { checking } = await setup(api);
+    const tx = await api.createTransaction({
+      accountId: checking.id,
+      date: isoDay(),
+      amount: -1_999,
+      payeeName: 'Streamflix',
+    });
+    // The first category save is refused
+    let refused = false;
+    await page.route(`**/api/transactions/${tx.id}`, async (route) => {
+      if (!refused && route.request().method() === 'PUT') {
+        refused = true;
+        return route.fulfill({ status: 422, json: { error: 'Could not save' } });
+      }
+      await route.continue();
+    });
+    await open(page, `/accounts/${checking.id}`);
+    await row(page, 'Streamflix').click();
+    const panel = page.getByRole('complementary', { name: 'Transaction details' });
+    const pickStreaming = async () => {
+      await panel.getByRole('button', { name: 'Uncategorized' }).click();
+      await page.getByPlaceholder('Search categories...').fill('stream');
+      await page.getByRole('button', { name: /Streaming Services/ }).click();
+    };
+
+    await pickStreaming();
+    await expect(panel.getByRole('alert')).toHaveText(/Couldn't save this change/);
+    await expect(panel.getByRole('button', { name: 'Uncategorized' })).toBeVisible();
+
+    // Picking it again saves it and clears the message
+    await pickStreaming();
+    await expect(panel.getByRole('alert')).toBeHidden();
+    await expect
+      .poll(async () => (await api.transactions(`?account_id=${checking.id}`))[0])
+      .toMatchObject({ id: tx.id, categoryId: (await api.category('Streaming Services')).id });
+  });
+
+  test('keeps the message in sight when the offline banner pushes the panel down', async ({
+    page,
+    api,
+  }) => {
+    const { checking } = await setup(api);
+    const tx = await api.createTransaction({
+      accountId: checking.id,
+      date: isoDay(),
+      amount: -1_999,
+      payeeName: 'Streamflix',
+    });
+    // A short window, so the notes are at the bottom of the panel
+    await page.setViewportSize({ width: 1400, height: 620 });
+    // The save never reaches the server, and neither do the reconnect checks: the banner stays
+    await page.route(`**/api/transactions/${tx.id}`, (route) =>
+      route.request().method() === 'PUT' ? route.abort() : route.continue(),
+    );
+    await page.route('**/api/health', (route) => route.abort());
+    await open(page, `/accounts/${checking.id}`);
+    await row(page, 'Streamflix').click();
+    const panel = page.getByRole('complementary', { name: 'Transaction details' });
+
+    await panel.getByRole('textbox', { name: 'Notes' }).fill('family plan');
+    await panel.getByRole('textbox', { name: 'Notes' }).blur();
+    await expect(page.getByRole('status', { name: 'Connection' })).toBeVisible();
+    await expect(panel.getByRole('alert')).toBeInViewport({ ratio: 1 });
+  });
+
   test('deletes a transaction after confirming', async ({ page, api }) => {
     const { checking } = await setup(api);
     await api.createTransaction({
