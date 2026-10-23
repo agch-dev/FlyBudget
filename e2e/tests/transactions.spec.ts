@@ -200,7 +200,6 @@ test.describe('account register', () => {
       amount: -1_999,
       payeeName: 'Streamflix',
     });
-    // Hold the notes save until the new date is typed
     let releaseNotes!: () => void;
     const notesHeld = new Promise<void>((resolve) => (releaseNotes = resolve));
     await page.route(`**/api/transactions/${tx.id}`, async (route) => {
@@ -241,7 +240,6 @@ test.describe('account register', () => {
       amount: -1_999,
       payeeName: 'Streamflix',
     });
-    // The first notes save is refused
     let refused = false;
     await page.route(`**/api/transactions/${tx.id}`, async (route) => {
       if (!refused && route.request().method() === 'PUT') {
@@ -260,7 +258,6 @@ test.describe('account register', () => {
     await expect(panel.getByRole('alert')).toHaveText(/Couldn't save this change/);
     await expect(notes).toHaveValue('family plan');
 
-    // Leaving the field again saves it and clears the message
     await notes.focus();
     await notes.blur();
     await expect(panel.getByRole('alert')).toBeHidden();
@@ -280,7 +277,6 @@ test.describe('account register', () => {
       amount: -1_999,
       payeeName: 'Streamflix',
     });
-    // The first category save is refused
     let refused = false;
     await page.route(`**/api/transactions/${tx.id}`, async (route) => {
       if (!refused && route.request().method() === 'PUT') {
@@ -302,7 +298,6 @@ test.describe('account register', () => {
     await expect(panel.getByRole('alert')).toHaveText(/Couldn't save this change/);
     await expect(panel.getByRole('button', { name: 'Uncategorized' })).toBeVisible();
 
-    // Picking it again saves it and clears the message
     await pickStreaming();
     await expect(panel.getByRole('alert')).toBeHidden();
     await expect

@@ -75,6 +75,10 @@ export function TransactionDetailPanel({
   const markUnsaved = (field: EditedField, failed: boolean) =>
     setUnsaved((u) => (!!u[field] === failed ? u : { ...u, [field]: failed }));
 
+  const currentTxId = useRef(tx.id);
+  currentTxId.current = tx.id;
+  const latestSave = useRef<Partial<Record<EditedField, symbol>>>({});
+
   // Each field follows the server only when its own value changes (undo, a sync), so the
   // refetch after saving one field never wipes another the user is still typing in
   useEffect(() => {
@@ -114,12 +118,18 @@ export function TransactionDetailPanel({
   const transferAccounts =
     canSave && !tx.isAdjustment ? accounts.filter((a) => a.id !== tx.accountId && !a.closedAt) : [];
 
-  /** Says under the field when its save fails (typed fields keep the text) */
   function trackSave(field: EditedField, save: Promise<unknown>) {
     // Takes mutateAsync's promise, since mutate's own callbacks only run for the latest call
+    const attempt = Symbol(field);
+    const txId = tx.id;
+    latestSave.current[field] = attempt;
+    const settle = (failed: boolean) => {
+      if (currentTxId.current === txId && latestSave.current[field] === attempt)
+        markUnsaved(field, failed);
+    };
     save.then(
-      () => markUnsaved(field, false),
-      () => markUnsaved(field, true),
+      () => settle(false),
+      () => settle(true),
     );
   }
 
