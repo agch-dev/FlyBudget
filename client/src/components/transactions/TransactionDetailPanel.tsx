@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { X, Lock, Trash2, Repeat, Unlink, Wand2 } from 'lucide-react';
 import { useUpdateTransaction, useDeleteTransaction } from '../../hooks/useTransactions';
 import { useTransferToAccount, useUnlinkTransfer } from '../../hooks/useTransfers';
@@ -76,7 +76,9 @@ export function TransactionDetailPanel({
     setUnsaved((u) => (!!u[field] === failed ? u : { ...u, [field]: failed }));
 
   const currentTxId = useRef(tx.id);
-  currentTxId.current = tx.id;
+  useLayoutEffect(() => {
+    currentTxId.current = tx.id;
+  }, [tx.id]);
   const latestSave = useRef<Partial<Record<EditedField, symbol>>>({});
 
   // Each field follows the server only when its own value changes (undo, a sync), so the
