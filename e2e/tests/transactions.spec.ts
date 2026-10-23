@@ -233,6 +233,42 @@ test.describe('account register', () => {
       .toMatchObject({ id: tx.id, notes: 'family plan', date: otherDayThisMonth() });
   });
 
+  test('says when a change in the detail panel could not be saved', async ({ page, api }) => {
+    const { checking } = await setup(api);
+    const tx = await api.createTransaction({
+      accountId: checking.id,
+      date: isoDay(),
+      amount: -1_999,
+      payeeName: 'Streamflix',
+    });
+    // The first notes save is refused
+    let refused = false;
+    await page.route(`**/api/transactions/${tx.id}`, async (route) => {
+      if (!refused && route.request().method() === 'PUT') {
+        refused = true;
+        return route.fulfill({ status: 422, json: { error: 'Could not save' } });
+      }
+      await route.continue();
+    });
+    await open(page, `/accounts/${checking.id}`);
+    await row(page, 'Streamflix').click();
+    const panel = page.getByRole('complementary', { name: 'Transaction details' });
+    const notes = panel.getByRole('textbox', { name: 'Notes' });
+
+    await notes.fill('family plan');
+    await notes.blur();
+    await expect(panel.getByRole('alert')).toHaveText(/Couldn't save this change/);
+    await expect(notes).toHaveValue('family plan');
+
+    // Leaving the field again saves it and clears the message
+    await notes.focus();
+    await notes.blur();
+    await expect(panel.getByRole('alert')).toBeHidden();
+    await expect
+      .poll(async () => (await api.transactions(`?account_id=${checking.id}`))[0])
+      .toMatchObject({ id: tx.id, notes: 'family plan' });
+  });
+
   test('deletes a transaction after confirming', async ({ page, api }) => {
     const { checking } = await setup(api);
     await api.createTransaction({

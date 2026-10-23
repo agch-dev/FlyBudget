@@ -27,6 +27,9 @@ import type {
   RuleInput,
 } from '../../types';
 
+/** Fields saved when they lose focus, which keep what was typed if the save fails */
+type TypedField = 'date' | 'payee' | 'notes';
+
 interface Props {
   transaction: Transaction;
   categoryMap: Map<string, { name: string; icon: string | null }>;
@@ -69,15 +72,24 @@ export function TransactionDetailPanel({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [ruleDraft, setRuleDraft] = useState<RuleInput | null>(null);
   const ruleModal = useModalValue(ruleDraft);
+  const [unsaved, setUnsaved] = useState<Partial<Record<TypedField, boolean>>>({});
+  const markUnsaved = (field: TypedField, failed: boolean) =>
+    setUnsaved((u) => (!!u[field] === failed ? u : { ...u, [field]: failed }));
 
   // Each field follows the server only when its own value changes (undo, a sync), so the
   // refetch after saving one field never wipes another the user is still typing in
-  useEffect(() => setLocalDate(tx.date), [tx.id, tx.date]);
-  useEffect(() => setLocalNotes(tx.notes ?? ''), [tx.id, tx.notes]);
-  useEffect(
-    () => setLocalPayee({ id: tx.payeeId, name: tx.payeeName ?? '' }),
-    [tx.id, tx.payeeId, tx.payeeName],
-  );
+  useEffect(() => {
+    setLocalDate(tx.date);
+    markUnsaved('date', false);
+  }, [tx.id, tx.date]);
+  useEffect(() => {
+    setLocalNotes(tx.notes ?? '');
+    markUnsaved('notes', false);
+  }, [tx.id, tx.notes]);
+  useEffect(() => {
+    setLocalPayee({ id: tx.payeeId, name: tx.payeeName ?? '' });
+    markUnsaved('payee', false);
+  }, [tx.id, tx.payeeId, tx.payeeName]);
   useEffect(() => setShowCategoryPicker(false), [tx.id]);
 
   useEffect(() => {
@@ -102,32 +114,32 @@ export function TransactionDetailPanel({
   const transferAccounts =
     canSave && !tx.isAdjustment ? accounts.filter((a) => a.id !== tx.accountId && !a.closedAt) : [];
 
+  /** Saves one typed field; a failed save keeps the text and says so under the field */
+  function saveField(field: TypedField, data: Parameters<typeof updateTx.mutate>[0]['data']) {
+    // mutateAsync, since mutate's own callbacks only run for the latest call
+    updateTx.mutateAsync({ id: tx.id, data }).then(
+      () => markUnsaved(field, false),
+      () => markUnsaved(field, true),
+    );
+  }
+
   function saveDate() {
-    if (localDate !== tx.date) {
-      updateTx.mutate({ id: tx.id, data: { date: localDate } });
-    }
+    if (localDate !== tx.date) saveField('date', { date: localDate });
   }
 
   function saveNotes() {
     const val = localNotes || null;
-    if (val !== tx.notes) {
-      updateTx.mutate({ id: tx.id, data: { notes: val } });
-    }
+    if (val !== tx.notes) saveField('notes', { notes: val });
   }
 
   function handlePayeeChange(v: { id: string | null; name: string }) {
     setLocalPayee(v);
-    if (v.id !== null) {
-      updateTx.mutate({ id: tx.id, data: { payeeId: v.id, payeeName: v.name || null } });
-    }
+    if (v.id !== null) saveField('payee', { payeeId: v.id, payeeName: v.name || null });
   }
 
   function savePayeeOnBlur() {
     if (localPayee.id !== tx.payeeId || localPayee.name !== (tx.payeeName ?? '')) {
-      updateTx.mutate({
-        id: tx.id,
-        data: { payeeId: localPayee.id, payeeName: localPayee.name || null },
-      });
+      saveField('payee', { payeeId: localPayee.id, payeeName: localPayee.name || null });
     }
   }
 
@@ -225,6 +237,7 @@ export function TransactionDetailPanel({
             disabled={isReconciled}
             className={inputCls}
           />
+          {unsaved.date && <NotSaved />}
         </div>
 
         <MainAmountField tx={tx} disabled={isReconciled} />
@@ -311,6 +324,7 @@ export function TransactionDetailPanel({
                 className={`border border-border rounded-lg px-3 py-2 focus:border-brand-600 focus:ring-1 focus:ring-brand-600 ${isReconciled ? 'opacity-60 pointer-events-none' : ''}`}
               />
             </div>
+            {unsaved.payee && <NotSaved />}
           </div>
         )}
 
@@ -326,6 +340,7 @@ export function TransactionDetailPanel({
             rows={3}
             className={`${inputCls} resize-none`}
           />
+          {unsaved.notes && <NotSaved />}
         </div>
 
         {linkedSchedule && (
@@ -389,5 +404,13 @@ export function TransactionDetailPanel({
         onClose={() => setShowDeleteConfirm(false)}
       />
     </aside>
+  );
+}
+
+function NotSaved() {
+  return (
+    <p role="alert" className="mt-1 text-xs text-negative">
+      Couldn't save this change. Leave the field again to retry.
+    </p>
   );
 }
