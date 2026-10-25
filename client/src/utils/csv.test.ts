@@ -468,7 +468,7 @@ describe('columnRolesFor', () => {
   });
 });
 
-// Every header the guess knows, as banks write them (upstream's list, then the Spanish words).
+// Every header the guess knows, as banks write them.
 // Written out on purpose rather than read from csv.ts, so a header dropped there fails here.
 const KNOWN_HEADERS: [string, ColumnRole][] = [
   ['date', 'date'],
@@ -525,7 +525,6 @@ const KNOWN_HEADERS: [string, ColumnRole][] = [
   ['credit/debit', 'direction'],
   ['soll/haben', 'direction'],
   ['s/h', 'direction'],
-  // Spanish
   ['fecha', 'date'],
   ['fecha de operación', 'date'],
   ['fecha operación', 'date'],
