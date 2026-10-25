@@ -15,3 +15,7 @@ _Avoid_: Section, budget section
 **Account Type Group**:
 One of the six fixed families of account types (cash, credit, investments, property, loans, other) that the Accounts page is divided by.
 _Avoid_: Account section
+
+**Secondary Currency**:
+A second currency the user likes to see amounts in, besides the budget's own, chosen on each device. Today it only adds a converted net worth figure; the budget itself is always in the budget currency.
+_Avoid_: Viewing currency, display currency, net worth currency
