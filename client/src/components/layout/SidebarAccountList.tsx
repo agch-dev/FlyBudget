@@ -29,7 +29,7 @@ function AccountRow({ account, inSection = false }: { account: Account; inSectio
     <NavLink
       to={`/accounts/${account.id}`}
       className={({ isActive }) =>
-        `flex items-center justify-between ${inSection ? 'pl-8' : 'pl-5'} pr-3 py-0.5 rounded-md text-[12px] transition-all duration-150 ${
+        `flex items-center justify-between ${inSection ? 'pl-6' : 'pl-5'} pr-3 py-0.5 rounded-md text-[12px] transition-all duration-150 ${
           isActive
             ? 'bg-sidebar-active text-sidebar-text-hi font-medium'
             : 'text-sidebar-text/70 hover:bg-sidebar-hover hover:text-sidebar-text-hi'
@@ -65,7 +65,7 @@ function SidebarSection({ name, accounts, collapsed, onToggle }: SectionProps) {
         aria-expanded={!collapsed}
         aria-controls={listId}
         title={missingRateTitle(missing)}
-        className="flex items-center justify-between w-full pl-2 pr-3 py-0.5 max-md:min-h-11 rounded-md text-[12px] font-medium text-sidebar-text hover:bg-sidebar-hover hover:text-sidebar-text-hi transition-colors"
+        className="flex items-center justify-between w-full pl-1 pr-3 py-0.5 max-md:min-h-11 rounded-md text-[12px] font-medium text-sidebar-text hover:bg-sidebar-hover hover:text-sidebar-text-hi transition-colors"
       >
         <span className="flex items-center gap-1 min-w-0">
           {collapsed ? (
