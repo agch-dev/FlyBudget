@@ -34,9 +34,9 @@ describe('listBySection', () => {
     const entries = listBySection(accounts, { b: 'Card', d: 'card', e: 'Old' });
     expect(entries).toEqual([
       { kind: 'account', account: { id: 'a' } },
-      { kind: 'section', name: 'Card', accounts: [{ id: 'b' }, { id: 'd' }] },
+      { kind: 'section', key: 'card', name: 'Card', accounts: [{ id: 'b' }, { id: 'd' }] },
       { kind: 'account', account: { id: 'c' } },
-      { kind: 'section', name: 'Old', accounts: [{ id: 'e' }] },
+      { kind: 'section', key: 'old', name: 'Old', accounts: [{ id: 'e' }] },
     ]);
   });
 
@@ -64,6 +64,15 @@ describe('listBySection', () => {
           if (e.kind === 'account') expect(sections[e.account.id]).toBeUndefined();
       }),
     );
+  });
+
+  it('spells a section as its first account in the whole account order does, in every list', () => {
+    const all = ['a', 'b', 'c'].map((id) => ({ id }));
+    const sections = { a: 'Visa', b: 'Checking', c: 'VISA' };
+    // c is in another list or type group than a, so it heads its own copy of the section
+    expect(listBySection([all[2]], sections, all)).toEqual([
+      { kind: 'section', key: 'visa', name: 'Visa', accounts: [{ id: 'c' }] },
+    ]);
   });
 
   it('ignores entries for accounts that are not in the list, and names that are not text', () => {

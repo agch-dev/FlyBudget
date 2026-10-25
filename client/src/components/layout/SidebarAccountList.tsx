@@ -89,17 +89,24 @@ function SidebarSection({ name, accounts, collapsed, onToggle }: SectionProps) {
   );
 }
 
+interface BudgetListProps {
+  list: BudgetList;
+  accounts: Account[];
+  /** Every account, in order: a section is spelled the same in both lists */
+  allAccounts: Account[];
+}
+
 /** One Budget List's accounts, those in an Account Section under its heading */
-function BudgetListAccounts({ list, accounts }: { list: BudgetList; accounts: Account[] }) {
+function BudgetListAccounts({ list, accounts, allAccounts }: BudgetListProps) {
   const sections = usePreferencesStore((s) => s.accountSections);
   const collapsed = usePreferencesStore((s) => s.collapsedAccountSections[list]);
   const toggle = usePreferencesStore((s) => s.toggleAccountSectionCollapsed);
-  return listBySection(accounts, sections).map((entry) =>
+  return listBySection(accounts, sections, allAccounts).map((entry) =>
     entry.kind === 'account' ? (
       <AccountRow key={entry.account.id} account={entry.account} />
     ) : (
       <SidebarSection
-        key={`section:${entry.name.toLowerCase()}`}
+        key={`section:${entry.key}`}
         name={entry.name}
         accounts={entry.accounts}
         collapsed={isSectionCollapsed(collapsed, entry.name)}
@@ -202,7 +209,7 @@ export function SidebarAccountList() {
           </button>
           {forBudgetOpen && (
             <div className="mt-0.5 space-y-0">
-              <BudgetListAccounts list="onBudget" accounts={onBudget} />
+              <BudgetListAccounts list="onBudget" accounts={onBudget} allAccounts={accounts} />
               {onBudget.length === 0 && (
                 <p className="pl-5 py-1 text-xs text-sidebar-text/50">No accounts yet</p>
               )}
@@ -225,7 +232,7 @@ export function SidebarAccountList() {
             </button>
             {offBudgetOpen && (
               <div className="mt-0.5 space-y-0">
-                <BudgetListAccounts list="offBudget" accounts={offBudget} />
+                <BudgetListAccounts list="offBudget" accounts={offBudget} allAccounts={accounts} />
               </div>
             )}
           </div>

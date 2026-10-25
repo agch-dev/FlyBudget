@@ -108,10 +108,12 @@ function AccountSectionRows({ name, accounts }: { name: string; accounts: Accoun
 interface AccountGroupProps {
   label: string;
   accounts: Account[];
+  /** Every account, in order: a section is spelled the same in every group */
+  allAccounts: Account[];
   balancesAgo: Record<string, number>;
 }
 
-function AccountGroup({ label, accounts, balancesAgo }: AccountGroupProps) {
+function AccountGroup({ label, accounts, allAccounts, balancesAgo }: AccountGroupProps) {
   const [collapsed, setCollapsed] = useState(false);
   const sections = usePreferencesStore((s) => s.accountSections);
   // In the budget's currency, at today's rate (so the change is the accounts', not the rate's)
@@ -160,12 +162,12 @@ function AccountGroup({ label, accounts, balancesAgo }: AccountGroupProps) {
       </button>
       {!collapsed && (
         <div className="divide-y divide-border-light">
-          {listBySection(accounts, sections).map((entry) =>
+          {listBySection(accounts, sections, allAccounts).map((entry) =>
             entry.kind === 'account' ? (
               <AccountListRow key={entry.account.id} account={entry.account} />
             ) : (
               <AccountSectionRows
-                key={`section:${entry.name.toLowerCase()}`}
+                key={`section:${entry.key}`}
                 name={entry.name}
                 accounts={entry.accounts}
               />
@@ -246,6 +248,7 @@ export default function AccountsPage() {
                 key={g.label}
                 label={g.label}
                 accounts={g.accounts}
+                allAccounts={accounts}
                 balancesAgo={balancesAgo}
               />
             ))}

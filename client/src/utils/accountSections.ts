@@ -7,7 +7,14 @@ export type AccountSections = Record<string, string>;
 
 /** One row of an account list: a section with its accounts, or an account in none */
 export type SectionListEntry<A> =
-  { kind: 'section'; name: string; accounts: A[] } | { kind: 'account'; account: A };
+  | {
+      kind: 'section';
+      /** The same for every spelling of the name (a React key) */
+      key: string;
+      name: string;
+      accounts: A[];
+    }
+  | { kind: 'account'; account: A };
 
 /** Names that differ only in case are one section */
 const sectionKey = (name: string) => name.toLowerCase();
@@ -20,13 +27,20 @@ export function sectionOf(sections: AccountSections, accountId: string): string 
 
 /**
  * A list of accounts as it is shown: each section once, where its first account is, holding
- * its accounts in their order; accounts in no section stay where they are. Shown under the
- * first account's spelling. Call it with one Budget List's (or Account Type Group's) accounts.
+ * its accounts in their order; accounts in no section stay where they are. Call it with one
+ * Budget List's (or Account Type Group's) accounts; a section is spelled as its first account
+ * in `allAccounts` (every account, in order) spells it, so all its headings agree.
  */
 export function listBySection<A extends { id: string }>(
   accounts: readonly A[],
   sections: AccountSections,
+  allAccounts: readonly { id: string }[] = accounts,
 ): SectionListEntry<A>[] {
+  const spellings = new Map<string, string>();
+  for (const { id } of allAccounts) {
+    const name = sectionOf(sections, id);
+    if (name && !spellings.has(sectionKey(name))) spellings.set(sectionKey(name), name);
+  }
   const entries: SectionListEntry<A>[] = [];
   const found = new Map<string, A[]>();
   for (const account of accounts) {
@@ -35,13 +49,14 @@ export function listBySection<A extends { id: string }>(
       entries.push({ kind: 'account', account });
       continue;
     }
-    const members = found.get(sectionKey(name));
+    const key = sectionKey(name);
+    const members = found.get(key);
     if (members) {
       members.push(account);
     } else {
       const first = [account];
-      found.set(sectionKey(name), first);
-      entries.push({ kind: 'section', name, accounts: first });
+      found.set(key, first);
+      entries.push({ kind: 'section', key, name: spellings.get(key) ?? name, accounts: first });
     }
   }
   return entries;
