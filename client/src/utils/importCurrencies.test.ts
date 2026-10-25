@@ -9,6 +9,8 @@ import {
   followUpAccounts,
 } from './importCurrencies';
 import type { ColumnRole } from './csv';
+import type { ImportAccount } from './importCurrencies';
+import type { AccountType } from '../types';
 
 const EN = ['en'];
 
@@ -52,6 +54,17 @@ describe('findCurrencyColumn', () => {
         EN,
       ),
     ).toBe(-1);
+  });
+
+  it('without a header, only takes values written as codes, symbols or whole names', () => {
+    // Words that are also part of currency names ("New Zealand Dollar", "Central African…")
+    const rows = [
+      ['2026-09-05', 'Hotel', '-120', 'New', 'Pesos'],
+      ['2026-09-06', 'Taxi', '-18', 'Central', 'Pesos'],
+    ];
+    expect(findCurrencyColumn(['Date', 'Payee', 'Amount', 'Status', 'Kind'], rows, roles, EN)).toBe(
+      -1,
+    );
   });
 
   it('needs a header or values that say so', () => {
@@ -133,10 +146,10 @@ describe('currencyMapping', () => {
   });
 });
 
-type A = { id: string; type: string; currency: string | null; closedAt: string | null };
+type A = ImportAccount;
 const acct = (
   id: string,
-  type: string,
+  type: AccountType,
   currency: string | null,
   closedAt: string | null = null,
 ): A => ({
@@ -190,7 +203,7 @@ describe('followUpAccounts', () => {
   it('only ever offers or picks an open account in that currency, never the same one', () => {
     const account = fc.record({
       id: fc.constantFrom('a', 'b', 'c', 'd'),
-      type: fc.constantFrom('credit', 'checking'),
+      type: fc.constantFrom<AccountType>('credit', 'checking'),
       currency: fc.constantFrom('UYU', 'USD', null),
       closedAt: fc.constantFrom(null, '2026-01-01'),
     });

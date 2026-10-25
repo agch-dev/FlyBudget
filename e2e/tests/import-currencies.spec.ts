@@ -3,18 +3,17 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import type { Page } from '@playwright/test';
 import { test, expect, open } from './fixtures';
-import type { Api } from './fixtures';
+import type { Account, Api } from './fixtures';
 
 // Files whose rows are in more than one currency: an import brings in the account's currency,
 // then offers to import the other currencies' rows into another account. The card statement is
 // made-up data in the shape of a Uruguayan bank's export (a Moneda column of Pesos/Dolares).
 
-const CARD_CSV = fs.readFileSync(
-  path.join(
-    path.dirname(fileURLToPath(import.meta.url)),
-    '../fixtures/two-currencies/card-moneda-column.csv',
-  ),
-);
+const sample = (file: string) =>
+  fs.readFileSync(
+    path.join(path.dirname(fileURLToPath(import.meta.url)), '../fixtures/two-currencies', file),
+  );
+const CARD_CSV = sample('card-moneda-column.csv');
 
 const setCurrency = (api: Api, currency: string) => api.call('PUT', '/currency', { currency });
 
@@ -25,10 +24,12 @@ async function importFile(page: Page, name: string, buffer: Buffer) {
   return dialog;
 }
 
-async function putInSection(page: Page, accountId: string, section: string) {
-  await open(page, `/accounts/${accountId}`);
+async function putInSection(page: Page, account: Account, section: string) {
+  await open(page, `/accounts/${account.id}`);
   await page.getByRole('button', { name: 'Edit' }).click();
   const dialog = page.getByRole('dialog', { name: 'Edit Account' });
+  // Filled in once the account has loaded: typing before that would be undone
+  await expect(dialog.getByRole('textbox', { name: 'Account name' })).toHaveValue(account.name);
   await dialog.getByRole('combobox', { name: /^Section/ }).fill(section);
   await dialog.getByRole('button', { name: 'Save' }).click();
   await expect(dialog).toBeHidden();
@@ -42,8 +43,8 @@ test('a card statement in pesos and dollars goes into each currency’s account'
   const pesos = await api.createAccount('Visa pesos', 0, 'credit');
   const dollars = await api.createAccount('Visa dollars', 0, 'credit', { currency: 'USD' });
   await api.createAccount('Dollar savings', 0, 'savings', { currency: 'USD' });
-  await putInSection(page, pesos.id, 'Visa');
-  await putInSection(page, dollars.id, 'Visa');
+  await putInSection(page, pesos, 'Visa');
+  await putInSection(page, dollars, 'Visa');
 
   await open(page, `/accounts/${pesos.id}`);
   let dialog = await importFile(page, 'card.csv', CARD_CSV);
@@ -95,6 +96,24 @@ test('a card statement in pesos and dollars goes into each currency’s account'
   await expect(dialog.getByRole('combobox', { name: 'Currency of Dolares' })).toHaveValue('USD');
   await dialog.getByRole('button', { name: 'Preview' }).click();
   await expect(dialog).toContainText('4 transactions found. 4 duplicates detected.');
+});
+
+test('a currency column with only the account’s currency imports as usual', async ({
+  page,
+  api,
+}) => {
+  await setCurrency(api, 'EUR');
+  const account = await api.createAccount('Girokonto', 0);
+  await open(page, `/accounts/${account.id}`);
+  const dialog = await importFile(page, 'bank.csv', sample('currency-column-other-bank.csv'));
+  await expect(dialog.getByRole('combobox', { name: 'Column Currency' })).toHaveValue('currency');
+  await expect(dialog.getByRole('combobox', { name: 'Currency of EUR' })).toHaveValue('EUR');
+  await dialog.getByRole('button', { name: 'Preview' }).click();
+  await expect(dialog).toContainText('2 transactions found. 0 duplicates detected.');
+  await expect(dialog).not.toContainText("isn't imported here");
+  await dialog.getByRole('button', { name: 'Import 2 Transactions' }).click();
+  await expect(dialog).toContainText('2 imported, 0 skipped');
+  await expect(dialog.getByRole('combobox', { name: /^Account for the/ })).toHaveCount(0);
 });
 
 test('a file with no rows in the account’s currency offers the other account right away', async ({

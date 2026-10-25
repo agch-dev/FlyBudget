@@ -872,6 +872,21 @@ describe('buildImportRows with a currency column', () => {
     expect(into(null).rows).toHaveLength(card.length);
   });
 
+  it('skips a row without a currency, even when the others are all in the account currency', () => {
+    const result = buildImportRows(
+      [
+        ['2026-09-28', 'Shop', '-10,00', 'Pesos'],
+        ['2026-09-29', 'Fee', '-1,00', ''],
+      ],
+      roles,
+      { numberFormat: 'comma', currencies: { names, account: 'UYU' } },
+    );
+    expect(result).toMatchObject({
+      rows: [{ payeeName: 'Shop' }],
+      skipped: [{ row: 2, field: 'currency', value: '' }],
+    });
+  });
+
   it('skips a row without a currency, once the file has another currency', () => {
     const result = buildImportRows(
       [

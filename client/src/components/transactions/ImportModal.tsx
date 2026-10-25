@@ -133,6 +133,9 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
   // What's typed in "Rows above the header" while it isn't a number yet (an emptied field)
   const [skipRowsDraft, setSkipRowsDraft] = useState<string | null>(null);
   const [saved, setSaved] = useState<ImportSettings | null>(null);
+  // The saved settings of the account being imported into: `saved` until another account's
+  // turn, whose own settings are kept apart from the ones this file is read with
+  const [ownSaved, setOwnSaved] = useState<ImportSettings | null>(null);
   const [usingSaved, setUsingSaved] = useState(false);
   // null = what the file looks like (detectDateFormat / detectNumberFormat)
   const [dateFormatChoice, setDateFormatChoice] = useState<DateFormat | null>(null);
@@ -186,6 +189,7 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
     setSkipRows(0);
     setSkipRowsDraft(null);
     setSaved(null);
+    setOwnSaved(null);
     setUsingSaved(false);
     setDateFormatChoice(null);
     setNumberFormatChoice(null);
@@ -360,6 +364,7 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
       if (load !== loadId.current) return;
       setSource('xlsx');
       setSaved(savedSettings);
+      setOwnSaved(savedSettings);
       setBytes(null);
       // Kept as they were, so the account's next CSV file is still read the same way
       setDelimiter(savedSettings?.delimiter ?? ',');
@@ -401,6 +406,7 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
     const savedSettings = (await savedImport())?.settings ?? null;
     if (load !== loadId.current) return; // closed (or another file chosen) meanwhile
     setSaved(savedSettings);
+    setOwnSaved(savedSettings);
     setBytes(buffer);
     setDateFormatChoice(null);
     setNumberFormatChoice(null);
@@ -540,6 +546,14 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
       currencyMapping(values, { context, saved: saved?.currencyNames, chosen: currencyChoices }),
     [values, context, saved, currencyChoices],
   );
+  // The values whose currency is known, as `buildImportRows` takes them
+  const names = useMemo(
+    () =>
+      Object.fromEntries(
+        Object.entries(mapping).filter((e): e is [string, string] => e[1] !== null),
+      ),
+    [mapping],
+  );
   const unmapped = values.filter((v) => !mapping[v.key]);
   const fileCurrencies = [...new Set(values.flatMap((v) => mapping[v.key] ?? []))];
   // Without a currency for the account, rows in two currencies can't be told apart
@@ -557,9 +571,6 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
     }
     // Number cells written in the chosen format, so they read back exactly
     const cells = sheetRows ? sheetText(sheetRows, numberFormat) : rawRows;
-    const names = Object.fromEntries(
-      Object.entries(mapping).filter((e): e is [string, string] => e[1] !== null),
-    );
     const built = buildImportRows(cells, roles, {
       dateFormat,
       numberFormat,
@@ -589,7 +600,7 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
    */
   function switchAccount(id: string) {
     const target = { id, currency: currencyOf(id) };
-    setResult(null);
+    const load = loadId.current;
     if (source === 'camt') {
       // That account's last statement, to notice one for another account
       void savedImport(id).then((s) => setKnownStatementAccount(s?.statementAccount ?? null));
@@ -597,11 +608,12 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
       return;
     }
     // Each value keeps the currency it was read as here, whatever accounts are around there
-    setCurrencyChoices(
-      Object.fromEntries(
-        Object.entries(mapping).filter((e): e is [string, string] => e[1] !== null),
-      ),
-    );
+    setCurrencyChoices(names);
+    // What that account remembers is updated after its import, not replaced by this one's
+    setOwnSaved(null);
+    void savedImport(id).then((s) => {
+      if (load === loadId.current) setOwnSaved(s?.settings ?? null);
+    });
     handlePreview(target);
   }
 
@@ -631,7 +643,7 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
       });
       const currencyNames = Object.fromEntries(
         [
-          ...Object.entries(saved?.currencyNames ?? {}).filter(
+          ...Object.entries(ownSaved?.currencyNames ?? {}).filter(
             ([text]) => !values.some((v) => v.key === currencyTextKey(text)),
           ),
           ...named,
@@ -640,17 +652,24 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
       // A sheet of real dates or numbers says nothing about the account's CSV files: keep
       // what was known for these columns, so a CSV file with ambiguous text is still asked about
       const shown = (chosen: unknown, inFile: boolean) => source !== 'xlsx' || !!chosen || inFile;
+      const known =
+        ownSaved === saved
+          ? lastTime
+          : ownSaved && keys.every((key) => Object.hasOwn(ownSaved.columns, key))
+            ? ownSaved
+            : null;
       const settings: ImportSettings = {
-        delimiter,
-        encoding,
+        // A workbook has neither: the account's next CSV file is still read the same way
+        delimiter: source === 'xlsx' ? (ownSaved?.delimiter ?? ',') : delimiter,
+        encoding: source === 'xlsx' ? (ownSaved?.encoding ?? 'auto') : encoding,
         skipRows,
         columns,
         dateFormat: shown(dateFormatChoice, detected.dateShown)
           ? dateFormat
-          : (lastTime?.dateFormat ?? null),
+          : (known?.dateFormat ?? null),
         numberFormat: shown(numberFormatChoice, detected.numberShown)
           ? numberFormat
-          : (lastTime?.numberFormat ?? null),
+          : (known?.numberFormat ?? null),
         outWord: outWord.trim().slice(0, 50) || null,
         ...(currencyIdx !== -1 && { currencyColumn: keys[currencyIdx] }),
         ...(Object.keys(currencyNames).length && { currencyNames }),
@@ -1110,6 +1129,7 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
                   currency={otherCurrency}
                   label="Import it into"
                   onChoose={switchAccount}
+                  busy={loading}
                 />
               </span>
             </p>
@@ -1136,6 +1156,7 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
                     currency={code}
                     label={`Import the ${code} rows into`}
                     onChoose={switchAccount}
+                    busy={loading}
                   />
                 )}
               </span>
@@ -1256,6 +1277,7 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
                 currency={code}
                 label={`Import the ${count} ${code} ${count === 1 ? 'row' : 'rows'} into`}
                 onChoose={switchAccount}
+                busy={loading}
               />
             </div>
           ))}
@@ -1276,16 +1298,21 @@ function OtherAccountPicker({
   currency,
   label,
   onChoose,
+  busy,
 }: {
   accountId: string;
   accounts: readonly Account[];
   currency: string;
   label: string;
   onChoose: (accountId: string) => void;
+  /** A preview is loading */
+  busy: boolean;
 }) {
   const sections = usePreferencesStore((s) => s.accountSections);
   const { options, defaultId } = followUpAccounts(accountId, accounts, currency, sections);
-  const [chosen, setChosen] = useState(defaultId ?? '');
+  // The suggestion until the user picks (accounts and sections may still be loading)
+  const [picked, setPicked] = useState<string | null>(null);
+  const chosen = picked ?? defaultId ?? '';
   if (!options.length) {
     return (
       <span>
@@ -1299,7 +1326,7 @@ function OtherAccountPicker({
       <span>{label}</span>
       <select
         value={chosen}
-        onChange={(e) => setChosen(e.target.value)}
+        onChange={(e) => setPicked(e.target.value)}
         aria-label={`Account for the ${currency} rows`}
         className="text-xs border border-border rounded px-1.5 py-1 bg-surface text-text max-md:min-h-11"
       >
@@ -1312,7 +1339,7 @@ function OtherAccountPicker({
       </select>
       <Button
         size="sm"
-        disabled={!chosen}
+        disabled={!chosen || busy}
         onClick={() => onChoose(chosen)}
         aria-label={`Preview the ${currency} rows`}
       >

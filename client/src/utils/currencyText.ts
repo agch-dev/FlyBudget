@@ -37,7 +37,7 @@ function keys(parts: string[]): string[] {
 /** Spellings banks use that Intl doesn't give */
 const EXTRA_SYMBOLS: Record<string, string> = { u$s: 'USD', u$d: 'USD' };
 
-/** Words in names that say nothing about which currency it is */
+/** The shortest word of a currency's name that is read on its own ("Peso", not "US") */
 const MIN_WORD_LENGTH = 3;
 
 const intlSymbol = (locale: string, currency: string, display: 'symbol' | 'narrowSymbol') => {
@@ -60,20 +60,24 @@ const intlName = (locale: string, currency: string) => {
 
 type Index = Map<string, Set<string>>;
 
-const indexes = new Map<string, Index>();
+/** Text → the currencies it may name: as a symbol or whole name, and as one word of a name */
+type Indexes = { whole: Index; words: Index };
 
-/** Text → the currencies it may name, for these languages (built once per set) */
-function indexFor(locales: readonly string[]): Index {
+const indexes = new Map<string, Indexes>();
+
+/** The indexes for these languages (built once per set) */
+function indexFor(locales: readonly string[]): Indexes {
   const id = locales.join(',');
-  let index = indexes.get(id);
-  if (index) return index;
-  index = new Map();
-  const add = (key: string, code: string) => {
+  let found = indexes.get(id);
+  if (found) return found;
+  found = { whole: new Map(), words: new Map() };
+  const addTo = (index: Index, key: string, code: string) => {
     if (!key) return;
-    const codes = index!.get(key) ?? new Set();
+    const codes = index.get(key) ?? new Set();
     codes.add(code);
-    index!.set(key, codes);
+    index.set(key, codes);
   };
+  const add = (key: string, code: string) => addTo(found!.whole, key, code);
   for (const code of CURRENCY_CODES) {
     for (const locale of locales) {
       for (const display of ['symbol', 'narrowSymbol'] as const) {
@@ -87,12 +91,14 @@ function indexFor(locales: readonly string[]): Index {
       const parts = words(name);
       add(parts.join(''), code);
       // A word of the name alone: "Peso" is every peso, "Euro" the euro
-      for (const part of parts) if (part.length >= MIN_WORD_LENGTH) add(part, code);
+      for (const part of parts) {
+        if (part.length >= MIN_WORD_LENGTH) addTo(found.words, part, code);
+      }
     }
   }
   for (const [symbol, code] of Object.entries(EXTRA_SYMBOLS)) add(symbol, code);
-  indexes.set(id, index);
-  return index;
+  indexes.set(id, found);
+  return found;
 }
 
 const deviceLocales = (): string[] => {
@@ -103,19 +109,24 @@ const deviceLocales = (): string[] => {
 /**
  * Every currency some text could name: one for "UYU" or "US Dollars", several for "$" or
  * "pesos", none for anything else. Names are read in English and `locales` (by default the
- * device's language); case, accents, dots, spaces and plurals don't matter.
+ * device's language); case, accents, dots, spaces and plurals don't matter. `nameWords: false`
+ * reads only codes, symbols and whole names, not one word of a name ("Peso", "Central").
  */
 export function currencyCandidates(
   text: string,
   locales: readonly string[] = deviceLocales(),
+  { nameWords = true }: { nameWords?: boolean } = {},
 ): string[] {
   const parts = words(text);
   if (!parts.length) return [];
   const joined = parts.join('').toUpperCase();
   if (CURRENCY_CODES.includes(joined)) return [joined];
-  const index = indexFor(locales);
+  const { whole, words: byWord } = indexFor(locales);
   const found = new Set<string>();
-  for (const key of keys(parts)) for (const code of index.get(key) ?? []) found.add(code);
+  for (const key of keys(parts)) {
+    for (const code of whole.get(key) ?? []) found.add(code);
+    if (nameWords) for (const code of byWord.get(key) ?? []) found.add(code);
+  }
   return [...found].sort();
 }
 

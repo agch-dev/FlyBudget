@@ -537,6 +537,8 @@ export interface ImportSettings {
   currencyColumn?: string;
   /** What that column's values mean, as written → ISO code (the user's choices too) */
   currencyNames?: Record<string, string>;
+  /** Amount columns that each hold one currency (column key → ISO code); not read yet */
+  columnCurrencies?: Record<string, string>;
 }
 
 /**
@@ -695,14 +697,10 @@ export function buildImportRows(
     return key && Object.hasOwn(currencies!.names, key) ? currencies!.names[key] : null;
   };
   const account = currencies?.account;
-  // Only a file that also holds another currency is split; otherwise the column changes nothing
+  // Only a file with rows not in the account's currency is split (another currency, or none);
+  // otherwise the column changes nothing
   const split =
-    currencyIdx !== -1 &&
-    !!account &&
-    rawRows.some((raw) => {
-      const currency = rowCurrency(raw);
-      return currency !== null && currency !== account;
-    });
+    currencyIdx !== -1 && !!account && rawRows.some((raw) => rowCurrency(raw) !== account);
 
   const rows: ImportRow[] = [];
   const skipped: SkippedRow[] = [];

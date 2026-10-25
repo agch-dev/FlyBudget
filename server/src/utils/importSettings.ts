@@ -26,11 +26,6 @@ const COLUMN_ROLES = [
 ] as const;
 
 /**
- * Upstream's settings (dtymoszenko/FlyBudget), unchanged: a backup taken here must still read on
- * plain upstream, which forgets all of an account's CSV settings over one column role it
- * doesn't know. Never add roles to `columns`; give a column a new meaning in a key of its own.
- */
-/**
  * An object read as [key, value] pairs and rebuilt with Object.fromEntries, which keeps any key
  * as written: a record schema assigns keys one by one, and assigning a key named "__proto__"
  * changes the object's prototype instead
@@ -45,6 +40,11 @@ const entries = <V extends z.ZodType>(key: z.ZodString, value: V, max: number, w
 
 const currencyCode = z.string().refine(isCurrencyCode, 'Not a currency');
 
+/**
+ * Upstream's settings (dtymoszenko/FlyBudget), unchanged: a backup taken here must still read on
+ * plain upstream, which forgets all of an account's CSV settings over one column role it
+ * doesn't know. Never add roles to `columns`; give a column a new meaning in a key of its own.
+ */
 const upstreamImportSettingsSchema = z.object({
   delimiter: z.enum([',', ';', '\t']),
   encoding: z.enum(CSV_ENCODINGS),

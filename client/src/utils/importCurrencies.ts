@@ -2,6 +2,7 @@ import { isCurrencyCode } from './currencies';
 import { currencyCandidates, currencyTextKey, readCurrency } from './currencyText';
 import { columnKeys, normalizeHeader, type ColumnRole } from './csv';
 import { sectionOf, type AccountSections } from './accountSections';
+import type { AccountType } from '../types';
 
 // A file whose rows are in more than one currency (card statements list purchases in pesos and
 // dollars): an import brings in the account's currency, and the dialog offers to import the
@@ -25,8 +26,9 @@ const CURRENCY_HEADERS = new Set(
 
 /**
  * The column saying each row's currency, or -1: a column not mapped to anything else, with a
- * currency header ("Moneda", "Currency") or values that all name a currency. One with every
- * cell blank isn't one.
+ * currency header ("Moneda", "Currency") or values that are all codes, symbols or whole
+ * currency names (a word like "New" or "Pesos" alone needs the header). One with every cell
+ * blank isn't one.
  */
 export function findCurrencyColumn(
   headers: string[],
@@ -40,7 +42,10 @@ export function findCurrencyColumn(
     if (!values.length) return false;
     if (CURRENCY_HEADERS.has(normalizeHeader(header))) return true;
     const distinct = [...new Set(values)];
-    return distinct.length <= 20 && distinct.every((v) => currencyCandidates(v, locales).length);
+    return (
+      distinct.length <= 20 &&
+      distinct.every((v) => currencyCandidates(v, locales, { nameWords: false }).length)
+    );
   });
 }
 
@@ -123,7 +128,7 @@ export function currencyMapping(
 /** What choosing where a currency's rows go needs from an account */
 export interface ImportAccount {
   id: string;
-  type: string;
+  type: AccountType;
   /** Its own or the budget's (null while neither is chosen) */
   currency: string | null;
   closedAt: string | null;
