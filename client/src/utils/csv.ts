@@ -543,6 +543,19 @@ export function columnKeys(headers: string[]): string[] {
 }
 
 /**
+ * Whether a file still fits an account's saved settings: the row they say is the header has
+ * at least two columns, every one of them seen before
+ */
+export function fitsSavedColumns(records: string[][], saved: ImportSettings): boolean {
+  const header = records[saved.skipRows];
+  return (
+    !!header &&
+    header.length >= 2 &&
+    columnKeys(header).every((key) => Object.hasOwn(saved.columns, key))
+  );
+}
+
+/**
  * Roles for these headers: saved ones where the column was seen before, else a guess that
  * leaves out the roles saved columns already have
  */

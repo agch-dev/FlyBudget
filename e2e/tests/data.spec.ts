@@ -1,6 +1,7 @@
 import fs from 'fs';
 import type { Page } from '@playwright/test';
 import { test, expect, open, isoDay } from './fixtures';
+import { xlsx } from './xlsx';
 
 // Getting data in (CSV import) and out (CSV export, full backup) and restoring it.
 
@@ -555,6 +556,71 @@ test.describe('CSV import', () => {
     await dialog.getByRole('button', { name: 'Preview' }).click();
     await expect(dialog).toContainText('Date column is required');
     expect(await api.transactions(`?account_id=${checking.id}`)).toHaveLength(0);
+  });
+
+  test('imports an Excel workbook from the sheet with the transactions', async ({ page, api }) => {
+    const savings = await api.createAccount('Caja de ahorro', 0, 'savings');
+    await open(page, `/accounts/${savings.id}`);
+    await page.getByRole('button', { name: 'Import CSV' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Import Transactions' });
+    // Like Itaú's statement: a summary sheet first, the account's details above the table,
+    // real dates (both days 12 or less) and real numbers
+    await dialog.getByLabel('Bank file').setInputFiles({
+      name: 'Estado_De_Cuenta.xlsx',
+      mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      buffer: xlsx({
+        Resumen: [
+          ['Total', 'Moneda'],
+          [1234.5, 'Pesos'],
+        ],
+        Movimientos: [
+          ['Nombre', 'Moneda'],
+          ['Ana Perez', 'Pesos'],
+          ['Fecha', 'Concepto', 'Débito', 'Crédito', 'Saldo'],
+          [{ date: '2026-05-03' }, 'COMPRA FARMASHOP', 1610.25, '', 25627.1],
+          [{ date: '2026-05-11' }, 'REDIVA FARMASHOP', '', 45.3, 25672.4],
+        ],
+      }),
+    });
+
+    const sheet = dialog.getByRole('combobox', { name: 'Sheet' });
+    await expect(sheet).toHaveValue('1');
+    await expect(dialog.getByRole('spinbutton', { name: 'Rows above the header' })).toHaveValue(
+      '2',
+    );
+    await expect(dialog.getByRole('combobox', { name: 'Column Débito' })).toHaveValue('outflow');
+    // Real dates and numbers can't be read two ways: nothing to choose
+    await expect(dialog).not.toContainText('Choose the format your bank uses');
+    await expect(dialog.getByRole('combobox', { name: 'Separator' })).toHaveCount(0);
+    await expect(dialog.getByRole('combobox', { name: 'Encoding' })).toHaveCount(0);
+
+    await sheet.selectOption('Resumen');
+    await expect(dialog.getByRole('combobox', { name: 'Column Total' })).toBeVisible();
+    await sheet.selectOption('Movimientos');
+    await expect(dialog.getByRole('combobox', { name: 'Column Fecha' })).toHaveValue('date');
+
+    await dialog.getByRole('combobox', { name: 'Amounts' }).selectOption('comma');
+    await dialog.getByRole('button', { name: 'Preview' }).click();
+    await dialog.getByRole('button', { name: 'Import 2 Transactions' }).click();
+    await expect(dialog).toContainText('2 imported, 0 skipped');
+    const txs = await api.transactions(`?account_id=${savings.id}`);
+    expect(txs.map((t) => [t.date, t.payeeName, t.amount]).sort()).toEqual([
+      ['2026-05-03', 'COMPRA FARMASHOP', -161_025],
+      ['2026-05-11', 'REDIVA FARMASHOP', 4_530],
+    ]);
+  });
+
+  test('a file that is not an Excel workbook says so', async ({ page, api }) => {
+    const checking = await api.createAccount('Checking', 0);
+    await open(page, `/accounts/${checking.id}`);
+    await page.getByRole('button', { name: 'Import CSV' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Import Transactions' });
+    await dialog.getByLabel('Bank file').setInputFiles({
+      name: 'broken.xlsx',
+      mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      buffer: xlsx({ Sheet1: [['Fecha']] }).subarray(0, 40),
+    });
+    await expect(dialog).toContainText("This Excel file is damaged and can't be read.");
   });
 });
 
