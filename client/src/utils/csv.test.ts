@@ -11,7 +11,9 @@ import {
   describeSkippedRows,
   detectSkipRows,
   generateImportId,
+  guessColumnRoles,
   normalizeDate,
+  normalizeHeader,
   parseCsv,
   parseCsvRecords,
   readDirection,
@@ -454,6 +456,196 @@ describe('columnRolesFor', () => {
     ]);
     // A header named like an object property is still just a header
     expect(columnRolesFor(['constructor', 'Amount'], {})).toEqual(['skip', 'amount']);
+    // A new column is guessed around the saved roles, never as a role one already has
+    expect(columnRolesFor(['Concepto', 'Descripción'], { Concepto: 'skip' })).toEqual([
+      'skip',
+      'payee',
+    ]);
+    expect(columnRolesFor(['Concepto', 'Descripción'], { Descripción: 'payee' })).toEqual([
+      'skip',
+      'payee',
+    ]);
+  });
+});
+
+// Every header the guess knows, as banks write them (upstream's list, then the Spanish words).
+// Written out on purpose rather than read from csv.ts, so a header dropped there fails here.
+const KNOWN_HEADERS: [string, ColumnRole][] = [
+  ['date', 'date'],
+  ['transaction date', 'date'],
+  ['posted date', 'date'],
+  ['post date', 'date'],
+  ['description', 'payee'],
+  ['payee', 'payee'],
+  ['name', 'payee'],
+  ['merchant', 'payee'],
+  ['amount', 'amount'],
+  ['transaction amount', 'amount'],
+  ['debit', 'outflow'],
+  ['withdrawal', 'outflow'],
+  ['outflow', 'outflow'],
+  ['credit', 'inflow'],
+  ['deposit', 'inflow'],
+  ['inflow', 'inflow'],
+  ['memo', 'notes'],
+  ['notes', 'notes'],
+  ['note', 'notes'],
+  ['reference', 'notes'],
+  ['datum', 'date'],
+  ['buchungstag', 'date'],
+  ['buchungsdatum', 'date'],
+  ['data', 'date'],
+  ['date opération', 'date'],
+  ['date operation', 'date'],
+  ['naam / omschrijving', 'payee'],
+  ['omschrijving', 'payee'],
+  ['auftraggeber / empfänger', 'payee'],
+  ['begünstigter/zahlungspflichtiger', 'payee'],
+  ['empfänger', 'payee'],
+  ['libellé', 'payee'],
+  ['libelle', 'payee'],
+  ['descrizione', 'payee'],
+  ['betrag', 'amount'],
+  ['betrag (eur)', 'amount'],
+  ['bedrag', 'amount'],
+  ['bedrag (eur)', 'amount'],
+  ['montant', 'amount'],
+  ['importo', 'amount'],
+  ['belopp', 'amount'],
+  ['beløb', 'amount'],
+  ['beløp', 'amount'],
+  ['kwota', 'amount'],
+  ['débit', 'outflow'],
+  ['crédit', 'inflow'],
+  ['verwendungszweck', 'notes'],
+  ['mededelingen', 'notes'],
+  ['af bij', 'direction'],
+  ['af/bij', 'direction'],
+  ['debit/credit', 'direction'],
+  ['credit/debit', 'direction'],
+  ['soll/haben', 'direction'],
+  ['s/h', 'direction'],
+  // Spanish
+  ['fecha', 'date'],
+  ['fecha de operación', 'date'],
+  ['fecha operación', 'date'],
+  ['fecha movimiento', 'date'],
+  ['concepto', 'payee'],
+  ['descripción', 'payee'],
+  ['detalle', 'payee'],
+  ['beneficiario', 'payee'],
+  ['comercio', 'payee'],
+  ['importe', 'amount'],
+  ['monto', 'amount'],
+  ['débito', 'outflow'],
+  ['débitos', 'outflow'],
+  ['cargo', 'outflow'],
+  ['cargos', 'outflow'],
+  ['crédito', 'inflow'],
+  ['créditos', 'inflow'],
+  ['abono', 'inflow'],
+  ['abonos', 'inflow'],
+  ['referencia', 'notes'],
+  ['nota', 'notes'],
+  ['notas', 'notes'],
+  ['observaciones', 'notes'],
+];
+
+const knownHeader = fc.constantFrom(...KNOWN_HEADERS);
+
+/** The same header written another way: other case, accents left out or decomposed, dots, spaces */
+const headerVariant = ([header]: [string, ColumnRole]) =>
+  fc
+    .tuple(
+      fc.array(fc.boolean(), { minLength: header.length, maxLength: header.length }),
+      fc.constantFrom('strip', 'nfd', 'keep'),
+      fc.array(fc.constantFrom(' ', '  ', '. ', '.', ' . ', '\t'), {
+        minLength: header.length,
+        maxLength: header.length,
+      }),
+      fc.constantFrom('', ' ', '  '),
+      fc.constantFrom('', ' ', '.', ' .'),
+    )
+    .map(([upper, accents, spaces, before, after]) => {
+      const cased = [...header]
+        .map((c, i) => (c === ' ' ? spaces[i] : upper[i] ? c.toUpperCase() : c))
+        .join('');
+      const accented =
+        accents === 'strip'
+          ? cased.normalize('NFD').replace(/\p{M}/gu, '')
+          : accents === 'nfd'
+            ? cased.normalize('NFD')
+            : cased;
+      return before + accented + after;
+    });
+
+describe('guessColumnRoles (property-based)', () => {
+  it('guesses every known header as its role', () => {
+    for (const [header, role] of KNOWN_HEADERS) {
+      expect(guessColumnRoles([header]), header).toEqual([role]);
+    }
+  });
+
+  it('ignores case, accents, dots and spacing', () => {
+    fc.assert(
+      fc.property(
+        knownHeader.chain((known) => fc.tuple(fc.constant(known), headerVariant(known))),
+        ([[, role], variant]) => {
+          expect(guessColumnRoles([variant])).toEqual([role]);
+        },
+      ),
+    );
+  });
+
+  it('guesses a header it does not know as Skip', () => {
+    const known = new Set(KNOWN_HEADERS.map(([h]) => normalizeHeader(h)));
+    const header = fc
+      .string({ unit: fc.constantFrom('a', 'e', 'é', 'o', 's', 'd', 't', ' ', '.', '/', 'ø') })
+      .filter((h) => !known.has(normalizeHeader(h)));
+    fc.assert(
+      fc.property(header, (h) => {
+        expect(guessColumnRoles([h])).toEqual(['skip']);
+      }),
+    );
+    // Spanish columns that hold something else
+    for (const h of [
+      'Saldo',
+      'Saldos',
+      'Imp. total',
+      'Cuotas',
+      'Moneda',
+      'Categoría',
+      'Fecha valor',
+    ]) {
+      expect(guessColumnRoles([h]), h).toEqual(['skip']);
+    }
+    // Letters that aren't an accented letter stay as they are
+    expect(guessColumnRoles(['Belop'])).toEqual(['skip']);
+  });
+
+  it('gives each role only to the first column with it', () => {
+    const header = fc.oneof(
+      knownHeader.map(([h]) => h),
+      fc.constantFrom('Saldo', 'Code', ''),
+    );
+    fc.assert(
+      fc.property(fc.array(header, { maxLength: 8 }), (headers) => {
+        const guessed = guessColumnRoles(headers);
+        const seen = new Set<ColumnRole>();
+        headers.forEach((h, i) => {
+          const alone = guessColumnRoles([h])[0];
+          expect(guessed[i]).toBe(alone === 'skip' || seen.has(alone) ? 'skip' : alone);
+          seen.add(alone);
+        });
+      }),
+    );
+    // Santander leaves Descripción empty, so Concepto stays the payee
+    expect(guessColumnRoles(['Fecha', 'Concepto', 'Descripción', 'Importe'])).toEqual([
+      'date',
+      'payee',
+      'skip',
+      'amount',
+    ]);
   });
 });
 
