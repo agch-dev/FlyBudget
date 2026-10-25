@@ -5,9 +5,9 @@ sidebar_label: Importing transactions
 
 # Importing transactions
 
-Almost every bank lets you download your transactions as a CSV file from its website (look for
-"Download", "Export" or "Statements"), and most European banks also offer **CAMT.053** bank
-statements (XML files). FlyBudget can import both into any account. It's
+Almost every bank lets you download your transactions as a CSV file or an Excel workbook from
+its website (look for "Download", "Export" or "Statements"), and most European banks also offer
+**CAMT.053** bank statements (XML files). FlyBudget can import all of them into any account. It's
 free, works with every bank, and nothing but the file is involved. If you'd rather have
 transactions arrive by themselves, [connect a bank](./bank-sync) instead.
 
@@ -97,6 +97,24 @@ file can't tell (every day in it is 12 or less, a two-digit year could come firs
 every amount looks like `1.234`), it asks you instead of guessing: a wrong guess would move
 every transaction to another date, or make amounts a hundred times too big. Once you've answered
 for an account, it remembers. Rows it can't read are left out, and the preview lists them.
+
+## Excel workbooks
+
+Excel files (`.xlsx`, also `.xlsm` and `.xltx`) import like CSV files: map the columns, then
+preview. FlyBudget reads the file itself, in your browser or the app, without Excel.
+
+- **Sheets**: when a workbook has more than one sheet with anything in it, a **Sheet** picker
+  appears. FlyBudget opens the sheet with the columns you imported into this account last time,
+  or else the first sheet that has a date and an amount column. Hidden sheets are left out.
+- **Dates and amounts**: a cell Excel shows as a date is read as that day, and a number cell as
+  that exact amount, so FlyBudget never has to ask how they're written. It only asks about dates
+  and amounts typed as text, just like in a CSV file. A plain number in the date column (not
+  shown as a date in Excel) isn't read as a date: the row is listed as skipped.
+- **Formulas** are read by the value Excel saved with the file. Empty rows and columns are left
+  out, so a table that starts a few columns or rows in still reads as one table.
+- There's no **Separator** or **Encoding** to set. **Rows above the header** works as for CSV.
+- Old `.xls` files and workbooks with a password can't be read: open them in Excel or
+  LibreOffice, save a copy as `.xlsx` (without a password), and import that.
 
 ## CAMT.053 bank statements
 

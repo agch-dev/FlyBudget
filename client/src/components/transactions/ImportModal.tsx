@@ -13,6 +13,7 @@ import {
   unknownDirectionWords,
   columnRolesFor,
   columnKeys,
+  fitsSavedColumns,
   decodeCsvBytes,
   detectDelimiter,
   detectSkipRows,
@@ -34,6 +35,18 @@ import {
   statementAccountKey,
   type CamtStatement,
 } from '../../utils/camt';
+import {
+  chooseSheet,
+  readSpreadsheet,
+  sheetLayout,
+  sheetText,
+  showsDateFormat,
+  showsNumberFormat,
+  spreadsheetKind,
+  textCells,
+  SpreadsheetError,
+  type Sheet,
+} from '../../utils/spreadsheet';
 import { importPreview } from '../../api/transactions';
 import { getImportSettings, saveImportSettings, saveStatementAccount } from '../../api/accounts';
 import { useImportConfirm } from '../../hooks/useTransactions';
@@ -51,6 +64,8 @@ interface Props {
 }
 
 type Step = 'upload' | 'statement' | 'map' | 'preview' | 'done';
+
+type ImportSource = 'csv' | 'camt' | 'xlsx';
 
 const DELIMITERS: { value: Delimiter; label: string }[] = [
   { value: ',', label: 'Comma' },
@@ -86,7 +101,7 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
   const currency = useAccountCurrency()(accountId);
   const canSave = useCanSave();
   const queryClient = useQueryClient();
-  const [source, setSource] = useState<'csv' | 'camt'>('csv');
+  const [source, setSource] = useState<ImportSource>('csv');
   // CSV: the file, how it's read, and the settings this account's last import used
   const [bytes, setBytes] = useState<ArrayBuffer | null>(null);
   const [encoding, setEncoding] = useState<CsvEncoding>('auto');
@@ -101,6 +116,11 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
   const [dateFormatChoice, setDateFormatChoice] = useState<DateFormat | null>(null);
   const [numberFormatChoice, setNumberFormatChoice] = useState<NumberFormat | null>(null);
   const [outWord, setOutWord] = useState('');
+  // Excel: the sheets with anything in them, and the one being imported
+  const [sheets, setSheets] = useState<Sheet[]>([]);
+  // Each sheet's cells as text, numbers with a decimal point (for the header and the layout)
+  const [sheetTexts, setSheetTexts] = useState<string[][][]>([]);
+  const [sheetIdx, setSheetIdx] = useState(0);
   // CAMT: the statements in the file (one per account)
   const [statements, setStatements] = useState<CamtStatement[]>([]);
   const [statementIdx, setStatementIdx] = useState(0);
@@ -138,6 +158,9 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
     setDateFormatChoice(null);
     setNumberFormatChoice(null);
     setOutWord('');
+    setSheets([]);
+    setSheetTexts([]);
+    setSheetIdx(0);
     setStatements([]);
     setStatementIdx(0);
     setKnownStatementAccount(null);
@@ -245,8 +268,9 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
     setLoading(false); // a preview of the file before is abandoned
     try {
       await readFile(file, load);
-    } catch {
-      if (load === loadId.current) setError("Couldn't read this file");
+    } catch (e) {
+      if (load !== loadId.current) return;
+      setError(e instanceof SpreadsheetError ? e.message : "Couldn't read this file");
     }
   }
 
@@ -267,6 +291,31 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
   async function readFile(file: File, load: number) {
     const buffer = await file.arrayBuffer();
     if (load !== loadId.current) return;
+
+    // A workbook is told by its content, whatever the file is called
+    if (spreadsheetKind(new Uint8Array(buffer))) {
+      const found = (await readSpreadsheet(new Uint8Array(buffer))).filter((s) => s.rows.length);
+      if (load !== loadId.current) return;
+      if (!found.length) {
+        setError('No rows could be imported. Every sheet in this file is empty.');
+        return;
+      }
+      const savedSettings = (await savedImport())?.settings ?? null;
+      if (load !== loadId.current) return;
+      setSource('xlsx');
+      setSaved(savedSettings);
+      setBytes(null);
+      // Kept as they were, so the account's next CSV file is still read the same way
+      setDelimiter(savedSettings?.delimiter ?? ',');
+      setEncoding(savedSettings?.encoding ?? 'auto');
+      setDateFormatChoice(null);
+      setNumberFormatChoice(null);
+      const texts = found.map((s) => sheetText(s.rows, 'dot'));
+      setSheets(found);
+      setSheetTexts(texts);
+      openSheet(texts, chooseSheet(texts, savedSettings), savedSettings);
+      return;
+    }
 
     // Decoded like the whole file would be, so a UTF-16 statement is recognized too
     const start = decodeCsvBytes(buffer.slice(0, 4096), 'auto');
@@ -304,10 +353,7 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
     // The last import's settings, as long as this file still fits them (the same columns)
     if (savedSettings) {
       const content = decodeCsvBytes(buffer, savedSettings.encoding);
-      const header = parseCsvRecords(content, savedSettings.delimiter)[savedSettings.skipRows];
-      const known = savedSettings.columns;
-      const sameColumns = header && columnKeys(header).every((key) => Object.hasOwn(known, key));
-      if (header && header.length >= 2 && sameColumns) {
+      if (fitsSavedColumns(parseCsvRecords(content, savedSettings.delimiter), savedSettings)) {
         setEncoding(savedSettings.encoding);
         setUsingSaved(true);
         // Only with the rest of the settings: it means something for this bank's files only
@@ -320,6 +366,18 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
     setUsingSaved(false);
     const content = decodeCsvBytes(buffer, 'auto');
     loadCsv(content, detectDelimiter(content), null, savedSettings);
+  }
+
+  /** Shows a sheet's table: under the saved header row if it has the saved columns */
+  function openSheet(texts: string[][][], idx: number, savedSettings: ImportSettings | null) {
+    const layout = sheetLayout(texts[idx], savedSettings);
+    setError(null);
+    setSheetIdx(idx);
+    setUsingSaved(layout.usingSaved);
+    setOutWord(layout.usingSaved ? (savedSettings?.outWord ?? '') : '');
+    setRecords(texts[idx]);
+    showTable(texts[idx], layout.skipRows, savedSettings);
+    setStep('map');
   }
 
   function handleDrop(e: React.DragEvent) {
@@ -355,16 +413,30 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
     });
   }
 
+  // A spreadsheet's cells under the header, the same rows as `rawRows`
+  const sheetRows = useMemo(
+    () => (source === 'xlsx' ? sheets[sheetIdx]?.rows.slice(skipRows + 1) : undefined),
+    [source, sheets, sheetIdx, skipRows],
+  );
+  // A spreadsheet's number and date cells say what they are: only its text cells could be
+  // read two ways
+  const textRows = useMemo(
+    () => (sheetRows ? textCells(sheetRows) : rawRows),
+    [sheetRows, rawRows],
+  );
   // How the file writes dates, amounts and directions, judged from the columns mapped to them
   const detected = useMemo(() => {
     const column = (role: ColumnRole) => {
       const idx = roles.indexOf(role);
-      return idx === -1 ? [] : rawRows.map((row) => row[idx] ?? '');
+      return idx === -1 ? [] : textRows.map((row) => row[idx] ?? '');
     };
     const amounts = [...column('amount'), ...column('inflow'), ...column('outflow')];
     return {
       dateFormat: detectDateFormat(column('date')),
       numberFormat: detectNumberFormat(amounts),
+      // Whether the file showed them at all (a sheet of real dates and numbers doesn't)
+      dateShown: showsDateFormat(column('date')),
+      numberShown: showsNumberFormat(amounts),
       // Values that really could be read two ways, to quote in the warning
       dateSample: column('date').find((d) => {
         const readings = (['mdy', 'dmy', 'ymd'] as const)
@@ -375,7 +447,7 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
       amountSample: amounts.find((a) => /^[^\d.,]*\d{1,3}[.,]\d{3}[^\d.,]*$/.test(a.trim())),
       unknownDirections: unknownDirectionWords(column('direction')),
     };
-  }, [rawRows, roles]);
+  }, [textRows, roles]);
   // What the user chose now, else what the file shows, else what they chose last time for a
   // file with these columns (another layout may be another bank, with other formats)
   const lastTime = usingSaved ? saved : null;
@@ -403,7 +475,9 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
     if (!dateFormat) return setError('Choose how this file writes dates');
     if (!numberFormat) return setError('Choose how this file writes amounts');
     if (needsOutWord) return setError('Type the word your bank uses for money going out');
-    const built = buildImportRows(rawRows, roles, {
+    // Number cells written in the chosen format, so they read back exactly
+    const cells = sheetRows ? sheetText(sheetRows, numberFormat) : rawRows;
+    const built = buildImportRows(cells, roles, {
       dateFormat,
       numberFormat,
       outWord,
@@ -442,13 +516,20 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
       columnKeys(headers).forEach((key, i) => {
         columns[key] = roles[i];
       });
+      // A sheet of real dates or numbers says nothing about the account's CSV files: keep
+      // what was known for these columns, so a CSV file with ambiguous text is still asked about
+      const shown = (chosen: unknown, inFile: boolean) => source !== 'xlsx' || !!chosen || inFile;
       const settings: ImportSettings = {
         delimiter,
         encoding,
         skipRows,
         columns,
-        dateFormat,
-        numberFormat,
+        dateFormat: shown(dateFormatChoice, detected.dateShown)
+          ? dateFormat
+          : (lastTime?.dateFormat ?? null),
+        numberFormat: shown(numberFormatChoice, detected.numberShown)
+          ? numberFormat
+          : (lastTime?.numberFormat ?? null),
         outWord: outWord.trim().slice(0, 50) || null,
       };
       request = saveImportSettings(accountId, settings);
@@ -509,7 +590,7 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
   }
 
   function previewBack() {
-    if (source === 'csv') setStep('map');
+    if (source !== 'camt') setStep('map');
     else setStep(statements.length > 1 ? 'statement' : 'upload');
   }
 
@@ -564,7 +645,9 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
           <p className="text-sm text-text-secondary">
             Drag and drop a file from your bank, or click to browse
           </p>
-          <p className="text-xs text-text-tertiary">CSV, or a CAMT.053 bank statement (XML)</p>
+          <p className="text-xs text-text-tertiary">
+            CSV, Excel (.xlsx), or a CAMT.053 bank statement (XML)
+          </p>
           {loading && <p className="text-xs text-text-tertiary">Checking…</p>}
           {IS_DEMO && (
             <p className="text-xs text-text-tertiary">
@@ -574,7 +657,7 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
           <input
             id="csv-file-input"
             type="file"
-            accept=".csv,.tsv,.txt,.xml"
+            accept=".csv,.tsv,.txt,.xml,.xlsx,.xlsm,.xltx"
             aria-label="Bank file"
             className="hidden"
             onChange={handleFileInput}
@@ -626,34 +709,54 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
             {usingSaved && ' Using the settings from your last import into this account.'}
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <label className={optionLabelClass}>
-              <span>Separator</span>
-              <select
-                value={delimiter}
-                onChange={(e) => changeDelimiter(e.target.value as Delimiter)}
-                className={selectClass}
-              >
-                {DELIMITERS.map((d) => (
-                  <option key={d.value} value={d.value}>
-                    {d.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className={optionLabelClass}>
-              <span>Encoding</span>
-              <select
-                value={encoding}
-                onChange={(e) => changeEncoding(e.target.value as CsvEncoding)}
-                className={selectClass}
-              >
-                {CSV_ENCODINGS.map((e) => (
-                  <option key={e.value} value={e.value}>
-                    {e.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+            {sheets.length > 1 && source === 'xlsx' && (
+              <label className={optionLabelClass}>
+                <span>Sheet</span>
+                <select
+                  value={sheetIdx}
+                  onChange={(e) => openSheet(sheetTexts, Number(e.target.value), saved)}
+                  className={selectClass}
+                >
+                  {sheets.map((s, i) => (
+                    <option key={i} value={i}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            {source === 'csv' && (
+              <>
+                <label className={optionLabelClass}>
+                  <span>Separator</span>
+                  <select
+                    value={delimiter}
+                    onChange={(e) => changeDelimiter(e.target.value as Delimiter)}
+                    className={selectClass}
+                  >
+                    {DELIMITERS.map((d) => (
+                      <option key={d.value} value={d.value}>
+                        {d.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className={optionLabelClass}>
+                  <span>Encoding</span>
+                  <select
+                    value={encoding}
+                    onChange={(e) => changeEncoding(e.target.value as CsvEncoding)}
+                    className={selectClass}
+                  >
+                    {CSV_ENCODINGS.map((e) => (
+                      <option key={e.value} value={e.value}>
+                        {e.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </>
+            )}
             <label className={optionLabelClass}>
               <span>Rows above the header</span>
               <input
@@ -772,7 +875,10 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
                 </tr>
               </thead>
               <tbody>
-                {rawRows.slice(0, 3).map((row, ri) => (
+                {(sheetRows
+                  ? sheetText(sheetRows.slice(0, 3), numberFormat ?? 'dot')
+                  : rawRows.slice(0, 3)
+                ).map((row, ri) => (
                   <tr key={ri}>
                     {row.map((cell, ci) => (
                       <td
