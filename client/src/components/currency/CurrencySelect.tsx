@@ -11,6 +11,8 @@ interface Props {
   /** Shown at the top: the budget's currency and the ones accounts already use */
   first?: string[];
   disabled?: boolean;
+  /** Shown while no currency is chosen (`value` ''), as the first option */
+  placeholder?: string;
   id?: string;
   'aria-label'?: string;
   'aria-describedby'?: string;
@@ -23,6 +25,7 @@ export function CurrencySelect({
   onChange,
   first = [],
   disabled,
+  placeholder,
   id,
   'aria-label': ariaLabel = 'Currency',
   'aria-describedby': describedBy,
@@ -51,6 +54,7 @@ export function CurrencySelect({
       aria-describedby={describedBy}
       className={`block w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 disabled:opacity-60 ${className}`}
     >
+      {placeholder !== undefined && !value && <option value="">{placeholder}</option>}
       <optgroup label="Common">
         {groups.top.map((c) => (
           <option key={c.code} value={c.code}>
