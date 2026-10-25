@@ -12,6 +12,7 @@ import { CurrencySelect } from '../currency/CurrencySelect';
 import { useBudgetCurrency, useCurrencySettings } from '../../hooks/useCurrency';
 import { usePreferencesStore } from '../../store/preferencesStore';
 import { guessCurrency } from '../../utils/currency';
+import { AccountSectionField } from './AccountSectionField';
 
 interface Props {
   isOpen: boolean;
@@ -25,6 +26,8 @@ export function AddAccountModal({ isOpen, onClose }: Props) {
   const [isOffBudget, setIsOffBudget] = useState(false);
   // Null = the budget's currency. A budget without one gets it from its first account given one
   const [currency, setCurrency] = useState<string | null>(null);
+  const [section, setSection] = useState('');
+  const setAccountSection = usePreferencesStore((s) => s.setAccountSection);
   const budgetCurrency = useBudgetCurrency();
   const { data: currencySettings } = useCurrencySettings();
   const legacySymbol = usePreferencesStore((s) => s.currencySymbol);
@@ -40,6 +43,7 @@ export function AddAccountModal({ isOpen, onClose }: Props) {
     setAmount(0);
     setIsOffBudget(false);
     setCurrency(null);
+    setSection('');
     onClose();
   }
 
@@ -51,7 +55,7 @@ export function AddAccountModal({ isOpen, onClose }: Props) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim() || !amountValid) return;
-    await createAccount.mutateAsync({
+    const created = await createAccount.mutateAsync({
       name: name.trim(),
       type,
       // Debts are entered as the amount owed and stored as a negative balance
@@ -59,6 +63,7 @@ export function AddAccountModal({ isOpen, onClose }: Props) {
       isOffBudget: isOffBudget ? 1 : 0,
       ...(currency ? { currency } : {}),
     });
+    setAccountSection(created.id, section);
     handleClose();
   }
 
@@ -95,6 +100,8 @@ export function AddAccountModal({ isOpen, onClose }: Props) {
           </div>
 
           <AccountTypeSelect value={type} onChange={handleTypeChange} />
+
+          <AccountSectionField value={section} onChange={setSection} />
 
           {budgetCurrency || currency ? (
             <div>

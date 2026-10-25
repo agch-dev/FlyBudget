@@ -188,4 +188,85 @@ test.describe('accounts', () => {
     await expect(main).toContainText(/Liabilities\s*-\$12,450/);
     await expect(main).toContainText(/Loans\s*-\$12,000/);
   });
+
+  test('accounts given a section are listed together under a heading with their total', async ({
+    page,
+    api,
+  }) => {
+    const pesos = await api.createAccount('Visa pesos', -20_000, 'credit');
+    await api.createAccount('Checking', 100_000);
+    const dollars = await api.createAccount('Visa dollars', -5_000, 'credit');
+    for (const [account, typed] of [
+      [pesos, 'Visa'],
+      // Another spelling of the same name is the same section
+      [dollars, '  visa '],
+    ] as const) {
+      await open(page, `/accounts/${account.id}`);
+      await page.getByRole('button', { name: 'Edit' }).click();
+      const dialog = page.getByRole('dialog', { name: 'Edit Account' });
+      await dialog.getByRole('combobox', { name: /^Section/ }).fill(typed);
+      await dialog.getByRole('button', { name: 'Save' }).click();
+      await expect(dialog).toBeHidden();
+    }
+
+    const sidebar = page.getByRole('complementary');
+    await sidebar.getByRole('button', { name: /^For budget/ }).click();
+    // Shown with the first account's spelling, where that account is in the list
+    const heading = sidebar.getByRole('button', { name: 'Visa -$250' });
+    await expect(heading).toHaveAttribute('aria-expanded', 'true');
+    const list = page.locator(`[id="${await heading.getAttribute('aria-controls')}"]`);
+    await expect(list.getByRole('link')).toHaveText([/^Visa pesos/, /^Visa dollars/]);
+    await expect(sidebar.getByRole('link', { name: /^Checking/ })).toBeVisible();
+    await expect(list.getByRole('link', { name: /^Checking/ })).toHaveCount(0);
+
+    await heading.click();
+    await expect(heading).toHaveAttribute('aria-expanded', 'false');
+    await expect(heading).toBeFocused();
+    await expect(sidebar.getByRole('link', { name: /^Visa pesos/ })).toBeHidden();
+    // Closed sections stay closed on this device
+    await page.reload();
+    await sidebar.getByRole('button', { name: /^For budget/ }).click();
+    await expect(heading).toHaveAttribute('aria-expanded', 'false');
+
+    await open(page, '/accounts');
+    const section = page.getByRole('main').getByRole('group', { name: 'Visa -$250' });
+    await expect(section).toContainText('Visa pesos');
+    await expect(section).toContainText('Visa dollars');
+    await expect(section).not.toContainText('Checking');
+
+    // Emptying the name takes the account out of its section
+    await open(page, `/accounts/${dollars.id}`);
+    await page.getByRole('button', { name: 'Edit' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Edit Account' });
+    await expect(dialog.getByRole('combobox', { name: /^Section/ })).toHaveValue('visa');
+    await dialog.getByRole('combobox', { name: /^Section/ }).fill('');
+    await dialog.getByRole('button', { name: 'Save' }).click();
+    await expect(sidebar.getByRole('button', { name: 'Visa -$200' })).toBeVisible();
+  });
+
+  test('a new manual account can be put in a section', async ({ page, api }) => {
+    const savings = await api.createAccount('Rainy day', 50_000, 'savings');
+    await open(page, `/accounts/${savings.id}`);
+    await page.getByRole('button', { name: 'Edit' }).click();
+    let dialog = page.getByRole('dialog', { name: 'Edit Account' });
+    await dialog.getByRole('combobox', { name: /^Section/ }).fill('Rarely used');
+    await dialog.getByRole('button', { name: 'Save' }).click();
+    await expect(dialog).toBeHidden();
+
+    await open(page, '/accounts');
+    await page.getByRole('main').getByRole('button', { name: 'Add Account' }).click();
+    dialog = page.getByRole('dialog', { name: 'Add Account' });
+    await dialog.getByRole('textbox', { name: 'Account name' }).fill('Old wallet');
+    await dialog.getByRole('combobox', { name: 'Account type' }).selectOption('savings');
+    await dialog.getByRole('textbox', { name: 'Current Balance' }).fill('25');
+    // The sections in use are offered
+    await expect(dialog.locator('datalist option')).toHaveText(['Rarely used']);
+    await dialog.getByRole('combobox', { name: /^Section/ }).fill('Rarely used');
+    await dialog.getByRole('button', { name: 'Add Account' }).click();
+    await expect(dialog).toBeHidden();
+
+    const section = page.getByRole('main').getByRole('group', { name: 'Rarely used $525' });
+    await expect(section).toContainText('Rainy day');
+    await expect(section).toContainText('Old wallet');
+  });
 });

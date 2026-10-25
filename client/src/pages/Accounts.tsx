@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useId } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Plus,
@@ -29,6 +29,8 @@ import NetWorthMini from '../components/dashboard/NetWorthMini';
 import { ACCOUNT_GROUPS, type Account, type AccountGroup } from '../types';
 import { AccountIcon } from '../components/accounts/AccountIcon';
 import { accountTypeInfo, accountTypeLabel } from '../utils/accountTypes';
+import { listBySection } from '../utils/accountSections';
+import { usePreferencesStore } from '../store/preferencesStore';
 
 function groupAccountsByType(accounts: Account[]) {
   const groups = new Map<AccountGroup, Account[]>();
@@ -44,6 +46,65 @@ function groupAccountsByType(accounts: Account[]) {
   }));
 }
 
+function AccountListRow({ account }: { account: Account }) {
+  const navigate = useNavigate();
+  return (
+    <div
+      onClick={() => navigate(`/accounts/${account.id}`)}
+      className="flex items-center justify-between px-5 py-4 hover:bg-hover cursor-pointer group transition-colors last:rounded-b-lg"
+    >
+      <div className="min-w-0">
+        <div className="flex items-center gap-3 min-w-0">
+          <AccountIcon name={account.name} type={account.type} logo={account.logo} size="md" />
+          <div className="min-w-0">
+            <span className="text-sm font-medium text-text truncate block">{account.name}</span>
+            <span className="text-xs text-text-tertiary mt-0.5 block">
+              {accountTypeLabel(account.type)}
+            </span>
+          </div>
+        </div>
+      </div>
+      <span className="text-right">
+        <span className="block text-sm font-medium tabular-nums text-text">
+          {formatMoney(account.balance, account.currency)}
+        </span>
+        {account.rateDate && account.mainBalance !== null && (
+          <span className="block text-xs tabular-nums text-text-tertiary">
+            ≈ {formatCurrency(account.mainBalance)}
+          </span>
+        )}
+      </span>
+    </div>
+  );
+}
+
+/** An Account Section's accounts within one Account Type Group, under a heading with a total */
+function AccountSectionRows({ name, accounts }: { name: string; accounts: Account[] }) {
+  const headingId = useId();
+  const total = totalValue(accounts);
+  return (
+    <div role="group" aria-labelledby={headingId} className="last:rounded-b-lg">
+      <div
+        id={headingId}
+        className="flex items-center justify-between px-5 py-2 bg-surface-alt text-xs font-semibold text-text-secondary"
+      >
+        <span className="truncate">{name}</span>
+        <span className="text-right ml-2 shrink-0">
+          <span className={`block tabular-nums ${total < 0 ? 'text-negative' : ''}`}>
+            {formatCurrency(total)}
+          </span>
+          <UnconvertedNote currencies={unconvertedCurrencies(accounts)} link={false} />
+        </span>
+      </div>
+      <div className="divide-y divide-border-light">
+        {accounts.map((account) => (
+          <AccountListRow key={account.id} account={account} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 interface AccountGroupProps {
   label: string;
   accounts: Account[];
@@ -52,7 +113,7 @@ interface AccountGroupProps {
 
 function AccountGroup({ label, accounts, balancesAgo }: AccountGroupProps) {
   const [collapsed, setCollapsed] = useState(false);
-  const navigate = useNavigate();
+  const sections = usePreferencesStore((s) => s.accountSections);
   // In the budget's currency, at today's rate (so the change is the accounts', not the rate's)
   const groupTotal = totalValue(accounts);
   const groupTotalAgo = accounts.reduce((sum, a) => {
@@ -99,42 +160,17 @@ function AccountGroup({ label, accounts, balancesAgo }: AccountGroupProps) {
       </button>
       {!collapsed && (
         <div className="divide-y divide-border-light">
-          {accounts.map((account) => (
-            <div
-              key={account.id}
-              onClick={() => navigate(`/accounts/${account.id}`)}
-              className="flex items-center justify-between px-5 py-4 hover:bg-hover cursor-pointer group transition-colors last:rounded-b-lg"
-            >
-              <div className="min-w-0">
-                <div className="flex items-center gap-3 min-w-0">
-                  <AccountIcon
-                    name={account.name}
-                    type={account.type}
-                    logo={account.logo}
-                    size="md"
-                  />
-                  <div className="min-w-0">
-                    <span className="text-sm font-medium text-text truncate block">
-                      {account.name}
-                    </span>
-                    <span className="text-xs text-text-tertiary mt-0.5 block">
-                      {accountTypeLabel(account.type)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <span className="text-right">
-                <span className="block text-sm font-medium tabular-nums text-text">
-                  {formatMoney(account.balance, account.currency)}
-                </span>
-                {account.rateDate && account.mainBalance !== null && (
-                  <span className="block text-xs tabular-nums text-text-tertiary">
-                    ≈ {formatCurrency(account.mainBalance)}
-                  </span>
-                )}
-              </span>
-            </div>
-          ))}
+          {listBySection(accounts, sections).map((entry) =>
+            entry.kind === 'account' ? (
+              <AccountListRow key={entry.account.id} account={entry.account} />
+            ) : (
+              <AccountSectionRows
+                key={`section:${entry.name.toLowerCase()}`}
+                name={entry.name}
+                accounts={entry.accounts}
+              />
+            ),
+          )}
         </div>
       )}
     </Card>
