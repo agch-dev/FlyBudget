@@ -24,7 +24,12 @@ const COLUMN_ROLES = [
   'skip',
 ] as const;
 
-export const importSettingsSchema = z.object({
+/**
+ * Upstream's settings (dtymoszenko/FlyBudget), unchanged: a backup taken here must still read on
+ * plain upstream, which forgets all of an account's CSV settings over one column role it
+ * doesn't know. Never add roles to `columns`; give a column a new meaning in a key of its own.
+ */
+const upstreamImportSettingsSchema = z.object({
   delimiter: z.enum([',', ';', '\t']),
   encoding: z.enum(CSV_ENCODINGS),
   /** Rows above the header (account details some banks put first) */
@@ -46,6 +51,13 @@ export const importSettingsSchema = z.object({
   /** What the direction column says for money going out, if not a word FlyBudget knows */
   outWord: z.string().trim().max(50).nullable(),
 });
+
+/**
+ * Upstream's settings plus this branch's own keys, all optional: upstream drops them when it
+ * reads or re-saves the settings, so a missing key means "not known, guess or ask". Add each
+ * new key's values to `EXTRA_KEYS` in routes/importSettingsRoundTrip.test.ts.
+ */
+export const importSettingsSchema = upstreamImportSettingsSchema.extend({});
 
 export type ImportSettings = z.infer<typeof importSettingsSchema>;
 
