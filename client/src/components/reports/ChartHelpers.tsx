@@ -1,4 +1,5 @@
 import { format, parseISO } from 'date-fns';
+import type { ReactNode } from 'react';
 import { ChartNoAxesColumn } from 'lucide-react';
 import { formatCurrency } from '../../utils/currency';
 import { CATEGORY_COLORS } from '../../utils/chartColors';
@@ -112,7 +113,7 @@ export function EmptyState({
 export interface StatCard {
   label: string;
   value: string;
-  sub?: string;
+  sub?: ReactNode;
   tone?: 'positive' | 'negative' | 'neutral';
 }
 
@@ -145,7 +146,7 @@ export function StatCardRow({
               {c.value}
             </p>
             <p className="text-sm text-text-secondary mt-1.5">{c.label}</p>
-            {c.sub && <p className="text-xs text-text-tertiary mt-0.5">{c.sub}</p>}
+            {c.sub && <div className="text-xs text-text-tertiary mt-0.5">{c.sub}</div>}
           </div>
         ))}
       </div>
@@ -159,7 +160,7 @@ export function StatCardRow({
           className="rounded-lg bg-surface-alt border border-border-light px-4 py-3 min-w-[110px]"
         >
           <p className="text-xs text-text-tertiary">{c.label}</p>
-          {c.sub && <p className="text-[11px] text-text-tertiary/80">{c.sub}</p>}
+          {c.sub && <div className="text-[11px] text-text-tertiary/80">{c.sub}</div>}
           <p
             className={`text-lg font-semibold mt-0.5 tabular-nums ${c.tone ? TONE_CLASS[c.tone] : 'text-text'}`}
           >

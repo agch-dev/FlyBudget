@@ -25,6 +25,8 @@ import { formatCurrency } from '../../utils/currency';
 import { downloadCsv } from '../../utils/exportCsv';
 import { dayBounds, monthCount } from '../../utils/dateRange';
 import { CALENDAR_MONTHS_MAX } from '../../utils/calendarLayout';
+import { figureDay } from '../../utils/secondaryCurrency';
+import { SecondaryNetWorth } from '../currency/SecondaryNetWorth';
 import { PayeeIcon } from '../payees/PayeeIcon';
 import { TransactionCalendar } from './TransactionCalendar';
 import { CATEGORY_COLORS } from '../../utils/chartColors';
@@ -351,7 +353,16 @@ function NetWorthDetail({ from, to }: DetailProps) {
   const change = netWorthChange(series);
   const last = series[series.length - 1];
   const stats: StatCard[] = [
-    { label: 'Net Worth', value: formatCurrency(change?.latest ?? 0) },
+    {
+      label: 'Net Worth',
+      value: formatCurrency(change?.latest ?? 0),
+      sub: last && (
+        <SecondaryNetWorth
+          amount={change?.latest ?? 0}
+          day={figureDay(last.month, format(new Date(), 'yyyy-MM-dd'))}
+        />
+      ),
+    },
     {
       label: 'Change',
       value: change ? formatChange(change.change, change.percent) : formatCurrency(0),

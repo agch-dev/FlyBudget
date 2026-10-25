@@ -1,9 +1,15 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as currencyApi from '../api/currency';
 import { useAccounts } from './useAccounts';
 import { useCurrencyStore } from '../store/currencyStore';
-import type { CurrencySettings } from '../types';
+import { usePreferencesStore } from '../store/preferencesStore';
+import {
+  secondaryCurrencyOptions,
+  secondaryFigure,
+  secondaryLookup,
+} from '../utils/secondaryCurrency';
+import type { CurrencySettings, ExchangeRate } from '../types';
 
 const KEY = ['currency'];
 
@@ -71,7 +77,7 @@ export function useDownloadRates() {
 }
 
 export function useRates(
-  params: { base?: string; quote?: string; source?: 'manual' | 'ecb' },
+  params: { base?: string; quote?: string; source?: 'manual' | 'ecb'; limit?: number },
   enabled = true,
 ) {
   return useQuery({
@@ -117,4 +123,32 @@ export function useAccountCurrency(): (accountId: string | null | undefined) => 
   const budget = useBudgetCurrency();
   return (accountId) =>
     (accountId ? accounts?.find((a) => a.id === accountId)?.currency : null) ?? budget;
+}
+
+const NO_RATES: ExchangeRate[] = [];
+
+/** The currencies offered as a Secondary Currency (accounts' and typed-in rates', not the budget's) */
+export function useSecondaryCurrencyOptions(): string[] {
+  const { data: settings } = useCurrencySettings();
+  const budget = useBudgetCurrency();
+  const { data: typedIn = NO_RATES } = useRates({ source: 'manual', limit: 1000 }, !!budget);
+  const foreign = settings?.foreignCurrencies;
+  return useMemo(
+    () => secondaryCurrencyOptions(budget, foreign ?? [], typedIn),
+    [budget, foreign, typedIn],
+  );
+}
+
+/** A figure in the budget's currency at `day`, in the Secondary Currency (see secondaryFigure) */
+export function useSecondaryFigure(amount: number, day: string) {
+  const secondary = usePreferencesStore((s) => s.secondaryCurrency);
+  const budget = useBudgetCurrency();
+  const offered = useSecondaryCurrencyOptions();
+  const input = { secondary, budget, offered, amount };
+  const lookup = secondaryLookup(input);
+  const { data: conversion } = useConverted(
+    { from: lookup?.from ?? null, to: lookup?.to ?? null, date: day, amount: lookup?.amount ?? 0 },
+    !!lookup,
+  );
+  return secondaryFigure({ ...input, day, conversion });
 }

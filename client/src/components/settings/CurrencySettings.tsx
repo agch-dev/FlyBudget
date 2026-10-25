@@ -14,6 +14,7 @@ import {
   useRates,
   useRecalculate,
   useSetBudgetCurrency,
+  useSecondaryCurrencyOptions,
   useSetRateDownload,
 } from '../../hooks/useCurrency';
 import { usePreferencesStore, type SymbolPosition } from '../../store/preferencesStore';
@@ -58,6 +59,7 @@ export function CurrencySettings() {
           <MissingRates />
           <Rates />
           <RateDownload />
+          <SecondaryCurrency />
           <Display />
         </>
       )}
@@ -420,6 +422,43 @@ function RateDownload() {
           <SavingPausedHint />
         </>
       )}
+    </section>
+  );
+}
+
+function SecondaryCurrency() {
+  const secondary = usePreferencesStore((s) => s.secondaryCurrency);
+  const setSecondary = usePreferencesStore((s) => s.setSecondaryCurrency);
+  const options = useSecondaryCurrencyOptions();
+  // A saved choice that's no longer offered is kept, but shows as None
+  const value = secondary && options.includes(secondary) ? secondary : '';
+
+  return (
+    <section className={section} aria-labelledby="secondary-heading">
+      <div>
+        <h3 id="secondary-heading" className="text-sm font-medium text-text">
+          Secondary currency
+        </h3>
+        <p className="text-xs text-text-tertiary mt-0.5">
+          On this device. Currently used for net worth: the dashboard and the Net Worth report also
+          show it in this currency, at the latest rate (hidden when that rate is more than a few
+          days old). Offers your accounts&apos; currencies and those you typed a rate for.
+        </p>
+      </div>
+      <select
+        id="secondary-currency"
+        aria-label="Secondary currency"
+        value={value}
+        onChange={(e) => setSecondary(e.target.value || null)}
+        className={`${inputClass} max-w-xs`}
+      >
+        <option value="">None</option>
+        {options.map((code) => (
+          <option key={code} value={code}>
+            {code} · {currencyName(code)}
+          </option>
+        ))}
+      </select>
     </section>
   );
 }
