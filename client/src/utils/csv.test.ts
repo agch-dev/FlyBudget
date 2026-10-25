@@ -638,7 +638,7 @@ describe('guessColumnRoles (property-based)', () => {
         });
       }),
     );
-    // Santander leaves Descripción empty, so Concepto stays the payee
+    // Two columns that could be the payee: the first one is
     expect(guessColumnRoles(['Fecha', 'Concepto', 'Descripción', 'Importe'])).toEqual([
       'date',
       'payee',
