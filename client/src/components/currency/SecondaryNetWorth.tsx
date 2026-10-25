@@ -3,10 +3,6 @@ import { useBudgetCurrency, useSecondaryFigure } from '../../hooks/useCurrency';
 import { currencyName, formatMoney } from '../../utils/currency';
 import { formatDay } from '../../utils/dates';
 
-/**
- * Under a net worth figure: what it is in the Secondary Currency ("≈ US$12,345"), or why it
- * isn't shown (no rate within a few days of the figure's day). Nothing without one.
- */
 export function SecondaryNetWorth({
   amount,
   day,

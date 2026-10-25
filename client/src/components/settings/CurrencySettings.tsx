@@ -426,7 +426,6 @@ function RateDownload() {
   );
 }
 
-/** The Secondary Currency: a second currency net worth is also shown in, on this device */
 function SecondaryCurrency() {
   const secondary = usePreferencesStore((s) => s.secondaryCurrency);
   const setSecondary = usePreferencesStore((s) => s.setSecondaryCurrency);
