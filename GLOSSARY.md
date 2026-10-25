@@ -19,3 +19,7 @@ _Avoid_: Account section
 **Secondary Currency**:
 A second currency the user likes to see amounts in, besides the budget's own, chosen on each device. Today it only adds a converted net worth figure; the budget itself is always in the budget currency.
 _Avoid_: Viewing currency, display currency, net worth currency
+
+**Instalment**:
+One month's part of a card purchase that the bank charges over several months; each statement lists it as its own line, often next to the purchase's full price (the total).
+_Avoid_: Cuota, payment, installment plan
