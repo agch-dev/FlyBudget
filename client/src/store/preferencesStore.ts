@@ -29,6 +29,11 @@ interface PreferencesState {
   symbolPosition: SymbolPosition | 'auto';
   /** Per currency (ISO code): its symbol or position on this device */
   currencyStyles: Record<string, CurrencyDisplay>;
+  /**
+   * The Secondary Currency (ISO code, null = none): net worth is also shown in it. Per device,
+   * not in backups.
+   */
+  secondaryCurrency: string | null;
   dateFormat: DateFormatOption;
   savingsGoal: number;
   sidebarMode: SidebarMode;
@@ -49,6 +54,7 @@ interface PreferencesState {
   setSymbolPosition: (position: SymbolPosition | 'auto') => void;
   /** Null goes back to the currency's own convention */
   setCurrencyStyle: (currency: string, style: CurrencyDisplay | null) => void;
+  setSecondaryCurrency: (currency: string | null) => void;
   setDateFormat: (format: DateFormatOption) => void;
   setSavingsGoal: (goal: number) => void;
   setSidebarMode: (mode: SidebarMode) => void;
@@ -88,6 +94,7 @@ export const usePreferencesStore = create<PreferencesState>()(
       amountFormat: 'auto',
       symbolPosition: 'auto',
       currencyStyles: {},
+      secondaryCurrency: null,
       dateFormat: 'MMM d, yyyy',
       savingsGoal: 20,
       sidebarMode: 'persistent',
@@ -109,6 +116,7 @@ export const usePreferencesStore = create<PreferencesState>()(
           else delete next[currency];
           return { currencyStyles: next };
         }),
+      setSecondaryCurrency: (secondaryCurrency) => set({ secondaryCurrency }),
       setDateFormat: (dateFormat) => set({ dateFormat }),
       setSavingsGoal: (savingsGoal) => set({ savingsGoal }),
       setSidebarMode: (sidebarMode) => set({ sidebarMode }),

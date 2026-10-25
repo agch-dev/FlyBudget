@@ -1,7 +1,9 @@
+import type { ReactNode } from 'react';
+
 interface Props {
   label: string;
   value: string;
-  sub?: string;
+  sub?: ReactNode;
   accent?: 'positive' | 'negative' | 'caution' | 'brand';
   valueColor?: string;
   className?: string;
@@ -25,7 +27,7 @@ export function StatCard({ label, value, sub, accent, valueColor, className = ''
       <p className={`text-lg font-semibold tabular-nums mt-0.5 ${valueColor || 'text-text'}`}>
         {value}
       </p>
-      {sub && <p className="text-xs text-text-tertiary mt-0.5">{sub}</p>}
+      {sub && <div className="text-xs text-text-tertiary mt-0.5">{sub}</div>}
     </div>
   );
 }

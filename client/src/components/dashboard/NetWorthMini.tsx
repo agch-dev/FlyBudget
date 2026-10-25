@@ -4,6 +4,7 @@ import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'rec
 import { useNetWorth } from '../../hooks/useReports';
 import { useAccounts } from '../../hooks/useAccounts';
 import { ButtonLink } from '../ui/Button';
+import { SecondaryNetWorth } from '../currency/SecondaryNetWorth';
 import { formatCurrency } from '../../utils/currency';
 import { chartColors } from '../../utils/chartColors';
 import { formatDateAxisLabels, formatDateLabel } from '../../utils/chartTicks';
@@ -133,6 +134,9 @@ export default function NetWorthMini() {
           >
             {formatCurrency(latest)}
           </p>
+          {!noAccounts && (
+            <SecondaryNetWorth amount={latest} day={format(new Date(), 'yyyy-MM-dd')} />
+          )}
           {noAccounts && (
             <p className="text-sm text-text-tertiary mt-1">
               What you own minus what you owe, across all your accounts.

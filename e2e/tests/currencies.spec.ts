@@ -154,3 +154,48 @@ test('ECB rates download only when turned on', async ({ page, api }) => {
   const [tx] = await api.call('GET', `/transactions?account_id=${zloty.id}`);
   expect(tx).toMatchObject({ mainAmount: -2_000, mainAmountSource: 'rate' });
 });
+
+test('net worth also shows in the Secondary Currency, unless its rate is too old', async ({
+  page,
+  api,
+}) => {
+  await setCurrency(api, 'EUR');
+  await api.createAccount('Girokonto', 100_000);
+  await api.createAccount('US checking', 0, 'checking', { currency: 'USD' });
+  await api.call('PUT', '/currency/download', { enabled: true });
+  await api.call('POST', '/currency/download');
+  // Pounds are offered because of a typed-in rate, but it's ten days old
+  await addRate(api, 'EUR', 'GBP', '0.80', isoDay(-10));
+
+  // Nothing until one is chosen
+  await open(page, '/dashboard');
+  await expect(page.getByText(/^1,000(\.00)?\s€$/).first()).toBeVisible();
+  await expect(page.getByText(/^≈/)).toHaveCount(0);
+
+  await open(page, '/settings?tab=currencies');
+  const picker = page.getByRole('combobox', { name: 'Secondary currency' });
+  await expect(picker).toHaveValue('');
+  await expect(picker.getByRole('option')).toHaveText(['None', /^GBP/, /^USD/]);
+  await picker.selectOption('USD');
+
+  await open(page, '/dashboard');
+  const converted = page.getByText(/^≈ (US)?\$1,250(\.00)?$/);
+  await expect(converted).toBeVisible();
+  await expect(converted).toHaveAttribute('title', /^1 EUR = 1\.25 USD/);
+
+  // The Net Worth report's stat card shows it too
+  const [board] = await api.call<any[]>('GET', '/dashboards');
+  const widgets = await api.call<any[]>('GET', `/dashboards/${board.id}/widgets`);
+  await open(page, `/reports/widget/${widgets.find((w) => w.type === 'net-worth').id}`);
+  await expect(page.getByText(/^≈ (US)?\$1,250(\.00)?$/)).toBeVisible();
+
+  // A rate older than four days hides it and says why
+  await open(page, '/settings?tab=currencies');
+  await page.getByRole('combobox', { name: 'Secondary currency' }).selectOption('GBP');
+  await open(page, '/dashboard');
+  const hidden = page.getByRole('link', { name: 'British Pound hidden: no recent rate' });
+  await expect(hidden).toBeVisible();
+  await expect(page.getByText(/^≈/)).toHaveCount(0);
+  await hidden.click();
+  await expect(page.getByRole('heading', { name: 'Secondary currency' })).toBeVisible();
+});
