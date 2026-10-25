@@ -5,6 +5,8 @@ import {
   readSpreadsheet,
   sheetLayout,
   sheetText,
+  showsDateFormat,
+  showsNumberFormat,
   spreadsheetKind,
   textCells,
   SpreadsheetError,
@@ -12,6 +14,7 @@ import {
 import { isDateFormat, numberText, serialToIsoDate, type Sheet } from './spreadsheetCells';
 import {
   buildImportRows,
+  columnRolesFor,
   detectDateFormat,
   detectNumberFormat,
   readImportAmount,
@@ -169,6 +172,17 @@ describe('readSpreadsheet (.xlsx)', () => {
     };
     const [summary] = await readSpreadsheet(await zip(files));
     expect(summary.rows).toEqual([[7.5, 'seven', 'padded']]);
+  });
+
+  it('reads date cells written as text by the day, without a time', async () => {
+    const files = {
+      ...workbookFiles,
+      'xl/worksheets/sheet1.xml':
+        '<worksheet><sheetData><row><c t="d"><v>2026-05-03T00:00:00</v></c><c t="d"><v>2026-05-04</v></c>' +
+        '</row></sheetData></worksheet>',
+    };
+    const [summary] = await readSpreadsheet(await zip(files));
+    expect(summary.rows).toEqual([['2026-05-03', '2026-05-04']]);
   });
 
   it('counts days from 1904 in workbooks that say so', async () => {
@@ -421,29 +435,56 @@ const custom: Sheet = {
   ],
 };
 
+// Like Itaú's card statement: the purchase's total and this month's instalment
+const card: Sheet = {
+  name: 'Tarjeta',
+  rows: [
+    ['Fecha', 'Concepto', 'Imp. total', 'Imp. cuota'],
+    ['2026-09-30', 'DLOPedidosYa', 2000.67, 666.89],
+  ],
+};
+const text = (sheet: Sheet) => sheetText(sheet.rows, 'dot');
+
 describe('sheetLayout', () => {
   it('finds the header under the account details', () => {
-    expect(sheetLayout(movements, null)).toEqual({ skipRows: 1, usingSaved: false });
+    expect(sheetLayout(text(movements), null)).toEqual({ skipRows: 1, usingSaved: false });
   });
 
   it("uses the account's saved header row when the sheet has those columns", () => {
     const saved = settings({ When: 'date', What: 'payee', 'How much': 'amount' });
-    expect(sheetLayout(custom, saved)).toEqual({ skipRows: 0, usingSaved: true });
-    expect(sheetLayout(movements, saved)).toEqual({ skipRows: 1, usingSaved: false });
+    expect(sheetLayout(text(custom), saved)).toEqual({ skipRows: 0, usingSaved: true });
+    expect(sheetLayout(text(movements), saved)).toEqual({ skipRows: 1, usingSaved: false });
   });
 });
 
 describe('chooseSheet', () => {
   it('opens the first sheet with a date and an amount column', () => {
-    expect(chooseSheet([summary, movements, custom], null)).toBe(1);
+    expect(chooseSheet([summary, movements, custom].map(text), null)).toBe(1);
   });
 
   it("opens a sheet with the account's saved columns first", () => {
     const saved = settings({ When: 'date', What: 'payee', 'How much': 'amount' });
-    expect(chooseSheet([summary, movements, custom], saved)).toBe(2);
+    expect(chooseSheet([summary, movements, custom].map(text), saved)).toBe(2);
   });
 
   it('opens the first sheet when none looks like transactions', () => {
-    expect(chooseSheet([summary, custom], null)).toBe(0);
+    expect(chooseSheet([summary, custom].map(text), null)).toBe(0);
+  });
+
+  it('opens a card statement, its instalment column as the amount', () => {
+    expect(chooseSheet([summary, card].map(text), null)).toBe(1);
+    expect(columnRolesFor(text(card)[0])).toEqual(['date', 'payee', 'skip', 'amount']);
+  });
+});
+
+describe('showsDateFormat / showsNumberFormat', () => {
+  it('say whether text cells show how the file writes dates and amounts', () => {
+    // Real dates and numbers are left empty by textCells: they show nothing
+    expect(showsDateFormat(['', '2026-05-17'])).toBe(false);
+    expect(showsDateFormat(['2026-05-17', '13/05/2026'])).toBe(true);
+    expect(showsDateFormat(['03/04/2026'])).toBe(true);
+    expect(showsNumberFormat(['', '610', '-12'])).toBe(false);
+    expect(showsNumberFormat(['45,3'])).toBe(true);
+    expect(showsNumberFormat(['1.234'])).toBe(true);
   });
 });

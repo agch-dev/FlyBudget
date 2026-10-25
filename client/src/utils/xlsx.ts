@@ -139,11 +139,11 @@ function* elements(xml: string, name: string): Generator<{ attrs: string; body: 
 
 /** The text of a string item: its `<t>` runs joined, without phonetic guides (`<rPh>`) */
 function stringItem(xml: string): string {
-  const spoken = xml.includes('rPh')
+  const written = xml.includes('rPh')
     ? xml.replace(/<(?:\w+:)?rPh\b[\s\S]*?<\/(?:\w+:)?rPh>/g, '')
     : xml;
   let text = '';
-  for (const t of elements(spoken, 't')) text += xmlText(t.body);
+  for (const t of elements(written, 't')) text += xmlText(t.body);
   return text;
 }
 
@@ -198,7 +198,9 @@ function readSheet(
       let value: Cell = '';
       if (type === 'inlineStr') value = stringItem(cell.body);
       else if (type === 's') value = strings[Number(raw)] ?? '';
-      else if (type === 'str' || type === 'd') value = raw;
+      else if (type === 'str') value = raw;
+      // An ISO date, maybe with a time (dropped, like a date number's)
+      else if (type === 'd') value = /^\d{4}-\d{2}-\d{2}/.test(raw) ? raw.slice(0, 10) : raw;
       else if (type === 'n' && raw !== '') {
         const number = Number(raw);
         if (!Number.isFinite(number)) continue;

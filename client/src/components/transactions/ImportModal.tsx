@@ -40,6 +40,8 @@ import {
   readSpreadsheet,
   sheetLayout,
   sheetText,
+  showsDateFormat,
+  showsNumberFormat,
   spreadsheetKind,
   textCells,
   SpreadsheetError,
@@ -62,6 +64,8 @@ interface Props {
 }
 
 type Step = 'upload' | 'statement' | 'map' | 'preview' | 'done';
+
+type ImportSource = 'csv' | 'camt' | 'xlsx';
 
 const DELIMITERS: { value: Delimiter; label: string }[] = [
   { value: ',', label: 'Comma' },
@@ -97,7 +101,7 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
   const currency = useAccountCurrency()(accountId);
   const canSave = useCanSave();
   const queryClient = useQueryClient();
-  const [source, setSource] = useState<'csv' | 'camt' | 'xlsx'>('csv');
+  const [source, setSource] = useState<ImportSource>('csv');
   // CSV: the file, how it's read, and the settings this account's last import used
   const [bytes, setBytes] = useState<ArrayBuffer | null>(null);
   const [encoding, setEncoding] = useState<CsvEncoding>('auto');
@@ -114,6 +118,8 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
   const [outWord, setOutWord] = useState('');
   // Excel: the sheets with anything in them, and the one being imported
   const [sheets, setSheets] = useState<Sheet[]>([]);
+  // Each sheet's cells as text, numbers with a decimal point (for the header and the layout)
+  const [sheetTexts, setSheetTexts] = useState<string[][][]>([]);
   const [sheetIdx, setSheetIdx] = useState(0);
   // CAMT: the statements in the file (one per account)
   const [statements, setStatements] = useState<CamtStatement[]>([]);
@@ -153,6 +159,7 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
     setNumberFormatChoice(null);
     setOutWord('');
     setSheets([]);
+    setSheetTexts([]);
     setSheetIdx(0);
     setStatements([]);
     setStatementIdx(0);
@@ -290,7 +297,7 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
       const found = (await readSpreadsheet(new Uint8Array(buffer))).filter((s) => s.rows.length);
       if (load !== loadId.current) return;
       if (!found.length) {
-        setError('No rows could be imported: every sheet in this file is empty.');
+        setError('No rows could be imported. Every sheet in this file is empty.');
         return;
       }
       const savedSettings = (await savedImport())?.settings ?? null;
@@ -303,8 +310,10 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
       setEncoding(savedSettings?.encoding ?? 'auto');
       setDateFormatChoice(null);
       setNumberFormatChoice(null);
+      const texts = found.map((s) => sheetText(s.rows, 'dot'));
       setSheets(found);
-      openSheet(found, chooseSheet(found, savedSettings), savedSettings);
+      setSheetTexts(texts);
+      openSheet(texts, chooseSheet(texts, savedSettings), savedSettings);
       return;
     }
 
@@ -360,15 +369,14 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
   }
 
   /** Shows a sheet's table: under the saved header row if it has the saved columns */
-  function openSheet(list: Sheet[], idx: number, savedSettings: ImportSettings | null) {
-    const { skipRows: skip, usingSaved: fits } = sheetLayout(list[idx], savedSettings);
-    const all = sheetText(list[idx].rows, 'dot');
+  function openSheet(texts: string[][][], idx: number, savedSettings: ImportSettings | null) {
+    const layout = sheetLayout(texts[idx], savedSettings);
     setError(null);
     setSheetIdx(idx);
-    setUsingSaved(fits);
-    setOutWord(fits ? (savedSettings?.outWord ?? '') : '');
-    setRecords(all);
-    showTable(all, skip, savedSettings);
+    setUsingSaved(layout.usingSaved);
+    setOutWord(layout.usingSaved ? (savedSettings?.outWord ?? '') : '');
+    setRecords(texts[idx]);
+    showTable(texts[idx], layout.skipRows, savedSettings);
     setStep('map');
   }
 
@@ -405,12 +413,16 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
     });
   }
 
-  const sheet = source === 'xlsx' ? sheets[sheetIdx] : undefined;
+  // A spreadsheet's cells under the header, the same rows as `rawRows`
+  const sheetRows = useMemo(
+    () => (source === 'xlsx' ? sheets[sheetIdx]?.rows.slice(skipRows + 1) : undefined),
+    [source, sheets, sheetIdx, skipRows],
+  );
   // A spreadsheet's number and date cells say what they are: only its text cells could be
   // read two ways
   const textRows = useMemo(
-    () => (sheet ? textCells(sheet.rows.slice(skipRows + 1)) : rawRows),
-    [sheet, skipRows, rawRows],
+    () => (sheetRows ? textCells(sheetRows) : rawRows),
+    [sheetRows, rawRows],
   );
   // How the file writes dates, amounts and directions, judged from the columns mapped to them
   const detected = useMemo(() => {
@@ -422,6 +434,9 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
     return {
       dateFormat: detectDateFormat(column('date')),
       numberFormat: detectNumberFormat(amounts),
+      // Whether the file showed them at all (a sheet of real dates and numbers doesn't)
+      dateShown: showsDateFormat(column('date')),
+      numberShown: showsNumberFormat(amounts),
       // Values that really could be read two ways, to quote in the warning
       dateSample: column('date').find((d) => {
         const readings = (['mdy', 'dmy', 'ymd'] as const)
@@ -461,7 +476,7 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
     if (!numberFormat) return setError('Choose how this file writes amounts');
     if (needsOutWord) return setError('Type the word your bank uses for money going out');
     // Number cells written in the chosen format, so they read back exactly
-    const cells = sheet ? sheetText(sheet.rows.slice(skipRows + 1), numberFormat) : rawRows;
+    const cells = sheetRows ? sheetText(sheetRows, numberFormat) : rawRows;
     const built = buildImportRows(cells, roles, {
       dateFormat,
       numberFormat,
@@ -501,13 +516,20 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
       columnKeys(headers).forEach((key, i) => {
         columns[key] = roles[i];
       });
+      // A sheet of real dates or numbers says nothing about the account's CSV files: keep
+      // what was known for these columns, so a CSV file with ambiguous text is still asked about
+      const shown = (chosen: unknown, inFile: boolean) => source !== 'xlsx' || !!chosen || inFile;
       const settings: ImportSettings = {
         delimiter,
         encoding,
         skipRows,
         columns,
-        dateFormat,
-        numberFormat,
+        dateFormat: shown(dateFormatChoice, detected.dateShown)
+          ? dateFormat
+          : (lastTime?.dateFormat ?? null),
+        numberFormat: shown(numberFormatChoice, detected.numberShown)
+          ? numberFormat
+          : (lastTime?.numberFormat ?? null),
         outWord: outWord.trim().slice(0, 50) || null,
       };
       request = saveImportSettings(accountId, settings);
@@ -692,7 +714,7 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
                 <span>Sheet</span>
                 <select
                   value={sheetIdx}
-                  onChange={(e) => openSheet(sheets, Number(e.target.value), saved)}
+                  onChange={(e) => openSheet(sheetTexts, Number(e.target.value), saved)}
                   className={selectClass}
                 >
                   {sheets.map((s, i) => (
@@ -853,8 +875,8 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
                 </tr>
               </thead>
               <tbody>
-                {(sheet
-                  ? sheetText(sheet.rows.slice(skipRows + 1, skipRows + 4), numberFormat ?? 'dot')
+                {(sheetRows
+                  ? sheetText(sheetRows.slice(0, 3), numberFormat ?? 'dot')
                   : rawRows.slice(0, 3)
                 ).map((row, ri) => (
                   <tr key={ri}>

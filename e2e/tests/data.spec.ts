@@ -610,6 +610,35 @@ test.describe('CSV import', () => {
     ]);
   });
 
+  test('real dates in a workbook never answer for a CSV file of the account', async ({
+    page,
+    api,
+  }) => {
+    const savings = await api.createAccount('Caja de ahorro', 0, 'savings');
+    await open(page, `/accounts/${savings.id}`);
+    await page.getByRole('button', { name: 'Import CSV' }).click();
+    let dialog = page.getByRole('dialog', { name: 'Import Transactions' });
+    await dialog.getByLabel('Bank file').setInputFiles({
+      name: 'Estado_De_Cuenta.xlsx',
+      mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      buffer: xlsx({
+        Movimientos: [
+          ['Fecha', 'Concepto', 'Importe'],
+          [{ date: '2026-05-03' }, 'Farmashop', -610],
+        ],
+      }),
+    });
+    await dialog.getByRole('button', { name: 'Preview' }).click();
+    await dialog.getByRole('button', { name: 'Import 1 Transaction' }).click();
+    await dialog.getByRole('button', { name: 'Done' }).click();
+
+    // The same columns as text: 04/05/2026 could be April or May, so it still asks
+    dialog = await importCsv(page, 'Fecha,Concepto,Importe\r\n04/05/2026,Rediva,45\r\n');
+    await expect(dialog).toContainText('Using the settings from your last import');
+    await expect(dialog.getByRole('combobox', { name: 'Dates' })).toHaveValue('');
+    await expect(dialog).toContainText('Choose the format your bank uses');
+  });
+
   test('a file that is not an Excel workbook says so', async ({ page, api }) => {
     const checking = await api.createAccount('Checking', 0);
     await open(page, `/accounts/${checking.id}`);

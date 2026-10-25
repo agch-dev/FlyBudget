@@ -10,22 +10,25 @@ import {
   columnRolesFor,
   detectSkipRows,
   fitsSavedColumns,
+  normalizeDate,
+  readImportAmount,
   type ColumnRole,
+  type DateFormat,
   type ImportSettings,
   type NumberFormat,
 } from './csv';
 
 export { SpreadsheetError, type Cell, type Sheet } from './spreadsheetCells';
 
-const startsWith = (bytes: Uint8Array, magic: number[]) => magic.every((b, i) => bytes[i] === b);
+const hasMagic = (bytes: Uint8Array, magic: number[]) => magic.every((b, i) => bytes[i] === b);
 
 /**
  * Which kind of Excel file these bytes are, whatever the file is called: a zip (.xlsx,
  * .xltx, .xlsm), an OLE compound file (an old .xls, or an .xlsx with a password), or null
  */
 export function spreadsheetKind(bytes: Uint8Array): 'xlsx' | 'ole' | null {
-  if (startsWith(bytes, [0x50, 0x4b, 0x03, 0x04])) return 'xlsx';
-  if (startsWith(bytes, [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1])) return 'ole';
+  if (hasMagic(bytes, [0x50, 0x4b, 0x03, 0x04])) return 'xlsx';
+  if (hasMagic(bytes, [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1])) return 'ole';
   return null;
 }
 
@@ -65,14 +68,13 @@ export function textCells(rows: Cell[][]): string[][] {
 }
 
 /**
- * Where a sheet's header is: the row the account's saved settings name when the sheet has
- * those columns (`usingSaved`), else the row the CSV import would find
+ * Where a sheet's header is, in its text (`sheetText`): the row the account's saved settings
+ * name when the sheet has those columns (`usingSaved`), else the row the CSV import would find
  */
 export function sheetLayout(
-  sheet: Sheet,
+  records: string[][],
   saved: ImportSettings | null,
 ): { skipRows: number; usingSaved: boolean } {
-  const records = sheetText(sheet.rows, 'dot');
   if (saved && fitsSavedColumns(records, saved)) {
     return { skipRows: saved.skipRows, usingSaved: true };
   }
@@ -90,17 +92,33 @@ export function sheetLayout(
 const AMOUNT_ROLES: ColumnRole[] = ['amount', 'inflow', 'outflow'];
 
 /**
- * The sheet an import opens on: the first with this account's saved columns, else the first
- * where the column guess finds a date and an amount, else the first
+ * The sheet an import opens on, from each sheet's text: the first with this account's saved
+ * columns, else the first where the column guess finds a date and an amount, else the first
  */
-export function chooseSheet(sheets: Sheet[], saved: ImportSettings | null): number {
-  const layouts = sheets.map((sheet) => sheetLayout(sheet, saved));
+export function chooseSheet(sheets: string[][][], saved: ImportSettings | null): number {
+  const layouts = sheets.map((records) => sheetLayout(records, saved));
   const withSaved = layouts.findIndex((layout) => layout.usingSaved);
   if (withSaved !== -1) return withSaved;
-  const transactions = sheets.findIndex((sheet, i) => {
-    const header = sheetText(sheet.rows, 'dot')[layouts[i].skipRows] ?? [];
-    const roles = columnRolesFor(header, saved?.columns);
+  const transactions = sheets.findIndex((records, i) => {
+    const roles = columnRolesFor(records[layouts[i].skipRows] ?? [], saved?.columns);
     return roles.includes('date') && roles.some((role) => AMOUNT_ROLES.includes(role));
   });
   return Math.max(transactions, 0);
+}
+
+const DATE_FORMATS: DateFormat[] = ['mdy', 'dmy', 'ymd'];
+
+/**
+ * Whether these text cells show how the file writes dates: one reads differently, or not at
+ * all, in another order. A sheet of real dates shows nothing, so nothing is saved for it.
+ */
+export function showsDateFormat(values: string[]): boolean {
+  return values.some((value) => new Set(DATE_FORMATS.map((f) => normalizeDate(value, f))).size > 1);
+}
+
+/** Whether these text cells show how the file writes amounts (a sheet of numbers doesn't) */
+export function showsNumberFormat(values: string[]): boolean {
+  return values.some(
+    (value) => readImportAmount(value, 'dot') !== readImportAmount(value, 'comma'),
+  );
 }
