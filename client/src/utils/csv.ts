@@ -447,6 +447,9 @@ const COLUMN_HINTS: Record<string, ColumnRole> = {
   comercio: 'payee',
   importe: 'amount',
   monto: 'amount',
+  'imp. cuota': 'amount', // this month's instalment, never the purchase's total
+  'importe cuota': 'amount',
+  cuota: 'amount',
   débito: 'outflow',
   débitos: 'outflow',
   cargo: 'outflow',

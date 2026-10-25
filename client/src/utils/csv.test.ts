@@ -536,6 +536,9 @@ const KNOWN_HEADERS: [string, ColumnRole][] = [
   ['comercio', 'payee'],
   ['importe', 'amount'],
   ['monto', 'amount'],
+  ['imp. cuota', 'amount'],
+  ['importe cuota', 'amount'],
+  ['cuota', 'amount'],
   ['débito', 'outflow'],
   ['débitos', 'outflow'],
   ['cargo', 'outflow'],
@@ -642,6 +645,28 @@ describe('guessColumnRoles (property-based)', () => {
     expect(guessColumnRoles(['Fecha', 'Concepto', 'Descripción', 'Importe'])).toEqual([
       'date',
       'payee',
+      'skip',
+      'amount',
+    ]);
+  });
+
+  it("takes this month's instalment as the amount, never the whole purchase", () => {
+    // A card statement with instalments, starting with an empty column
+    expect(
+      guessColumnRoles([
+        '',
+        'Fecha',
+        'Concepto',
+        'Imp. cuota',
+        'Imp. total',
+        'Cuotas',
+        'Moneda',
+        'Categoría',
+      ]),
+    ).toEqual(['skip', 'date', 'payee', 'amount', 'skip', 'skip', 'skip', 'skip']);
+    // The total stays Skip even when it comes first
+    expect(guessColumnRoles(['Fecha', 'Imp. total', 'Importe cuota'])).toEqual([
+      'date',
       'skip',
       'amount',
     ]);
