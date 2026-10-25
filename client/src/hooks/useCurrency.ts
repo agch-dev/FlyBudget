@@ -130,7 +130,7 @@ const NO_RATES: ExchangeRate[] = [];
 /** The currencies offered as a Secondary Currency (accounts' and typed-in rates', not the budget's) */
 export function useSecondaryCurrencyOptions(): string[] {
   const { data: settings } = useCurrencySettings();
-  const budget = settings?.currency ?? null;
+  const budget = useBudgetCurrency();
   const { data: typedIn = NO_RATES } = useRates({ source: 'manual', limit: 1000 }, !!budget);
   const foreign = settings?.foreignCurrencies;
   return useMemo(

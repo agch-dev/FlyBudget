@@ -10,6 +10,13 @@ export interface SecondaryConversion {
   date: string | null;
 }
 
+/** The device's Secondary Currency, the budget's, and the currencies offered */
+export interface SecondaryChoice {
+  secondary: string | null;
+  budget: string | null;
+  offered: string[];
+}
+
 export type SecondaryFigure =
   /** Nothing to show: no Secondary Currency, or it isn't offered, or it's the budget's */
   | { kind: 'none' }
@@ -54,25 +61,18 @@ export function figureDay(point: string, today: string): string {
  * What to look up: the size of the figure in the budget's currency (the sign is put back
  * afterwards). Null when no lookup is needed.
  */
-export function secondaryLookup(input: {
-  secondary: string | null;
-  budget: string | null;
-  offered: string[];
-  amount: number;
-}): { from: string; to: string; amount: number } | null {
-  if (!wanted(input) || input.amount === 0) return null;
-  return { from: input.budget!, to: input.secondary!, amount: Math.abs(input.amount) };
+export function secondaryLookup(
+  input: SecondaryChoice & { amount: number },
+): { from: string; to: string; amount: number } | null {
+  if (!showsSecondary(input) || input.amount === 0) return null;
+  return { from: input.budget, to: input.secondary, amount: Math.abs(input.amount) };
 }
 
-function wanted({
-  secondary,
-  budget,
-  offered,
-}: {
-  secondary: string | null;
-  budget: string | null;
-  offered: string[];
-}) {
+/** Whether a Secondary Currency is set, offered, and not the budget's own */
+function showsSecondary<T extends SecondaryChoice>(
+  input: T,
+): input is T & { secondary: string; budget: string } {
+  const { secondary, budget, offered } = input;
   return !!secondary && !!budget && secondary !== budget && offered.includes(secondary);
 }
 
@@ -80,27 +80,27 @@ function wanted({
  * Whether and how the figure (in the budget's currency, at `day`) shows in the Secondary
  * Currency: with a rate at most SECONDARY_RATE_MAX_AGE_DAYS before its day, keeping its sign.
  */
-export function secondaryFigure(input: {
-  secondary: string | null;
-  budget: string | null;
-  offered: string[];
-  amount: number;
-  day: string;
-  conversion: SecondaryConversion | undefined;
-}): SecondaryFigure {
-  if (!wanted(input)) return { kind: 'none' };
-  const currency = input.secondary!;
+export function secondaryFigure(
+  input: SecondaryChoice & {
+    amount: number;
+    day: string;
+    conversion: SecondaryConversion | undefined;
+  },
+): SecondaryFigure {
+  if (!showsSecondary(input)) return { kind: 'none' };
+  const currency = input.secondary;
   if (input.amount === 0) return { kind: 'shown', currency, amount: 0, rate: null, rateDate: null };
-  const c = input.conversion;
-  if (!c) return { kind: 'pending', currency };
-  if (c.amount === null || c.date === null) return { kind: 'hidden', currency };
-  const age = differenceInCalendarDays(parseISO(input.day), parseISO(c.date));
+  const conversion = input.conversion;
+  if (!conversion) return { kind: 'pending', currency };
+  const { amount, rate, date } = conversion;
+  if (amount === null || date === null) return { kind: 'hidden', currency };
+  const age = differenceInCalendarDays(parseISO(input.day), parseISO(date));
   if (age > SECONDARY_RATE_MAX_AGE_DAYS) return { kind: 'hidden', currency };
   return {
     kind: 'shown',
     currency,
-    amount: input.amount < 0 && c.amount !== 0 ? -Math.abs(c.amount) : Math.abs(c.amount),
-    rate: c.rate,
-    rateDate: c.date,
+    amount: input.amount < 0 && amount !== 0 ? -Math.abs(amount) : Math.abs(amount),
+    rate,
+    rateDate: date,
   };
 }

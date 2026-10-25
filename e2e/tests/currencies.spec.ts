@@ -189,10 +189,14 @@ test('net worth also shows in the Secondary Currency, unless its rate is too old
   await open(page, `/reports/widget/${widgets.find((w) => w.type === 'net-worth').id}`);
   await expect(page.getByText(/^≈ (US)?\$1,250(\.00)?$/)).toBeVisible();
 
-  // A rate older than four days hides it and says why
+  // Pounds show with today's rate; without it, the ten-day-old one hides them and says why
+  await addRate(api, 'EUR', 'GBP', '0.80');
   await open(page, '/settings?tab=currencies');
   await page.getByRole('combobox', { name: 'Secondary currency' }).selectOption('GBP');
   await open(page, '/dashboard');
+  await expect(page.getByText(/^≈ £800(\.00)?$/)).toBeVisible();
+  await api.call('DELETE', `/currency/rates/${encodeURIComponent(`manual:${isoDay()}:EUR:GBP`)}`);
+  await page.reload();
   const hidden = page.getByRole('link', { name: 'British Pound hidden: no recent rate' });
   await expect(hidden).toBeVisible();
   await expect(page.getByText(/^≈/)).toHaveCount(0);
