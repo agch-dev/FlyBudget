@@ -17,6 +17,9 @@ transactions arrive by themselves, [connect a bank](./bank-sync) instead.
 2. Drop the file on the window, or click to pick it. A CAMT.053 statement goes straight to the
    preview (step 4): there are no columns to map.
 3. **Map the columns.** FlyBudget reads the file's headers and guesses what each column holds.
+   It knows common header names in English and several European languages, including Spanish,
+   however they're capitalized or accented. When two columns look like the same thing, only the
+   first is guessed as that; the others are set to **Skip**.
    Check the guesses, and change any that are wrong: **Date**, **Payee**, **Amount**,
    **Inflow**, **Outflow**, **Direction (in/out)**, **Notes** or **Skip**. The first rows are shown underneath so you
    can see that it looks right. You need a date and either an amount or inflow/outflow columns.

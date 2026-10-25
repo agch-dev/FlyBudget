@@ -385,6 +385,10 @@ export function generateImportId(
   return id.slice(0, 500 - suffix.length) + suffix;
 }
 
+/**
+ * Column headers FlyBudget recognizes. They're compared after `normalizeHeader`, so
+ * `Libellé`, `LIBELLE` and `libelle` are one entry.
+ */
 const COLUMN_HINTS: Record<string, ColumnRole> = {
   date: 'date',
   'transaction date': 'date',
@@ -410,34 +414,51 @@ const COLUMN_HINTS: Record<string, ColumnRole> = {
   datum: 'date', // German, Dutch, Swedish
   buchungstag: 'date',
   buchungsdatum: 'date',
-  fecha: 'date', // Spanish
   data: 'date', // Italian, Portuguese, Polish
   'date opération': 'date', // French
-  'date operation': 'date',
   'naam / omschrijving': 'payee', // Dutch
   omschrijving: 'payee',
   'auftraggeber / empfänger': 'payee', // German
   'begünstigter/zahlungspflichtiger': 'payee',
   empfänger: 'payee',
   libellé: 'payee', // French
-  libelle: 'payee',
-  concepto: 'payee', // Spanish
   descrizione: 'payee', // Italian
   betrag: 'amount', // German
   'betrag (eur)': 'amount',
   bedrag: 'amount', // Dutch
   'bedrag (eur)': 'amount',
   montant: 'amount', // French
-  importe: 'amount', // Spanish
   importo: 'amount', // Italian
   belopp: 'amount', // Swedish
   beløb: 'amount', // Danish
   beløp: 'amount', // Norwegian
   kwota: 'amount', // Polish
-  débit: 'outflow',
-  crédit: 'inflow',
   verwendungszweck: 'notes', // German
   mededelingen: 'notes', // Dutch
+  // Spanish
+  fecha: 'date',
+  'fecha de operación': 'date',
+  'fecha operación': 'date',
+  'fecha movimiento': 'date',
+  concepto: 'payee',
+  descripción: 'payee',
+  detalle: 'payee',
+  beneficiario: 'payee',
+  comercio: 'payee',
+  importe: 'amount',
+  monto: 'amount',
+  débito: 'outflow',
+  débitos: 'outflow',
+  cargo: 'outflow',
+  cargos: 'outflow',
+  crédito: 'inflow',
+  créditos: 'inflow',
+  abono: 'inflow',
+  abonos: 'inflow',
+  referencia: 'notes',
+  nota: 'notes',
+  notas: 'notes',
+  observaciones: 'notes',
   // Columns saying which way the money went, when amounts have no sign
   'af bij': 'direction', // ING Netherlands
   'af/bij': 'direction',
@@ -518,23 +539,53 @@ export function columnKeys(headers: string[]): string[] {
   });
 }
 
-/** Roles for these headers: saved ones where the column was seen before, else a guess */
+/**
+ * Roles for these headers: saved ones where the column was seen before, else a guess that
+ * leaves out the roles saved columns already have
+ */
 export function columnRolesFor(
   headers: string[],
   saved?: Record<string, ColumnRole>,
 ): ColumnRole[] {
-  const guessed = guessColumnRoles(headers);
-  return columnKeys(headers).map((key, i) =>
-    saved && Object.hasOwn(saved, key) ? saved[key] : guessed[i],
-  );
+  const keys = columnKeys(headers);
+  const isSaved = (i: number) => saved !== undefined && Object.hasOwn(saved, keys[i]);
+  const taken = new Set(keys.filter((_, i) => isSaved(i)).map((key) => saved![key]));
+  return keys.map((key, i) => (isSaved(i) ? saved![key] : guessRole(headers[i], taken)));
 }
 
+/**
+ * A header as the guess compares it: lowercase, without accents (letters like ø and ł stay),
+ * dots read as spaces, spaces collapsed
+ */
+export function normalizeHeader(header: string): string {
+  return header
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .toLowerCase()
+    .replace(/\./g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+const HEADER_ROLES = new Map(
+  Object.entries(COLUMN_HINTS).map(([header, role]) => [normalizeHeader(header), role]),
+);
+
+/**
+ * What each column likely holds, from its header. Only the first column with a role gets it
+ * (the import reads that one), so a second payee or amount column is guessed Skip.
+ */
 export function guessColumnRoles(headers: string[]): ColumnRole[] {
-  return headers.map((h) => {
-    const key = h.trim().toLowerCase();
-    // hasOwn: a column named "constructor" isn't Object.prototype's
-    return Object.hasOwn(COLUMN_HINTS, key) ? COLUMN_HINTS[key] : 'skip';
-  });
+  const taken = new Set<ColumnRole>();
+  return headers.map((h) => guessRole(h, taken));
+}
+
+/** The role a header suggests, unless another column has it already (`taken`, updated) */
+function guessRole(header: string, taken: Set<ColumnRole>): ColumnRole {
+  const role = HEADER_ROLES.get(normalizeHeader(header));
+  if (!role || taken.has(role)) return 'skip';
+  taken.add(role);
+  return role;
 }
 
 /**
