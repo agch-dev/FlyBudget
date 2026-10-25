@@ -321,6 +321,34 @@ test.describe('dialogs and touch targets', () => {
   });
 });
 
+test('an account section heading in the drawer is easy to tap', async ({ page, api }, testInfo) => {
+  const pesos = await api.createAccount('Visa pesos', -20_000, 'credit');
+  await api.createAccount('Everyday Checking', 100_000);
+  const dollars = await api.createAccount('Visa dollars', -5_000, 'credit');
+  await page.addInitScript(
+    (sections) => {
+      if (!localStorage.getItem('budget-preferences')) {
+        localStorage.setItem(
+          'budget-preferences',
+          JSON.stringify({ state: { accountSections: sections }, version: 1 }),
+        );
+      }
+    },
+    { [pesos.id]: 'Visa', [dollars.id]: 'Visa' },
+  );
+  await open(page, '/accounts');
+  await page.getByRole('button', { name: 'Open menu' }).click();
+  const drawer = page.getByRole('complementary');
+  await drawer.getByRole('button', { name: /^For budget/ }).click();
+  const heading = drawer.getByRole('button', { name: 'Visa -$250' });
+  await expectTouchSize(heading);
+  await expect(heading).toHaveAttribute('aria-expanded', 'true');
+  await page.screenshot({ path: testInfo.outputPath('phone-account-section.png') });
+  await heading.click();
+  await expect(heading).toHaveAttribute('aria-expanded', 'false');
+  await expect(drawer.getByRole('link', { name: /^Visa pesos/ })).toBeHidden();
+});
+
 test('the month picker fits the screen and is easy to tap', async ({ page, api }) => {
   await seedAccount(api);
   await open(page, '/reports');

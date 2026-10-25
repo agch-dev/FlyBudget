@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useId } from 'react';
 import { createPortal } from 'react-dom';
 import { NavLink } from 'react-router-dom';
 import { Plus, Building2, Link2, ChevronDown, ChevronRight, Euro } from 'lucide-react';
@@ -11,18 +11,25 @@ import { ConnectBankModal } from '../plaid/ConnectBankModal';
 import { PlaidSetupModal } from '../plaid/PlaidSetupModal';
 import { SimplefinConnectModal } from '../simplefin/SimplefinConnectModal';
 import { ConnectEnableBankingModal } from '../enablebanking/ConnectEnableBankingModal';
+import { usePreferencesStore, type BudgetList } from '../../store/preferencesStore';
+import { isSectionCollapsed, listBySection } from '../../utils/accountSections';
 import type { Account } from '../../types';
 
 /** Four 36px rows plus padding */
 const MENU_HEIGHT = 152;
 
-function AccountRow({ account }: { account: Account }) {
+/** Without a rate for some accounts' currency, a total leaves them out and says so */
+function missingRateTitle(missing: string[]) {
+  return missing.length ? `Without ${missing.join(', ')}: no exchange rate yet` : undefined;
+}
+
+function AccountRow({ account, inSection = false }: { account: Account; inSection?: boolean }) {
   const isNegative = account.balance < 0;
   return (
     <NavLink
       to={`/accounts/${account.id}`}
       className={({ isActive }) =>
-        `flex items-center justify-between pl-5 pr-3 py-0.5 rounded-md text-[12px] transition-all duration-150 ${
+        `flex items-center justify-between ${inSection ? 'pl-6' : 'pl-5'} pr-3 py-0.5 rounded-md text-[12px] transition-all duration-150 ${
           isActive
             ? 'bg-sidebar-active text-sidebar-text-hi font-medium'
             : 'text-sidebar-text/70 hover:bg-sidebar-hover hover:text-sidebar-text-hi'
@@ -36,6 +43,76 @@ function AccountRow({ account }: { account: Account }) {
         {formatMoney(account.balance, account.currency)}
       </span>
     </NavLink>
+  );
+}
+
+interface SectionProps {
+  name: string;
+  accounts: Account[];
+  collapsed: boolean;
+  onToggle: () => void;
+}
+
+/** An Account Section in a Budget List: a heading with its total that opens and closes */
+function SidebarSection({ name, accounts, collapsed, onToggle }: SectionProps) {
+  const listId = useId();
+  const missing = unconvertedCurrencies(accounts);
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={!collapsed}
+        aria-controls={listId}
+        title={missingRateTitle(missing)}
+        className="flex items-center justify-between w-full pl-1 pr-3 py-0.5 max-md:min-h-11 rounded-md text-[12px] font-medium text-sidebar-text hover:bg-sidebar-hover hover:text-sidebar-text-hi transition-colors"
+      >
+        <span className="flex items-center gap-1 min-w-0">
+          {collapsed ? (
+            <ChevronRight size={12} className="shrink-0" aria-hidden="true" />
+          ) : (
+            <ChevronDown size={12} className="shrink-0" aria-hidden="true" />
+          )}
+          <span className="truncate">{name}</span>
+        </span>
+        <span className="ml-2 tabular-nums text-[11px] shrink-0">
+          {formatCurrency(totalValue(accounts))}
+          {missing.length > 0 && '*'}
+        </span>
+      </button>
+      <div id={listId} hidden={collapsed}>
+        {accounts.map((a) => (
+          <AccountRow key={a.id} account={a} inSection />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+interface BudgetListProps {
+  list: BudgetList;
+  accounts: Account[];
+  /** Every account, in order: a section is spelled the same in both lists */
+  allAccounts: Account[];
+}
+
+/** One Budget List's accounts, those in an Account Section under its heading */
+function BudgetListAccounts({ list, accounts, allAccounts }: BudgetListProps) {
+  const sections = usePreferencesStore((s) => s.accountSections);
+  const collapsed = usePreferencesStore((s) => s.collapsedAccountSections[list]);
+  const toggle = usePreferencesStore((s) => s.toggleAccountSectionCollapsed);
+  return listBySection(accounts, sections, allAccounts).map((entry) =>
+    entry.kind === 'account' ? (
+      <AccountRow key={entry.account.id} account={entry.account} />
+    ) : (
+      <SidebarSection
+        key={`section:${entry.key}`}
+        name={entry.name}
+        accounts={entry.accounts}
+        collapsed={isSectionCollapsed(collapsed, entry.name)}
+        onToggle={() => toggle(list, entry.name)}
+      />
+    ),
   );
 }
 
@@ -100,9 +177,7 @@ export function SidebarAccountList() {
   const onBudgetTotal = totalValue(onBudget);
   const offBudgetTotal = totalValue(offBudget);
   const missing = unconvertedCurrencies(accounts);
-  const missingTitle = missing.length
-    ? `Without ${missing.join(', ')}: no exchange rate yet`
-    : undefined;
+  const missingTitle = missingRateTitle(missing);
 
   return (
     <>
@@ -134,9 +209,7 @@ export function SidebarAccountList() {
           </button>
           {forBudgetOpen && (
             <div className="mt-0.5 space-y-0">
-              {onBudget.map((a) => (
-                <AccountRow key={a.id} account={a} />
-              ))}
+              <BudgetListAccounts list="onBudget" accounts={onBudget} allAccounts={accounts} />
               {onBudget.length === 0 && (
                 <p className="pl-5 py-1 text-xs text-sidebar-text/50">No accounts yet</p>
               )}
@@ -159,9 +232,7 @@ export function SidebarAccountList() {
             </button>
             {offBudgetOpen && (
               <div className="mt-0.5 space-y-0">
-                {offBudget.map((a) => (
-                  <AccountRow key={a.id} account={a} />
-                ))}
+                <BudgetListAccounts list="offBudget" accounts={offBudget} allAccounts={accounts} />
               </div>
             )}
           </div>

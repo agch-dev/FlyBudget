@@ -1,6 +1,11 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { IS_DEMO } from '../demo/isDemo';
+import {
+  toggleSectionCollapsed,
+  withSection,
+  type AccountSections,
+} from '../utils/accountSections';
 
 export type Theme = 'light' | 'dark' | 'system';
 export type DateFormatOption =
@@ -10,6 +15,8 @@ export type AmountFormat = 'dot' | 'comma' | 'space' | 'apostrophe';
 /** Whether the currency symbol goes before (€12.50) or after (12,50 €) the amount */
 export type SymbolPosition = 'before' | 'after';
 export type SidebarMode = 'persistent' | 'auto-hide';
+/** The sidebar's two lists of accounts: For budget and Off budget */
+export type BudgetList = 'onBudget' | 'offBudget';
 /** How one currency's amounts are shown, when its own convention isn't wanted */
 export interface CurrencyDisplay {
   position?: SymbolPosition;
@@ -34,6 +41,10 @@ interface PreferencesState {
    * not in backups.
    */
   secondaryCurrency: string | null;
+  /** Account Sections (account id → name): per device, not in backups */
+  accountSections: AccountSections;
+  /** The sections closed in each Budget List of the sidebar (names, compared ignoring case) */
+  collapsedAccountSections: Record<BudgetList, string[]>;
   dateFormat: DateFormatOption;
   savingsGoal: number;
   sidebarMode: SidebarMode;
@@ -55,6 +66,9 @@ interface PreferencesState {
   /** Null goes back to the currency's own convention */
   setCurrencyStyle: (currency: string, style: CurrencyDisplay | null) => void;
   setSecondaryCurrency: (currency: string | null) => void;
+  /** An empty name takes the account out of its section */
+  setAccountSection: (accountId: string, name: string) => void;
+  toggleAccountSectionCollapsed: (list: BudgetList, name: string) => void;
   setDateFormat: (format: DateFormatOption) => void;
   setSavingsGoal: (goal: number) => void;
   setSidebarMode: (mode: SidebarMode) => void;
@@ -95,6 +109,8 @@ export const usePreferencesStore = create<PreferencesState>()(
       symbolPosition: 'auto',
       currencyStyles: {},
       secondaryCurrency: null,
+      accountSections: {},
+      collapsedAccountSections: { onBudget: [], offBudget: [] },
       dateFormat: 'MMM d, yyyy',
       savingsGoal: 20,
       sidebarMode: 'persistent',
@@ -117,6 +133,15 @@ export const usePreferencesStore = create<PreferencesState>()(
           return { currencyStyles: next };
         }),
       setSecondaryCurrency: (secondaryCurrency) => set({ secondaryCurrency }),
+      setAccountSection: (accountId, name) =>
+        set((s) => ({ accountSections: withSection(s.accountSections, accountId, name) })),
+      toggleAccountSectionCollapsed: (list, name) =>
+        set((s) => ({
+          collapsedAccountSections: {
+            ...s.collapsedAccountSections,
+            [list]: toggleSectionCollapsed(s.collapsedAccountSections[list], name),
+          },
+        })),
       setDateFormat: (dateFormat) => set({ dateFormat }),
       setSavingsGoal: (savingsGoal) => set({ savingsGoal }),
       setSidebarMode: (sidebarMode) => set({ sidebarMode }),

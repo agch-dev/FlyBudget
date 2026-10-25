@@ -13,6 +13,8 @@ import { fileToSquareDataUrl } from '../../utils/imageResize';
 import { usePreferencesStore } from '../../store/preferencesStore';
 import { CurrencySelect } from '../currency/CurrencySelect';
 import { useBudgetCurrency, useCurrencySettings } from '../../hooks/useCurrency';
+import { sectionOf } from '../../utils/accountSections';
+import { AccountSectionField } from './AccountSectionField';
 
 interface Props {
   account: Account | null;
@@ -25,6 +27,8 @@ export function EditAccountModal({ account, onClose }: Props) {
   const [startingBalance, setStartingBalance] = useState(0);
   const [isOffBudget, setIsOffBudget] = useState(false);
   const [currency, setCurrency] = useState<string | null>(null);
+  const [section, setSection] = useState('');
+  const setAccountSection = usePreferencesStore((s) => s.setAccountSection);
   const budgetCurrency = useBudgetCurrency();
   const { data: currencySettings } = useCurrencySettings();
   const [confirmClose, setConfirmClose] = useState(false);
@@ -47,6 +51,7 @@ export function EditAccountModal({ account, onClose }: Props) {
     setCurrency(account.currency);
     setLogo(account.logo ?? null);
     setLogoError(null);
+    setSection(sectionOf(usePreferencesStore.getState().accountSections, account.id) ?? '');
   });
 
   async function handleSubmit(e: React.FormEvent) {
@@ -63,6 +68,7 @@ export function EditAccountModal({ account, onClose }: Props) {
         ...(currency !== account.currency ? { currency } : {}),
       },
     });
+    setAccountSection(account.id, section);
     onClose();
   }
 
@@ -148,6 +154,8 @@ export function EditAccountModal({ account, onClose }: Props) {
           </div>
 
           <AccountTypeSelect value={type} onChange={setType} />
+
+          <AccountSectionField value={section} onChange={setSection} />
 
           {currency && (
             <div>
