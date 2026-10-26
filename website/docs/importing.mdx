@@ -115,7 +115,8 @@ preview. FlyBudget reads the file itself, in your browser or the app, without Ex
 - **Formulas** are read by the value Excel saved with the file. Empty rows and columns are left
   out, so a table that starts a few columns or rows in still reads as one table.
 - There's no **Separator** or **Encoding** to set. **Rows above the header** works as for CSV.
-- Old `.xls` files and workbooks with a password can't be read: open them in Excel or
+- Old `.xls` files from Excel 97 to 2003 import the same way. Files from Excel 95 or older,
+  workbooks with a password, and web pages saved as `.xls` can't be read: open them in Excel or
   LibreOffice, save a copy as `.xlsx` (without a password), and import that.
 
 ## CAMT.053 bank statements

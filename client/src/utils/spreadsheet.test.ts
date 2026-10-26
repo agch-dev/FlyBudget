@@ -206,12 +206,6 @@ describe('readSpreadsheet (.xlsx)', () => {
     await expect(readSpreadsheet(utf8('Date,Amount\n'))).rejects.toThrow(
       "This file isn't an Excel workbook.",
     );
-    // An old .xls, or an .xlsx with a password (both OLE compound files)
-    await expect(
-      readSpreadsheet(new Uint8Array([...OLE_SIGNATURE, ...new Uint8Array(504)])),
-    ).rejects.toThrow(
-      "FlyBudget can't read this Excel file. Save it as .xlsx (without a password) and import that.",
-    );
   });
 
   it('refuses a sheet of more than 5 million cells, counted without empty rows and columns', async () => {
@@ -276,7 +270,7 @@ describe('readSpreadsheet (.xlsx)', () => {
 describe('spreadsheet cells', () => {
   it('tells Excel files from text by their first bytes, whatever the file is called', () => {
     expect(spreadsheetKind(new Uint8Array([0x50, 0x4b, 3, 4, 0]))).toBe('xlsx');
-    expect(spreadsheetKind(new Uint8Array(OLE_SIGNATURE))).toBe('ole');
+    expect(spreadsheetKind(new Uint8Array(OLE_SIGNATURE))).toBe('xls');
     expect(spreadsheetKind(utf8('Fecha,Importe\n'))).toBeNull();
     expect(spreadsheetKind(new Uint8Array())).toBeNull();
   });

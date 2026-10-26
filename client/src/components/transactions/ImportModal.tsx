@@ -802,7 +802,7 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
             Drag and drop a file from your bank, or click to browse
           </p>
           <p className="text-xs text-text-tertiary">
-            CSV, Excel (.xlsx), or a CAMT.053 bank statement (XML)
+            CSV, Excel (.xlsx, .xls), or a CAMT.053 bank statement (XML)
           </p>
           {loading && <p className="text-xs text-text-tertiary">Checking…</p>}
           {IS_DEMO && (
@@ -813,7 +813,7 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
           <input
             id="csv-file-input"
             type="file"
-            accept=".csv,.tsv,.txt,.xml,.xlsx,.xlsm,.xltx"
+            accept=".csv,.tsv,.txt,.xml,.xlsx,.xlsm,.xltx,.xls"
             aria-label="Bank file"
             className="hidden"
             onChange={handleFileInput}
