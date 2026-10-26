@@ -104,28 +104,41 @@ const SAMPLE_ROWS = 500;
  * details like `Kontonummer:;DE12…`). The header is the first row at least as wide as most
  * rows below it, so a few rows with a stray separator can't move it. It may be a column
  * shorter only when those rows end with a separator (an empty last field) and it doesn't.
- * A file with more lines of details than table rows needs the number set by hand.
+ * A block of account details as wide as the table (a card's details over a row of their
+ * values) fits too: then a later row that fits, names a date column and has data under it is
+ * the header instead. A file with more lines of details than table rows needs the number set
+ * by hand.
  */
 export function detectSkipRows(records: string[][]): number {
+  let first = -1;
   for (let i = 0; i < Math.min(records.length, MAX_SKIP_ROWS); i++) {
-    const header = records[i];
-    if (header.length < 2) continue;
-    const below = records.slice(i + 1, i + 1 + SAMPLE_ROWS);
-    if (!below.length) return i;
-    const widths = below.map((r) => r.length).sort((a, b) => a - b);
-    const typical = widths[Math.floor((widths.length - 1) / 2)];
-    if (header.length >= typical) return i;
-    if (header.length === typical - 1 && header[header.length - 1] !== '') {
-      // One column short is still the header when the rows end with a separator, or have an
-      // extra unnamed column: then the row under it is data. Under a line of account details
-      // (Konto;DE12…) comes the header instead.
-      const typicalRows = below.filter((r) => r.length === typical);
-      const trailingSeparator =
-        typicalRows.filter((r) => r[r.length - 1] === '').length * 2 > typicalRows.length;
-      if (trailingSeparator || looksLikeData(below[0])) return i;
-    }
+    if (!fitsAsHeader(records, i)) continue;
+    if (first === -1) first = i;
+    const namesDate = guessColumnRoles(records[i]).includes('date');
+    if (namesDate && (i === first || looksLikeData(records[i + 1] ?? []))) return i;
   }
-  return 0;
+  return Math.max(first, 0);
+}
+
+/** Whether row `i` is as wide as the rows under it, as a header is (see `detectSkipRows`) */
+function fitsAsHeader(records: string[][], i: number): boolean {
+  const header = records[i];
+  if (header.length < 2) return false;
+  const below = records.slice(i + 1, i + 1 + SAMPLE_ROWS);
+  if (!below.length) return true;
+  const widths = below.map((r) => r.length).sort((a, b) => a - b);
+  const typical = widths[Math.floor((widths.length - 1) / 2)];
+  if (header.length >= typical) return true;
+  if (header.length === typical - 1 && header[header.length - 1] !== '') {
+    // One column short is still the header when the rows end with a separator, or have an
+    // extra unnamed column: then the row under it is data. Under a line of account details
+    // (Konto;DE12…) comes the header instead.
+    const typicalRows = below.filter((r) => r.length === typical);
+    const trailingSeparator =
+      typicalRows.filter((r) => r[r.length - 1] === '').length * 2 > typicalRows.length;
+    return trailingSeparator || looksLikeData(below[0]);
+  }
+  return false;
 }
 
 export const CSV_ENCODINGS = [
@@ -307,6 +320,26 @@ const AMOUNT_PATTERN: Record<NumberFormat, RegExp> = {
 };
 
 /**
+ * The direction written after an amount (45.00 DR, 1.234,56 S), which decides its sign; the
+ * letters are removed with the currency words. Only after it: C$ or S/ before an amount are
+ * currencies.
+ */
+function directionAfter(raw: string | undefined): 'in' | 'out' | null {
+  const after = (raw ?? '').replace(/^[\s\S]*\d/, '');
+  return (
+    after
+      .match(/\p{L}+\.?/gu)
+      ?.map((w) => readDirection(w))
+      .find((d) => d !== null) ?? null
+  );
+}
+
+/** Whether an amount cell says which way the money went in a word after it (45.00 DR) */
+export function hasDirectionWord(raw: string | undefined): boolean {
+  return directionAfter(raw) !== null;
+}
+
+/**
  * An amount as banks write it: "$1,234.56", "-12.00", "(12.00)", "12.00-" or "12.00 DR" for
  * negatives,
  * or with `format: 'comma'` "1.234,56 €" and "-12,50". Returns integer cents (rounded to the
@@ -329,14 +362,7 @@ export function readImportAmount(
     exact?: boolean;
   } = {},
 ): number | null {
-  // A direction written after the amount (45.00 DR, 1.234,56 S) decides the sign: the letters
-  // are removed below with the currency words. Only after it: C$ or S/ before an amount are
-  // currencies.
-  const after = directionWords ? (raw ?? '').replace(/^[\s\S]*\d/, '') : '';
-  const marker = after
-    .match(/\p{L}+\.?/gu)
-    ?.map((w) => readDirection(w))
-    .find((d) => d !== null);
+  const marker = directionWords ? directionAfter(raw) : null;
   let s = amountChars(raw ?? '');
   let negative = false;
   if (/^\(.*\)$/.test(s)) {
@@ -533,6 +559,8 @@ export interface ImportSettings {
   dateFormat: DateFormat | null;
   numberFormat: NumberFormat | null;
   outWord: string | null;
+  /** "Flip amount signs" was ticked; missing = unticked */
+  outPositive?: boolean;
   /** The column (key, as in `columns`) saying each row's currency; missing = guess it */
   currencyColumn?: string;
   /** What that column's values mean, as written → ISO code (the user's choices too) */
@@ -646,11 +674,23 @@ export interface ImportFormats {
   /** Decimals of the account's currency (2 unless given: none for yen) */
   minor?: number;
   /**
-   * With a `currency` column: what its values mean (keyed by `currencyTextKey`) and the
-   * account's currency. Once the file holds another currency, only the account's rows are
-   * imported; null (not known) imports every row, as without the column.
+   * "Flip amount signs": every signed amount cell gets the opposite sign, for files that write
+   * purchases as positive. Cells with a direction word (45.00 DR), inflow/outflow columns and
+   * files with a direction column are read as they are.
    */
-  currencies?: { names: Record<string, string>; account: string | null };
+  outPositive?: boolean;
+  /**
+   * The account's currency and how the file says each row's: a `currency` column's values
+   * (`names`, keyed by `currencyTextKey`), or `amount` columns that each hold one currency
+   * (`columns`, column index → ISO code), which win over a currency column. Once the file holds
+   * another currency, only the account's rows are imported; null (not known) imports every
+   * row, as without them.
+   */
+  currencies?: {
+    account: string | null;
+    names?: Record<string, string>;
+    columns?: Record<number, string>;
+  };
 }
 
 /**
@@ -666,6 +706,7 @@ export function buildImportRows(
     numberFormat = 'dot',
     outWord = null,
     minor = 2,
+    outPositive = false,
     currencies,
   }: ImportFormats = {},
 ): { rows: ImportRow[]; skipped: SkippedRow[]; otherCurrencies: Record<string, number> } | string {
@@ -692,30 +733,57 @@ export function buildImportRows(
   const sideAmount = (idx: number, raw: string[]) =>
     idx !== -1 && /\d/.test(raw[idx] ?? '') ? cellAmount(idx, raw) : 0;
 
+  // One amount column per currency (`Pesos`, `Dólares`): each non-zero cell is a transaction
+  const currencyColumns = roles.flatMap((role, i) =>
+    role === 'amount' && currencies?.columns && Object.hasOwn(currencies.columns, i)
+      ? [{ idx: i, currency: currencies.columns[i] }]
+      : [],
+  );
+  const perColumn = currencyColumns.length > 0;
   const rowCurrency = (raw: string[]) => {
     const key = currencyTextKey(raw[currencyIdx] ?? '');
-    return key && Object.hasOwn(currencies!.names, key) ? currencies!.names[key] : null;
+    const names = currencies?.names ?? {};
+    return key && Object.hasOwn(names, key) ? names[key] : null;
   };
+  /** The per-currency cells with something in them (unreadable ones too: not a zero) */
+  const filledCells = (raw: string[]) =>
+    currencyColumns.filter(({ idx }) => cellAmount(idx, raw) !== 0);
   const account = currencies?.account;
   // Only a file with rows not in the account's currency is split (another currency, or none);
   // otherwise the column changes nothing
   const split =
-    currencyIdx !== -1 && !!account && rawRows.some((raw) => rowCurrency(raw) !== account);
+    !!account &&
+    (perColumn
+      ? rawRows.some((raw) => filledCells(raw).some((c) => c.currency !== account))
+      : currencyIdx !== -1 && rawRows.some((raw) => rowCurrency(raw) !== account));
 
   const rows: ImportRow[] = [];
   const skipped: SkippedRow[] = [];
   const otherCurrencies: Record<string, number> = {};
+  const countOther = (currency: string) => {
+    // Counted, but not checked: that account's import reports what it can't read
+    otherCurrencies[currency] = (otherCurrencies[currency] ?? 0) + 1;
+  };
   const seen = new Map<string, number>();
   rawRows.forEach((raw, i) => {
-    if (split) {
+    // The amount cells this row is read from (-1: its inflow and outflow cells)
+    let cells = [amountIdx];
+    // Per currency: the cells with an amount, every one of them when none has
+    let filled = currencyColumns;
+    if (perColumn) {
+      filled = filledCells(raw);
+      const inAccount = split ? filled.filter((c) => c.currency === account) : filled;
+      if (split) for (const c of filled) if (c.currency !== account) countOther(c.currency);
+      if (filled.length && !inAccount.length) return; // only other currencies: theirs to import
+      cells = inAccount.map((c) => c.idx);
+    } else if (split) {
       const currency = rowCurrency(raw);
       if (currency === null) {
         skipped.push({ row: i + 1, field: 'currency', value: raw[currencyIdx]?.trim() ?? '' });
         return;
       }
       if (currency !== account) {
-        // Counted, but not checked: that account's import reports what it can't read
-        otherCurrencies[currency] = (otherCurrencies[currency] ?? 0) + 1;
+        countOther(currency);
         return;
       }
     }
@@ -724,45 +792,79 @@ export function buildImportRows(
       skipped.push({ row: i + 1, field: 'date', value: raw[dateIdx] ?? '' });
       return;
     }
-
-    let amount: number | null;
-    if (amountIdx !== -1) {
-      amount = cellAmount(amountIdx, raw);
-    } else {
-      // Some banks write debits in the outflow column as negative numbers
-      const inf = sideAmount(inflowIdx, raw);
-      const out = sideAmount(outflowIdx, raw);
-      amount = inf === null || out === null ? null : inf !== 0 ? Math.abs(inf) : -Math.abs(out);
-    }
-    if (amount !== null && directionIdx !== -1) {
-      // Banks like ING write every amount as positive and the direction beside it
-      const direction = readDirection(raw[directionIdx], outWord);
-      if (!direction) {
-        skipped.push({ row: i + 1, field: 'direction', value: raw[directionIdx] ?? '' });
-        return;
-      }
-      amount = direction === 'out' ? -Math.abs(amount) : Math.abs(amount);
-    }
-    if (!amount) {
-      const cells = amountIdx !== -1 ? [amountIdx] : [inflowIdx, outflowIdx];
-      const value = cells
-        .map((idx) => (idx !== -1 ? (raw[idx] ?? '') : ''))
+    if (perColumn && !filled.length) {
+      const value = currencyColumns
+        .map((c) => raw[c.idx]?.trim() ?? '')
         .filter(Boolean)
         .join(' / ');
       skipped.push({ row: i + 1, field: 'amount', value });
       return;
     }
 
-    // Same limits as the server, so one long memo can't fail the whole import
-    const payeeName = payeeIdx !== -1 ? raw[payeeIdx]?.slice(0, 500) || null : null;
-    const notes = notesIdx !== -1 ? raw[notesIdx]?.slice(0, 5000) || null : null;
-    const key = generateImportId(date, amount, payeeName ?? '');
-    const occurrence = (seen.get(key) ?? 0) + 1;
-    seen.set(key, occurrence);
-    const importedId = generateImportId(date, amount, payeeName ?? '', occurrence);
-    rows.push({ date, amount, payeeName, notes, importedId });
+    for (const idx of cells) {
+      let amount: number | null;
+      if (idx !== -1) {
+        amount = cellAmount(idx, raw);
+        if (amount && outPositive && directionIdx === -1 && !hasDirectionWord(raw[idx])) {
+          amount = -amount;
+        }
+      } else {
+        // Some banks write debits in the outflow column as negative numbers
+        const inf = sideAmount(inflowIdx, raw);
+        const out = sideAmount(outflowIdx, raw);
+        amount = inf === null || out === null ? null : inf !== 0 ? Math.abs(inf) : -Math.abs(out);
+      }
+      if (amount !== null && directionIdx !== -1) {
+        // Banks like ING write every amount as positive and the direction beside it
+        const direction = readDirection(raw[directionIdx], outWord);
+        // The same for every cell of the row, so none of them is imported yet
+        if (!direction) {
+          skipped.push({ row: i + 1, field: 'direction', value: raw[directionIdx] ?? '' });
+          return;
+        }
+        amount = direction === 'out' ? -Math.abs(amount) : Math.abs(amount);
+      }
+      if (!amount) {
+        const value = (idx === -1 ? [inflowIdx, outflowIdx] : [idx])
+          .map((c) => (c !== -1 ? (raw[c] ?? '') : ''))
+          .filter(Boolean)
+          .join(' / ');
+        skipped.push({ row: i + 1, field: 'amount', value });
+        continue; // a row in several currencies goes on with its other cells
+      }
+
+      // Same limits as the server, so one long memo can't fail the whole import
+      const payeeName = payeeIdx !== -1 ? raw[payeeIdx]?.slice(0, 500) || null : null;
+      const notes = notesIdx !== -1 ? raw[notesIdx]?.slice(0, 5000) || null : null;
+      const key = generateImportId(date, amount, payeeName ?? '');
+      const occurrence = (seen.get(key) ?? 0) + 1;
+      seen.set(key, occurrence);
+      const importedId = generateImportId(date, amount, payeeName ?? '', occurrence);
+      rows.push({ date, amount, payeeName, notes, importedId });
+    }
   });
   return { rows, skipped, otherCurrencies };
+}
+
+/**
+ * Whether the import dialog offers "Flip amount signs": amounts come from one signed column,
+ * not from inflow/outflow columns or with a direction column beside them
+ */
+export function canFlipSigns(roles: ColumnRole[]): boolean {
+  return roles.includes('amount') && !roles.includes('direction');
+}
+
+/**
+ * Whether most of an amount column is positive (at least 6 amounts without a direction word,
+ * at least 2/3 of them above zero): on a credit card, purchases are likely written as positive
+ */
+export function mostlyPositive(cells: string[], format: NumberFormat, minor = 2): boolean {
+  const amounts = cells
+    .filter((cell) => !hasDirectionWord(cell))
+    .map((cell) => readImportAmount(cell, format, { minor }))
+    .filter((amount): amount is number => !!amount);
+  const positive = amounts.filter((amount) => amount > 0).length;
+  return amounts.length >= 6 && positive * 3 >= amounts.length * 2;
 }
 
 /** "2 rows skipped: row 3, amount "N/A"; row 7, date "13/45/2024"." (the first `max` named) */

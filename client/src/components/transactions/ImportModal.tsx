@@ -10,7 +10,9 @@ import {
   parseCsvRecords,
   normalizeDate,
   buildImportRows,
+  canFlipSigns,
   describeSkippedRows,
+  mostlyPositive,
   unknownDirectionWords,
   columnRolesFor,
   columnKeys,
@@ -58,12 +60,15 @@ import { currencyTextKey } from '../../utils/currencyText';
 import { useAccounts } from '../../hooks/useAccounts';
 import { usePreferencesStore } from '../../store/preferencesStore';
 import { CurrencySelect } from '../currency/CurrencySelect';
+import { isCreditType } from '../../utils/accountTypes';
 import {
+  amountColumnCurrencies,
+  columnCurrenciesByKey,
   currencyContext,
   currencyMapping,
   currencyValues,
   followUpAccounts,
-  markCurrencyColumn,
+  markCurrencyColumns,
 } from '../../utils/importCurrencies';
 import type { Account, ImportPreviewRow } from '../../types';
 import type { ImportRow } from '../../api/transactions';
@@ -143,6 +148,8 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
   const [dateFormatChoice, setDateFormatChoice] = useState<DateFormat | null>(null);
   const [numberFormatChoice, setNumberFormatChoice] = useState<NumberFormat | null>(null);
   const [outWord, setOutWord] = useState('');
+  // "Flip amount signs": the file writes purchases as positive amounts
+  const [outPositive, setOutPositive] = useState(false);
   // Excel: the sheets with anything in them, and the one being imported
   const [sheets, setSheets] = useState<Sheet[]>([]);
   // Each sheet's cells as text, numbers with a decimal point (for the header and the layout)
@@ -158,12 +165,16 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
   const [headers, setHeaders] = useState<string[]>([]);
   const [rawRows, setRawRows] = useState<string[][]>([]);
   const [roles, setRoles] = useState<ColumnRole[]>([]);
+  // Whether the user mapped a column by hand: kept when the header row moves, else guessed again
+  const [rolesEdited, setRolesEdited] = useState(false);
   const [previewRows, setPreviewRows] = useState<ImportPreviewRow[]>([]);
   const [excluded, setExcluded] = useState<Set<number>>(new Set());
   const [skippedRows, setSkippedRows] = useState<SkippedRow[]>([]);
   const [result, setResult] = useState<{ imported: number; skipped: number } | null>(null);
   // A currency column: the currency picked for its values (by `currencyTextKey`)
   const [currencyChoices, setCurrencyChoices] = useState<Record<string, string>>({});
+  // One amount column per currency: the currency picked for each (by column key)
+  const [columnCurrencyChoices, setColumnCurrencyChoices] = useState<Record<string, string>>({});
   // Rows of the file in other currencies than the account's, left out of this import
   const [otherCurrencies, setOtherCurrencies] = useState<Record<string, number>>({});
   // Currencies whose rows were imported since the file was chosen
@@ -181,6 +192,7 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
     setStep('upload');
     setSwitchedTo(null);
     setCurrencyChoices({});
+    setColumnCurrencyChoices({});
     setOtherCurrencies({});
     setFinished([]);
     setSource('csv');
@@ -196,6 +208,7 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
     setDateFormatChoice(null);
     setNumberFormatChoice(null);
     setOutWord('');
+    setOutPositive(false);
     setSheets([]);
     setSheetTexts([]);
     setSheetIdx(0);
@@ -206,6 +219,7 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
     setHeaders([]);
     setRawRows([]);
     setRoles([]);
+    setRolesEdited(false);
     setPreviewRows([]);
     setExcluded(new Set());
     setSkippedRows([]);
@@ -239,12 +253,7 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
       setRoles(
         keepRoles?.length === h.length
           ? keepRoles
-          : markCurrencyColumn(
-              h,
-              rows,
-              columnRolesFor(h, savedSettings?.columns),
-              savedSettings?.currencyColumn,
-            ),
+          : markCurrencyColumns(h, rows, columnRolesFor(h, savedSettings?.columns), savedSettings),
       );
     },
     [],
@@ -352,6 +361,8 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
     const buffer = await file.arrayBuffer();
     if (load !== loadId.current) return;
     setCurrencyChoices({});
+    setColumnCurrencyChoices({});
+    setRolesEdited(false);
     setFinished([]);
     // A new file goes into the account the dialog was opened for, even after a switch
     setSwitchedTo(null);
@@ -417,6 +428,7 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
     setDateFormatChoice(null);
     setNumberFormatChoice(null);
     setOutWord('');
+    setOutPositive(false);
 
     // The last import's settings, as long as this file still fits them (the same columns)
     if (savedSettings) {
@@ -426,6 +438,7 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
         setUsingSaved(true);
         // Only with the rest of the settings: it means something for this bank's files only
         setOutWord(savedSettings.outWord ?? '');
+        setOutPositive(savedSettings.outPositive === true);
         loadCsv(content, savedSettings.delimiter, savedSettings.skipRows, savedSettings);
         return;
       }
@@ -440,9 +453,11 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
   function openSheet(texts: string[][][], idx: number, savedSettings: ImportSettings | null) {
     const layout = sheetLayout(texts[idx], savedSettings);
     setError(null);
+    setRolesEdited(false);
     setSheetIdx(idx);
     setUsingSaved(layout.usingSaved);
     setOutWord(layout.usingSaved ? (savedSettings?.outWord ?? '') : '');
+    setOutPositive(layout.usingSaved && savedSettings?.outPositive === true);
     setRecords(texts[idx]);
     showTable(texts[idx], layout.skipRows, savedSettings);
     setStep('map');
@@ -470,10 +485,12 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
   function changeDelimiter(next: Delimiter) {
     if (!bytes) return;
     setUsingSaved(false);
+    setRolesEdited(false);
     loadCsv(decodeCsvBytes(bytes, encoding), next, null, saved);
   }
 
   function setRole(idx: number, role: ColumnRole) {
+    setRolesEdited(true);
     setRoles((prev) => {
       const next = [...prev];
       next[idx] = role;
@@ -494,10 +511,9 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
   );
   // How the file writes dates, amounts and directions, judged from the columns mapped to them
   const detected = useMemo(() => {
-    const column = (role: ColumnRole) => {
-      const idx = roles.indexOf(role);
-      return idx === -1 ? [] : textRows.map((row) => row[idx] ?? '');
-    };
+    // Every column with the role: a file may have one amount column per currency
+    const column = (role: ColumnRole) =>
+      roles.flatMap((r, idx) => (r === role ? textRows.map((row) => row[idx] ?? '') : []));
     const amounts = [...column('amount'), ...column('inflow'), ...column('outflow')];
     return {
       dateFormat: detectDateFormat(column('date')),
@@ -536,16 +552,44 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
   ].filter((f): f is { what: string; format: string } => !!f);
   const hasDirection = roles.includes('direction');
   const needsOutWord = hasDirection && !outWord.trim() && detected.unknownDirections.length > 0;
+  const canFlip = canFlipSigns(roles);
+  // Advice only, on credit cards: purchases written as positive would import as money in
+  const isCredit = isCreditType(accounts.find((a) => a.id === accountId)?.type ?? '');
+  const amountIdx = roles.indexOf('amount');
+  const suggestFlip = useMemo(() => {
+    if (!isCredit || !canFlip || outPositive || !numberFormat) return false;
+    const cells = sheetRows ? sheetText(sheetRows, numberFormat) : rawRows;
+    return mostlyPositive(
+      cells.map((row) => row[amountIdx] ?? ''),
+      numberFormat,
+      minorUnits(currency),
+    );
+  }, [isCredit, canFlip, outPositive, numberFormat, sheetRows, rawRows, amountIdx, currency]);
 
-  // A column saying each row's currency: its values, and the currency each one means
-  const currencyIdx = roles.indexOf('currency');
-  const values = useMemo(
-    () => (currencyIdx === -1 ? [] : currencyValues(rawRows, currencyIdx)),
-    [rawRows, currencyIdx],
-  );
   const context = useMemo(
     () => currencyContext(accountId, accounts, sections),
     [accountId, accounts, sections],
+  );
+  // One amount column per currency (`Pesos`, `Dólares`): the currency of each, null while
+  // it isn't known; null for a file of one currency
+  const columnCurrencies = useMemo(
+    () =>
+      amountColumnCurrencies(headers, roles, {
+        context,
+        saved: saved?.columnCurrencies,
+        chosen: columnCurrencyChoices,
+      }),
+    [headers, roles, context, saved, columnCurrencyChoices],
+  );
+  const unnamedColumns = Object.entries(columnCurrencies ?? {})
+    .filter(([, code]) => !code)
+    .map(([idx]) => headers[Number(idx)]);
+  // A column saying each row's currency, unless amount columns already do: its values, and
+  // the currency each one means
+  const currencyIdx = columnCurrencies ? -1 : roles.indexOf('currency');
+  const values = useMemo(
+    () => (currencyIdx === -1 ? [] : currencyValues(rawRows, currencyIdx)),
+    [rawRows, currencyIdx],
   );
   const mapping = useMemo(
     () =>
@@ -561,7 +605,16 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
     [mapping],
   );
   const unmapped = values.filter((v) => !mapping[v.key]);
-  const fileCurrencies = [...new Set(values.flatMap((v) => mapping[v.key] ?? []))];
+  const fileCurrencies = [
+    ...new Set(
+      columnCurrencies
+        ? // Only the columns holding amounts: a column of zeros is no currency of this file
+          Object.entries(columnCurrencies).flatMap(([idx, code]) =>
+            code && rawRows.some((r) => /[1-9]/.test(r[Number(idx)] ?? '')) ? [code] : [],
+          )
+        : values.flatMap((v) => mapping[v.key] ?? []),
+    ),
+  ];
   // Without a currency for the account, rows in two currencies can't be told apart
   const needsAccountCurrency = !currency && fileCurrencies.length > 1;
 
@@ -572,6 +625,9 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
     if (!numberFormat) return setError('Choose how this file writes amounts');
     if (needsOutWord) return setError('Type the word your bank uses for money going out');
     if (unmapped.length) return setError(`Choose the currency of "${unmapped[0].text}"`);
+    if (unnamedColumns.length) {
+      return setError(`Choose the currency of the ${unnamedColumns[0]} column`);
+    }
     if (!target.currency && fileCurrencies.length > 1) {
       return setError("Choose this account's currency first");
     }
@@ -581,8 +637,18 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
       dateFormat,
       numberFormat,
       outWord,
+      outPositive: canFlip && outPositive,
       minor: minorUnits(target.currency),
-      currencies: { names, account: target.currency },
+      currencies: {
+        names,
+        account: target.currency,
+        // Every column's currency is known by now (checked above)
+        ...(columnCurrencies && {
+          columns: Object.fromEntries(
+            Object.entries(columnCurrencies).filter((e): e is [string, string] => !!e[1]),
+          ),
+        }),
+      },
     });
     if (typeof built === 'string') {
       setError(built);
@@ -615,8 +681,11 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
       void previewStatement(statements[statementIdx], target);
       return;
     }
-    // Each value keeps the currency it was read as here, whatever accounts are around there
+    // Each value and column keeps the currency it was read as here, whatever accounts are
+    // around there
     setCurrencyChoices(names);
+    if (columnCurrencies)
+      setColumnCurrencyChoices(columnCurrenciesByKey(headers, columnCurrencies));
     // What that account remembers is updated after its import, not replaced by this one's
     setOwnSaved(null);
     void savedImport(id).then((s) => {
@@ -679,8 +748,15 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
           ? numberFormat
           : (known?.numberFormat ?? null),
         outWord: outWord.trim().slice(0, 50) || null,
+        // Not shown for this file: what the account knew is kept
+        ...(canFlip
+          ? { outPositive }
+          : ownSaved?.outPositive !== undefined && { outPositive: ownSaved.outPositive }),
         ...(currencyIdx !== -1 && { currencyColumn: keys[currencyIdx] }),
         ...(Object.keys(currencyNames).length && { currencyNames }),
+        ...(columnCurrencies && {
+          columnCurrencies: columnCurrenciesByKey(headers, columnCurrencies),
+        }),
       };
       request = saveImportSettings(accountId, settings);
     }
@@ -926,7 +1002,7 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
                   if (e.target.value.trim() === '') return;
                   const n = Math.trunc(Number(e.target.value));
                   if (Number.isFinite(n) && n >= 0 && n < records.length) {
-                    showTable(records, n, saved, roles);
+                    showTable(records, n, saved, rolesEdited ? roles : undefined);
                   }
                 }}
                 onBlur={() => setSkipRowsDraft(null)}
@@ -980,6 +1056,17 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
                 />
               </label>
             )}
+            {canFlip && (
+              <label className="flex items-center gap-2 self-end text-xs font-medium text-text-tertiary cursor-pointer max-md:min-h-11">
+                <input
+                  type="checkbox"
+                  checked={outPositive}
+                  onChange={(e) => setOutPositive(e.target.checked)}
+                  className="w-3.5 h-3.5 accent-brand-600"
+                />
+                <span>Flip amount signs</span>
+              </label>
+            )}
           </div>
           {(!dateFormat || !numberFormat || needsOutWord) && (
             <div className="flex items-start gap-2 px-3 py-2 text-sm bg-caution-subtle text-caution rounded-lg">
@@ -1003,6 +1090,15 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
                     )} means in the direction column. Type the word your bank uses for money going out; other words it doesn't know count as money in.`}
               </span>
             </div>
+          )}
+          {suggestFlip && (
+            <p className="flex items-start gap-2 px-3 py-2 text-sm bg-caution-subtle text-caution rounded-lg">
+              <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+              <span>
+                Most amounts in this file are positive. If purchases show as money in, tick 'Flip
+                amount signs'.
+              </span>
+            </p>
           )}
           {fromLastTime.length > 0 && (
             <p className="text-xs text-text-tertiary">
@@ -1063,6 +1159,28 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
               )}
             </div>
           )}
+          {unnamedColumns.length > 0 && (
+            <p className="flex items-start gap-2 px-3 py-2 text-sm bg-caution-subtle text-caution rounded-lg">
+              <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+              <span>
+                This file has one amount column per currency. Choose the currency of{' '}
+                {unnamedColumns.map((h) => `"${h}"`).join(', ')} under the column.
+              </span>
+            </p>
+          )}
+          {columnCurrencies && needsAccountCurrency && (
+            <p className="flex items-start gap-2 px-3 py-2 text-sm bg-caution-subtle text-caution rounded-lg">
+              <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+              <span>
+                This file has amounts in {fileCurrencies.join(' and ')}, but this account has no
+                currency yet, so FlyBudget can't tell which belong here.{' '}
+                <Link to="/settings?tab=currencies" className="underline hover:no-underline">
+                  Choose the budget's currency
+                </Link>{' '}
+                first.
+              </span>
+            </p>
+          )}
           <div className="overflow-x-auto">
             <table className="w-full text-sm border-collapse">
               <thead>
@@ -1082,6 +1200,22 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
                           </option>
                         ))}
                       </select>
+                      {columnCurrencies && Object.hasOwn(columnCurrencies, i) && (
+                        <CurrencySelect
+                          value={columnCurrencies[i] ?? ''}
+                          onChange={(code) =>
+                            setColumnCurrencyChoices((prev) => ({
+                              ...prev,
+                              [columnKeys(headers)[i]]: code,
+                            }))
+                          }
+                          first={context}
+                          placeholder="Currency…"
+                          size="sm"
+                          className="mt-1"
+                          aria-label={`Currency of the ${h} column`}
+                        />
+                      )}
                     </th>
                   ))}
                 </tr>
@@ -1111,7 +1245,9 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
             </Button>
             <Button
               onClick={() => handlePreview()}
-              disabled={loading || unmapped.length > 0 || needsAccountCurrency}
+              disabled={
+                loading || unmapped.length > 0 || unnamedColumns.length > 0 || needsAccountCurrency
+              }
             >
               {loading ? 'Checking...' : 'Preview'}
             </Button>

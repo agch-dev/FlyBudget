@@ -74,6 +74,8 @@ const upstreamImportSettingsSchema = z.object({
  * new key's values to `EXTRA_KEYS` in routes/importSettingsRoundTrip.test.ts.
  */
 export const importSettingsSchema = upstreamImportSettingsSchema.extend({
+  /** "Flip amount signs" was ticked: the file writes purchases as positive amounts */
+  outPositive: z.boolean().optional(),
   /** The column (its key in `columns`, where it's `skip`) saying each row's currency */
   currencyColumn: z.string().max(200).optional(),
   /** What that column's values mean: the value as written → ISO code */

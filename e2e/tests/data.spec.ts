@@ -513,6 +513,23 @@ test.describe('CSV import', () => {
     await expect(dialog).toContainText('2 imported, 0 skipped');
   });
 
+  test('changing the rows above the header guesses the columns again, if none was mapped by hand', async ({
+    page,
+    api,
+  }) => {
+    const checking = await api.createAccount('Checking', 0);
+    await open(page, `/accounts/${checking.id}`);
+    // A title line as wide as the table, and no column FlyBudget reads as a date
+    const dialog = await importCsv(
+      page,
+      'Export,of,transactions\r\nBooked,Payee,Amount\r\n2025-01-15,Bakery,-4.50\r\n',
+    );
+    await expect(dialog.getByRole('combobox', { name: 'Column Export' })).toHaveValue('skip');
+    await dialog.getByRole('spinbutton', { name: 'Rows above the header' }).fill('1');
+    await expect(dialog.getByRole('combobox', { name: 'Column Payee' })).toHaveValue('payee');
+    await expect(dialog.getByRole('combobox', { name: 'Column Amount' })).toHaveValue('amount');
+  });
+
   test('a placeholder in the unused inflow or outflow column is read as empty', async ({
     page,
     api,
