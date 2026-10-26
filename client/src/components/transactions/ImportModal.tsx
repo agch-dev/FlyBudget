@@ -160,6 +160,8 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
   const [headers, setHeaders] = useState<string[]>([]);
   const [rawRows, setRawRows] = useState<string[][]>([]);
   const [roles, setRoles] = useState<ColumnRole[]>([]);
+  // Whether the user mapped a column by hand: kept when the header row moves, else guessed again
+  const [rolesEdited, setRolesEdited] = useState(false);
   const [previewRows, setPreviewRows] = useState<ImportPreviewRow[]>([]);
   const [excluded, setExcluded] = useState<Set<number>>(new Set());
   const [skippedRows, setSkippedRows] = useState<SkippedRow[]>([]);
@@ -211,6 +213,7 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
     setHeaders([]);
     setRawRows([]);
     setRoles([]);
+    setRolesEdited(false);
     setPreviewRows([]);
     setExcluded(new Set());
     setSkippedRows([]);
@@ -353,6 +356,7 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
     if (load !== loadId.current) return;
     setCurrencyChoices({});
     setColumnCurrencyChoices({});
+    setRolesEdited(false);
     setFinished([]);
     // A new file goes into the account the dialog was opened for, even after a switch
     setSwitchedTo(null);
@@ -441,6 +445,7 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
   function openSheet(texts: string[][][], idx: number, savedSettings: ImportSettings | null) {
     const layout = sheetLayout(texts[idx], savedSettings);
     setError(null);
+    setRolesEdited(false);
     setSheetIdx(idx);
     setUsingSaved(layout.usingSaved);
     setOutWord(layout.usingSaved ? (savedSettings?.outWord ?? '') : '');
@@ -471,10 +476,12 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
   function changeDelimiter(next: Delimiter) {
     if (!bytes) return;
     setUsingSaved(false);
+    setRolesEdited(false);
     loadCsv(decodeCsvBytes(bytes, encoding), next, null, saved);
   }
 
   function setRole(idx: number, role: ColumnRole) {
+    setRolesEdited(true);
     setRoles((prev) => {
       const next = [...prev];
       next[idx] = role;
@@ -968,7 +975,7 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
                   if (e.target.value.trim() === '') return;
                   const n = Math.trunc(Number(e.target.value));
                   if (Number.isFinite(n) && n >= 0 && n < records.length) {
-                    showTable(records, n, saved, roles);
+                    showTable(records, n, saved, rolesEdited ? roles : undefined);
                   }
                 }}
                 onBlur={() => setSkipRowsDraft(null)}

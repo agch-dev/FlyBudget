@@ -393,6 +393,23 @@ describe('detectSkipRows (property-based)', () => {
     expect(detectSkipRows(records)).toBe(1);
   });
 
+  it('passes a block of account details as wide as the table, for the header with a date', () => {
+    // A card statement: the card's details and their values, then the transactions
+    const records = [
+      ['Cliente', 'Número de tarjeta', 'Alias', 'Fecha de corte', 'Límite (US$)', 'Límite ($)'],
+      ['Perez, Ana', 'XXXXX-0000', 'Visa', '04/10/2026', '0,00', '40.000,00'],
+      ['Período'],
+      ['Desde:', '01/09/2026', 'Hasta:', '30/09/2026'],
+      ['Movimientos'],
+      ['Fecha', 'Tarjeta', 'Autorización', 'Descripción', 'Original', 'Pesos', 'Dólares'],
+      ['04/09/2026', 'XXXXX-0000', '770', 'Streaming', '0,00', '0,00', '9,99'],
+      ['19/09/2026', 'XXXXX-0000', '771', 'Supermercado', '0,00', '1.343,28', '0,00'],
+    ];
+    expect(detectSkipRows(records)).toBe(5);
+    // Without a date header further down, the first row that fits is still the header
+    expect(detectSkipRows(records.slice(0, 2))).toBe(0);
+  });
+
   it('skips nothing in a plain file', () => {
     expect(
       detectSkipRows([

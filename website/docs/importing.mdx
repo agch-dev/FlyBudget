@@ -69,7 +69,8 @@ wrong transactions first, then import the file again.
 - **Account details above the table**: some banks (DKB and Comdirect, for example) start the
   file with a few lines about the account. FlyBudget finds the header under them by itself and
   shows how many rows it skipped under **Rows above the header**; change the number if it picked
-  the wrong row.
+  the wrong row. Empty lines don't count. The columns are guessed again from the new header,
+  unless you've already mapped some by hand.
 - **Dates**: `2026-01-05`, `20260105`, month first (`01/05/2026`), day first (`05/01/2026`,
   `05.01.2026`, `05-01-26`), a two-digit year first (`26-01-05`), with or without a time after
   them, and written-out dates like `Jan 5, 2026`.

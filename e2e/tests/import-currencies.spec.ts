@@ -16,6 +16,9 @@ const sample = (file: string) =>
 const CARD_CSV = sample('card-moneda-column.csv');
 // The same card's statement with a Pesos and a Dólares amount column, under account details
 const COLUMNS_CSV = sample('card-pesos-dolares-columns.csv');
+// As some exports write it, without a separator at the end of each line: the card's details
+// above are then as wide as the table
+const COLUMNS_CSV_NO_TRAILING = Buffer.from(COLUMNS_CSV.toString().replace(/,(\r?\n)/g, '$1'));
 
 const setCurrency = (api: Api, currency: string) => api.call('PUT', '/currency', { currency });
 
@@ -178,7 +181,7 @@ test('the currency of an amount column FlyBudget can’t read is chosen and reme
   const dollars = await api.createAccount('Visa dollars', 0, 'credit', { currency: 'USD' });
 
   await open(page, `/accounts/${pesos.id}`);
-  let dialog = await importFile(page, 'card.csv', COLUMNS_CSV);
+  let dialog = await importFile(page, 'card.csv', COLUMNS_CSV_NO_TRAILING);
   // This device speaks English: "Dólares" isn't read as a currency
   await expect(dialog.getByRole('combobox', { name: 'Column Dólares' })).toHaveValue('skip');
   await dialog.getByRole('combobox', { name: 'Column Dólares' }).selectOption('amount');
@@ -202,7 +205,7 @@ test('the currency of an amount column FlyBudget can’t read is chosen and reme
   expect(await summary(api, dollars.id)).toHaveLength(3);
 
   // Next month: the column and its currency are remembered
-  dialog = await importFile(page, 'card.csv', COLUMNS_CSV);
+  dialog = await importFile(page, 'card.csv', COLUMNS_CSV_NO_TRAILING);
   await expect(
     dialog.getByRole('combobox', { name: 'Currency of the Dólares column' }),
   ).toHaveValue('USD');

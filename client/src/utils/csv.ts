@@ -104,28 +104,41 @@ const SAMPLE_ROWS = 500;
  * details like `Kontonummer:;DE12…`). The header is the first row at least as wide as most
  * rows below it, so a few rows with a stray separator can't move it. It may be a column
  * shorter only when those rows end with a separator (an empty last field) and it doesn't.
- * A file with more lines of details than table rows needs the number set by hand.
+ * A block of account details as wide as the table (a card's details over a row of their
+ * values) fits too: then a later row that fits, names a date column and has data under it is
+ * the header instead. A file with more lines of details than table rows needs the number set
+ * by hand.
  */
 export function detectSkipRows(records: string[][]): number {
+  let first = -1;
   for (let i = 0; i < Math.min(records.length, MAX_SKIP_ROWS); i++) {
-    const header = records[i];
-    if (header.length < 2) continue;
-    const below = records.slice(i + 1, i + 1 + SAMPLE_ROWS);
-    if (!below.length) return i;
-    const widths = below.map((r) => r.length).sort((a, b) => a - b);
-    const typical = widths[Math.floor((widths.length - 1) / 2)];
-    if (header.length >= typical) return i;
-    if (header.length === typical - 1 && header[header.length - 1] !== '') {
-      // One column short is still the header when the rows end with a separator, or have an
-      // extra unnamed column: then the row under it is data. Under a line of account details
-      // (Konto;DE12…) comes the header instead.
-      const typicalRows = below.filter((r) => r.length === typical);
-      const trailingSeparator =
-        typicalRows.filter((r) => r[r.length - 1] === '').length * 2 > typicalRows.length;
-      if (trailingSeparator || looksLikeData(below[0])) return i;
-    }
+    if (!fitsAsHeader(records, i)) continue;
+    if (first === -1) first = i;
+    const namesDate = guessColumnRoles(records[i]).includes('date');
+    if (namesDate && (i === first || looksLikeData(records[i + 1] ?? []))) return i;
   }
-  return 0;
+  return Math.max(first, 0);
+}
+
+/** Whether row `i` is as wide as the rows under it, as a header is (see `detectSkipRows`) */
+function fitsAsHeader(records: string[][], i: number): boolean {
+  const header = records[i];
+  if (header.length < 2) return false;
+  const below = records.slice(i + 1, i + 1 + SAMPLE_ROWS);
+  if (!below.length) return true;
+  const widths = below.map((r) => r.length).sort((a, b) => a - b);
+  const typical = widths[Math.floor((widths.length - 1) / 2)];
+  if (header.length >= typical) return true;
+  if (header.length === typical - 1 && header[header.length - 1] !== '') {
+    // One column short is still the header when the rows end with a separator, or have an
+    // extra unnamed column: then the row under it is data. Under a line of account details
+    // (Konto;DE12…) comes the header instead.
+    const typicalRows = below.filter((r) => r.length === typical);
+    const trailingSeparator =
+      typicalRows.filter((r) => r[r.length - 1] === '').length * 2 > typicalRows.length;
+    return trailingSeparator || looksLikeData(below[0]);
+  }
+  return false;
 }
 
 export const CSV_ENCODINGS = [
