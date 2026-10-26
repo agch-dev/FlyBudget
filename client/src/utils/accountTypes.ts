@@ -11,6 +11,11 @@ export function isLiabilityType(type: string): boolean {
   return accountTypeInfo(type).liability;
 }
 
+/** Credit cards and lines of credit */
+export function isCreditType(type: string): boolean {
+  return accountTypeInfo(type).group === 'credit';
+}
+
 export function accountTypeLabel(type: string): string {
   return BY_TYPE.get(type as AccountTypeInfo['value'])?.label ?? type;
 }

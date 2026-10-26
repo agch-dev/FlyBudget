@@ -320,6 +320,26 @@ const AMOUNT_PATTERN: Record<NumberFormat, RegExp> = {
 };
 
 /**
+ * The direction written after an amount (45.00 DR, 1.234,56 S), which decides its sign; the
+ * letters are removed with the currency words. Only after it: C$ or S/ before an amount are
+ * currencies.
+ */
+function directionAfter(raw: string | undefined): 'in' | 'out' | null {
+  const after = (raw ?? '').replace(/^[\s\S]*\d/, '');
+  return (
+    after
+      .match(/\p{L}+\.?/gu)
+      ?.map((w) => readDirection(w))
+      .find((d) => d !== null) ?? null
+  );
+}
+
+/** Whether an amount cell says which way the money went in a word after it (45.00 DR) */
+export function hasDirectionWord(raw: string | undefined): boolean {
+  return directionAfter(raw) !== null;
+}
+
+/**
  * An amount as banks write it: "$1,234.56", "-12.00", "(12.00)", "12.00-" or "12.00 DR" for
  * negatives,
  * or with `format: 'comma'` "1.234,56 €" and "-12,50". Returns integer cents (rounded to the
@@ -342,14 +362,7 @@ export function readImportAmount(
     exact?: boolean;
   } = {},
 ): number | null {
-  // A direction written after the amount (45.00 DR, 1.234,56 S) decides the sign: the letters
-  // are removed below with the currency words. Only after it: C$ or S/ before an amount are
-  // currencies.
-  const after = directionWords ? (raw ?? '').replace(/^[\s\S]*\d/, '') : '';
-  const marker = after
-    .match(/\p{L}+\.?/gu)
-    ?.map((w) => readDirection(w))
-    .find((d) => d !== null);
+  const marker = directionWords ? directionAfter(raw) : null;
   let s = amountChars(raw ?? '');
   let negative = false;
   if (/^\(.*\)$/.test(s)) {
@@ -546,6 +559,8 @@ export interface ImportSettings {
   dateFormat: DateFormat | null;
   numberFormat: NumberFormat | null;
   outWord: string | null;
+  /** "Flip amount signs" was ticked; missing = unticked */
+  outPositive?: boolean;
   /** The column (key, as in `columns`) saying each row's currency; missing = guess it */
   currencyColumn?: string;
   /** What that column's values mean, as written → ISO code (the user's choices too) */
@@ -659,6 +674,12 @@ export interface ImportFormats {
   /** Decimals of the account's currency (2 unless given: none for yen) */
   minor?: number;
   /**
+   * "Flip amount signs": every signed amount cell gets the opposite sign, for files that write
+   * purchases as positive. Cells with a direction word (45.00 DR), inflow/outflow columns and
+   * files with a direction column are read as they are.
+   */
+  outPositive?: boolean;
+  /**
    * The account's currency and how the file says each row's: a `currency` column's values
    * (`names`, keyed by `currencyTextKey`), or `amount` columns that each hold one currency
    * (`columns`, column index → ISO code), which win over a currency column. Once the file holds
@@ -685,6 +706,7 @@ export function buildImportRows(
     numberFormat = 'dot',
     outWord = null,
     minor = 2,
+    outPositive = false,
     currencies,
   }: ImportFormats = {},
 ): { rows: ImportRow[]; skipped: SkippedRow[]; otherCurrencies: Record<string, number> } | string {
@@ -783,6 +805,9 @@ export function buildImportRows(
       let amount: number | null;
       if (idx !== -1) {
         amount = cellAmount(idx, raw);
+        if (amount && outPositive && directionIdx === -1 && !hasDirectionWord(raw[idx])) {
+          amount = -amount;
+        }
       } else {
         // Some banks write debits in the outflow column as negative numbers
         const inf = sideAmount(inflowIdx, raw);
@@ -819,6 +844,27 @@ export function buildImportRows(
     }
   });
   return { rows, skipped, otherCurrencies };
+}
+
+/**
+ * Whether the import dialog offers "Flip amount signs": amounts come from one signed column,
+ * not from inflow/outflow columns or with a direction column beside them
+ */
+export function canFlipSigns(roles: ColumnRole[]): boolean {
+  return roles.includes('amount') && !roles.includes('direction');
+}
+
+/**
+ * Whether most of an amount column is positive (at least 6 amounts without a direction word,
+ * at least 2/3 of them above zero): on a credit card, purchases are likely written as positive
+ */
+export function mostlyPositive(cells: string[], format: NumberFormat, minor = 2): boolean {
+  const amounts = cells
+    .filter((cell) => !hasDirectionWord(cell))
+    .map((cell) => readImportAmount(cell, format, { minor }))
+    .filter((amount): amount is number => !!amount);
+  const positive = amounts.filter((amount) => amount > 0).length;
+  return amounts.length >= 6 && positive * 3 >= amounts.length * 2;
 }
 
 /** "2 rows skipped: row 3, amount "N/A"; row 7, date "13/45/2024"." (the first `max` named) */

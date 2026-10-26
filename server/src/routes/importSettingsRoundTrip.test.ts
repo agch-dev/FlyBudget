@@ -31,6 +31,7 @@ type ExtraKey = Exclude<keyof ImportSettings, keyof upstream.ImportSettings>;
 
 /** A value for each key this branch adds (a new key fails to compile until it's listed here) */
 const EXTRA_KEYS: { [K in ExtraKey]-?: fc.Arbitrary<NonNullable<ImportSettings[K]>> } = {
+  outPositive: fc.boolean(),
   currencyColumn: fc.string({ maxLength: 200 }),
   currencyNames: fc.dictionary(fc.string({ maxLength: 100 }), currencyCode, { maxKeys: 10 }),
   columnCurrencies: fc.dictionary(fc.string({ maxLength: 200 }), currencyCode, { maxKeys: 10 }),
