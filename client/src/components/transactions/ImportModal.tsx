@@ -1016,6 +1016,7 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
                           }
                           first={context}
                           placeholder="Choose…"
+                          size="sm"
                           aria-label={`Currency of ${v.text}`}
                         />
                       </td>
