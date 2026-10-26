@@ -23,7 +23,7 @@ transactions arrive by themselves, [connect a bank](./bank-sync) instead.
    instalments, the instalment column (`Imp. cuota`) is the amount and the purchase's total is
    skipped, so each statement adds only that month's instalment.
    Check the guesses, and change any that are wrong: **Date**, **Payee**, **Amount**,
-   **Inflow**, **Outflow**, **Direction (in/out)**, **Notes** or **Skip**. The first rows are shown underneath so you
+   **Inflow**, **Outflow**, **Direction (in/out)**, **Notes**, **Currency** or **Skip**. The first rows are shown underneath so you
    can see that it looks right. You need a date and either an amount or inflow/outflow columns.
 
    <Screenshot name="import-csv" alt="Mapping the columns of a CSV file" dialog />
@@ -92,7 +92,9 @@ wrong transactions first, then import the file again.
 - Files up to 100,000 rows. Rows with an amount of zero are left out (the preview lists them).
 
 FlyBudget works out from the file in which order dates are written, and whether amounts use a
-decimal point or a decimal comma, and shows its choice under **Dates** and **Amounts**. When the
+decimal point or a decimal comma, and shows its choice under **Dates** and **Amounts**. (When
+every date is written year first, like `2026-01-05`, or with the month in words, the order can't
+matter, so there's no **Dates** to choose.) When the
 file can't tell (every day in it is 12 or less, a two-digit year could come first or last, or
 every amount looks like `1.234`), it asks you instead of guessing: a wrong guess would move
 every transaction to another date, or make amounts a hundred times too big. Once you've answered
@@ -140,10 +142,43 @@ says whether it's money in or out, so there are no formats to work out.
 - FlyBudget remembers the account number (IBAN) of the last statement you imported into each
   account. If a statement is for a different account, the preview warns you, so a statement
   doesn't end up in the wrong account by mistake (you can still import it).
+- A statement in another currency than the account's can't be imported into it: its amounts
+  would mean something else. The preview offers to import it into one of your accounts in that
+  currency instead.
 
 If you switch an account from CSV files to CAMT.053 statements, check the first preview for
 transactions you already have: the two formats describe the same transaction differently, so
 FlyBudget can't always match them.
+
+## Files with more than one currency
+
+Some card statements list purchases in two currencies in one file, with a column saying which
+currency each row is in (`Moneda`, `Currency`). Each account holds one currency, so an import
+brings in only the rows in the account's currency, and then offers to import the others into
+another account.
+
+1. Import the file into one of the accounts, say the card's pesos account. FlyBudget recognizes
+   the currency column by its header or its values and maps it as **Currency**.
+2. Under **Currencies in this file**, each value in that column is listed with the currency
+   FlyBudget read it as. It knows currency codes (`USD`), symbols (`€`, `US$`) and names in
+   English and your device's language, however they're capitalized or accented. A word several
+   currencies share, like _pesos_ or `$`, is read as the currency of the account you're importing
+   into, or of an account in its [section](./accounts), when exactly one of them is in that
+   currency. When FlyBudget can't tell, choose the currency yourself: it never guesses.
+3. The preview lists only the rows in the account's currency, and says how many rows in other
+   currencies aren't imported here. If there's nothing to import here (no rows in the account's
+   currency, or you already have them all), it offers the other account right away.
+4. After importing, FlyBudget offers **Import the USD rows into** one of your accounts in that
+   currency, with the same file and settings. When the account you imported into is in a section
+   with exactly one account of the same type in that currency (the card's dollars account), it's
+   already picked. Choose **Preview** to see those rows and import them. If you'd rather not,
+   choose **Done**.
+
+FlyBudget remembers the currency column and what its values mean for each account, so the next
+statement goes straight through. If every row of a file is in the account's currency, the import
+works as usual. A row without a currency is left out (the preview lists it), and if neither the
+account nor the budget has a currency yet, FlyBudget asks you to choose one in
+**Settings → Currencies** before importing a file with rows in two currencies.
 
 ## Credit cards
 

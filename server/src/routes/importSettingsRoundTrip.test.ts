@@ -16,6 +16,7 @@ import {
   type ImportSettings,
 } from '../utils/importSettings.js';
 import * as upstream from '../utils/upstreamImportSettings.fixture.js';
+import { CURRENCY_CODES } from '../utils/currencies.js';
 
 // A backup must survive this branch → plain upstream → this branch. Upstream restores
 // `import_settings` as opaque text, but reads it with its own schema (extra keys dropped, one
@@ -23,11 +24,17 @@ import * as upstream from '../utils/upstreamImportSettings.fixture.js';
 // import. So this branch's settings are upstream's plus optional top-level keys, never new
 // roles, and the backup stays at version 3. Checked here against a pinned copy of upstream.
 
+const currencyCode = fc.constantFrom(...CURRENCY_CODES);
+
 /** Keys this branch adds to upstream's settings, all optional */
 type ExtraKey = Exclude<keyof ImportSettings, keyof upstream.ImportSettings>;
 
 /** A value for each key this branch adds (a new key fails to compile until it's listed here) */
-const EXTRA_KEYS: { [K in ExtraKey]-?: fc.Arbitrary<NonNullable<ImportSettings[K]>> } = {};
+const EXTRA_KEYS: { [K in ExtraKey]-?: fc.Arbitrary<NonNullable<ImportSettings[K]>> } = {
+  currencyColumn: fc.string({ maxLength: 200 }),
+  currencyNames: fc.dictionary(fc.string({ maxLength: 100 }), currencyCode, { maxKeys: 10 }),
+  columnCurrencies: fc.dictionary(fc.string({ maxLength: 200 }), currencyCode, { maxKeys: 10 }),
+};
 
 const UPSTREAM_KEYS = Object.keys(upstream.importSettingsSchema.shape);
 

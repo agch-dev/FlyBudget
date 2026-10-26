@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { Link } from 'react-router';
 import { Upload, AlertTriangle, CheckCircle, X } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
@@ -53,7 +54,18 @@ import { useImportConfirm } from '../../hooks/useTransactions';
 import { formatMoney } from '../../utils/currency';
 import { minorUnits } from '../../utils/currencies';
 import { useAccountCurrency } from '../../hooks/useCurrency';
-import type { ImportPreviewRow } from '../../types';
+import { currencyTextKey } from '../../utils/currencyText';
+import { useAccounts } from '../../hooks/useAccounts';
+import { usePreferencesStore } from '../../store/preferencesStore';
+import { CurrencySelect } from '../currency/CurrencySelect';
+import {
+  currencyContext,
+  currencyMapping,
+  currencyValues,
+  followUpAccounts,
+  markCurrencyColumn,
+} from '../../utils/importCurrencies';
+import type { Account, ImportPreviewRow } from '../../types';
 import type { ImportRow } from '../../api/transactions';
 import { IS_DEMO } from '../../demo/demoApi';
 
@@ -95,10 +107,22 @@ const pendingSaves = new Map<string, Promise<void>>();
 /** The most rows one import may send (the server's limit) */
 const MAX_IMPORT_ROWS = 100_000;
 
-export function ImportModal({ isOpen, onClose, accountId }: Props) {
+/** The account an import goes into, and its currency (amounts are read in its decimals) */
+type Target = { id: string; currency: string | null };
+
+const NO_ACCOUNTS: Account[] = [];
+
+export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
   const [step, setStep] = useState<Step>('upload');
-  // Amounts are read in the account's currency (no decimals for yen)
-  const currency = useAccountCurrency()(accountId);
+  // The account being imported into: the one the dialog was opened for, until the rows of
+  // another currency in the file are imported into another account (null until then, so a
+  // dialog that stays mounted follows the page to another account)
+  const [switchedTo, setSwitchedTo] = useState<string | null>(null);
+  const accountId = switchedTo ?? openedFor;
+  const currencyOf = useAccountCurrency();
+  const currency = currencyOf(accountId);
+  const { data: accounts = NO_ACCOUNTS } = useAccounts();
+  const sections = usePreferencesStore((s) => s.accountSections);
   const canSave = useCanSave();
   const queryClient = useQueryClient();
   const [source, setSource] = useState<ImportSource>('csv');
@@ -111,6 +135,9 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
   // What's typed in "Rows above the header" while it isn't a number yet (an emptied field)
   const [skipRowsDraft, setSkipRowsDraft] = useState<string | null>(null);
   const [saved, setSaved] = useState<ImportSettings | null>(null);
+  // The saved settings of the account being imported into: `saved` until another account's
+  // turn, whose own settings are kept apart from the ones this file is read with
+  const [ownSaved, setOwnSaved] = useState<ImportSettings | null>(null);
   const [usingSaved, setUsingSaved] = useState(false);
   // null = what the file looks like (detectDateFormat / detectNumberFormat)
   const [dateFormatChoice, setDateFormatChoice] = useState<DateFormat | null>(null);
@@ -135,6 +162,12 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
   const [excluded, setExcluded] = useState<Set<number>>(new Set());
   const [skippedRows, setSkippedRows] = useState<SkippedRow[]>([]);
   const [result, setResult] = useState<{ imported: number; skipped: number } | null>(null);
+  // A currency column: the currency picked for its values (by `currencyTextKey`)
+  const [currencyChoices, setCurrencyChoices] = useState<Record<string, string>>({});
+  // Rows of the file in other currencies than the account's, left out of this import
+  const [otherCurrencies, setOtherCurrencies] = useState<Record<string, number>>({});
+  // Currencies whose rows were imported since the file was chosen
+  const [finished, setFinished] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -146,6 +179,10 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
   function reset() {
     loadId.current++;
     setStep('upload');
+    setSwitchedTo(null);
+    setCurrencyChoices({});
+    setOtherCurrencies({});
+    setFinished([]);
     setSource('csv');
     setBytes(null);
     setEncoding('auto');
@@ -154,6 +191,7 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
     setSkipRows(0);
     setSkipRowsDraft(null);
     setSaved(null);
+    setOwnSaved(null);
     setUsingSaved(false);
     setDateFormatChoice(null);
     setNumberFormatChoice(null);
@@ -194,11 +232,19 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
       keepRoles?: ColumnRole[],
     ) => {
       const h = all[skip] ?? [];
+      const rows = all.slice(skip + 1);
       setSkipRows(skip);
       setHeaders(h);
-      setRawRows(all.slice(skip + 1));
+      setRawRows(rows);
       setRoles(
-        keepRoles?.length === h.length ? keepRoles : columnRolesFor(h, savedSettings?.columns),
+        keepRoles?.length === h.length
+          ? keepRoles
+          : markCurrencyColumn(
+              h,
+              rows,
+              columnRolesFor(h, savedSettings?.columns),
+              savedSettings?.currencyColumn,
+            ),
       );
     },
     [],
@@ -228,7 +274,15 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
     [showTable],
   );
 
-  async function runPreview(rows: ImportRow[], skipped: SkippedRow[], camtSkipped = 0) {
+  async function runPreview(
+    target: Target,
+    rows: ImportRow[],
+    skipped: SkippedRow[],
+    {
+      camtSkipped = 0,
+      others = {},
+    }: { camtSkipped?: number; others?: Record<string, number> } = {},
+  ) {
     const load = loadId.current;
     // The server's limit: say so, rather than fail the whole file with a generic error
     if (rows.length > MAX_IMPORT_ROWS) {
@@ -239,10 +293,13 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
     }
     setLoading(true);
     try {
-      const preview = await importPreview(accountId, rows);
+      // Every row in another currency: nothing to check, only the switch to another account
+      const preview = rows.length ? await importPreview(target.id, rows) : [];
       if (load !== loadId.current) return; // closed while checking
+      setSwitchedTo(target.id === openedFor ? null : target.id);
       setSkippedRows(skipped);
       setSkippedEntries(camtSkipped);
+      setOtherCurrencies(others);
       setPreviewRows(preview);
       setExcluded(new Set(preview.map((r, i) => (r.isDuplicate ? i : -1)).filter((i) => i >= 0)));
       setStep('preview');
@@ -253,13 +310,16 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
     }
   }
 
-  function previewStatement(statement: CamtStatement) {
+  function previewStatement(
+    statement: CamtStatement,
+    target: Target = { id: accountId, currency },
+  ) {
     if (!statement.transactions.length) {
       setError('There are no booked transactions in this statement');
       return;
     }
     setError(null);
-    return runPreview(statement.transactions, [], statement.skipped);
+    return runPreview(target, statement.transactions, [], { camtSkipped: statement.skipped });
   }
 
   async function handleFile(file: File) {
@@ -274,13 +334,13 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
     }
   }
 
-  /** What this account's last imports remembered, or null offline */
-  async function savedImport() {
-    await pendingSaves.get(accountId);
+  /** What an account's last imports remembered, or null offline */
+  async function savedImport(id = accountId) {
+    await pendingSaves.get(id);
     try {
       return await queryClient.fetchQuery({
-        queryKey: settingsKey(accountId),
-        queryFn: () => getImportSettings(accountId),
+        queryKey: settingsKey(id),
+        queryFn: () => getImportSettings(id),
         retry: false, // offline, don't keep the file waiting
       });
     } catch {
@@ -291,6 +351,12 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
   async function readFile(file: File, load: number) {
     const buffer = await file.arrayBuffer();
     if (load !== loadId.current) return;
+    setCurrencyChoices({});
+    setFinished([]);
+    // A new file goes into the account the dialog was opened for, even after a switch
+    setSwitchedTo(null);
+    setOwnSaved(null);
+    const opened: Target = { id: openedFor, currency: currencyOf(openedFor) };
 
     // A workbook is told by its content, whatever the file is called
     if (spreadsheetKind(new Uint8Array(buffer))) {
@@ -300,10 +366,11 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
         setError('No rows could be imported. Every sheet in this file is empty.');
         return;
       }
-      const savedSettings = (await savedImport())?.settings ?? null;
+      const savedSettings = (await savedImport(opened.id))?.settings ?? null;
       if (load !== loadId.current) return;
       setSource('xlsx');
       setSaved(savedSettings);
+      setOwnSaved(savedSettings);
       setBytes(null);
       // Kept as they were, so the account's next CSV file is still read the same way
       setDelimiter(savedSettings?.delimiter ?? ',');
@@ -325,7 +392,7 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
         setError("This file isn't a bank statement FlyBudget can read (CAMT.053)");
         return;
       }
-      const known = (await savedImport())?.statementAccount ?? null;
+      const known = (await savedImport(opened.id))?.statementAccount ?? null;
       if (load !== loadId.current) return;
       setSource('camt');
       setStatements(found);
@@ -336,15 +403,16 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
         found.findIndex((s) => known !== null && statementAccountKey(s.account) === known),
       );
       setStatementIdx(idx);
-      if (found.length === 1) await previewStatement(found[0]);
+      if (found.length === 1) await previewStatement(found[0], opened);
       else setStep('statement');
       return;
     }
 
     setSource('csv');
-    const savedSettings = (await savedImport())?.settings ?? null;
+    const savedSettings = (await savedImport(opened.id))?.settings ?? null;
     if (load !== loadId.current) return; // closed (or another file chosen) meanwhile
     setSaved(savedSettings);
+    setOwnSaved(savedSettings);
     setBytes(buffer);
     setDateFormatChoice(null);
     setNumberFormatChoice(null);
@@ -469,26 +537,59 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
   const hasDirection = roles.includes('direction');
   const needsOutWord = hasDirection && !outWord.trim() && detected.unknownDirections.length > 0;
 
-  function handlePreview() {
+  // A column saying each row's currency: its values, and the currency each one means
+  const currencyIdx = roles.indexOf('currency');
+  const values = useMemo(
+    () => (currencyIdx === -1 ? [] : currencyValues(rawRows, currencyIdx)),
+    [rawRows, currencyIdx],
+  );
+  const context = useMemo(
+    () => currencyContext(accountId, accounts, sections),
+    [accountId, accounts, sections],
+  );
+  const mapping = useMemo(
+    () =>
+      currencyMapping(values, { context, saved: saved?.currencyNames, chosen: currencyChoices }),
+    [values, context, saved, currencyChoices],
+  );
+  // The values whose currency is known, as `buildImportRows` takes them
+  const names = useMemo(
+    () =>
+      Object.fromEntries(
+        Object.entries(mapping).filter((e): e is [string, string] => e[1] !== null),
+      ),
+    [mapping],
+  );
+  const unmapped = values.filter((v) => !mapping[v.key]);
+  const fileCurrencies = [...new Set(values.flatMap((v) => mapping[v.key] ?? []))];
+  // Without a currency for the account, rows in two currencies can't be told apart
+  const needsAccountCurrency = !currency && fileCurrencies.length > 1;
+
+  function handlePreview(target: Target = { id: accountId, currency }) {
     setError(null);
     // Never guess: swapped days and months, or amounts off by 100x, would look plausible
     if (!dateFormat) return setError('Choose how this file writes dates');
     if (!numberFormat) return setError('Choose how this file writes amounts');
     if (needsOutWord) return setError('Type the word your bank uses for money going out');
+    if (unmapped.length) return setError(`Choose the currency of "${unmapped[0].text}"`);
+    if (!target.currency && fileCurrencies.length > 1) {
+      return setError("Choose this account's currency first");
+    }
     // Number cells written in the chosen format, so they read back exactly
     const cells = sheetRows ? sheetText(sheetRows, numberFormat) : rawRows;
     const built = buildImportRows(cells, roles, {
       dateFormat,
       numberFormat,
       outWord,
-      minor: minorUnits(currency),
+      minor: minorUnits(target.currency),
+      currencies: { names, account: target.currency },
     });
     if (typeof built === 'string') {
       setError(built);
       return;
     }
-    const { rows, skipped } = built;
-    if (!rows.length) {
+    const { rows, skipped, otherCurrencies: others } = built;
+    if (!rows.length && !Object.keys(others).length) {
       setError(
         skipped.length
           ? `No rows could be imported. ${describeSkippedRows(skipped)}`
@@ -496,7 +597,32 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
       );
       return;
     }
-    void runPreview(rows, skipped);
+    void runPreview(target, rows, skipped, { others });
+  }
+
+  /**
+   * Goes on with the same file in another account: the rows of its currency (CSV and Excel,
+   * with the same settings) or the whole statement (CAMT)
+   */
+  function switchAccount(id: string) {
+    const target = { id, currency: currencyOf(id) };
+    // This account's rows are dealt with (imported, or nothing to import): not offered again
+    if (currency) setFinished((prev) => (prev.includes(currency) ? prev : [...prev, currency]));
+    const load = loadId.current;
+    if (source === 'camt') {
+      // That account's last statement, to notice one for another account
+      void savedImport(id).then((s) => setKnownStatementAccount(s?.statementAccount ?? null));
+      void previewStatement(statements[statementIdx], target);
+      return;
+    }
+    // Each value keeps the currency it was read as here, whatever accounts are around there
+    setCurrencyChoices(names);
+    // What that account remembers is updated after its import, not replaced by this one's
+    setOwnSaved(null);
+    void savedImport(id).then((s) => {
+      if (load === loadId.current) setOwnSaved(s?.settings ?? null);
+    });
+    handlePreview(target);
   }
 
   /** Remembers how this account's bank writes its files, for the next import */
@@ -510,27 +636,51 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
       request = saveStatementAccount(accountId, account);
     } else {
       if (!dateFormat || !numberFormat) return;
-      const columns: Record<string, ColumnRole> = {};
+      const columns: ImportSettings['columns'] = {};
       // At most 200 columns (the server's limit); longer files are worked out each time
       if (headers.length > 200) return;
-      columnKeys(headers).forEach((key, i) => {
-        columns[key] = roles[i];
+      const keys = columnKeys(headers);
+      keys.forEach((key, i) => {
+        // The currency column is Skip to upstream, which has no such role
+        columns[key] = roles[i] === 'currency' ? 'skip' : roles[i];
       });
+      // What this file's currency values mean, kept with the other files' (one entry each)
+      const named = values.flatMap((v) => {
+        const code = mapping[v.key];
+        return code && v.text.length <= 100 ? [[v.text, code] as const] : [];
+      });
+      const currencyNames = Object.fromEntries(
+        [
+          ...Object.entries(ownSaved?.currencyNames ?? {}).filter(
+            ([text]) => !values.some((v) => v.key === currencyTextKey(text)),
+          ),
+          ...named,
+        ].slice(-200),
+      );
       // A sheet of real dates or numbers says nothing about the account's CSV files: keep
       // what was known for these columns, so a CSV file with ambiguous text is still asked about
       const shown = (chosen: unknown, inFile: boolean) => source !== 'xlsx' || !!chosen || inFile;
+      const known =
+        ownSaved === saved
+          ? lastTime
+          : ownSaved && keys.every((key) => Object.hasOwn(ownSaved.columns, key))
+            ? ownSaved
+            : null;
       const settings: ImportSettings = {
-        delimiter,
-        encoding,
+        // A workbook has neither: the account's next CSV file is still read the same way
+        delimiter: source === 'xlsx' ? (ownSaved?.delimiter ?? ',') : delimiter,
+        encoding: source === 'xlsx' ? (ownSaved?.encoding ?? 'auto') : encoding,
         skipRows,
         columns,
         dateFormat: shown(dateFormatChoice, detected.dateShown)
           ? dateFormat
-          : (lastTime?.dateFormat ?? null),
+          : (known?.dateFormat ?? null),
         numberFormat: shown(numberFormatChoice, detected.numberShown)
           ? numberFormat
-          : (lastTime?.numberFormat ?? null),
+          : (known?.numberFormat ?? null),
         outWord: outWord.trim().slice(0, 50) || null,
+        ...(currencyIdx !== -1 && { currencyColumn: keys[currencyIdx] }),
+        ...(Object.keys(currencyNames).length && { currencyNames }),
       };
       request = saveImportSettings(accountId, settings);
     }
@@ -570,6 +720,7 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
         onSuccess: (data) => {
           rememberSettings(); // the import happened, even if the dialog was closed meanwhile
           if (load !== loadId.current) return; // closed: the next opening starts afresh
+          if (currency) setFinished((prev) => [...prev, currency]);
           setResult(data);
           setStep('done');
         },
@@ -602,6 +753,7 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
     { value: 'outflow', label: 'Outflow' },
     { value: 'direction', label: 'Direction (in/out)' },
     { value: 'notes', label: 'Notes' },
+    { value: 'currency', label: 'Currency' },
     { value: 'skip', label: 'Skip' },
   ];
 
@@ -617,6 +769,10 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
   const statementCurrency = source === 'camt' ? (statements[statementIdx]?.currency ?? null) : null;
   const otherCurrency =
     statementCurrency && currency && statementCurrency !== currency ? statementCurrency : null;
+  // The file's rows in currencies not imported yet, offered once this import is done
+  const leftover = Object.entries(otherCurrencies).filter(([code]) => !finished.includes(code));
+  // Every row here is a duplicate or unticked (or there are none): the others can come next
+  const nothingHere = previewRows.length === excluded.size;
 
   return (
     <Modal isOpen={isOpen} onClose={handleClose} title="Import Transactions" size="lg">
@@ -777,21 +933,25 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
                 className={selectClass}
               />
             </label>
-            <label className={optionLabelClass}>
-              <span>Dates</span>
-              <select
-                value={dateFormat ?? ''}
-                onChange={(e) => setDateFormatChoice(e.target.value as DateFormat)}
-                className={selectClass}
-              >
-                {!dateFormat && <option value="">Choose…</option>}
-                {Object.entries(DATE_FORMAT_LABELS).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </label>
+            {/* Year-first or written-out dates (and a sheet's date cells) read the same in any
+                order: nothing to choose */}
+            {detected.dateShown && (
+              <label className={optionLabelClass}>
+                <span>Dates</span>
+                <select
+                  value={dateFormat ?? ''}
+                  onChange={(e) => setDateFormatChoice(e.target.value as DateFormat)}
+                  className={selectClass}
+                >
+                  {!dateFormat && <option value="">Choose…</option>}
+                  {Object.entries(DATE_FORMAT_LABELS).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
             <label className={optionLabelClass}>
               <span>Amounts</span>
               <select
@@ -851,6 +1011,58 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
               this account.
             </p>
           )}
+          {values.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-text-tertiary">Currencies in this file</p>
+              <table className="text-sm border-collapse">
+                <tbody>
+                  {values.map((v) => (
+                    <tr key={v.key}>
+                      <td className="pr-3 py-1 text-xs text-text">{v.text}</td>
+                      <td className="pr-3 py-1 text-xs text-text-tertiary whitespace-nowrap">
+                        {v.count} {v.count === 1 ? 'row' : 'rows'}
+                      </td>
+                      <td className="py-1">
+                        <CurrencySelect
+                          value={mapping[v.key] ?? ''}
+                          onChange={(code) =>
+                            setCurrencyChoices((prev) => ({ ...prev, [v.key]: code }))
+                          }
+                          first={context}
+                          placeholder="Choose…"
+                          size="sm"
+                          aria-label={`Currency of ${v.text}`}
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {unmapped.length > 0 && (
+                <p className="flex items-start gap-2 px-3 py-2 text-sm bg-caution-subtle text-caution rounded-lg">
+                  <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+                  <span>
+                    FlyBudget can't tell which currency{' '}
+                    {unmapped.map((v) => `"${v.text}"`).join(', ')}{' '}
+                    {unmapped.length === 1 ? 'is' : 'are'}. Choose it above.
+                  </span>
+                </p>
+              )}
+              {needsAccountCurrency && (
+                <p className="flex items-start gap-2 px-3 py-2 text-sm bg-caution-subtle text-caution rounded-lg">
+                  <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+                  <span>
+                    This file has rows in {fileCurrencies.join(' and ')}, but this account has no
+                    currency yet, so FlyBudget can't tell which rows belong here.{' '}
+                    <Link to="/settings?tab=currencies" className="underline hover:no-underline">
+                      Choose the budget's currency
+                    </Link>{' '}
+                    first.
+                  </span>
+                </p>
+              )}
+            </div>
+          )}
           <div className="overflow-x-auto">
             <table className="w-full text-sm border-collapse">
               <thead>
@@ -897,7 +1109,10 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
             <Button variant="secondary" onClick={() => setStep('upload')}>
               Back
             </Button>
-            <Button onClick={handlePreview} disabled={loading}>
+            <Button
+              onClick={() => handlePreview()}
+              disabled={loading || unmapped.length > 0 || needsAccountCurrency}
+            >
               {loading ? 'Checking...' : 'Preview'}
             </Button>
           </div>
@@ -918,12 +1133,50 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
               className="flex items-start gap-2 px-3 py-2 text-sm bg-caution-subtle text-caution rounded-lg"
             >
               <AlertTriangle size={14} className="mt-0.5 shrink-0" />
-              <span>
-                This statement is in {otherCurrency}, but this account is in {currency}. Import it
-                into an account in {otherCurrency} instead (you can add one with that currency).
+              <span className="space-y-2">
+                <span className="block">
+                  This statement is in {otherCurrency}, but this account is in {currency}.
+                </span>
+                <OtherAccountPicker
+                  key={`${accountId}:${otherCurrency}`}
+                  accountId={accountId}
+                  accounts={accounts}
+                  currency={otherCurrency}
+                  label="Import it into"
+                  onChoose={switchAccount}
+                  busy={loading}
+                />
               </span>
             </p>
           )}
+          {leftover.map(([code, count]) => (
+            <p
+              key={code}
+              role="status"
+              className="flex items-start gap-2 px-3 py-2 text-sm bg-surface-alt text-text-secondary rounded-lg"
+            >
+              <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+              <span className="space-y-2">
+                <span className="block">
+                  {count} {count === 1 ? 'row' : 'rows'} in {code}{' '}
+                  {count === 1 ? "isn't" : "aren't"} imported here.
+                  {!nothingHere &&
+                    ` You can import ${count === 1 ? 'it' : 'them'} into a ${code} account after this.`}
+                </span>
+                {nothingHere && (
+                  <OtherAccountPicker
+                    key={`${accountId}:${code}`}
+                    accountId={accountId}
+                    accounts={accounts}
+                    currency={code}
+                    label={`Import the ${code} rows into`}
+                    onChoose={switchAccount}
+                    busy={loading}
+                  />
+                )}
+              </span>
+            </p>
+          ))}
           {otherStatementAccount && (
             <p
               role="alert"
@@ -1030,9 +1283,83 @@ export function ImportModal({ isOpen, onClose, accountId }: Props) {
               {result.imported} imported, {result.skipped} skipped
             </p>
           </div>
+          {leftover.map(([code, count]) => (
+            <div key={code} className="text-sm text-text-secondary">
+              <OtherAccountPicker
+                key={`${accountId}:${code}`}
+                accountId={accountId}
+                accounts={accounts}
+                currency={code}
+                label={`Import the ${count} ${code} ${count === 1 ? 'row' : 'rows'} into`}
+                onChoose={switchAccount}
+                busy={loading}
+              />
+            </div>
+          ))}
           <Button onClick={handleClose}>Done</Button>
         </div>
       )}
     </Modal>
+  );
+}
+
+/**
+ * "Import the 12 USD rows into [account ▾]": goes on with the same file in an open account in
+ * that currency, suggesting the card's other side. Leaving it is the same as not importing.
+ */
+function OtherAccountPicker({
+  accountId,
+  accounts,
+  currency,
+  label,
+  onChoose,
+  busy,
+}: {
+  accountId: string;
+  accounts: readonly Account[];
+  currency: string;
+  label: string;
+  onChoose: (accountId: string) => void;
+  /** A preview is loading */
+  busy: boolean;
+}) {
+  const sections = usePreferencesStore((s) => s.accountSections);
+  const { options, defaultId } = followUpAccounts(accountId, accounts, currency, sections);
+  // The suggestion until the user picks (accounts and sections may still be loading)
+  const [picked, setPicked] = useState<string | null>(null);
+  const chosen = picked ?? defaultId ?? '';
+  if (!options.length) {
+    return (
+      <span>
+        There's no open account in {currency} to import them into: add one, then import this file
+        into it.
+      </span>
+    );
+  }
+  return (
+    <span className="flex flex-wrap items-center gap-2">
+      <span>{label}</span>
+      <select
+        value={chosen}
+        onChange={(e) => setPicked(e.target.value)}
+        aria-label={`Account for the ${currency} rows`}
+        className="text-xs border border-border rounded px-1.5 py-1 bg-surface text-text max-md:min-h-11"
+      >
+        {!chosen && <option value="">Choose an account…</option>}
+        {options.map((a) => (
+          <option key={a.id} value={a.id}>
+            {a.name}
+          </option>
+        ))}
+      </select>
+      <Button
+        size="sm"
+        disabled={!chosen || busy}
+        onClick={() => onChoose(chosen)}
+        aria-label={`Preview the ${currency} rows`}
+      >
+        Preview
+      </Button>
+    </span>
   );
 }

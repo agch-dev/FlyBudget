@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isCurrencyCode } from './currencies.js';
 
 // How an account's bank writes its CSV files, remembered from the last import (keep in sync
 // with `ImportSettings` in client/src/utils/csv.ts)
@@ -23,6 +24,21 @@ const COLUMN_ROLES = [
   'notes',
   'skip',
 ] as const;
+
+/**
+ * An object read as [key, value] pairs and rebuilt with Object.fromEntries, which keeps any key
+ * as written: a record schema assigns keys one by one, and assigning a key named "__proto__"
+ * changes the object's prototype instead
+ */
+const entries = <V extends z.ZodType>(key: z.ZodString, value: V, max: number, what: string) =>
+  z
+    .preprocess(
+      (v) => (v && typeof v === 'object' && !Array.isArray(v) ? Object.entries(v) : v),
+      z.array(z.tuple([key, value])).max(max, `Too many ${what}`),
+    )
+    .transform((pairs): Record<string, z.infer<V>> => Object.fromEntries(pairs));
+
+const currencyCode = z.string().refine(isCurrencyCode, 'Not a currency');
 
 /**
  * Upstream's settings (dtymoszenko/FlyBudget), unchanged: a backup taken here must still read on
@@ -57,7 +73,14 @@ const upstreamImportSettingsSchema = z.object({
  * reads or re-saves the settings, so a missing key means "not known, guess or ask". Add each
  * new key's values to `EXTRA_KEYS` in routes/importSettingsRoundTrip.test.ts.
  */
-export const importSettingsSchema = upstreamImportSettingsSchema.extend({});
+export const importSettingsSchema = upstreamImportSettingsSchema.extend({
+  /** The column (its key in `columns`, where it's `skip`) saying each row's currency */
+  currencyColumn: z.string().max(200).optional(),
+  /** What that column's values mean: the value as written → ISO code */
+  currencyNames: entries(z.string().max(100), currencyCode, 200, 'currencies').optional(),
+  /** Amount columns that each hold one currency (`Pesos`, `Dólares`): column key → ISO code */
+  columnCurrencies: entries(z.string().max(200), currencyCode, 200, 'columns').optional(),
+});
 
 export type ImportSettings = z.infer<typeof importSettingsSchema>;
 

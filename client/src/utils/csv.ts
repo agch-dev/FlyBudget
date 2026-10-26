@@ -1,4 +1,5 @@
 import type { ImportRow } from '../api/transactions';
+import { currencyTextKey } from './currencyText';
 
 export type Delimiter = ',' | ';' | '\t';
 
@@ -471,7 +472,14 @@ const COLUMN_HINTS: Record<string, ColumnRole> = {
   's/h': 'direction',
 };
 
-export type ColumnRole =
+/**
+ * What a column holds. `currency` (each row's currency) is saved as `skip`, with the column in
+ * `ImportSettings.currencyColumn`: a role upstream doesn't know would make it forget them all.
+ */
+export type ColumnRole = SavedColumnRole | 'currency';
+
+/** The roles saved in `ImportSettings.columns` (upstream's) */
+export type SavedColumnRole =
   'date' | 'payee' | 'amount' | 'inflow' | 'outflow' | 'direction' | 'notes' | 'skip';
 
 // What banks write in a direction column, lowercased and without dots
@@ -521,10 +529,16 @@ export interface ImportSettings {
   encoding: CsvEncoding;
   skipRows: number;
   /** Column header → what it holds */
-  columns: Record<string, ColumnRole>;
+  columns: Record<string, SavedColumnRole>;
   dateFormat: DateFormat | null;
   numberFormat: NumberFormat | null;
   outWord: string | null;
+  /** The column (key, as in `columns`) saying each row's currency; missing = guess it */
+  currencyColumn?: string;
+  /** What that column's values mean, as written → ISO code (the user's choices too) */
+  currencyNames?: Record<string, string>;
+  /** Amount columns that each hold one currency (column key → ISO code); not read yet */
+  columnCurrencies?: Record<string, string>;
 }
 
 /**
@@ -619,7 +633,7 @@ function isRealDate(value: string): boolean {
 /** A file row left out of an import: `row` counts data rows from 1, `value` is the cell text */
 export interface SkippedRow {
   row: number;
-  field: 'date' | 'amount' | 'direction';
+  field: 'date' | 'amount' | 'direction' | 'currency';
   value: string;
 }
 
@@ -631,17 +645,30 @@ export interface ImportFormats {
   outWord?: string | null;
   /** Decimals of the account's currency (2 unless given: none for yen) */
   minor?: number;
+  /**
+   * With a `currency` column: what its values mean (keyed by `currencyTextKey`) and the
+   * account's currency. Once the file holds another currency, only the account's rows are
+   * imported; null (not known) imports every row, as without the column.
+   */
+  currencies?: { names: Record<string, string>; account: string | null };
 }
 
 /**
- * The rows to import, plus every row left out (a date, amount or direction it can't read,
- * or an amount of zero) so the preview can say so; or a message saying why there are none.
+ * The rows to import, plus every row left out (a date, amount, direction or currency it can't
+ * read, or an amount of zero) so the preview can say so, and how many rows are in each other
+ * currency (left for another account's import); or a message saying why there are none.
  */
 export function buildImportRows(
   rawRows: string[][],
   roles: ColumnRole[],
-  { dateFormat = 'mdy', numberFormat = 'dot', outWord = null, minor = 2 }: ImportFormats = {},
-): { rows: ImportRow[]; skipped: SkippedRow[] } | string {
+  {
+    dateFormat = 'mdy',
+    numberFormat = 'dot',
+    outWord = null,
+    minor = 2,
+    currencies,
+  }: ImportFormats = {},
+): { rows: ImportRow[]; skipped: SkippedRow[]; otherCurrencies: Record<string, number> } | string {
   const dateIdx = roles.indexOf('date');
   const payeeIdx = roles.indexOf('payee');
   const amountIdx = roles.indexOf('amount');
@@ -649,6 +676,7 @@ export function buildImportRows(
   const outflowIdx = roles.indexOf('outflow');
   const notesIdx = roles.indexOf('notes');
   const directionIdx = roles.indexOf('direction');
+  const currencyIdx = roles.indexOf('currency');
 
   if (dateIdx === -1) return 'Date column is required';
   if (amountIdx === -1 && inflowIdx === -1 && outflowIdx === -1) {
@@ -664,10 +692,33 @@ export function buildImportRows(
   const sideAmount = (idx: number, raw: string[]) =>
     idx !== -1 && /\d/.test(raw[idx] ?? '') ? cellAmount(idx, raw) : 0;
 
+  const rowCurrency = (raw: string[]) => {
+    const key = currencyTextKey(raw[currencyIdx] ?? '');
+    return key && Object.hasOwn(currencies!.names, key) ? currencies!.names[key] : null;
+  };
+  const account = currencies?.account;
+  // Only a file with rows not in the account's currency is split (another currency, or none);
+  // otherwise the column changes nothing
+  const split =
+    currencyIdx !== -1 && !!account && rawRows.some((raw) => rowCurrency(raw) !== account);
+
   const rows: ImportRow[] = [];
   const skipped: SkippedRow[] = [];
+  const otherCurrencies: Record<string, number> = {};
   const seen = new Map<string, number>();
   rawRows.forEach((raw, i) => {
+    if (split) {
+      const currency = rowCurrency(raw);
+      if (currency === null) {
+        skipped.push({ row: i + 1, field: 'currency', value: raw[currencyIdx]?.trim() ?? '' });
+        return;
+      }
+      if (currency !== account) {
+        // Counted, but not checked: that account's import reports what it can't read
+        otherCurrencies[currency] = (otherCurrencies[currency] ?? 0) + 1;
+        return;
+      }
+    }
     const date = normalizeDate(raw[dateIdx] ?? '', dateFormat);
     if (!isRealDate(date)) {
       skipped.push({ row: i + 1, field: 'date', value: raw[dateIdx] ?? '' });
@@ -711,14 +762,18 @@ export function buildImportRows(
     const importedId = generateImportId(date, amount, payeeName ?? '', occurrence);
     rows.push({ date, amount, payeeName, notes, importedId });
   });
-  return { rows, skipped };
+  return { rows, skipped, otherCurrencies };
 }
 
 /** "2 rows skipped: row 3, amount "N/A"; row 7, date "13/45/2024"." (the first `max` named) */
 export function describeSkippedRows(skipped: SkippedRow[], max = 5): string {
   const listed = skipped
     .slice(0, max)
-    .map((s) => `row ${s.row}, ${s.field} ${s.value ? `"${s.value}"` : '(empty)'}`);
+    .map((s) =>
+      s.field === 'currency' && !s.value
+        ? `row ${s.row}, no currency`
+        : `row ${s.row}, ${s.field} ${s.value ? `"${s.value}"` : '(empty)'}`,
+    );
   if (skipped.length > max) listed.push(`and ${skipped.length - max} more`);
   const count = `${skipped.length} ${skipped.length === 1 ? 'row' : 'rows'} skipped`;
   return `${count}: ${listed.join('; ')}.`;

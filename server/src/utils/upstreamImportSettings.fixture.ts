@@ -1,5 +1,5 @@
 // A frozen copy of upstream's server/src/utils/importSettings.ts (dtymoszenko/FlyBudget at
-// 12e6b93), for importSettingsRoundTrip.test.ts: it checks that every settings value this
+// d8e53ac), for importSettingsRoundTrip.test.ts: it checks that every settings value this
 // branch writes still reads on plain upstream, and what upstream's re-save leaves behind.
 // Never edit it by hand. When merging upstream, copy the file again, update the commit above
 // and read the diff: any change upstream made to the settings shows up there.
