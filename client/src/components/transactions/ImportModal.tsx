@@ -60,7 +60,7 @@ import { currencyTextKey } from '../../utils/currencyText';
 import { useAccounts } from '../../hooks/useAccounts';
 import { usePreferencesStore } from '../../store/preferencesStore';
 import { CurrencySelect } from '../currency/CurrencySelect';
-import { accountTypeInfo } from '../../utils/accountTypes';
+import { isCreditType } from '../../utils/accountTypes';
 import {
   currencyContext,
   currencyMapping,
@@ -547,8 +547,7 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
   const needsOutWord = hasDirection && !outWord.trim() && detected.unknownDirections.length > 0;
   const canFlip = canFlipSigns(roles);
   // Advice only, on credit cards: purchases written as positive would import as money in
-  const isCredit =
-    accountTypeInfo(accounts.find((a) => a.id === accountId)?.type ?? '').group === 'credit';
+  const isCredit = isCreditType(accounts.find((a) => a.id === accountId)?.type ?? '');
   const amountIdx = roles.indexOf('amount');
   const suggestFlip = useMemo(() => {
     if (!isCredit || !canFlip || outPositive || !numberFormat) return false;
