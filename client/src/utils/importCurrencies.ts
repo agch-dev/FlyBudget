@@ -156,16 +156,18 @@ export function markCurrencyColumns(
       ? 'amount'
       : role,
   );
-  return marked.some((role, i) => role === 'amount' && named(i))
+  // A lone `Amount (USD)` is only a check: a currency column still says each row's currency
+  return marked.filter((role, i) => role === 'amount' && named(i)).length > 1
     ? marked.map((role) => (role === 'currency' ? 'skip' : role))
-    : markCurrencyColumn(headers, rows, roles, saved?.currencyColumn, locales);
+    : markCurrencyColumn(headers, rows, marked, saved?.currencyColumn, locales);
 }
 
 /**
  * The currency of each amount column (by index), null where it isn't known: what the user
  * chose now, else what was saved for that column (by key), else what its header says, settled
  * by `context` when it could be several. Null for a file whose amount columns name no
- * currency: then it's read as one currency.
+ * currency, or that has a currency column and one amount column (which is only a check):
+ * then it's read as one currency, or by the currency column.
  */
 export function amountColumnCurrencies(
   headers: string[],
@@ -198,7 +200,19 @@ export function amountColumnCurrencies(
     const around = candidates.filter((c) => context.includes(c));
     found[i] = candidates.length === 1 ? candidates[0] : around.length === 1 ? around[0] : null;
   });
+  if (roles.includes('currency') && Object.keys(found).length < 2) return null;
   return named ? found : null;
+}
+
+/** The currencies of `amountColumnCurrencies` by column key, as saved and chosen (no nulls) */
+export function columnCurrenciesByKey(
+  headers: string[],
+  currencies: Record<number, string | null>,
+): Record<string, string> {
+  const keys = columnKeys(headers);
+  return Object.fromEntries(
+    Object.entries(currencies).flatMap(([idx, code]) => (code ? [[keys[Number(idx)], code]] : [])),
+  );
 }
 
 /** One value of the currency column: as first written, and how many rows have it */

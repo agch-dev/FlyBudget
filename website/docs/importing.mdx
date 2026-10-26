@@ -193,9 +193,10 @@ amount.
 
 The rest works as with a currency column: the preview counts the amounts in other currencies, and
 the done step offers to import them into another account. FlyBudget remembers each column's
-currency for the account. If the file also has a currency column, the amount columns win. A
-single column named after a currency (`Amount (USD)`) works as a check: imported into an account
-in another currency, nothing is imported there and FlyBudget offers an account in USD instead.
+currency for the account. If the file also has a currency column, two or more amount columns win
+over it. A single column named after a currency (`Amount (USD)`) is only a check: a currency
+column next to it still says each row's currency, and without one, importing it into an account
+in another currency imports nothing there and offers an account in USD instead.
 Amounts must have a sign (or a direction column): an **Inflow** and **Outflow** pair per currency
 isn't supported.
 

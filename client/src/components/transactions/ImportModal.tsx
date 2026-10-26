@@ -60,6 +60,7 @@ import { usePreferencesStore } from '../../store/preferencesStore';
 import { CurrencySelect } from '../currency/CurrencySelect';
 import {
   amountColumnCurrencies,
+  columnCurrenciesByKey,
   currencyContext,
   currencyMapping,
   currencyValues,
@@ -578,7 +579,10 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
   const fileCurrencies = [
     ...new Set(
       columnCurrencies
-        ? Object.values(columnCurrencies).filter((code): code is string => !!code)
+        ? // Only the columns holding amounts: a column of zeros is no currency of this file
+          Object.entries(columnCurrencies).flatMap(([idx, code]) =>
+            code && rawRows.some((r) => /[1-9]/.test(r[Number(idx)] ?? '')) ? [code] : [],
+          )
         : values.flatMap((v) => mapping[v.key] ?? []),
     ),
   ];
@@ -608,7 +612,12 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
       currencies: {
         names,
         account: target.currency,
-        ...(columnCurrencies && { columns: columnCurrencies as Record<number, string> }),
+        // Every column's currency is known by now (checked above)
+        ...(columnCurrencies && {
+          columns: Object.fromEntries(
+            Object.entries(columnCurrencies).filter((e): e is [string, string] => !!e[1]),
+          ),
+        }),
       },
     });
     if (typeof built === 'string') {
@@ -645,16 +654,8 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
     // Each value and column keeps the currency it was read as here, whatever accounts are
     // around there
     setCurrencyChoices(names);
-    if (columnCurrencies) {
-      const keys = columnKeys(headers);
-      setColumnCurrencyChoices(
-        Object.fromEntries(
-          Object.entries(columnCurrencies).flatMap(([idx, code]) =>
-            code ? [[keys[Number(idx)], code]] : [],
-          ),
-        ),
-      );
-    }
+    if (columnCurrencies)
+      setColumnCurrencyChoices(columnCurrenciesByKey(headers, columnCurrencies));
     // What that account remembers is updated after its import, not replaced by this one's
     setOwnSaved(null);
     void savedImport(id).then((s) => {
@@ -720,11 +721,7 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
         ...(currencyIdx !== -1 && { currencyColumn: keys[currencyIdx] }),
         ...(Object.keys(currencyNames).length && { currencyNames }),
         ...(columnCurrencies && {
-          columnCurrencies: Object.fromEntries(
-            Object.entries(columnCurrencies).flatMap(([idx, code]) =>
-              code ? [[keys[Number(idx)], code]] : [],
-            ),
-          ),
+          columnCurrencies: columnCurrenciesByKey(headers, columnCurrencies),
         }),
       };
       request = saveImportSettings(accountId, settings);

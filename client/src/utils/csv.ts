@@ -733,15 +733,14 @@ export function buildImportRows(
   rawRows.forEach((raw, i) => {
     // The amount cells this row is read from (-1: its inflow and outflow cells)
     let cells = [amountIdx];
-    // Per currency: no cell with anything in it, reported as an amount below
-    let allZero = false;
+    // Per currency: the cells with an amount, every one of them when none has
+    let filled = currencyColumns;
     if (perColumn) {
-      const filled = filledCells(raw);
-      const here = split ? filled.filter((c) => c.currency === account) : filled;
+      filled = filledCells(raw);
+      const inAccount = split ? filled.filter((c) => c.currency === account) : filled;
       if (split) for (const c of filled) if (c.currency !== account) countOther(c.currency);
-      if (filled.length && !here.length) return; // only other currencies: theirs to import
-      allZero = !filled.length;
-      cells = allZero ? [currencyColumns[0].idx] : here.map((c) => c.idx);
+      if (filled.length && !inAccount.length) return; // only other currencies: theirs to import
+      cells = inAccount.map((c) => c.idx);
     } else if (split) {
       const currency = rowCurrency(raw);
       if (currency === null) {
@@ -758,6 +757,14 @@ export function buildImportRows(
       skipped.push({ row: i + 1, field: 'date', value: raw[dateIdx] ?? '' });
       return;
     }
+    if (perColumn && !filled.length) {
+      const value = currencyColumns
+        .map((c) => raw[c.idx]?.trim() ?? '')
+        .filter(Boolean)
+        .join(' / ');
+      skipped.push({ row: i + 1, field: 'amount', value });
+      return;
+    }
 
     for (const idx of cells) {
       let amount: number | null;
@@ -772,6 +779,7 @@ export function buildImportRows(
       if (amount !== null && directionIdx !== -1) {
         // Banks like ING write every amount as positive and the direction beside it
         const direction = readDirection(raw[directionIdx], outWord);
+        // The same for every cell of the row, so none of them is imported yet
         if (!direction) {
           skipped.push({ row: i + 1, field: 'direction', value: raw[directionIdx] ?? '' });
           return;
@@ -779,13 +787,7 @@ export function buildImportRows(
         amount = direction === 'out' ? -Math.abs(amount) : Math.abs(amount);
       }
       if (!amount) {
-        const shown =
-          idx === -1
-            ? [inflowIdx, outflowIdx]
-            : allZero
-              ? currencyColumns.map((c) => c.idx)
-              : [idx];
-        const value = shown
+        const value = (idx === -1 ? [inflowIdx, outflowIdx] : [idx])
           .map((c) => (c !== -1 ? (raw[c] ?? '') : ''))
           .filter(Boolean)
           .join(' / ');

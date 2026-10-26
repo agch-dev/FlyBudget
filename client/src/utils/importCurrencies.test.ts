@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
 import {
   amountColumnCurrencies,
+  columnCurrenciesByKey,
   currencyContext,
   currencyMapping,
   currencyValues,
@@ -173,14 +174,26 @@ describe('markCurrencyColumns', () => {
       'amount',
       'skip',
     ]);
-    // In English, "Dólares" is the user's to map
+    // In English, "Dólares" is the user's to map: until then the currency column stays
     expect(markCurrencyColumns(headers, rows, roles, null, EN)).toEqual([
       'date',
       'payee',
       'skip',
       'amount',
       'skip',
+      'currency',
+    ]);
+  });
+
+  it('keeps a currency column next to a lone column named after a currency (only a check)', () => {
+    const lone = ['Date', 'Payee', 'Amount (USD)', 'x', 'y', 'Moneda'];
+    expect(markCurrencyColumns(lone, rows, roles, null, EN)).toEqual([
+      'date',
+      'payee',
+      'amount',
       'skip',
+      'skip',
+      'currency',
     ]);
   });
 
@@ -236,6 +249,22 @@ describe('amountColumnCurrencies', () => {
     expect(amountColumnCurrencies(headers, plainToo, { context: ['UYU'], locales: EN })).toEqual({
       1: 'UYU',
       3: null,
+    });
+  });
+
+  it('leaves a lone named column to a currency column', () => {
+    const lone = ['Date', 'Amount (USD)', 'Moneda'];
+    expect(
+      amountColumnCurrencies(lone, ['date', 'amount', 'currency'], { context: [], locales: EN }),
+    ).toBeNull();
+    expect(
+      amountColumnCurrencies(lone, ['date', 'amount', 'skip'], { context: [], locales: EN }),
+    ).toEqual({ 1: 'USD' });
+  });
+
+  it('keys the known currencies by column, as they are saved', () => {
+    expect(columnCurrenciesByKey(['Pesos', 'Fecha', 'Pesos'], { 0: 'UYU', 2: null })).toEqual({
+      Pesos: 'UYU',
     });
   });
 
