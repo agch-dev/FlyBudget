@@ -17,6 +17,7 @@ export type SymbolPosition = 'before' | 'after';
 export type SidebarMode = 'persistent' | 'auto-hide';
 /** The sidebar's two lists of accounts: For budget and Off budget */
 export type BudgetList = 'onBudget' | 'offBudget';
+export type AccountSort = 'manual' | 'balance-desc' | 'balance-asc' | 'transactions' | 'name';
 /** How one currency's amounts are shown, when its own convention isn't wanted */
 export interface CurrencyDisplay {
   position?: SymbolPosition;
@@ -59,6 +60,8 @@ interface PreferencesState {
   setupSkipped: boolean;
   /** The getting started checklist on the dashboard was hidden */
   gettingStartedHidden: boolean;
+  /** How the Accounts page orders each group: manual is the order from Settings → Accounts */
+  accountSort: AccountSort;
   setTheme: (theme: Theme) => void;
   setCurrencySymbol: (symbol: string) => void;
   setAmountFormat: (format: AmountFormat | 'auto') => void;
@@ -79,6 +82,7 @@ interface PreferencesState {
   setKeepOfflineCopy: (keep: boolean) => void;
   setSetupSkipped: (skipped: boolean) => void;
   setGettingStartedHidden: (hidden: boolean) => void;
+  setAccountSort: (sort: AccountSort) => void;
 }
 
 const PREFERENCES_KEY = 'budget-preferences';
@@ -121,6 +125,7 @@ export const usePreferencesStore = create<PreferencesState>()(
       keepOfflineCopy: true,
       setupSkipped: false,
       gettingStartedHidden: false,
+      accountSort: 'manual',
       setTheme: (theme) => set({ theme }),
       setCurrencySymbol: (currencySymbol) => set({ currencySymbol }),
       setAmountFormat: (amountFormat) => set({ amountFormat }),
@@ -152,6 +157,7 @@ export const usePreferencesStore = create<PreferencesState>()(
       setKeepOfflineCopy: (keepOfflineCopy) => set({ keepOfflineCopy }),
       setSetupSkipped: (setupSkipped) => set({ setupSkipped }),
       setGettingStartedHidden: (gettingStartedHidden) => set({ gettingStartedHidden }),
+      setAccountSort: (accountSort) => set({ accountSort }),
     }),
     {
       name: PREFERENCES_KEY,
