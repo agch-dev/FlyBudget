@@ -115,8 +115,10 @@ const NO_ACCOUNTS: Account[] = [];
 export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
   const [step, setStep] = useState<Step>('upload');
   // The account being imported into: the one the dialog was opened for, until the rows of
-  // another currency in the file are imported into another account
-  const [accountId, setAccountId] = useState(openedFor);
+  // another currency in the file are imported into another account (null until then, so a
+  // dialog that stays mounted follows the page to another account)
+  const [switchedTo, setSwitchedTo] = useState<string | null>(null);
+  const accountId = switchedTo ?? openedFor;
   const currencyOf = useAccountCurrency();
   const currency = currencyOf(accountId);
   const { data: accounts = NO_ACCOUNTS } = useAccounts();
@@ -177,7 +179,7 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
   function reset() {
     loadId.current++;
     setStep('upload');
-    setAccountId(openedFor);
+    setSwitchedTo(null);
     setCurrencyChoices({});
     setOtherCurrencies({});
     setFinished([]);
@@ -294,7 +296,7 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
       // Every row in another currency: nothing to check, only the switch to another account
       const preview = rows.length ? await importPreview(target.id, rows) : [];
       if (load !== loadId.current) return; // closed while checking
-      setAccountId(target.id);
+      setSwitchedTo(target.id === openedFor ? null : target.id);
       setSkippedRows(skipped);
       setSkippedEntries(camtSkipped);
       setOtherCurrencies(others);
@@ -351,6 +353,10 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
     if (load !== loadId.current) return;
     setCurrencyChoices({});
     setFinished([]);
+    // A new file goes into the account the dialog was opened for, even after a switch
+    setSwitchedTo(null);
+    setOwnSaved(null);
+    const opened: Target = { id: openedFor, currency: currencyOf(openedFor) };
 
     // A workbook is told by its content, whatever the file is called
     if (spreadsheetKind(new Uint8Array(buffer))) {
@@ -360,7 +366,7 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
         setError('No rows could be imported. Every sheet in this file is empty.');
         return;
       }
-      const savedSettings = (await savedImport())?.settings ?? null;
+      const savedSettings = (await savedImport(opened.id))?.settings ?? null;
       if (load !== loadId.current) return;
       setSource('xlsx');
       setSaved(savedSettings);
@@ -386,7 +392,7 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
         setError("This file isn't a bank statement FlyBudget can read (CAMT.053)");
         return;
       }
-      const known = (await savedImport())?.statementAccount ?? null;
+      const known = (await savedImport(opened.id))?.statementAccount ?? null;
       if (load !== loadId.current) return;
       setSource('camt');
       setStatements(found);
@@ -397,13 +403,13 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
         found.findIndex((s) => known !== null && statementAccountKey(s.account) === known),
       );
       setStatementIdx(idx);
-      if (found.length === 1) await previewStatement(found[0]);
+      if (found.length === 1) await previewStatement(found[0], opened);
       else setStep('statement');
       return;
     }
 
     setSource('csv');
-    const savedSettings = (await savedImport())?.settings ?? null;
+    const savedSettings = (await savedImport(opened.id))?.settings ?? null;
     if (load !== loadId.current) return; // closed (or another file chosen) meanwhile
     setSaved(savedSettings);
     setOwnSaved(savedSettings);
