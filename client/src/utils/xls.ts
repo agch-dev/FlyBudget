@@ -8,12 +8,16 @@ import {
   type Sheet,
   type SparseRows,
   SPREADSHEET_MESSAGES,
+  MAX_WORKBOOK_BYTES,
+  OLE_SIGNATURE,
 } from './spreadsheetCells';
 
 // Reads Excel 97-2003 workbooks (.xls): an OLE compound file holding a "Workbook" stream
 // of BIFF8 records ([MS-CFB], [MS-XLS]). Only what an import needs: each sheet's cell
 // values. Files come from banks, so they are untrusted input: every offset is checked,
 // every chain of sectors is bounded, and each part of the stream is read once.
+
+const dataView = (data: Uint8Array) => new DataView(data.buffer, data.byteOffset, data.byteLength);
 
 const corrupt = () => new SpreadsheetError(SPREADSHEET_MESSAGES.damaged);
 
@@ -30,7 +34,7 @@ interface DirectoryEntry {
 
 /** The "Workbook" stream of an OLE compound file (or "Book", from Excel 5 and 95) */
 function workbookStream(bytes: Uint8Array): { stream: Uint8Array; biff5: boolean } {
-  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const view = dataView(bytes);
   if (bytes.length < 512) throw corrupt();
   const sectorShift = view.getUint16(30, true);
   if ((sectorShift !== 9 && sectorShift !== 12) || view.getUint16(32, true) !== 6) throw corrupt();
@@ -87,7 +91,7 @@ function workbookStream(bytes: Uint8Array): { stream: Uint8Array; biff5: boolean
 
   // The directory: 128-byte entries naming each stream, where it starts and its size
   const directory = readChain(view.getUint32(48, true));
-  const entries = new DataView(directory.buffer, directory.byteOffset, directory.byteLength);
+  const entries = dataView(directory);
   const names = new TextDecoder('utf-16le');
   let root: DirectoryEntry | undefined;
   const streams = new Map<string, DirectoryEntry>();
@@ -100,15 +104,16 @@ function workbookStream(bytes: Uint8Array): { stream: Uint8Array; biff5: boolean
     };
     const type = entries.getUint8(at + 66);
     if (type === 5) root ??= entry;
-    else if (type === 2 && !streams.has(name)) streams.set(name, entry);
+    // Names are compared without regard to case ([MS-CFB] 2.6.4)
+    else if (type === 2 && !streams.has(name.toLowerCase())) streams.set(name.toLowerCase(), entry);
   }
   // An .xlsx with a password is an OLE file holding the encrypted workbook
-  if (streams.has('EncryptedPackage')) {
+  if (streams.has('encryptedpackage')) {
     throw new SpreadsheetError(SPREADSHEET_MESSAGES.password);
   }
-  const book = streams.get('Workbook') ?? streams.get('Book');
+  const book = streams.get('workbook') ?? streams.get('book');
   if (!book) throw new SpreadsheetError(SPREADSHEET_MESSAGES.notWorkbook);
-  const biff5 = !streams.has('Workbook');
+  const biff5 = !streams.has('workbook');
 
   if (book.size >= view.getUint32(56, true)) {
     return { stream: readChain(book.start, book.size), biff5 };
@@ -118,11 +123,7 @@ function workbookStream(bytes: Uint8Array): { stream: Uint8Array; biff5: boolean
   if (!root) throw corrupt();
   const miniStream = readChain(root.start, root.size);
   const miniTableBytes = readChain(view.getUint32(60, true));
-  const miniTable = new DataView(
-    miniTableBytes.buffer,
-    miniTableBytes.byteOffset,
-    miniTableBytes.byteLength,
-  );
+  const miniTable = dataView(miniTableBytes);
   const miniNext: number[] = [];
   for (let j = 0; j + 4 <= miniTableBytes.length; j += 4) {
     miniNext.push(miniTable.getUint32(j, true));
@@ -167,7 +168,7 @@ interface BiffRecord {
 
 /** The records of a stream from `at` up to `end`, each with its CONTINUE records */
 function* records(stream: Uint8Array, at: number, end = stream.length): Generator<BiffRecord> {
-  const view = new DataView(stream.buffer, stream.byteOffset, stream.byteLength);
+  const view = dataView(stream);
   while (at + 4 <= end) {
     const type = view.getUint16(at, true);
     const length = view.getUint16(at + 2, true);
@@ -274,10 +275,13 @@ function rkNumber(view: DataView, at: number): number {
   return rk & 0x01 ? value / 100 : value;
 }
 
-const dataView = (data: Uint8Array) => new DataView(data.buffer, data.byteOffset, data.byteLength);
-
 /** Every visible worksheet of an .xls workbook, in the workbook's order */
 export function readXls(bytes: Uint8Array): Sheet[] {
+  // Without an OLE file around it: from Excel 4.0 or older (see `spreadsheetKind`)
+  if (!OLE_SIGNATURE.every((b, i) => bytes[i] === b)) {
+    throw new SpreadsheetError(SPREADSHEET_MESSAGES.tooOld);
+  }
+  if (bytes.length > MAX_WORKBOOK_BYTES) throw new SpreadsheetError(SPREADSHEET_MESSAGES.tooLarge);
   const { stream, biff5 } = workbookStream(bytes);
   const first = records(stream, 0).next().value;
   if (!first || first.type !== BOF || first.chunks[0].length < 4) throw corrupt();

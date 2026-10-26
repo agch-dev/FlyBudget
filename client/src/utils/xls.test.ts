@@ -521,6 +521,10 @@ describe('readSpreadsheet (.xls)', () => {
       password,
     );
 
+    // Stream names are read without regard to case
+    const upper = compoundFile(workbook, { small: true, name: 'WORKBOOK' });
+    expect(await readSpreadsheet(upper)).toHaveLength(2);
+
     // A Word document
     await refuses(
       compoundFile(new Uint8Array(100), { small: true, name: 'WordDocument' }),

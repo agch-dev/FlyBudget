@@ -25,7 +25,10 @@ export const SPREADSHEET_MESSAGES = {
     'This file is a web page saved as .xls. Open it in Excel or LibreOffice, save it as .xlsx and import that.',
 } as const;
 
-/** A workbook file, or what it unpacks to, may not be larger than this */
+/** The first bytes of an OLE compound file: an .xls, or an .xlsx with a password */
+export const OLE_SIGNATURE = [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1];
+
+/** An .xls file, or what an .xlsx unpacks to, may not be larger than this */
 export const MAX_WORKBOOK_BYTES = 200 * 1024 * 1024;
 
 /** The most cells a sheet may have once empty rows and columns are left out */

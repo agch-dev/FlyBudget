@@ -1,5 +1,5 @@
 import {
-  MAX_WORKBOOK_BYTES,
+  OLE_SIGNATURE,
   SPREADSHEET_MESSAGES,
   SpreadsheetError,
   numberText,
@@ -23,7 +23,6 @@ import {
 export { SpreadsheetError, type Cell, type Sheet } from './spreadsheetCells';
 
 const hasMagic = (bytes: Uint8Array, magic: number[]) => magic.every((b, i) => bytes[i] === b);
-const OLE_SIGNATURE = [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1];
 
 /** A file from Excel 4.0 or older (BIFF2-4): no OLE file around it, a BOF record first */
 function isOldExcel(bytes: Uint8Array): boolean {
@@ -73,12 +72,6 @@ export async function readSpreadsheet(bytes: Uint8Array): Promise<Sheet[]> {
   const kind = spreadsheetKind(bytes);
   if (kind === 'html') throw new SpreadsheetError(SPREADSHEET_MESSAGES.webPage);
   if (kind === null) throw new SpreadsheetError(SPREADSHEET_MESSAGES.notWorkbook);
-  if (kind === 'xls' && !hasMagic(bytes, OLE_SIGNATURE)) {
-    throw new SpreadsheetError(SPREADSHEET_MESSAGES.tooOld);
-  }
-  if (kind === 'xls' && bytes.length > MAX_WORKBOOK_BYTES) {
-    throw new SpreadsheetError(SPREADSHEET_MESSAGES.tooLarge);
-  }
   try {
     return kind === 'xls' ? readXls(bytes) : await readXlsx(bytes);
   } catch (error) {
