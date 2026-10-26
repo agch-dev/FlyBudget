@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
 import {
   buildImportRows,
+  canFlipSigns,
   columnKeys,
   columnRolesFor,
   decodeCsvBytes,
@@ -12,6 +13,8 @@ import {
   detectSkipRows,
   generateImportId,
   guessColumnRoles,
+  hasDirectionWord,
+  mostlyPositive,
   normalizeDate,
   normalizeHeader,
   parseCsv,
@@ -809,6 +812,90 @@ describe('buildImportRows', () => {
         }
       }),
     );
+  });
+});
+
+describe('Flip amount signs', () => {
+  const roles: ColumnRole[] = ['date', 'payee', 'amount'];
+  const amounts = (rawRows: string[][], outPositive: boolean, r = roles) => {
+    const built = buildImportRows(rawRows, r, { outPositive });
+    if (typeof built === 'string') throw new Error(built);
+    return built.rows.map((row) => row.amount);
+  };
+  // Signed amounts as banks write them: a leading or trailing minus, or parentheses
+  const signed = fc
+    .tuple(fc.integer({ min: 1, max: 99999999 }), fc.constantFrom('', '-', 'trail', 'parens'))
+    .map(([cents, sign]) => {
+      const n = (cents / 100).toFixed(2);
+      return sign === '-' ? `-${n}` : sign === 'trail' ? `${n}-` : sign === 'parens' ? `(${n})` : n;
+    });
+  const worded = fc
+    .tuple(fc.integer({ min: 1, max: 99999999 }), fc.constantFrom('DR', 'CR', 'Dr.', 'cr'))
+    .map(([cents, word]) => `${(cents / 100).toFixed(2)} ${word}`);
+
+  it('gives every signed amount the opposite sign', () => {
+    fc.assert(
+      fc.property(fc.array(signed, { minLength: 1 }), (cells) => {
+        const rawRows = cells.map((c) => ['2024-01-02', 'Shop', c]);
+        expect(amounts(rawRows, true)).toEqual(amounts(rawRows, false).map((a) => -a));
+      }),
+    );
+  });
+
+  it('flipping twice gives the original amount', () => {
+    fc.assert(
+      fc.property(signed, (cell) => {
+        const [flipped] = amounts([['2024-01-02', 'Shop', cell]], true);
+        const text = flipped < 0 ? `-${(-flipped / 100).toFixed(2)}` : (flipped / 100).toFixed(2);
+        expect(amounts([['2024-01-02', 'Shop', text]], true)).toEqual(
+          amounts([['2024-01-02', 'Shop', cell]], false),
+        );
+      }),
+    );
+  });
+
+  it('never flips a cell that says its direction in a word', () => {
+    fc.assert(
+      fc.property(worded, (cell) => {
+        const rawRows = [['2024-01-02', 'Shop', cell]];
+        expect(amounts(rawRows, true)).toEqual(amounts(rawRows, false));
+        expect(hasDirectionWord(cell)).toBe(true);
+      }),
+    );
+    expect(hasDirectionWord('-12.00')).toBe(false);
+    expect(hasDirectionWord('S/ 12,00')).toBe(false); // a currency before the amount
+    expect(hasDirectionWord('12.00 EUR')).toBe(false);
+  });
+
+  it('leaves inflow/outflow columns and direction columns alone', () => {
+    const sides = [['2024-01-02', '', '12.00']];
+    expect(amounts(sides, true, ['date', 'inflow', 'outflow'])).toEqual([-1200]);
+    const direction = [['2024-01-02', '12.00', 'Af']];
+    expect(amounts(direction, true, ['date', 'amount', 'direction'])).toEqual([-1200]);
+  });
+
+  it('is offered for a signed amount column without a direction column', () => {
+    expect(canFlipSigns(['date', 'payee', 'amount'])).toBe(true);
+    expect(canFlipSigns(['date', 'amount', 'currency'])).toBe(true);
+    expect(canFlipSigns(['date', 'amount', 'direction'])).toBe(false);
+    expect(canFlipSigns(['date', 'inflow', 'outflow'])).toBe(false);
+  });
+
+  it('cautions when at least 6 amounts without a word are at least 2/3 positive', () => {
+    const cells = fc.array(fc.oneof(signed, worded, fc.constantFrom('', 'N/A', '0.00')));
+    fc.assert(
+      fc.property(cells, (column) => {
+        const plain = column.filter((c) => !hasDirectionWord(c));
+        const read = plain.map((c) => readImportAmount(c)).filter((a): a is number => !!a);
+        const positive = read.filter((a) => a > 0).length;
+        expect(mostlyPositive(column, 'dot')).toBe(
+          read.length >= 6 && positive * 3 >= read.length * 2,
+        );
+      }),
+    );
+    expect(mostlyPositive(['1', '2', '3', '4', '-5', '-6'], 'dot')).toBe(true);
+    expect(mostlyPositive(['1', '2', '3', '-4', '-5', '-6'], 'dot')).toBe(false);
+    expect(mostlyPositive(['1', '2', '3', '4', '5'], 'dot')).toBe(false);
   });
 });
 

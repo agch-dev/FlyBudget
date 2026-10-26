@@ -10,7 +10,9 @@ import {
   parseCsvRecords,
   normalizeDate,
   buildImportRows,
+  canFlipSigns,
   describeSkippedRows,
+  mostlyPositive,
   unknownDirectionWords,
   columnRolesFor,
   columnKeys,
@@ -58,6 +60,7 @@ import { currencyTextKey } from '../../utils/currencyText';
 import { useAccounts } from '../../hooks/useAccounts';
 import { usePreferencesStore } from '../../store/preferencesStore';
 import { CurrencySelect } from '../currency/CurrencySelect';
+import { accountTypeInfo } from '../../utils/accountTypes';
 import {
   currencyContext,
   currencyMapping,
@@ -143,6 +146,8 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
   const [dateFormatChoice, setDateFormatChoice] = useState<DateFormat | null>(null);
   const [numberFormatChoice, setNumberFormatChoice] = useState<NumberFormat | null>(null);
   const [outWord, setOutWord] = useState('');
+  // "Flip amount signs": the file writes purchases as positive amounts
+  const [outPositive, setOutPositive] = useState(false);
   // Excel: the sheets with anything in them, and the one being imported
   const [sheets, setSheets] = useState<Sheet[]>([]);
   // Each sheet's cells as text, numbers with a decimal point (for the header and the layout)
@@ -196,6 +201,7 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
     setDateFormatChoice(null);
     setNumberFormatChoice(null);
     setOutWord('');
+    setOutPositive(false);
     setSheets([]);
     setSheetTexts([]);
     setSheetIdx(0);
@@ -417,6 +423,7 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
     setDateFormatChoice(null);
     setNumberFormatChoice(null);
     setOutWord('');
+    setOutPositive(false);
 
     // The last import's settings, as long as this file still fits them (the same columns)
     if (savedSettings) {
@@ -426,6 +433,7 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
         setUsingSaved(true);
         // Only with the rest of the settings: it means something for this bank's files only
         setOutWord(savedSettings.outWord ?? '');
+        setOutPositive(savedSettings.outPositive === true);
         loadCsv(content, savedSettings.delimiter, savedSettings.skipRows, savedSettings);
         return;
       }
@@ -443,6 +451,7 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
     setSheetIdx(idx);
     setUsingSaved(layout.usingSaved);
     setOutWord(layout.usingSaved ? (savedSettings?.outWord ?? '') : '');
+    setOutPositive(layout.usingSaved && savedSettings?.outPositive === true);
     setRecords(texts[idx]);
     showTable(texts[idx], layout.skipRows, savedSettings);
     setStep('map');
@@ -536,6 +545,20 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
   ].filter((f): f is { what: string; format: string } => !!f);
   const hasDirection = roles.includes('direction');
   const needsOutWord = hasDirection && !outWord.trim() && detected.unknownDirections.length > 0;
+  const canFlip = canFlipSigns(roles);
+  // Advice only, on credit cards: purchases written as positive would import as money in
+  const isCredit =
+    accountTypeInfo(accounts.find((a) => a.id === accountId)?.type ?? '').group === 'credit';
+  const amountIdx = roles.indexOf('amount');
+  const suggestFlip = useMemo(() => {
+    if (!isCredit || !canFlip || outPositive || !numberFormat) return false;
+    const cells = sheetRows ? sheetText(sheetRows, numberFormat) : rawRows;
+    return mostlyPositive(
+      cells.map((row) => row[amountIdx] ?? ''),
+      numberFormat,
+      minorUnits(currency),
+    );
+  }, [isCredit, canFlip, outPositive, numberFormat, sheetRows, rawRows, amountIdx, currency]);
 
   // A column saying each row's currency: its values, and the currency each one means
   const currencyIdx = roles.indexOf('currency');
@@ -581,6 +604,7 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
       dateFormat,
       numberFormat,
       outWord,
+      outPositive: canFlip && outPositive,
       minor: minorUnits(target.currency),
       currencies: { names, account: target.currency },
     });
@@ -679,6 +703,10 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
           ? numberFormat
           : (known?.numberFormat ?? null),
         outWord: outWord.trim().slice(0, 50) || null,
+        // Not shown for this file: what the account knew is kept
+        ...(canFlip
+          ? { outPositive }
+          : ownSaved?.outPositive !== undefined && { outPositive: ownSaved.outPositive }),
         ...(currencyIdx !== -1 && { currencyColumn: keys[currencyIdx] }),
         ...(Object.keys(currencyNames).length && { currencyNames }),
       };
@@ -980,6 +1008,17 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
                 />
               </label>
             )}
+            {canFlip && (
+              <label className="flex items-center gap-2 self-end text-xs font-medium text-text-tertiary cursor-pointer max-md:min-h-11">
+                <input
+                  type="checkbox"
+                  checked={outPositive}
+                  onChange={(e) => setOutPositive(e.target.checked)}
+                  className="w-3.5 h-3.5 accent-brand-600"
+                />
+                <span>Flip amount signs</span>
+              </label>
+            )}
           </div>
           {(!dateFormat || !numberFormat || needsOutWord) && (
             <div className="flex items-start gap-2 px-3 py-2 text-sm bg-caution-subtle text-caution rounded-lg">
@@ -1003,6 +1042,15 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
                     )} means in the direction column. Type the word your bank uses for money going out; other words it doesn't know count as money in.`}
               </span>
             </div>
+          )}
+          {suggestFlip && (
+            <p className="flex items-start gap-2 px-3 py-2 text-sm bg-caution-subtle text-caution rounded-lg">
+              <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+              <span>
+                Most amounts in this file are positive. If purchases show as money in, tick 'Flip
+                amount signs'.
+              </span>
+            </p>
           )}
           {fromLastTime.length > 0 && (
             <p className="text-xs text-text-tertiary">
