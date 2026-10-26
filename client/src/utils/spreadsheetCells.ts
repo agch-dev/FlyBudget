@@ -1,6 +1,6 @@
 import type { NumberFormat } from './csv';
 
-// What the Excel reader (`xlsx.ts`) returns, and how a number is told apart from a date.
+// What the Excel readers (`xlsx.ts`, `xls.ts`) return, and how a number is told apart from a date.
 
 /** A cell as the file holds it: text, or a number (an amount, a reference) */
 export type Cell = string | number;
@@ -18,9 +18,18 @@ export const SPREADSHEET_MESSAGES = {
   damaged: "This Excel file is damaged and can't be read.",
   tooLarge: 'This Excel file is too large to import.',
   notWorkbook: "This file isn't an Excel workbook.",
-  unsupported:
-    "FlyBudget can't read this Excel file. Save it as .xlsx (without a password) and import that.",
+  tooOld:
+    "This Excel file is from an older Excel version FlyBudget can't read. Save it as .xlsx and import that.",
+  password: 'This Excel file has a password. Save a copy without one and import that.',
+  webPage:
+    'This file is a web page saved as .xls. Open it in Excel or LibreOffice, save it as .xlsx and import that.',
 } as const;
+
+/** The first bytes of an OLE compound file: an .xls, or an .xlsx with a password */
+export const OLE_SIGNATURE = [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1];
+
+/** An .xls file, or what an .xlsx unpacks to, may not be larger than this */
+export const MAX_WORKBOOK_BYTES = 200 * 1024 * 1024;
 
 /** The most cells a sheet may have once empty rows and columns are left out */
 const MAX_CELLS = 5_000_000;
@@ -69,7 +78,10 @@ const DAY_MS = 86_400_000;
  * Day 1 is 1 January 1900, or 2 January 1904 in files from old Mac versions (`date1904`).
  */
 export function serialToIsoDate(serial: number, date1904: boolean): string | null {
-  if (!Number.isFinite(serial) || serial < 0 || serial > 2_958_465) return null;
+  // Up to 31 December 9999
+  if (!Number.isFinite(serial) || serial < 0 || serial > (date1904 ? 2_957_003 : 2_958_465)) {
+    return null;
+  }
   // Excel counts a 29 February 1900 that never existed, so days after it are one too high
   const epoch = date1904 ? Date.UTC(1904, 0, 1) : Date.UTC(1899, 11, serial < 61 ? 31 : 30);
   return new Date(epoch + Math.floor(serial) * DAY_MS).toISOString().slice(0, 10);

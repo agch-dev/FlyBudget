@@ -8,14 +8,12 @@ import {
   type Sheet,
   type SparseRows,
   SPREADSHEET_MESSAGES,
+  MAX_WORKBOOK_BYTES,
 } from './spreadsheetCells';
 
 // Reads Excel workbooks (.xlsx, .xltx, .xlsm): a zip of XML files. Only what an import
 // needs: each sheet's cell values. Files come from banks, so they are untrusted input:
 // sizes are capped and nothing in the file is ever run or fetched.
-
-/** A workbook's unpacked files may not be larger than this in total */
-const MAX_UNPACKED_BYTES = 200 * 1024 * 1024;
 
 const corrupt = () => new SpreadsheetError(SPREADSHEET_MESSAGES.damaged);
 
@@ -216,7 +214,7 @@ function readSheet(
 /** Every visible worksheet of an .xlsx / .xltx / .xlsm workbook, in the workbook's order */
 export async function readXlsx(bytes: Uint8Array): Promise<Sheet[]> {
   const entries = zipEntries(bytes);
-  const budget = { left: MAX_UNPACKED_BYTES };
+  const budget = { left: MAX_WORKBOOK_BYTES };
   const file = async (name: string) => {
     const entry = entries.get(name);
     return entry ? unzipText(bytes, entry, budget) : undefined;

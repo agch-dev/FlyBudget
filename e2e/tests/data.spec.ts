@@ -1,6 +1,7 @@
 import fs from 'fs';
 import type { Page } from '@playwright/test';
 import { test, expect, open, isoDay } from './fixtures';
+import { xls } from './xls';
 import { xlsx } from './xlsx';
 
 // Getting data in (CSV import) and out (CSV export, full backup) and restoring it.
@@ -619,6 +620,55 @@ test.describe('CSV import', () => {
     await expect(dialog.getByRole('combobox', { name: 'Column Fecha' })).toHaveValue('date');
 
     await dialog.getByRole('combobox', { name: 'Amounts' }).selectOption('comma');
+    await dialog.getByRole('button', { name: 'Preview' }).click();
+    await dialog.getByRole('button', { name: 'Import 2 Transactions' }).click();
+    await expect(dialog).toContainText('2 imported, 0 skipped');
+    const txs = await api.transactions(`?account_id=${savings.id}`);
+    expect(txs.map((t) => [t.date, t.payeeName, t.amount]).sort()).toEqual([
+      ['2026-05-03', 'COMPRA FARMASHOP', -161_025],
+      ['2026-05-11', 'REDIVA FARMASHOP', 4_530],
+    ]);
+  });
+
+  test('imports an Excel 97-2003 workbook (.xls) through the sheet picker', async ({
+    page,
+    api,
+  }) => {
+    const savings = await api.createAccount('Caja de ahorro', 0, 'savings');
+    await open(page, `/accounts/${savings.id}`);
+    await page.getByRole('button', { name: 'Import CSV' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Import Transactions' });
+    await expect(dialog).toContainText('CSV, Excel (.xlsx, .xls), or a CAMT.053 bank statement');
+    await dialog.getByLabel('Bank file').setInputFiles({
+      name: 'Movimientos.xls',
+      mimeType: 'application/vnd.ms-excel',
+      buffer: xls({
+        Resumen: [
+          ['Total', 'Moneda'],
+          [1234.5, 'Pesos'],
+        ],
+        Movimientos: [
+          ['Nombre', 'Moneda'],
+          ['Ana Perez', 'Pesos'],
+          ['Fecha', 'Concepto', 'Débito', 'Crédito', 'Saldo'],
+          [{ date: '2026-05-03' }, 'COMPRA FARMASHOP', 1610.25, '', 25627.1],
+          [{ date: '2026-05-11' }, 'REDIVA FARMASHOP', '', 45.3, 25672.4],
+        ],
+      }),
+    });
+
+    const sheet = dialog.getByRole('combobox', { name: 'Sheet' });
+    await expect(sheet).toHaveValue('1');
+    await expect(dialog.getByRole('spinbutton', { name: 'Rows above the header' })).toHaveValue(
+      '2',
+    );
+    await expect(dialog.getByRole('combobox', { name: 'Separator' })).toHaveCount(0);
+    await expect(dialog.getByRole('combobox', { name: 'Encoding' })).toHaveCount(0);
+    await sheet.selectOption('Resumen');
+    await expect(dialog.getByRole('combobox', { name: 'Column Total' })).toBeVisible();
+    await sheet.selectOption('Movimientos');
+    await expect(dialog.getByRole('combobox', { name: 'Column Débito' })).toHaveValue('outflow');
+
     await dialog.getByRole('button', { name: 'Preview' }).click();
     await dialog.getByRole('button', { name: 'Import 2 Transactions' }).click();
     await expect(dialog).toContainText('2 imported, 0 skipped');
