@@ -96,6 +96,12 @@ test('a card statement in pesos and dollars goes into each currency’s account'
   await expect(dialog.getByRole('combobox', { name: 'Currency of Dolares' })).toHaveValue('USD');
   await dialog.getByRole('button', { name: 'Preview' }).click();
   await expect(dialog).toContainText('4 transactions found. 4 duplicates detected.');
+  // Nothing new here: go straight on to the dollars, which are already there too
+  await expect(dialog.getByRole('button', { name: 'Import 0 Transactions' })).toBeDisabled();
+  await dialog.getByRole('button', { name: 'Preview the USD rows' }).click();
+  await expect(dialog).toContainText('1 transactions found. 1 duplicates detected.');
+  // The pesos were dealt with: not offered again
+  await expect(dialog).not.toContainText('in UYU');
 });
 
 test('a currency column with only the account’s currency imports as usual', async ({

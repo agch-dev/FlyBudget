@@ -600,6 +600,8 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
    */
   function switchAccount(id: string) {
     const target = { id, currency: currencyOf(id) };
+    // This account's rows are dealt with (imported, or nothing to import): not offered again
+    if (currency) setFinished((prev) => (prev.includes(currency) ? prev : [...prev, currency]));
     const load = loadId.current;
     if (source === 'camt') {
       // That account's last statement, to notice one for another account
@@ -763,6 +765,8 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
     statementCurrency && currency && statementCurrency !== currency ? statementCurrency : null;
   // The file's rows in currencies not imported yet, offered once this import is done
   const leftover = Object.entries(otherCurrencies).filter(([code]) => !finished.includes(code));
+  // Every row here is a duplicate or unticked (or there are none): the others can come next
+  const nothingHere = previewRows.length === excluded.size;
 
   return (
     <Modal isOpen={isOpen} onClose={handleClose} title="Import Transactions" size="lg">
@@ -1150,10 +1154,10 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
                 <span className="block">
                   {count} {count === 1 ? 'row' : 'rows'} in {code}{' '}
                   {count === 1 ? "isn't" : "aren't"} imported here.
-                  {previewRows.length > 0 &&
+                  {!nothingHere &&
                     ` You can import ${count === 1 ? 'it' : 'them'} into a ${code} account after this.`}
                 </span>
-                {previewRows.length === 0 && (
+                {nothingHere && (
                   <OtherAccountPicker
                     key={`${accountId}:${code}`}
                     accountId={accountId}
