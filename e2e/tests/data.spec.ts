@@ -593,6 +593,8 @@ test.describe('CSV import', () => {
     await expect(dialog).not.toContainText('Choose the format your bank uses');
     await expect(dialog.getByRole('combobox', { name: 'Separator' })).toHaveCount(0);
     await expect(dialog.getByRole('combobox', { name: 'Encoding' })).toHaveCount(0);
+    // Real dates are days already: no order to pick
+    await expect(dialog.getByRole('combobox', { name: 'Dates' })).toHaveCount(0);
 
     await sheet.selectOption('Resumen');
     await expect(dialog.getByRole('combobox', { name: 'Column Total' })).toBeVisible();

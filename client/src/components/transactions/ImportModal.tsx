@@ -923,21 +923,25 @@ export function ImportModal({ isOpen, onClose, accountId: openedFor }: Props) {
                 className={selectClass}
               />
             </label>
-            <label className={optionLabelClass}>
-              <span>Dates</span>
-              <select
-                value={dateFormat ?? ''}
-                onChange={(e) => setDateFormatChoice(e.target.value as DateFormat)}
-                className={selectClass}
-              >
-                {!dateFormat && <option value="">Choose…</option>}
-                {Object.entries(DATE_FORMAT_LABELS).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </label>
+            {/* Year-first or written-out dates (and a sheet's date cells) read the same in any
+                order: nothing to choose */}
+            {detected.dateShown && (
+              <label className={optionLabelClass}>
+                <span>Dates</span>
+                <select
+                  value={dateFormat ?? ''}
+                  onChange={(e) => setDateFormatChoice(e.target.value as DateFormat)}
+                  className={selectClass}
+                >
+                  {!dateFormat && <option value="">Choose…</option>}
+                  {Object.entries(DATE_FORMAT_LABELS).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
             <label className={optionLabelClass}>
               <span>Amounts</span>
               <select
