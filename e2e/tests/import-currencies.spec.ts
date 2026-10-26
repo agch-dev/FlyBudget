@@ -14,6 +14,11 @@ const sample = (file: string) =>
     path.join(path.dirname(fileURLToPath(import.meta.url)), '../fixtures/two-currencies', file),
   );
 const CARD_CSV = sample('card-moneda-column.csv');
+// The same card's statement with a Pesos and a Dólares amount column, under account details
+const COLUMNS_CSV = sample('card-pesos-dolares-columns.csv');
+// As some exports write it, without a separator at the end of each line: the card's details
+// above are then as wide as the table
+const COLUMNS_CSV_NO_TRAILING = Buffer.from(COLUMNS_CSV.toString().replace(/,(\r?\n)/g, '$1'));
 
 const setCurrency = (api: Api, currency: string) => api.call('PUT', '/currency', { currency });
 
@@ -102,6 +107,110 @@ test('a card statement in pesos and dollars goes into each currency’s account'
   await expect(dialog).toContainText('1 transactions found. 1 duplicates detected.');
   // The pesos were dealt with: not offered again
   await expect(dialog).not.toContainText('in UYU');
+});
+
+const summary = async (api: Api, accountId: string) =>
+  (await api.transactions(`?account_id=${accountId}&from=2026-09-01`))
+    .map((t) => [t.date, t.payeeName, t.amount])
+    .sort((a, b) => String(a).localeCompare(String(b)));
+
+test.describe('on a Spanish-speaking device', () => {
+  test.use({ locale: 'es-UY' });
+
+  test('a card statement with one amount column per currency goes into each account', async ({
+    page,
+    api,
+  }) => {
+    await setCurrency(api, 'UYU');
+    const pesos = await api.createAccount('Visa pesos', 0, 'credit');
+    const dollars = await api.createAccount('Visa dollars', 0, 'credit', { currency: 'USD' });
+    await putInSection(page, pesos, 'Visa');
+    await putInSection(page, dollars, 'Visa');
+
+    await open(page, `/accounts/${pesos.id}`);
+    const dialog = await importFile(page, 'card.csv', COLUMNS_CSV);
+    // "Pesos" and "Dólares" could be several currencies: the card's section settles them
+    await expect(dialog.getByRole('combobox', { name: 'Column Pesos' })).toHaveValue('amount');
+    await expect(dialog.getByRole('combobox', { name: 'Column Dólares' })).toHaveValue('amount');
+    await expect(
+      dialog.getByRole('combobox', { name: 'Currency of the Pesos column' }),
+    ).toHaveValue('UYU');
+    await expect(
+      dialog.getByRole('combobox', { name: 'Currency of the Dólares column' }),
+    ).toHaveValue('USD');
+    // "Importe original" names no currency: left out
+    await expect(dialog.getByRole('combobox', { name: 'Column Importe original' })).toHaveValue(
+      'skip',
+    );
+
+    await dialog.getByRole('button', { name: 'Preview' }).click();
+    await expect(dialog).toContainText('2 transactions found. 0 duplicates detected.');
+    await expect(dialog).toContainText(
+      "3 rows in USD aren't imported here. You can import them into a USD account after this.",
+    );
+    await dialog.getByRole('button', { name: 'Import 2 Transactions' }).click();
+    await expect(dialog).toContainText('2 imported, 0 skipped');
+    await expect(dialog.getByRole('combobox', { name: 'Account for the USD rows' })).toHaveValue(
+      dollars.id,
+    );
+    await dialog.getByRole('button', { name: 'Preview the USD rows' }).click();
+    await expect(dialog).toContainText('3 transactions found. 0 duplicates detected.');
+    await dialog.getByRole('button', { name: 'Import 3 Transactions' }).click();
+    await expect(dialog).toContainText('3 imported, 0 skipped');
+    await dialog.getByRole('button', { name: 'Done' }).click();
+
+    // Nothing is converted: each account gets its own column's amounts
+    expect(await summary(api, pesos.id)).toEqual([
+      ['2026-09-19', 'Supermercado', 134_328],
+      ['2026-09-20', 'Pago Automatico', -1_382_126],
+    ]);
+    expect(await summary(api, dollars.id)).toEqual([
+      ['2026-09-04', 'Streaming', 999],
+      ['2026-09-21', 'Reembolso', -499],
+      ['2026-09-22', 'Hotel', 12_000],
+    ]);
+  });
+});
+
+test('the currency of an amount column FlyBudget can’t read is chosen and remembered', async ({
+  page,
+  api,
+}) => {
+  await setCurrency(api, 'UYU');
+  const pesos = await api.createAccount('Visa pesos', 0, 'credit');
+  const dollars = await api.createAccount('Visa dollars', 0, 'credit', { currency: 'USD' });
+
+  await open(page, `/accounts/${pesos.id}`);
+  let dialog = await importFile(page, 'card.csv', COLUMNS_CSV_NO_TRAILING);
+  // This device speaks English: "Dólares" isn't read as a currency
+  await expect(dialog.getByRole('combobox', { name: 'Column Dólares' })).toHaveValue('skip');
+  await dialog.getByRole('combobox', { name: 'Column Dólares' }).selectOption('amount');
+  const dolares = dialog.getByRole('combobox', { name: 'Currency of the Dólares column' });
+  await expect(dolares).toHaveValue('');
+  await expect(dialog).toContainText('Choose the currency of "Dólares" under the column.');
+  await expect(dialog.getByRole('button', { name: 'Preview' })).toBeDisabled();
+  await dolares.selectOption('USD');
+  await dialog.getByRole('button', { name: 'Preview' }).click();
+  await expect(dialog).toContainText("3 rows in USD aren't imported here.");
+  await dialog.getByRole('button', { name: 'Import 2 Transactions' }).click();
+  await expect(dialog).toContainText('2 imported, 0 skipped');
+  // Not in a section: the dollar card is offered, not chosen
+  const picker = dialog.getByRole('combobox', { name: 'Account for the USD rows' });
+  await expect(picker).toHaveValue('');
+  await picker.selectOption(dollars.id);
+  await dialog.getByRole('button', { name: 'Preview the USD rows' }).click();
+  await dialog.getByRole('button', { name: 'Import 3 Transactions' }).click();
+  await expect(dialog).toContainText('3 imported, 0 skipped');
+  await dialog.getByRole('button', { name: 'Done' }).click();
+  expect(await summary(api, dollars.id)).toHaveLength(3);
+
+  // Next month: the column and its currency are remembered
+  dialog = await importFile(page, 'card.csv', COLUMNS_CSV_NO_TRAILING);
+  await expect(
+    dialog.getByRole('combobox', { name: 'Currency of the Dólares column' }),
+  ).toHaveValue('USD');
+  await dialog.getByRole('button', { name: 'Preview' }).click();
+  await expect(dialog).toContainText('2 transactions found. 2 duplicates detected.');
 });
 
 test('a currency column with only the account’s currency imports as usual', async ({

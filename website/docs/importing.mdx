@@ -69,7 +69,8 @@ wrong transactions first, then import the file again.
 - **Account details above the table**: some banks (DKB and Comdirect, for example) start the
   file with a few lines about the account. FlyBudget finds the header under them by itself and
   shows how many rows it skipped under **Rows above the header**; change the number if it picked
-  the wrong row.
+  the wrong row. Empty lines don't count. The columns are guessed again from the new header,
+  unless you've already mapped some by hand.
 - **Dates**: `2026-01-05`, `20260105`, month first (`01/05/2026`), day first (`05/01/2026`,
   `05.01.2026`, `05-01-26`), a two-digit year first (`26-01-05`), with or without a time after
   them, and written-out dates like `Jan 5, 2026`.
@@ -179,6 +180,26 @@ statement goes straight through. If every row of a file is in the account's curr
 works as usual. A row without a currency is left out (the preview lists it), and if neither the
 account nor the budget has a currency yet, FlyBudget asks you to choose one in
 **Settings → Currencies** before importing a file with rows in two currencies.
+
+### One amount column per currency
+
+Other statements have an amount column for each currency instead (`Pesos` and `Dólares`,
+`Importe US$`, `Amount (EUR)`). A column whose header is a currency, with at most a word like
+_amount_ or _importe_ beside it, is mapped as **Amount**, with its currency picked underneath.
+Shared words like _pesos_ are settled the same way as above; when FlyBudget can't tell, or a
+column's header names no currency, choose it under the column. Each amount in a row that isn't
+zero or empty is its own transaction in that column's currency, so a row with an amount in both
+columns imports into both accounts. A row with no amount in any of them is left out as an
+amount.
+
+The rest works as with a currency column: the preview counts the amounts in other currencies, and
+the done step offers to import them into another account. FlyBudget remembers each column's
+currency for the account. If the file also has a currency column, two or more amount columns win
+over it. A single column named after a currency (`Amount (USD)`) is only a check: a currency
+column next to it still says each row's currency, and without one, importing it into an account
+in another currency imports nothing there and offers an account in USD instead.
+Amounts must have a sign (or a direction column): an **Inflow** and **Outflow** pair per currency
+isn't supported.
 
 ## Credit cards
 
