@@ -956,6 +956,129 @@ describe('buildImportRows with a currency column', () => {
   });
 });
 
+describe('buildImportRows with one amount column per currency', () => {
+  const roles: ColumnRole[] = ['date', 'payee', 'amount', 'amount'];
+  const columns = { 2: 'UYU', 3: 'USD' };
+  // A card statement with a Pesos and a Dólares column
+  const card = [
+    ['2026-09-04', 'Streaming', '0,00', '-9,99'],
+    ['2026-09-19', 'Supermercado', '-1.343,28', '0,00'],
+    ['2026-09-20', 'Pago', '13.821,26', ''],
+    ['2026-09-22', 'Hotel', '', '-120,00'],
+    ['2026-09-23', 'Both', '-10,00', '-1,00'],
+  ];
+  const into = (account: string | null, rows = card) => {
+    const result = buildImportRows(rows, roles, {
+      numberFormat: 'comma',
+      currencies: { account, columns },
+    });
+    if (typeof result === 'string') throw new Error(result);
+    return result;
+  };
+
+  it("imports each non-zero cell in the account's currency, and counts the others", () => {
+    const pesos = into('UYU');
+    expect(pesos.rows.map((r) => [r.payeeName, r.amount])).toEqual([
+      ['Supermercado', -134_328],
+      ['Pago', 1_382_126],
+      ['Both', -1000],
+    ]);
+    expect(pesos.skipped).toEqual([]);
+    expect(pesos.otherCurrencies).toEqual({ USD: 3 });
+    const dollars = into('USD');
+    expect(dollars.rows.map((r) => [r.payeeName, r.amount])).toEqual([
+      ['Streaming', -999],
+      ['Hotel', -12_000],
+      ['Both', -100],
+    ]);
+    expect(dollars.otherCurrencies).toEqual({ UYU: 3 });
+  });
+
+  it('skips a row where every amount is zero or blank', () => {
+    const result = into('UYU', [...card, ['2026-09-24', 'Nothing', '0,00', '']]);
+    expect(result.skipped).toEqual([{ row: 6, field: 'amount', value: '0,00' }]);
+  });
+
+  it('skips an amount it cannot read in its own currency only', () => {
+    const rows = [['2026-09-24', 'Odd', 'N/A', '-5,00']];
+    expect(into('UYU', rows)).toMatchObject({
+      rows: [],
+      skipped: [{ row: 1, field: 'amount', value: 'N/A' }],
+      otherCurrencies: { USD: 1 },
+    });
+    expect(into('USD', rows)).toMatchObject({ rows: [{ amount: -500 }], skipped: [] });
+  });
+
+  it('imports as before when every amount is in the account currency (one column is a check)', () => {
+    const one = buildImportRows(card, ['date', 'payee', 'amount', 'skip'], {
+      numberFormat: 'comma',
+      currencies: { account: 'UYU', columns: { 2: 'UYU' } },
+    });
+    const without = buildImportRows(card, ['date', 'payee', 'amount', 'skip'], {
+      numberFormat: 'comma',
+    });
+    expect(one).toEqual({ ...(without as object), otherCurrencies: {} });
+    // The same column into an account in another currency: nothing here, all for the switch
+    const other = buildImportRows(card.slice(0, 2), ['date', 'payee', 'skip', 'amount'], {
+      numberFormat: 'comma',
+      currencies: { account: 'UYU', columns: { 3: 'USD' } },
+    });
+    expect(other).toMatchObject({ rows: [], otherCurrencies: { USD: 1 } });
+  });
+
+  it('wins over a currency column', () => {
+    const result = buildImportRows(
+      [['2026-09-04', 'Streaming', '0,00', '-9,99', 'Pesos']],
+      [...roles, 'currency'],
+      { numberFormat: 'comma', currencies: { account: 'UYU', names: { pesos: 'UYU' }, columns } },
+    );
+    expect(result).toMatchObject({ rows: [], otherCurrencies: { USD: 1 } });
+  });
+
+  it('counts identical rows apart in each currency, so ids match a file of one currency', () => {
+    const rows = [
+      ['2026-09-30', 'Coffee', '-3,03', '-3,03'],
+      ['2026-09-30', 'Coffee', '-3,03', ''],
+    ];
+    const coffee = (n = 1) => generateImportId('2026-09-30', -303, 'Coffee', n);
+    expect(into('USD', rows).rows.map((r) => r.importedId)).toEqual([coffee()]);
+    expect(into('UYU', rows).rows.map((r) => r.importedId)).toEqual([coffee(), coffee(2)]);
+  });
+
+  it("splits a file between its currencies: each non-zero cell goes to exactly one account's import", () => {
+    const cell = fc.constantFrom('', '0,00', '-4,50', '12', 'N/A');
+    const row = fc.tuple(
+      fc.constantFrom('2026-01-02', 'nope'),
+      fc.constantFrom('Cafe', 'Shop'),
+      cell,
+      cell,
+    );
+    const nonZero = (v: string) => v !== '' && v !== '0,00';
+    fc.assert(
+      fc.property(fc.array(row, { maxLength: 30 }), (rawRows) => {
+        const [uyu, usd] = [into('UYU', rawRows), into('USD', rawRows)];
+        // Each currency's own column, read as a file of one currency
+        const alone = (idx: number) => {
+          const r = buildImportRows(
+            rawRows.filter((raw) => nonZero(raw[idx])),
+            [
+              'date',
+              'payee',
+              ...(idx === 2 ? ['amount', 'skip'] : ['skip', 'amount']),
+            ] as ColumnRole[],
+            { numberFormat: 'comma' },
+          );
+          if (typeof r === 'string') throw new Error(r);
+          return r.rows;
+        };
+        expect(uyu.rows).toEqual(alone(2));
+        expect(usd.rows).toEqual(alone(3));
+        expect(uyu.otherCurrencies.USD ?? 0).toBe(rawRows.filter((r) => nonZero(r[3])).length);
+      }),
+    );
+  });
+});
+
 describe('describeSkippedRows', () => {
   it('names each skipped row and its value', () => {
     expect(describeSkippedRows([{ row: 3, field: 'amount', value: 'N/A' }])).toBe(

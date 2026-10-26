@@ -180,6 +180,25 @@ works as usual. A row without a currency is left out (the preview lists it), and
 account nor the budget has a currency yet, FlyBudget asks you to choose one in
 **Settings → Currencies** before importing a file with rows in two currencies.
 
+### One amount column per currency
+
+Other statements have an amount column for each currency instead (`Pesos` and `Dólares`,
+`Importe US$`, `Amount (EUR)`). A column whose header is a currency, with at most a word like
+_amount_ or _importe_ beside it, is mapped as **Amount**, with its currency picked underneath.
+Shared words like _pesos_ are settled the same way as above; when FlyBudget can't tell, or a
+column's header names no currency, choose it under the column. Each amount in a row that isn't
+zero or empty is its own transaction in that column's currency, so a row with an amount in both
+columns imports into both accounts. A row with no amount in any of them is left out as an
+amount.
+
+The rest works as with a currency column: the preview counts the amounts in other currencies, and
+the done step offers to import them into another account. FlyBudget remembers each column's
+currency for the account. If the file also has a currency column, the amount columns win. A
+single column named after a currency (`Amount (USD)`) works as a check: imported into an account
+in another currency, nothing is imported there and FlyBudget offers an account in USD instead.
+Amounts must have a sign (or a direction column): an **Inflow** and **Outflow** pair per currency
+isn't supported.
+
 ## Credit cards
 
 Some banks export credit card purchases as positive numbers. If your purchases show up as money

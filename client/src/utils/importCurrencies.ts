@@ -1,6 +1,12 @@
 import { isCurrencyCode } from './currencies';
 import { currencyCandidates, currencyTextKey, readCurrency } from './currencyText';
-import { columnKeys, normalizeHeader, type ColumnRole } from './csv';
+import {
+  columnKeys,
+  normalizeHeader,
+  readImportAmount,
+  type ColumnRole,
+  type ImportSettings,
+} from './csv';
 import { sectionOf, type AccountSections } from './accountSections';
 import type { AccountType } from '../types';
 
@@ -67,6 +73,132 @@ export function markCurrencyColumn(
       ? savedIdx
       : findCurrencyColumn(headers, rows, roles, locales);
   return idx === -1 ? roles : roles.map((role, i) => (i === idx ? 'currency' : role));
+}
+
+/**
+ * Words that may stand beside a currency in the header of an amount column ("Importe US$",
+ * "Amount (EUR)"), compared after `currencyTextKey`. Never "Saldo" or "Balance": a balance
+ * column isn't one of transactions.
+ */
+const AMOUNT_WORDS = new Set(
+  [
+    'amount',
+    'amt',
+    'importe',
+    'imp', // Imp. US$
+    'monto',
+    'valor',
+    'betrag', // German
+    'bedrag', // Dutch
+    'montant', // French
+    'importo', // Italian
+    'belopp', // Swedish
+    'beløb', // Danish
+    'beløp', // Norwegian
+    'kwota', // Polish
+  ].map(currencyTextKey),
+);
+
+/**
+ * The currencies an amount column's header names: a currency word plus, at most, an amount
+ * word ("Pesos", "Dólares", "Importe US$", "Amount (EUR)"). Several for a word currencies share
+ * ("Pesos"), none for any other header.
+ */
+export function headerCurrencies(header: string, locales?: readonly string[]): string[] {
+  if (CURRENCY_HEADERS.has(normalizeHeader(header))) return []; // a currency column's
+  const parts = currencyTextKey(header).split(' ').filter(Boolean);
+  const readings = [
+    parts,
+    ...parts.flatMap((part, i) =>
+      AMOUNT_WORDS.has(part) && parts.length > 1 ? [parts.filter((_, j) => j !== i)] : [],
+    ),
+  ];
+  for (const words of readings) {
+    const found = currencyCandidates(words.join(' '), locales);
+    if (found.length) return found;
+  }
+  return [];
+}
+
+/** Whether every cell of a column with anything in it is an amount, and one has */
+function holdsAmounts(rows: string[][], column: number): boolean {
+  const values = rows.map((r) => r[column]?.trim() ?? '').filter(Boolean);
+  return (
+    values.length > 0 &&
+    values.every(
+      (v) => readImportAmount(v, 'dot') !== null || readImportAmount(v, 'comma') !== null,
+    )
+  );
+}
+
+/**
+ * The roles with the file's currencies marked: columns of amounts named after a currency
+ * (`Pesos`, `Dólares`) become `amount`, unless the saved settings say what they are; when there
+ * are none, the currency column is marked `currency` (`markCurrencyColumn`). One amount column
+ * per currency wins over a currency column.
+ */
+export function markCurrencyColumns(
+  headers: string[],
+  rows: string[][],
+  roles: ColumnRole[],
+  saved: Pick<ImportSettings, 'columns' | 'currencyColumn' | 'columnCurrencies'> | null,
+  locales?: readonly string[],
+): ColumnRole[] {
+  const keys = columnKeys(headers);
+  const named = (i: number) =>
+    Object.hasOwn(saved?.columnCurrencies ?? {}, keys[i]) ||
+    headerCurrencies(headers[i], locales).length > 0;
+  const marked = roles.map((role, i) =>
+    role === 'skip' &&
+    !Object.hasOwn(saved?.columns ?? {}, keys[i]) &&
+    named(i) &&
+    holdsAmounts(rows, i)
+      ? 'amount'
+      : role,
+  );
+  return marked.some((role, i) => role === 'amount' && named(i))
+    ? marked.map((role) => (role === 'currency' ? 'skip' : role))
+    : markCurrencyColumn(headers, rows, roles, saved?.currencyColumn, locales);
+}
+
+/**
+ * The currency of each amount column (by index), null where it isn't known: what the user
+ * chose now, else what was saved for that column (by key), else what its header says, settled
+ * by `context` when it could be several. Null for a file whose amount columns name no
+ * currency: then it's read as one currency.
+ */
+export function amountColumnCurrencies(
+  headers: string[],
+  roles: ColumnRole[],
+  {
+    context,
+    saved = {},
+    chosen = {},
+    locales,
+  }: {
+    context: readonly string[];
+    saved?: Record<string, string>;
+    chosen?: Record<string, string>;
+    locales?: readonly string[];
+  },
+): Record<number, string | null> | null {
+  const keys = columnKeys(headers);
+  const found: Record<number, string | null> = {};
+  let named = false;
+  roles.forEach((role, i) => {
+    if (role !== 'amount') return;
+    const key = keys[i];
+    if (Object.hasOwn(chosen, key) || (Object.hasOwn(saved, key) && isCurrencyCode(saved[key]))) {
+      named = true;
+      found[i] = Object.hasOwn(chosen, key) ? chosen[key] : saved[key];
+      return;
+    }
+    const candidates = headerCurrencies(headers[i], locales);
+    if (candidates.length) named = true;
+    const around = candidates.filter((c) => context.includes(c));
+    found[i] = candidates.length === 1 ? candidates[0] : around.length === 1 ? around[0] : null;
+  });
+  return named ? found : null;
 }
 
 /** One value of the currency column: as first written, and how many rows have it */

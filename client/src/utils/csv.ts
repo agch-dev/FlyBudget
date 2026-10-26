@@ -646,11 +646,17 @@ export interface ImportFormats {
   /** Decimals of the account's currency (2 unless given: none for yen) */
   minor?: number;
   /**
-   * With a `currency` column: what its values mean (keyed by `currencyTextKey`) and the
-   * account's currency. Once the file holds another currency, only the account's rows are
-   * imported; null (not known) imports every row, as without the column.
+   * The account's currency and how the file says each row's: a `currency` column's values
+   * (`names`, keyed by `currencyTextKey`), or `amount` columns that each hold one currency
+   * (`columns`, column index → ISO code), which win over a currency column. Once the file holds
+   * another currency, only the account's rows are imported; null (not known) imports every
+   * row, as without them.
    */
-  currencies?: { names: Record<string, string>; account: string | null };
+  currencies?: {
+    account: string | null;
+    names?: Record<string, string>;
+    columns?: Record<number, string>;
+  };
 }
 
 /**
@@ -692,30 +698,58 @@ export function buildImportRows(
   const sideAmount = (idx: number, raw: string[]) =>
     idx !== -1 && /\d/.test(raw[idx] ?? '') ? cellAmount(idx, raw) : 0;
 
+  // One amount column per currency (`Pesos`, `Dólares`): each non-zero cell is a transaction
+  const currencyColumns = roles.flatMap((role, i) =>
+    role === 'amount' && currencies?.columns && Object.hasOwn(currencies.columns, i)
+      ? [{ idx: i, currency: currencies.columns[i] }]
+      : [],
+  );
+  const perColumn = currencyColumns.length > 0;
   const rowCurrency = (raw: string[]) => {
     const key = currencyTextKey(raw[currencyIdx] ?? '');
-    return key && Object.hasOwn(currencies!.names, key) ? currencies!.names[key] : null;
+    const names = currencies?.names ?? {};
+    return key && Object.hasOwn(names, key) ? names[key] : null;
   };
+  /** The per-currency cells with something in them (unreadable ones too: not a zero) */
+  const filledCells = (raw: string[]) =>
+    currencyColumns.filter(({ idx }) => cellAmount(idx, raw) !== 0);
   const account = currencies?.account;
   // Only a file with rows not in the account's currency is split (another currency, or none);
   // otherwise the column changes nothing
   const split =
-    currencyIdx !== -1 && !!account && rawRows.some((raw) => rowCurrency(raw) !== account);
+    !!account &&
+    (perColumn
+      ? rawRows.some((raw) => filledCells(raw).some((c) => c.currency !== account))
+      : currencyIdx !== -1 && rawRows.some((raw) => rowCurrency(raw) !== account));
 
   const rows: ImportRow[] = [];
   const skipped: SkippedRow[] = [];
   const otherCurrencies: Record<string, number> = {};
+  const countOther = (currency: string) => {
+    // Counted, but not checked: that account's import reports what it can't read
+    otherCurrencies[currency] = (otherCurrencies[currency] ?? 0) + 1;
+  };
   const seen = new Map<string, number>();
   rawRows.forEach((raw, i) => {
-    if (split) {
+    // The amount cells this row is read from (-1: its inflow and outflow cells)
+    let cells = [amountIdx];
+    // Per currency: no cell with anything in it, reported as an amount below
+    let allZero = false;
+    if (perColumn) {
+      const filled = filledCells(raw);
+      const here = split ? filled.filter((c) => c.currency === account) : filled;
+      if (split) for (const c of filled) if (c.currency !== account) countOther(c.currency);
+      if (filled.length && !here.length) return; // only other currencies: theirs to import
+      allZero = !filled.length;
+      cells = allZero ? [currencyColumns[0].idx] : here.map((c) => c.idx);
+    } else if (split) {
       const currency = rowCurrency(raw);
       if (currency === null) {
         skipped.push({ row: i + 1, field: 'currency', value: raw[currencyIdx]?.trim() ?? '' });
         return;
       }
       if (currency !== account) {
-        // Counted, but not checked: that account's import reports what it can't read
-        otherCurrencies[currency] = (otherCurrencies[currency] ?? 0) + 1;
+        countOther(currency);
         return;
       }
     }
@@ -725,42 +759,49 @@ export function buildImportRows(
       return;
     }
 
-    let amount: number | null;
-    if (amountIdx !== -1) {
-      amount = cellAmount(amountIdx, raw);
-    } else {
-      // Some banks write debits in the outflow column as negative numbers
-      const inf = sideAmount(inflowIdx, raw);
-      const out = sideAmount(outflowIdx, raw);
-      amount = inf === null || out === null ? null : inf !== 0 ? Math.abs(inf) : -Math.abs(out);
-    }
-    if (amount !== null && directionIdx !== -1) {
-      // Banks like ING write every amount as positive and the direction beside it
-      const direction = readDirection(raw[directionIdx], outWord);
-      if (!direction) {
-        skipped.push({ row: i + 1, field: 'direction', value: raw[directionIdx] ?? '' });
-        return;
+    for (const idx of cells) {
+      let amount: number | null;
+      if (idx !== -1) {
+        amount = cellAmount(idx, raw);
+      } else {
+        // Some banks write debits in the outflow column as negative numbers
+        const inf = sideAmount(inflowIdx, raw);
+        const out = sideAmount(outflowIdx, raw);
+        amount = inf === null || out === null ? null : inf !== 0 ? Math.abs(inf) : -Math.abs(out);
       }
-      amount = direction === 'out' ? -Math.abs(amount) : Math.abs(amount);
-    }
-    if (!amount) {
-      const cells = amountIdx !== -1 ? [amountIdx] : [inflowIdx, outflowIdx];
-      const value = cells
-        .map((idx) => (idx !== -1 ? (raw[idx] ?? '') : ''))
-        .filter(Boolean)
-        .join(' / ');
-      skipped.push({ row: i + 1, field: 'amount', value });
-      return;
-    }
+      if (amount !== null && directionIdx !== -1) {
+        // Banks like ING write every amount as positive and the direction beside it
+        const direction = readDirection(raw[directionIdx], outWord);
+        if (!direction) {
+          skipped.push({ row: i + 1, field: 'direction', value: raw[directionIdx] ?? '' });
+          return;
+        }
+        amount = direction === 'out' ? -Math.abs(amount) : Math.abs(amount);
+      }
+      if (!amount) {
+        const shown =
+          idx === -1
+            ? [inflowIdx, outflowIdx]
+            : allZero
+              ? currencyColumns.map((c) => c.idx)
+              : [idx];
+        const value = shown
+          .map((c) => (c !== -1 ? (raw[c] ?? '') : ''))
+          .filter(Boolean)
+          .join(' / ');
+        skipped.push({ row: i + 1, field: 'amount', value });
+        continue; // a row in several currencies goes on with its other cells
+      }
 
-    // Same limits as the server, so one long memo can't fail the whole import
-    const payeeName = payeeIdx !== -1 ? raw[payeeIdx]?.slice(0, 500) || null : null;
-    const notes = notesIdx !== -1 ? raw[notesIdx]?.slice(0, 5000) || null : null;
-    const key = generateImportId(date, amount, payeeName ?? '');
-    const occurrence = (seen.get(key) ?? 0) + 1;
-    seen.set(key, occurrence);
-    const importedId = generateImportId(date, amount, payeeName ?? '', occurrence);
-    rows.push({ date, amount, payeeName, notes, importedId });
+      // Same limits as the server, so one long memo can't fail the whole import
+      const payeeName = payeeIdx !== -1 ? raw[payeeIdx]?.slice(0, 500) || null : null;
+      const notes = notesIdx !== -1 ? raw[notesIdx]?.slice(0, 5000) || null : null;
+      const key = generateImportId(date, amount, payeeName ?? '');
+      const occurrence = (seen.get(key) ?? 0) + 1;
+      seen.set(key, occurrence);
+      const importedId = generateImportId(date, amount, payeeName ?? '', occurrence);
+      rows.push({ date, amount, payeeName, notes, importedId });
+    }
   });
   return { rows, skipped, otherCurrencies };
 }

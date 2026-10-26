@@ -1,14 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
 import {
+  amountColumnCurrencies,
   currencyContext,
   currencyMapping,
   currencyValues,
   findCurrencyColumn,
+  headerCurrencies,
   markCurrencyColumn,
+  markCurrencyColumns,
   followUpAccounts,
 } from './importCurrencies';
 import type { ColumnRole } from './csv';
+import { CURRENCY_CODES } from './currencies';
 import type { ImportAccount } from './importCurrencies';
 import type { AccountType } from '../types';
 
@@ -100,6 +104,149 @@ describe('markCurrencyColumn', () => {
   it('never takes a column mapped to something else', () => {
     const taken: ColumnRole[] = ['date', 'amount', 'payee', 'notes'];
     expect(markCurrencyColumn(headers, rows, taken, 'Kind', EN)).toEqual(taken);
+  });
+});
+
+describe('headerCurrencies', () => {
+  const ES = ['en', 'es'];
+
+  it('reads a currency word, alone or with an amount word', () => {
+    expect(headerCurrencies('Amount (EUR)', EN)).toEqual(['EUR']);
+    expect(headerCurrencies('Importe US$', EN)).toEqual(['USD']);
+    expect(headerCurrencies('Imp. U$S', EN)).toEqual(['USD']);
+    expect(headerCurrencies('USD', EN)).toEqual(['USD']);
+    expect(headerCurrencies('Pesos', EN)).toContain('UYU');
+    expect(headerCurrencies('Pesos', EN)).toContain('ARS');
+    // Spanish names on a Spanish-speaking device
+    expect(headerCurrencies('Dólares', ES)).toContain('USD');
+    expect(headerCurrencies('Dólares', EN)).toEqual([]);
+  });
+
+  it('reads every currency code back, however the header puts it', () => {
+    fc.assert(
+      fc.property(
+        fc.constantFrom(...CURRENCY_CODES),
+        fc.constantFrom('Amount (%)', 'Importe %', '% amount', '%', 'imp. %', 'Betrag in %'),
+        (code, shape) => {
+          const header = shape.replace('%', code);
+          const read = headerCurrencies(header, EN);
+          // "in" is no amount word: that header isn't one
+          expect(read).toEqual(shape.includes(' in ') ? [] : [code]);
+        },
+      ),
+    );
+  });
+
+  it('needs the header to be only that', () => {
+    for (const header of [
+      'Amount',
+      'Importe original',
+      'Saldo US$',
+      'Balance (EUR)',
+      'Fecha',
+      'Descripción',
+      'Currency',
+      'Moneda',
+      'Amount in USD paid',
+      '',
+    ]) {
+      expect(headerCurrencies(header, ES), header).toEqual([]);
+    }
+  });
+});
+
+describe('markCurrencyColumns', () => {
+  const headers = ['Fecha', 'Descripción', 'Importe original', 'Pesos', 'Dólares', 'Moneda'];
+  const rows = [
+    ['04/09/2026', 'Streaming', '0,00', '0,00', '9,99', 'USD'],
+    ['19/09/2026', 'Super', '0,00', '1.343,28', '', 'UYU'],
+  ];
+  const roles: ColumnRole[] = ['date', 'payee', 'skip', 'skip', 'skip', 'skip'];
+  const ES = ['en', 'es'];
+
+  it('makes the columns named after a currency amounts, and leaves the currency column out', () => {
+    expect(markCurrencyColumns(headers, rows, roles, null, ES)).toEqual([
+      'date',
+      'payee',
+      'skip',
+      'amount',
+      'amount',
+      'skip',
+    ]);
+    // In English, "Dólares" is the user's to map
+    expect(markCurrencyColumns(headers, rows, roles, null, EN)).toEqual([
+      'date',
+      'payee',
+      'skip',
+      'amount',
+      'skip',
+      'skip',
+    ]);
+  });
+
+  it('finds the currency column when no column is named after a currency', () => {
+    const plain = ['Fecha', 'Descripción', 'Importe original', 'Importe', 'Otro', 'Moneda'];
+    expect(markCurrencyColumns(plain, rows, roles, null, ES)[5]).toBe('currency');
+  });
+
+  it('only takes columns of amounts that the saved settings left alone', () => {
+    const words = [['2026-09-04', 'x', '', 'many', '', '']];
+    expect(markCurrencyColumns(headers, words, roles, null, ES)[3]).toBe('skip');
+    const saved = { columns: { Pesos: 'skip' as const }, columnCurrencies: {} };
+    expect(markCurrencyColumns(headers, rows, roles, saved, ES)[3]).toBe('skip');
+  });
+});
+
+describe('amountColumnCurrencies', () => {
+  const headers = ['Fecha', 'Pesos', 'Dólares', 'Importe'];
+  const roles: ColumnRole[] = ['date', 'amount', 'amount', 'skip'];
+
+  it("reads each amount column's currency, settling shared words by the accounts around", () => {
+    expect(
+      amountColumnCurrencies(headers, roles, { context: ['UYU', 'USD'], locales: ['en', 'es'] }),
+    ).toEqual({ 1: 'UYU', 2: 'USD' });
+    // In English "Dólares" isn't read, and with no peso around neither is "Pesos"
+    expect(amountColumnCurrencies(headers, roles, { context: ['EUR'], locales: EN })).toEqual({
+      1: null,
+      2: null,
+    });
+  });
+
+  it('prefers what the user chose now, then what was saved for that column', () => {
+    expect(
+      amountColumnCurrencies(headers, roles, {
+        context: ['UYU'],
+        saved: { Pesos: 'ARS', Dólares: 'USD' },
+        chosen: { Pesos: 'UYU' },
+        locales: EN,
+      }),
+    ).toEqual({ 1: 'UYU', 2: 'USD' });
+    // A saved value that isn't a currency is not kept
+    expect(
+      amountColumnCurrencies(headers, roles, {
+        context: [],
+        saved: { Dólares: 'XXX' },
+        locales: EN,
+      }),
+    ).toEqual({ 1: null, 2: null });
+  });
+
+  it('asks for every amount column once one is named after a currency', () => {
+    const plainToo: ColumnRole[] = ['date', 'amount', 'skip', 'amount'];
+    expect(amountColumnCurrencies(headers, plainToo, { context: ['UYU'], locales: EN })).toEqual({
+      1: 'UYU',
+      3: null,
+    });
+  });
+
+  it('is null for a file whose amount columns name no currency', () => {
+    const plain = ['Date', 'Amount', 'Inflow'];
+    expect(
+      amountColumnCurrencies(plain, ['date', 'amount', 'inflow'], {
+        context: ['UYU'],
+        locales: EN,
+      }),
+    ).toBeNull();
   });
 });
 
